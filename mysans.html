@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MY SANS — JIAHUI</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: #04050c; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #wrap { position: relative; line-height: 0; box-shadow: 0 0 70px rgba(80,110,255,.18); }
+  canvas {
+    width: min(960px, 100vw);
+    height: auto; max-height: 100vh;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    display: block; background: #000;
+  }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="960" height="720"></canvas></div>
+
+<script>
+"use strict";
+/* ==========================================================
+   MY SANS — JIAHUI
+   An undertale-STYLE fan story. Every pixel drawn by hand
+   in code — no borrowed assets, no sound (yet).
+   Kembangan Path · night · rain.
+   ========================================================== */
+
+const W = 320, H = 240, SCALE = 3;
+const cvs = document.getElementById("game");
+const ctx = cvs.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+
+const FONT = '"Press Start 2P", monospace';
+function setFont(g, s = 8) { g.font = s + "px " + FONT; g.textBaseline = "top"; }
+
+/* ---------------- input ---------------- */
+const keys = {};
+let zHit = false, xHit = false;
+addEventListener("keydown", e => {
+  if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(e.key)) e.preventDefault();
+  keys[e.code] = true;
+  if ((e.code === "KeyZ" || e.code === "Enter" || e.code === "Space") && !e.repeat) zHit = true;
+  if (e.code === "KeyX" && !e.repeat) xHit = true;
+  if (e.code === "KeyR" && mode === "end") location.reload();
+});
+addEventListener("keyup", e => keys[e.code] = false);
+addEventListener("mousedown", () => { zHit = true; });
+const left  = () => keys.ArrowLeft || keys.KeyA;
+const right = () => keys.ArrowRight || keys.KeyD;
+const up    = () => keys.ArrowUp || keys.KeyW;
+const down  = () => keys.ArrowDown || keys.KeyS;
+
+/* ---------------- tiny helpers ---------------- */
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = t => t * t * (3 - 2 * t);
+function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+
+/* typewriter */
+function tw(text, speed = 28) { return { text, n: 0, speed, done: false }; }
+function twUpdate(t, dt) {
+  if (!t || t.done) return;
+  t.n += dt * t.speed;
+  if (t.n >= t.text.length) { t.n = t.text.length; t.done = true; }
+}
+function twSkip(t) { if (t) { t.n = t.text.length; t.done = true; } }
+function twText(t) { return t ? t.text.slice(0, Math.floor(t.n)) : ""; }
+
+function wrap(g, text, x, y, maxW, lh, color) {
+  g.fillStyle = color;
+  const words = text.split(" ");
+  let line = "", yy = y;
+  for (const w2 of words) {
+    const test = line ? line + " " + w2 : w2;
+    if (g.measureText(test).width > maxW && line) {
+      g.fillText(line, x, yy);
+      yy += lh; line = w2;
+    } else line = test;
+  }
+  if (line) g.fillText(line, x, yy);
+  return yy + lh;
+}
+
+/* ---------------- heart sprite ---------------- */
+function drawHeart(g, x, y, s = 1, color = "#ff2038") {
+  const P = [[1,0],[2,0],[4,0],[5,0],[0,1],[3,1],[6,1],[0,2],[6,2],[1,3],[5,3],[2,4],[4,4],[3,5]];
+  g.fillStyle = color;
+  for (const [px2, py] of P) g.fillRect(x + px2 * s, y + py * s, s, s);
+  g.fillRect(x + 1 * s, y + 1 * s, s, s); g.fillRect(x + 2 * s, y + 1 * s, s, s);
+  g.fillRect(x + 4 * s, y + 1 * s, s, s); g.fillRect(x + 5 * s, y + 1 * s, s, s);
+  g.fillRect(x + 1 * s, y + 2 * s, s * 5, s);
+  g.fillRect(x + 2 * s, y + 3 * s, s * 3, s);
+  g.fillRect(x + 3 * s, y + 4 * s, s, s);
+  g.fillStyle = "rgba(255,255,255,.8)";
+  g.fillRect(x + 1 * s, y + 1 * s, s, s);
+}
+
+/* ==========================================================
+   PEOPLE (overworld pixel sprites, hand-painted)
+   ========================================================== */
+function drawPerson(g, x, y, o) {
+  /* o: dir(down/up/left/right), step(0/1), hair, skin, jacket, jhi, shorts, tall, pockets, glow(0..1), t */
+  const tall = o.tall || 0;
+  const bob = o.walking ? (o.step ? -1 : 0) : Math.round(Math.sin((o.t || 0) * 2)) * .5 | 0;
+  y += bob - tall;
+  const J = o.jacket, JH = o.jhi, SKIN = o.skin, HAIR = o.hair;
+  const dir = o.dir || "down";
+
+  /* legs + slippers */
+  g.fillStyle = SKIN;
+  const lo = o.walking ? (o.step ? 1 : -1) : 0;
+  if (dir === "left" || dir === "right") {
+    g.fillRect(x + 4, y + 17 + tall, 3, 4 - lo);
+    g.fillRect(x + 8, y + 17 + tall, 3, 4 + lo);
+  } else {
+    g.fillRect(x + 3 - (o.walking ? lo : 0), y + 17 + tall, 3, 4);
+    g.fillRect(x + 8 + (o.walking ? lo : 0), y + 17 + tall, 3, 4);
+  }
+  g.fillStyle = "#f2f2f2";
+  g.fillRect(x + 2, y + 21 + tall, 4, 2);
+  g.fillRect(x + 8, y + 21 + tall, 4, 2);
+  g.fillStyle = "#ff8fb0";
+  g.fillRect(x + 3, y + 21 + tall, 2, 1);
+  g.fillRect(x + 9, y + 21 + tall, 2, 1);
+
+  /* shorts (black w/ white stripe) */
+  g.fillStyle = o.shorts;
+  g.fillRect(x + 2, y + 14, 10, 3 + tall);
+  g.fillStyle = "#e8e8e8";
+  g.fillRect(x + 2, y + 15, 10, 1);
+
+  /* jacket torso */
+  g.fillStyle = J;
+  g.fillRect(x + 1, y + 7, 12, 7);
+  g.fillStyle = JH;
+  g.fillRect(x + 1, y + 7, 12, 1);
+  /* hood bump behind head */
+  g.fillStyle = JH;
+  g.fillRect(x + 3, y + 6, 8, 1);
+  if (dir === "up") { g.fillRect(x + 3, y + 3, 8, 4); g.fillStyle = J; g.fillRect(x + 4, y + 4, 6, 3); }
+  /* zipper + drawstrings (front only) */
+  if (dir === "down") {
+    g.fillStyle = "#dfe8f2";
+    g.fillRect(x + 6, y + 7, 1, 7);
+    g.fillRect(x + 4, y + 8, 1, 2);
+    g.fillRect(x + 9, y + 8, 1, 2);
+  }
+  /* arms / pockets */
+  g.fillStyle = J;
+  if (o.pockets && dir === "down") {
+    g.fillRect(x, y + 8, 2, 4); g.fillRect(x + 12, y + 8, 2, 4);
+    g.fillRect(x + 1, y + 11, 3, 2); g.fillRect(x + 10, y + 11, 3, 2);
+  } else {
+    const sw = o.walking ? lo : 0;
+    g.fillRect(x, y + 8 + sw, 2, 5); g.fillRect(x + 12, y + 8 - sw, 2, 5);
+    g.fillStyle = SKIN;
+    g.fillRect(x, y + 13 + sw, 2, 1); g.fillRect(x + 12, y + 13 - sw, 2, 1);
+  }
+
+  /* head */
+  g.fillStyle = SKIN;
+  g.fillRect(x + 3, y + 1, 8, 6);
+  g.fillStyle = HAIR;
+  if (dir === "up") {
+    g.fillRect(x + 3, y, 8, 6);
+  } else if (dir === "down") {
+    g.fillRect(x + 3, y, 8, 2);
+    g.fillRect(x + 3, y + 2, 1, 3); g.fillRect(x + 10, y + 2, 1, 3);
+    g.fillRect(x + 4, y + 2, 2, 1); g.fillRect(x + 8, y + 2, 2, 1);
+  } else {
+    g.fillRect(x + 3, y, 8, 2);
+    const bx = dir === "left" ? x + 9 : x + 3;
+    g.fillRect(bx, y + 2, 2, 4);
+    g.fillRect(x + 3, y + 2, 8, 1);
+  }
+  /* face */
+  if (dir === "down") {
+    g.fillStyle = "#20222c";
+    g.fillRect(x + 5, y + 4, 1, 1); g.fillRect(x + 8, y + 4, 1, 1);
+    if (o.glow > 0) {
+      const c = Math.floor((o.t || 0) * 8) % 2 ? "#ffa030" : "#40c8ff";
+      g.fillStyle = c;
+      g.fillRect(x + 5, y + 4, 1, 1);
+      g.globalAlpha = .5 * o.glow;
+      g.fillRect(x + 4, y + 3, 3, 3);
+      g.globalAlpha = 1;
+    }
+  } else if (dir === "left" || dir === "right") {
+    g.fillStyle = "#20222c";
+    g.fillRect(dir === "left" ? x + 4 : x + 9, y + 4, 1, 1);
+  }
+}
+
+const FRISK = { hair: "#7a4a28", skin: "#f2c992", jacket: "#2a5ad8", jhi: "#4a7af8", shorts: "#20222c" };
+const JIAHUI = { hair: "#1c1e26", skin: "#f0c890", jacket: "#2a5ad8", jhi: "#4a7af8", shorts: "#20222c", tall: 2, pockets: true };
+
+/* ---------------- portrait head (dialogue) ---------------- */
+function drawHead(g, x, y, kind, t) {
+  /* 36x36 pixel head of jiahui */
+  g.fillStyle = "#000"; g.fillRect(x, y, 36, 36);
+  g.strokeStyle = "#fff"; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, 35, 35);
+  const s = "#f0c890", h = "#1c1e26";
+  g.fillStyle = s; g.fillRect(x + 8, y + 8, 20, 20);
+  g.fillStyle = h;
+  g.fillRect(x + 6, y + 4, 24, 6);
+  g.fillRect(x + 6, y + 8, 3, 10); g.fillRect(x + 27, y + 8, 3, 10);
+  g.fillRect(x + 9, y + 9, 4, 2); g.fillRect(x + 15, y + 9, 5, 2); g.fillRect(x + 23, y + 9, 4, 2);
+  g.fillRect(x + 12, y + 7, 3, 3); g.fillRect(x + 20, y + 7, 3, 3);
+  /* ears */
+  g.fillStyle = s; g.fillRect(x + 5, y + 16, 3, 5); g.fillRect(x + 28, y + 16, 3, 5);
+  /* eyes */
+  if (kind === "glow") {
+    g.fillStyle = "#0a0a12";
+    g.fillRect(x + 11, y + 16, 6, 4); g.fillRect(x + 20, y + 16, 6, 4);
+    const c = Math.floor(t * 9) % 2 ? "#ffa030" : "#40c8ff";
+    g.fillStyle = c;
+    g.fillRect(x + 12, y + 17, 3, 2);
+    g.globalAlpha = .45;
+    g.fillRect(x + 10, y + 15, 7, 6);
+    g.globalAlpha = 1;
+    g.fillStyle = "#fff";
+    g.fillRect(x + 13, y + 17, 1, 1);
+  } else if (kind === "serious") {
+    g.fillStyle = "#20222c";
+    g.fillRect(x + 11, y + 17, 5, 2); g.fillRect(x + 21, y + 17, 5, 2);
+  } else {
+    g.fillStyle = "#20222c";
+    g.fillRect(x + 11, y + 17, 5, 1); g.fillRect(x + 21, y + 17, 5, 1);
+    g.fillRect(x + 11, y + 16, 1, 1); g.fillRect(x + 25, y + 16, 1, 1);
+  }
+  /* nose + tired smile */
+  g.fillStyle = "#caa070"; g.fillRect(x + 17, y + 21, 2, 1);
+  g.fillStyle = "#20222c";
+  if (kind === "glow") {
+    g.fillRect(x + 13, y + 25, 10, 1);
+  } else {
+    g.fillRect(x + 14, y + 25, 8, 1);
+    g.fillRect(x + 13, y + 24, 1, 1); g.fillRect(x + 22, y + 24, 1, 1);
+  }
+}
+
+/* ==========================================================
+   OVERWORLD — Kembangan Path at night, in the rain
+   ========================================================== */
+const WORLD_W = 1280;
+const player = { x: 60, y: 176, dir: "down", walkT: 0, walking: false };
+const npc = { x: 1064, y: 168, t: 0, glow: 0 };
+let camX = 0;
+let met1 = false, met2 = false;
+
+/* deterministic city detail */
+const R1 = rnd(77);
+const blocks = [];
+{
+  let bx = -40;
+  const cols = ["#31456e", "#3c5a74", "#54467a", "#2e5e60", "#5e4660"];
+  while (bx < WORLD_W + 80) {
+    const w2 = 60 + R1() * 60, h2 = 30 + R1() * 16;
+    blocks.push({ x: bx, w: w2, h: h2, c: cols[Math.floor(R1() * cols.length)], seed: Math.floor(R1() * 999) });
+    bx += w2 + 6;
+  }
+}
+const flowers = [];
+{
+  const R2 = rnd(31);
+  for (let i = 0; i < 90; i++)
+    flowers.push({ x: R2() * WORLD_W, y: 196 + R2() * 38, c: ["#ff6a8e","#ffd23f","#7cf25c","#5ce1e6","#d88cff"][Math.floor(R2() * 5)] });
+}
+
+/* rain */
+const drops = [];
+for (let i = 0; i < 110; i++) drops.push({ x: Math.random() * (W + 40), y: Math.random() * H, s: 150 + Math.random() * 120 });
+const splashes = [];
+
+/* vehicles */
+const cars = [];
+let carTimer = 1, busTimer = 3.5;
+const CAR_COLORS = ["#d84a4a", "#e8b23a", "#4a90d8", "#b8bcc4", "#7a52c8", "#48c87c"];
+
+function updateWorld(dt, allowMove) {
+  player.walking = false;
+  if (allowMove) {
+    let dx = 0, dy = 0;
+    if (left()) dx -= 1; if (right()) dx += 1;
+    if (up()) dy -= 1; if (down()) dy += 1;
+    if (dx || dy) {
+      const l2 = Math.hypot(dx, dy);
+      player.x += dx / l2 * 62 * dt;
+      player.y += dy / l2 * 62 * dt;
+      player.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+      player.walking = true;
+      player.walkT += dt;
+    }
+    player.x = clamp(player.x, 8, WORLD_W - 20);
+    player.y = clamp(player.y, 146, 212);
+  }
+  camX = clamp(player.x - 150, 0, WORLD_W - W);
+  npc.t += dt;
+
+  /* vehicles */
+  carTimer -= dt;
+  if (carTimer <= 0) {
+    carTimer = 1.6 + Math.random() * 2.4;
+    const dir = Math.random() < .5 ? 1 : -1;
+    cars.push({ type: "car", x: dir > 0 ? camX - 60 : camX + W + 60, dir, sp: 65 + Math.random() * 40, y: dir > 0 ? 118 : 103, c: CAR_COLORS[Math.floor(Math.random() * 6)] });
+  }
+  busTimer -= dt;
+  if (busTimer <= 0) {
+    busTimer = 9 + Math.random() * 5;
+    cars.push({ type: "bus", x: camX - 90, dir: 1, sp: 52, y: 113 });
+  }
+  for (let i = cars.length - 1; i >= 0; i--) {
+    const c = cars[i];
+    c.x += c.dir * c.sp * dt;
+    if (c.x < camX - 160 || c.x > camX + W + 160) cars.splice(i, 1);
+  }
+
+  /* rain */
+  for (const d of drops) {
+    d.y += d.s * dt; d.x -= d.s * .22 * dt;
+    if (d.y > H) {
+      d.y = -6; d.x = Math.random() * (W + 60);
+      if (Math.random() < .5) splashes.push({ x: Math.random() * W, y: 140 + Math.random() * 96, t: 0 });
+    }
+  }
+  for (let i = splashes.length - 1; i >= 0; i--) {
+    splashes[i].t += dt;
+    if (splashes[i].t > .35) splashes.splice(i, 1);
+  }
+}
+
+function drawWorld(g, t) {
+  /* sky */
+  const sky = g.createLinearGradient(0, 0, 0, 96);
+  sky.addColorStop(0, "#070a1e"); sky.addColorStop(1, "#141b3e");
+  g.fillStyle = sky; g.fillRect(0, 0, W, 96);
+  /* moon glow behind cloud */
+  g.fillStyle = "rgba(220,230,255,.13)";
+  g.beginPath(); g.arc(250 - camX * .05, 22, 16, 0, 7); g.fill();
+  g.fillStyle = "rgba(200,215,255,.5)";
+  g.beginPath(); g.arc(250 - camX * .05, 22, 7, 0, 7); g.fill();
+  g.fillStyle = "rgba(10,14,34,.8)";
+  g.fillRect(220 - camX * .05, 18, 70, 5);
+  g.fillRect(232 - camX * .05, 26, 55, 4);
+
+  /* HDB blocks */
+  for (const b of blocks) {
+    const sx = b.x - camX * .6;
+    if (sx + b.w < -10 || sx > W + 10) continue;
+    g.fillStyle = b.c;
+    g.fillRect(sx, 92 - b.h, b.w, b.h);
+    g.fillStyle = "rgba(0,0,0,.25)";
+    g.fillRect(sx, 92 - b.h, b.w, 2);
+    const rr = rnd(b.seed + 5);
+    for (let wy = 92 - b.h + 5; wy < 88; wy += 7) {
+      for (let wx = sx + 4; wx < sx + b.w - 4; wx += 8) {
+        const on = rr() < .55;
+        g.fillStyle = on ? ["#ffd97a", "#9fe8ff", "#ffb4d8"][Math.floor(rr() * 3)] : "#1a2030";
+        g.fillRect(wx, wy, 4, 4);
+      }
+    }
+  }
+
+  /* road */
+  g.fillStyle = "#191c24"; g.fillRect(0, 96, W, 40);
+  g.fillStyle = "#3a3f4c";
+  for (let x = -((camX % 26)), i2 = 0; x < W; x += 26, i2++) g.fillRect(x, 115, 14, 2);
+  /* wet lamp reflections on road */
+  for (let lx = 80; lx < WORLD_W; lx += 152) {
+    const sx = lx - camX;
+    if (sx < -20 || sx > W + 20) continue;
+    g.fillStyle = "rgba(255,214,120,.10)";
+    g.fillRect(sx - 2, 98, 5, 36);
+  }
+
+  /* vehicles */
+  for (const c of cars) drawVehicle(g, c, t);
+
+  /* kerb + railing */
+  g.fillStyle = "#3c424e"; g.fillRect(0, 136, W, 3);
+  g.fillStyle = "#2e9648";
+  for (let x = -((camX % 14)); x < W; x += 14) g.fillRect(x, 132, 2, 5);
+  g.fillRect(0, 131, W, 2);
+
+  /* footpath — colorful paving */
+  for (let ty = 139; ty < 194; ty += 6) {
+    for (let x = -((camX % 12)) - 12, i2 = Math.floor(camX / 12); x < W; x += 12, i2++) {
+      const v = (i2 * 7 + ty) % 24;
+      g.fillStyle = v < 10 ? "#c9885a" : v < 18 ? "#e0aa6e" : v < 21 ? "#b85a4a" : "#4a9a94";
+      g.fillRect(x, ty, 11, 5);
+    }
+  }
+  g.fillStyle = "#8a5a3c"; g.fillRect(0, 138, W, 1); g.fillRect(0, 193, W, 1);
+
+  /* grass + flowers */
+  g.fillStyle = "#1d4a2c"; g.fillRect(0, 194, W, 46);
+  g.fillStyle = "#296038";
+  for (let x = -((camX % 9)); x < W; x += 9) g.fillRect(x, 196 + (x * 7 % 30), 2, 2);
+  for (const f of flowers) {
+    const sx = f.x - camX;
+    if (sx < -4 || sx > W + 4) continue;
+    g.fillStyle = f.c; g.fillRect(sx, f.y, 2, 2);
+    g.fillStyle = "#3c8050"; g.fillRect(sx, f.y + 2, 1, 2);
+  }
+
+  /* sign */
+  {
+    const sx = 96 - camX;
+    if (sx > -140 && sx < W) {
+      g.fillStyle = "#5c4630"; g.fillRect(sx + 60, 150, 3, 14);
+      g.fillStyle = "#0e7a48"; g.fillRect(sx, 140, 124, 13);
+      g.strokeStyle = "#fff"; g.strokeRect(sx + 1.5, 141.5, 121, 10);
+      setFont(g, 6.5);
+      g.fillStyle = "#fff";
+      g.fillText("KEMBANGAN PATH", sx + 7, 144);
+    }
+  }
+
+  /* lamps + light pools */
+  for (let lx = 80; lx < WORLD_W; lx += 152) {
+    const sx = lx - camX;
+    if (sx < -30 || sx > W + 30) continue;
+    g.fillStyle = "rgba(255,220,130,.16)";
+    g.beginPath(); g.ellipse(sx, 165, 34, 15, 0, 0, 7); g.fill();
+    g.fillStyle = "rgba(255,220,130,.10)";
+    g.beginPath(); g.moveTo(sx - 3, 118); g.lineTo(sx - 26, 172); g.lineTo(sx + 26, 172); g.lineTo(sx + 3, 118); g.fill();
+    g.fillStyle = "#3a4552";
+    g.fillRect(sx - 1, 116, 2, 24);
+    g.fillRect(sx - 5, 116, 10, 2);
+    g.fillStyle = "#ffe9a8"; g.fillRect(sx - 3, 118, 6, 3);
+  }
+
+  /* npc jiahui */
+  drawPerson(g, npc.x - camX, npc.y - 22, { ...JIAHUI, dir: "down", t: npc.t, glow: npc.glow });
+  if (npc.glow > 0) {
+    g.fillStyle = `rgba(80,160,255,${npc.glow * .12})`;
+    g.beginPath(); g.arc(npc.x - camX + 7, npc.y - 16, 16, 0, 7); g.fill();
+  }
+
+  /* player */
+  drawPerson(g, player.x - camX, player.y - 22, {
+    ...FRISK, dir: player.dir, walking: player.walking,
+    step: Math.floor(player.walkT * 7) % 2, t: player.walkT,
+  });
+
+  /* rain (over everything) */
+  g.strokeStyle = "rgba(160,200,255,.42)";
+  g.lineWidth = 1;
+  g.beginPath();
+  for (const d of drops) {
+    g.moveTo(d.x, d.y);
+    g.lineTo(d.x - 1.6, d.y + 7);
+  }
+  g.stroke();
+  for (const s of splashes) {
+    const p = s.t / .35;
+    g.strokeStyle = `rgba(170,210,255,${.5 * (1 - p)})`;
+    g.beginPath(); g.ellipse(s.x, s.y, 2 + p * 4, 1 + p * 1.5, 0, 0, 7); g.stroke();
+  }
+  /* soft night tint */
+  g.fillStyle = "rgba(10,16,50,.14)";
+  g.fillRect(0, 0, W, H);
+}
+
+function drawVehicle(g, c, t) {
+  const sx = c.x - camX;
+  if (c.type === "bus") {
+    /* green SG bus */
+    g.fillStyle = "rgba(120,220,160,.08)"; g.fillRect(sx - 2, c.y + 15, 52, 6);
+    g.fillStyle = "#3a9c5c"; g.fillRect(sx, c.y, 48, 15);
+    g.fillStyle = "#e8f2ec"; g.fillRect(sx, c.y, 48, 3);
+    g.fillStyle = "#bfe8d0"; g.fillRect(sx, c.y + 3, 48, 1);
+    for (let i = 0; i < 5; i++) {
+      g.fillStyle = "#ffe9b0";
+      g.fillRect(sx + 4 + i * 9, c.y + 4, 6, 5);
+    }
+    g.fillStyle = "#2a6c42"; g.fillRect(sx + 42, c.y + 4, 5, 10);
+    /* LED sign */
+    g.fillStyle = "#101418"; g.fillRect(sx + 44, c.y + 1, 4, 2.5);
+    g.fillStyle = "#ffb02e"; g.fillRect(sx + 44.5, c.y + 1.5, 3, 1.5);
+    g.fillStyle = "#14161c";
+    g.fillRect(sx + 7, c.y + 13, 6, 4); g.fillRect(sx + 34, c.y + 13, 6, 4);
+    g.fillStyle = "#5a6068";
+    g.fillRect(sx + 9, c.y + 14, 2, 2); g.fillRect(sx + 36, c.y + 14, 2, 2);
+    g.fillStyle = "rgba(255,240,180,.25)";
+    g.fillRect(sx + 48, c.y + 8, 10, 5);
+  } else {
+    g.fillStyle = "rgba(255,255,255,.05)"; g.fillRect(sx, c.y + 9, 26, 5);
+    g.fillStyle = c.c;
+    g.fillRect(sx, c.y + 3, 26, 6);
+    g.fillRect(sx + 5, c.y, 15, 4);
+    g.fillStyle = "#0e1420";
+    g.fillRect(sx + 7, c.y + 1, 5, 3); g.fillRect(sx + 14, c.y + 1, 5, 3);
+    g.fillStyle = "#14161c";
+    g.fillRect(sx + 4, c.y + 8, 5, 3); g.fillRect(sx + 18, c.y + 8, 5, 3);
+    const hx = c.dir > 0 ? sx + 26 : sx - 8;
+    g.fillStyle = "rgba(255,240,180,.3)";
+    g.fillRect(hx, c.y + 4, 8, 3);
+    g.fillStyle = "#ff5a5a";
+    g.fillRect(c.dir > 0 ? sx : sx + 25, c.y + 4, 1, 2);
+  }
+}
+
+/* ==========================================================
+   DIALOGUE BOX
+   ========================================================== */
+let dlg = null;   /* {lines:[{head,text}], i, tw, onClose} */
+function openDlg(lines, onClose) {
+  dlg = { lines, i: 0, tw: tw(lines[0].text), onClose };
+}
+function updateDlg(dt) {
+  if (!dlg) return;
+  twUpdate(dlg.tw, dt);
+  if (xHit) twSkip(dlg.tw);
+  if (zHit) {
+    zHit = false;
+    if (!dlg.tw.done) twSkip(dlg.tw);
+    else {
+      dlg.i++;
+      if (dlg.i >= dlg.lines.length) {
+        const cb = dlg.onClose; dlg = null;
+        if (cb) cb();
+      } else dlg.tw = tw(dlg.lines[dlg.i].text);
+    }
+  }
+}
+function drawDlg(g, t) {
+  if (!dlg) return;
+  const L = dlg.lines[dlg.i];
+  g.fillStyle = "#000"; g.fillRect(10, 172, 300, 62);
+  g.strokeStyle = "#fff"; g.lineWidth = 2; g.strokeRect(12, 174, 296, 58);
+  drawHead(g, 20, 185, L.head, t);
+  setFont(g, 8);
+  wrap(g, twText(dlg.tw), 66, 186, 232, 12, "#fff");
+  if (dlg.tw.done && Math.floor(t * 2.5) % 2) {
+    g.fillStyle = "#fff";
+    g.fillText("▼", 292, 218);
+  }
+}
+
+/* ==========================================================
+   STORY SLIDES — brown / yellow pixel memories
+   ========================================================== */
+const SEP = { bg: "#171008", deep: "#2c1e0e", mid: "#5c4420", hi: "#a8804a", top: "#ecd49a", red: "#d83a3a" };
+
+function frameArt(g) {
+  g.fillStyle = SEP.bg; g.fillRect(0, 0, W, H);
+  g.strokeStyle = SEP.hi; g.lineWidth = 2;
+  g.strokeRect(46, 20, 228, 128);
+  g.fillStyle = "#000"; g.fillRect(48, 22, 224, 124);
+}
+function artClip(g, fn, t) {
+  g.save();
+  g.beginPath(); g.rect(48, 22, 224, 124); g.clip();
+  g.translate(48, 22);
+  fn(g, t);      /* draw inside 224x124 */
+  g.restore();
+}
+
+function stickKid(g, x, y, c, o = {}) {
+  g.fillStyle = c;
+  g.fillRect(x + 2, y, 8, 8);                 /* head */
+  g.fillRect(x + 3, y + 8, 6, 9);             /* body */
+  g.fillRect(x + 1, y + 9, 2, 6); g.fillRect(x + 9, y + 9, 2, 6);
+  g.fillRect(x + 3, y + 17, 2, 6); g.fillRect(x + 7, y + 17, 2, 6);
+  if (o.arm === "up") { g.fillRect(x + 9, y + 3, 2, 7); g.fillRect(x + 10, y + 2, 3, 2); }
+  if (o.face) {
+    g.fillStyle = SEP.bg;
+    g.fillRect(x + 4, y + 3, 1, 1); g.fillRect(x + 7, y + 3, 1, 1);
+    g.fillRect(x + 5, y + 5, 2, 1);
+  }
+}
+
+const SLIDES = [
+  { cap: "2020. The memories were great. Drawing on each other's heads. Laughing about nothing.",
+    art(g, t) {
+      g.fillStyle = SEP.deep; g.fillRect(0, 96, 224, 28);
+      g.fillStyle = SEP.top;
+      g.beginPath(); g.arc(30, 22, 12, 0, 7); g.fill();
+      g.fillStyle = SEP.hi;
+      for (let i = 0; i < 8; i++) {
+        const a = i / 8 * Math.PI * 2;
+        g.fillRect(30 + Math.cos(a) * 17, 22 + Math.sin(a) * 17, 2, 2);
+      }
+      /* playground bar */
+      g.fillStyle = SEP.mid;
+      g.fillRect(150, 66, 3, 32); g.fillRect(196, 66, 3, 32); g.fillRect(150, 66, 49, 3);
+      /* two friends */
+      stickKid(g, 84, 74, SEP.top, { face: true, arm: "up" });
+      stickKid(g, 106, 76, SEP.hi, { face: true });
+      /* red doodle on friend's head */
+      g.strokeStyle = SEP.red; g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(109, 78);
+      g.quadraticCurveTo(114, 74, 112, 79);
+      g.quadraticCurveTo(110, 83, 115, 80);
+      g.stroke();
+      g.fillStyle = SEP.red; g.fillRect(96, 74, 2, 2);   /* marker tip */
+      /* sparkles */
+      g.fillStyle = SEP.top;
+      if (Math.floor(t * 3) % 2) { g.fillRect(70, 50, 2, 2); g.fillRect(130, 42, 2, 2); }
+    } },
+  { cap: "But bit by bit... it all slowly faded away.",
+    art(g, t) {
+      SLIDES[0].art(g, 0);
+      /* dissolve dither */
+      const p = clamp(t / 3.2, 0, 1);
+      g.fillStyle = SEP.bg;
+      const RD = rnd(9);
+      for (let i = 0; i < 1400 * p; i++) g.fillRect(Math.floor(RD() * 112) * 2, Math.floor(RD() * 62) * 2, 2, 2);
+      g.fillStyle = `rgba(23,16,8,${p * .5})`;
+      g.fillRect(0, 0, 224, 124);
+    } },
+  { cap: "The pressure kept piling up. Quietly, something inside began to distort.",
+    art(g, t) {
+      /* big head silhouette with cracks, weights pressing down */
+      g.fillStyle = SEP.mid;
+      g.fillRect(86, 34, 52, 56);
+      g.fillRect(96, 90, 32, 14);
+      g.fillStyle = SEP.hi;
+      g.fillRect(86, 34, 52, 3);
+      /* weights */
+      for (let i = 0; i < 3; i++) {
+        const wy = 8 + ((t * 22 + i * 26) % 26);
+        g.fillStyle = SEP.deep;
+        g.fillRect(92 + i * 16, wy, 12, 9);
+        g.fillStyle = SEP.hi;
+        g.fillRect(92 + i * 16, wy, 12, 2);
+      }
+      /* cracks */
+      g.strokeStyle = SEP.bg; g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(100, 34); g.lineTo(106, 50); g.lineTo(98, 62); g.lineTo(108, 78);
+      g.moveTo(126, 40); g.lineTo(118, 56); g.lineTo(128, 70);
+      g.stroke();
+      /* distortion spiral eye */
+      g.strokeStyle = SEP.top;
+      g.beginPath();
+      for (let a = 0; a < 5 + (t % 1); a += .2)
+        g.lineTo(112 + Math.cos(a + t) * a * 1.5, 62 + Math.sin(a + t) * a * 1.5);
+      g.stroke();
+    } },
+  { cap: "One day, playing with his brother, a terrible mistake happened.",
+    art(g, t) {
+      /* corridor, third floor */
+      g.fillStyle = SEP.deep; g.fillRect(0, 84, 224, 40);
+      g.fillStyle = SEP.mid; g.fillRect(0, 80, 224, 5);
+      for (let x = 8; x < 224; x += 18) { g.fillStyle = SEP.hi; g.fillRect(x, 58, 2, 23); }
+      g.fillStyle = SEP.hi; g.fillRect(0, 56, 224, 3);
+      /* two kids */
+      stickKid(g, 60, 58, SEP.top, { face: true });
+      stickKid(g, 84, 60, SEP.hi, { face: true, arm: "up" });
+      /* cat on railing */
+      g.fillStyle = SEP.top;
+      g.fillRect(150, 50, 10, 5);
+      g.fillRect(151, 46, 4, 4);
+      g.fillRect(150, 45, 1, 2); g.fillRect(154, 45, 1, 2);
+      g.fillRect(160, 51, 4, 1);
+      /* moon */
+      g.fillStyle = SEP.top; g.beginPath(); g.arc(196, 20, 8, 0, 7); g.fill();
+      g.fillStyle = SEP.bg; g.beginPath(); g.arc(199, 18, 7, 0, 7); g.fill();
+    } },
+  { cap: "The cat fell from the third floor. It didn't survive.",
+    art(g, t) {
+      /* building side, falling silhouette */
+      g.fillStyle = SEP.mid; g.fillRect(0, 0, 60, 124);
+      for (let fy = 8; fy < 120; fy += 26) {
+        g.fillStyle = SEP.deep; g.fillRect(6, fy, 46, 3);
+        g.fillStyle = SEP.hi;
+        for (let wx = 10; wx < 48; wx += 12) g.fillRect(wx, fy + 7, 6, 8);
+      }
+      g.fillStyle = SEP.hi; g.fillRect(58, 0, 3, 124);
+      /* falling cat silhouette + motion lines */
+      const cy = 30 + (t * 26) % 60;
+      g.fillStyle = SEP.top;
+      g.fillRect(110, cy, 9, 5);
+      g.fillRect(111, cy - 3, 4, 3);
+      g.fillRect(110, cy - 4, 1, 1); g.fillRect(114, cy - 4, 1, 1);
+      g.fillRect(119, cy + 1, 4, 1);
+      g.strokeStyle = SEP.mid;
+      g.beginPath();
+      g.moveTo(108, cy - 16); g.lineTo(108, cy - 8);
+      g.moveTo(124, cy - 12); g.lineTo(124, cy - 5);
+      g.stroke();
+      g.fillStyle = SEP.deep; g.fillRect(60, 116, 164, 8);
+    } },
+  { cap: "Guilt surrounded him. Everything became harder, and harder.",
+    art(g, t) {
+      /* curled figure ringed by pale eyes and reaching hands */
+      g.fillStyle = SEP.mid;
+      g.fillRect(104, 74, 18, 14);
+      g.fillRect(107, 64, 12, 11);
+      const RE = rnd(5);
+      for (let i = 0; i < 14; i++) {
+        const a = i / 14 * Math.PI * 2;
+        const rr = 42 + RE() * 18;
+        const ex = 112 + Math.cos(a) * rr, ey2 = 70 + Math.sin(a) * rr * .62;
+        const blink = Math.floor(t * 2 + i) % 5 === 0;
+        g.fillStyle = SEP.top;
+        if (!blink) { g.fillRect(ex, ey2, 6, 3); g.fillStyle = SEP.bg; g.fillRect(ex + 2, ey2 + 1, 2, 1); }
+        else g.fillRect(ex, ey2 + 1, 6, 1);
+      }
+      for (let i = 0; i < 5; i++) {
+        const hx = 12 + i * 46, up2 = 124 - ((t * 9 + i * 13) % 22);
+        g.fillStyle = SEP.deep;
+        g.fillRect(hx, up2, 8, 124 - up2);
+        g.fillRect(hx - 2, up2, 2, 5); g.fillRect(hx + 8, up2, 2, 5);
+      }
+    } },
+  { cap: "Before 2026 - AEIS passed. Coding learned. Habits beaten. And still, he felt it was his fault.",
+    art(g, t) {
+      /* glowing checklist beside a dark figure */
+      g.fillStyle = SEP.top; g.fillRect(28, 22, 92, 82);
+      g.fillStyle = SEP.hi; g.fillRect(28, 22, 92, 8);
+      setFont(g, 7);
+      g.fillStyle = SEP.deep;
+      g.fillText("AEIS", 40, 40);
+      g.fillText("CODE", 40, 58);
+      g.fillText("FOCUS", 40, 76);
+      g.strokeStyle = SEP.deep; g.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        const cy2 = 40 + i * 18;
+        g.strokeRect(90 + .5, cy2 + .5, 9, 9);
+        g.beginPath();
+        g.moveTo(92, cy2 + 5); g.lineTo(94, cy2 + 8); g.lineTo(99, cy2 + 1);
+        g.stroke();
+      }
+      /* dark figure, head down */
+      g.fillStyle = SEP.mid;
+      g.fillRect(160, 46, 16, 34);
+      g.fillRect(163, 38, 10, 10);
+      g.fillStyle = SEP.deep;
+      g.fillRect(160, 46, 16, 4);
+      /* rain of small drops over him */
+      g.fillStyle = SEP.hi;
+      for (let i = 0; i < 8; i++) g.fillRect(150 + (i * 9) % 40, (t * 60 + i * 17) % 124, 1, 4);
+    } },
+  { cap: "Guilty. Guilty. GUILTY!!!!!!!!!!!!!!!!",
+    art(g, t) {
+      setFont(g, 10);
+      const RG = rnd(13);
+      for (let i = 0; i < 12; i++) {
+        const gx = RG() * 190, gy = RG() * 112;
+        const shake = i % 3 === 0 ? Math.sin(t * 40 + i) * 2 : 0;
+        g.fillStyle = i % 4 === 0 ? SEP.red : SEP.hi;
+        g.globalAlpha = .35 + RG() * .65;
+        g.fillText("GUILTY", gx + shake, gy);
+      }
+      g.globalAlpha = 1;
+      setFont(g, 14);
+      g.fillStyle = SEP.red;
+      g.fillText("GUILTY", 66 + Math.sin(t * 34) * 3, 54 + Math.cos(t * 29) * 2);
+    }, shake: true },
+];
+let storyI = 0, storyT = 0, capTW = null;
+
+/* ==========================================================
+   BATTLE
+   ========================================================== */
+const BOX = { x: 52, y: 128, w: 216, h: 62 };
+const BTNS = ["FIGHT", "ACT", "ITEM", "MERCY"];
+let btnSel = 0;
+let bp = "";           /* battle phase */
+let bpt = 0;
+let bpFlags = {};
+let btext = null;      /* box narration */
+let bubble = null;     /* jiahui speech */
+let jia = { x: 160, y: 96, dx: 0, ghosts: [], reveal: 0 };
+let slashT = -1, missT = -1;
+let particles = [];
+
+function drawJiahuiBattle(g, cx, cy, t, opts = {}) {
+  /* hand-painted battle sprite (~46x60), centered on cx,cy bottom */
+  const bob = Math.sin(t * 2.1) * 1.2;
+  const x = Math.round(cx - 23 + (opts.dx || 0)), y = Math.round(cy - 60 + bob);
+  const J = "#2a5ad8", JH = "#4a7af8", SKIN = "#f0c890", HAIR = "#171923", DARK = "#20222c";
+  if (opts.alpha !== undefined) g.globalAlpha = opts.alpha;
+
+  /* slippers + legs */
+  g.fillStyle = "#e8e8e8";
+  g.fillRect(x + 12, y + 56, 9, 4); g.fillRect(x + 25, y + 56, 9, 4);
+  g.fillStyle = "#ff8fb0";
+  g.fillRect(x + 14, y + 56, 5, 2); g.fillRect(x + 27, y + 56, 5, 2);
+  g.fillStyle = SKIN;
+  g.fillRect(x + 14, y + 48, 6, 8); g.fillRect(x + 26, y + 48, 6, 8);
+  /* shorts */
+  g.fillStyle = DARK;
+  g.fillRect(x + 11, y + 40, 24, 9);
+  g.fillStyle = "#e8e8e8";
+  g.fillRect(x + 11, y + 43, 24, 2);
+  /* jacket body */
+  g.fillStyle = J;
+  g.fillRect(x + 8, y + 20, 30, 21);
+  g.fillStyle = JH;
+  g.fillRect(x + 8, y + 20, 30, 2);
+  g.fillRect(x + 8, y + 20, 2, 21); g.fillRect(x + 36, y + 20, 2, 21);
+  /* zipper + drawstrings */
+  g.fillStyle = "#dfe8f2";
+  g.fillRect(x + 22, y + 22, 2, 19);
+  g.fillRect(x + 19, y + 24, 1, 5); g.fillRect(x + 26, y + 24, 1, 5);
+  /* pockets with hands in */
+  g.fillStyle = JH;
+  g.fillRect(x + 10, y + 32, 9, 6); g.fillRect(x + 27, y + 32, 9, 6);
+  g.fillStyle = "#1e42a8";
+  g.fillRect(x + 10, y + 32, 9, 1); g.fillRect(x + 27, y + 32, 9, 1);
+  /* arms angled into pockets */
+  g.fillStyle = J;
+  g.fillRect(x + 4, y + 22, 5, 12); g.fillRect(x + 37, y + 22, 5, 12);
+  g.fillRect(x + 6, y + 32, 6, 4); g.fillRect(x + 34, y + 32, 6, 4);
+  /* hood behind neck */
+  g.fillStyle = JH;
+  g.fillRect(x + 12, y + 16, 22, 5);
+  g.fillStyle = "#1e42a8";
+  g.fillRect(x + 12, y + 20, 22, 1);
+  /* head */
+  g.fillStyle = SKIN;
+  g.fillRect(x + 13, y + 2, 20, 16);
+  /* messy hair */
+  g.fillStyle = HAIR;
+  g.fillRect(x + 11, y, 24, 6);
+  g.fillRect(x + 11, y + 5, 4, 7); g.fillRect(x + 31, y + 5, 4, 7);
+  g.fillRect(x + 15, y + 5, 4, 2); g.fillRect(x + 22, y + 4, 4, 3); g.fillRect(x + 28, y + 5, 3, 2);
+  g.fillRect(x + 9, y + 2, 2, 5); g.fillRect(x + 35, y + 2, 2, 5);
+  /* ears */
+  g.fillStyle = SKIN;
+  g.fillRect(x + 11, y + 10, 2, 4); g.fillRect(x + 33, y + 10, 2, 4);
+  /* eye sockets */
+  g.fillStyle = "#0a0a12";
+  g.fillRect(x + 16, y + 9, 6, 4); g.fillRect(x + 24, y + 9, 6, 4);
+  /* glowing eyes: left orange, right blue (flicker) */
+  const fl = Math.floor(t * 9) % 2;
+  const oc = fl ? "#ffa030" : "#ffc060";
+  const bc = fl ? "#40c8ff" : "#80e0ff";
+  g.fillStyle = oc; g.fillRect(x + 17, y + 10, 3, 2);
+  g.fillStyle = bc; g.fillRect(x + 26, y + 10, 3, 2);
+  g.fillStyle = "#fff";
+  g.fillRect(x + 18, y + 10, 1, 1); g.fillRect(x + 27, y + 10, 1, 1);
+  g.globalAlpha = (opts.alpha ?? 1) * .3;
+  g.fillStyle = oc; g.fillRect(x + 15, y + 8, 7, 5);
+  g.fillStyle = bc; g.fillRect(x + 24, y + 8, 7, 5);
+  g.globalAlpha = opts.alpha ?? 1;
+  /* nose + tired smile */
+  g.fillStyle = "#caa070"; g.fillRect(x + 22, y + 13, 2, 1);
+  g.fillStyle = DARK;
+  g.fillRect(x + 18, y + 15, 10, 1);
+  g.fillRect(x + 17, y + 14, 1, 1); g.fillRect(x + 28, y + 14, 1, 1);
+  g.globalAlpha = 1;
+}
+
+/* white-outline silhouette version (intro) */
+const silCvs = document.createElement("canvas");
+silCvs.width = 60; silCvs.height = 66;
+{
+  const sg = silCvs.getContext("2d");
+  drawJiahuiBattle(sg, 30, 63, .3);
+  sg.globalCompositeOperation = "source-in";
+  sg.fillStyle = "#fff";
+  sg.fillRect(0, 0, 60, 66);
+}
+function drawOutline(g, cx, cy, t) {
+  const x = cx - 30, y = cy - 63 + Math.sin(t * 1.6) * 1.5;
+  for (const [ox, oy] of [[-1,0],[1,0],[0,-1],[0,1]]) g.drawImage(silCvs, x + ox, y + oy);
+  g.save();
+  g.globalCompositeOperation = "destination-out";
+  g.drawImage(silCvs, x, y);
+  g.restore();
+  /* faint inner black to be safe on dark bg */
+}
+
+function drawBattleUI(g, t, glowStyle) {
+  /* glowStyle: {a: alpha, volatile:bool} */
+  const vol = glowStyle.volatile;
+  let a = glowStyle.a;
+  if (vol) a = clamp(a + (Math.random() - .5) * .5, .18, 1);
+  const col = vol ? `rgba(255,154,46,${a})` : `rgba(255,255,255,${a})`;
+
+  /* battle box */
+  g.strokeStyle = col; g.lineWidth = 2;
+  g.strokeRect(BOX.x, BOX.y, BOX.w, BOX.h);
+
+  /* buttons */
+  setFont(g, 8);
+  for (let i = 0; i < 4; i++) {
+    const bx = 12 + i * 76, by = 206, bw = 70, bh = 26;
+    const sel = glowStyle.select && btnSel === i;
+    g.strokeStyle = sel ? "#ffe93a" : col;
+    g.strokeRect(bx, by, bw, bh);
+    g.fillStyle = sel ? "#ffe93a" : col;
+    const label = BTNS[i];
+    g.fillText(label, bx + (bw - label.length * 8) / 2 + 6, by + 9);
+    /* tiny icon */
+    const ix = bx + 4, iy = by + 8;
+    g.fillStyle = sel ? "#ffe93a" : col;
+    if (i === 0) { g.fillRect(ix, iy + 6, 8, 2); g.fillRect(ix + 3, iy, 2, 8); }
+    else if (i === 1) { g.fillRect(ix + 1, iy, 5, 7); g.fillRect(ix, iy + 2, 7, 2); }
+    else if (i === 2) { g.fillRect(ix, iy + 2, 7, 6); g.fillRect(ix + 2, iy, 3, 3); }
+    else { drawHeart(g, ix - 1, iy, 1, sel ? "#ffe93a" : (vol ? "#ff9a2e" : "#fff")); }
+    if (sel) drawHeart(g, bx - 1, by + 9, 1);
+  }
+}
+
+function boxText(g, t) {
+  if (!btext) return;
+  setFont(g, 8);
+  wrap(g, twText(btext), BOX.x + 10, BOX.y + 10, BOX.w - 20, 12, "#fff");
+}
+
+function drawBubble(g, t) {
+  if (!bubble) return;
+  const bx = 208, by = 30, bw = 102, bh = 54;
+  g.fillStyle = "#fff"; g.fillRect(bx, by, bw, bh);
+  g.fillStyle = "#fff";
+  g.beginPath(); g.moveTo(bx, by + 26); g.lineTo(bx - 8, by + 30); g.lineTo(bx, by + 34); g.fill();
+  setFont(g, 7);
+  wrap(g, twText(bubble), bx + 5, by + 6, bw - 10, 10, "#000");
+}
+
+/* ==========================================================
+   GAME STATE MACHINE
+   ========================================================== */
+let mode = "menu";
+let mt = 0;
+let flashHeart = null;   /* {x,y} screen pos */
+let heartAnim = 0;
+let stunT = 0;
+
+function go(m) {
+  mode = m; mt = 0;
+  if (m === "story") { storyI = 0; storyT = 0; capTW = tw(SLIDES[0].cap, 24); }
+  if (m === "bintro") {
+    particles = [];
+    for (let i = 0; i < 26; i++) particles.push({ x: 20 + Math.random() * 280, y: Math.random() * H, s: .35 + Math.random() * .5 });
+  }
+  if (m === "bmain") { bp = "volatile"; bpt = 0; btext = null; bubble = null; btnSel = 0; jia.dx = 0; jia.reveal = 0; }
+}
+
+function setBp(p) { bp = p; bpt = 0; bpFlags = {}; }
+
+/* ---------------- main loop ---------------- */
+let last = performance.now();
+let gt = 0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((now - last) / 1000, 1 / 20);
+  last = now;
+  gt += dt; mt += dt;
+  const g = ctx;
+  g.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+
+  switch (mode) {
+    /* ============ MENU ============ */
+    case "menu": {
+      updateWorld(dt, false);
+      drawWorld(g, gt);
+      g.fillStyle = "rgba(2,4,14,.78)"; g.fillRect(0, 0, W, H);
+      setFont(g, 22);
+      g.fillStyle = "#fff";
+      g.fillText("MY SANS", 74, 58);
+      setFont(g, 10);
+      g.fillStyle = "#8fb4ff";
+      g.fillText("J I A H U I", 106, 92);
+      setFont(g, 7);
+      g.fillStyle = "#aab6d8";
+      g.fillText("an undertale-style pixel story", 56, 120);
+      g.fillText("arrows / wasd move · Z confirm · X skip", 34, 150);
+      drawHeart(g, 152, 172, 2);
+      if (Math.floor(gt * 2) % 2) {
+        setFont(g, 8);
+        g.fillStyle = "#fff";
+        g.fillText("PRESS Z TO START", 96, 200);
+      }
+      setFont(g, 6);
+      g.fillStyle = "#5a6488";
+      g.fillText("fan-made · every pixel original · no sound (yet)", 30, 226);
+      if (zHit) { zHit = false; go("walk"); }
+      break;
+    }
+
+    /* ============ OVERWORLD ============ */
+    case "walk": {
+      updateWorld(dt, !dlg);
+      updateDlg(dt);
+      const d = Math.hypot(player.x - npc.x, player.y - npc.y);
+      if (!dlg) {
+        if (!met1 && d < 90) {
+          met1 = true;
+          stunT = .8;
+          go("stun");
+        } else if (met1 && !met2 && d < 46) {
+          met2 = true;
+          go("lock");
+        }
+      }
+      drawWorld(g, gt);
+      drawDlg(g, gt);
+      break;
+    }
+    case "stun": {
+      updateWorld(dt, false);
+      drawWorld(g, gt);
+      /* stun stars + "!" */
+      const sx = player.x - camX + 7, sy = player.y - 34;
+      g.fillStyle = "#ffe93a";
+      setFont(g, 10);
+      if (Math.floor(gt * 6) % 2) g.fillText("!", sx - 2, sy - 6);
+      for (let i = 0; i < 3; i++) {
+        const a = gt * 6 + i * 2.1;
+        g.fillRect(sx + Math.cos(a) * 8, sy + 4 + Math.sin(a) * 3, 2, 2);
+      }
+      if (mt > .8) {
+        openDlg([{ head: "calm", text: "Uhmmm? Come close?" }], () => {});
+        go("walk");
+      }
+      break;
+    }
+    case "lock": {
+      updateWorld(dt, false);
+      npc.glow = clamp(npc.glow + (mt > 1.2 ? dt * 2 : 0), 0, 1);
+      if (mt < .1 && !dlg) {
+        openDlg([
+          { head: "calm", text: "..." },
+          { head: "serious", text: "so you really came all the way here." },
+          { head: "glow", text: "LET GO AHEAD" },
+        ], () => go("flashes"));
+      }
+      updateDlg(dt);
+      drawWorld(g, gt);
+      /* eye glow world spark */
+      drawDlg(g, gt);
+      break;
+    }
+    case "flashes": {
+      updateWorld(dt, false);
+      npc.glow = 1;
+      drawWorld(g, gt);
+      /* two black flashes; heart appears on 2nd */
+      const t2 = mt;
+      let black = false;
+      if (t2 > .35 && t2 < .58) black = true;
+      if (t2 > .82) black = true;
+      if (black) { g.fillStyle = "#000"; g.fillRect(0, 0, W, H); }
+      if (t2 > 1.02) {
+        if (!flashHeart) flashHeart = { x: player.x - camX + 3, y: player.y - 14 };
+        drawHeart(g, flashHeart.x, flashHeart.y, 1.6);
+      }
+      if (t2 > 1.55) { go("heartMove"); heartAnim = 0; }
+      break;
+    }
+    case "heartMove": {
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      heartAnim += dt;
+      const p = ease(clamp(heartAnim / 1.15, 0, 1));
+      const hx = lerp(flashHeart.x, 154, p), hy = lerp(flashHeart.y, 112, p);
+      let show = true;
+      if (heartAnim > 1.55) show = Math.floor((heartAnim - 1.55) * 9) % 2 === 0;
+      if (heartAnim > 2.15) show = false;
+      if (show) drawHeart(g, hx, hy, 1.6 + p * .6);
+      if (heartAnim > 2.7) go("whiteout");
+      break;
+    }
+    case "whiteout": {
+      const p = clamp(mt / 1.6, 0, 1);
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      g.fillStyle = `rgba(255,255,255,${p})`;
+      g.fillRect(0, 0, W, H);
+      if (mt > 2.1) go("story");
+      break;
+    }
+
+    /* ============ STORY ============ */
+    case "story": {
+      storyT += dt;
+      const S = SLIDES[storyI];
+      twUpdate(capTW, dt);
+      if (xHit) twSkip(capTW);
+      frameArt(g);
+      if (S.shake) {
+        g.save();
+        g.translate((Math.random() - .5) * 2.5, (Math.random() - .5) * 2.5);
+      }
+      artClip(g, S.art, storyT);
+      if (S.shake) g.restore();
+      setFont(g, 8);
+      wrap(g, twText(capTW), 34, 166, 252, 13, "#ecd49a");
+      if (capTW.done && Math.floor(gt * 2.5) % 2) {
+        g.fillStyle = "#ecd49a"; g.fillText("▼", 296, 224);
+      }
+      const advance = (capTW.done && storyT > capTW.text.length / 24 + 2.6) || (zHit && capTW.done);
+      if (zHit && !capTW.done) { twSkip(capTW); zHit = false; }
+      if (advance) {
+        zHit = false;
+        storyI++;
+        if (storyI >= SLIDES.length) go("wflash");
+        else { storyT = 0; capTW = tw(SLIDES[storyI].cap, 24); }
+      }
+      break;
+    }
+    case "wflash": {
+      /* screen slowly flashes white, then battle */
+      const p = clamp(mt / 2.2, 0, 1);
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      const pulse = Math.sin(mt * 6) * .5 + .5;
+      g.fillStyle = `rgba(255,255,255,${p * (0.55 + pulse * .45)})`;
+      g.fillRect(0, 0, W, H);
+      if (mt > 2.6) go("bintro");
+      break;
+    }
+
+    /* ============ BATTLE INTRO (outline, breathing UI) ============ */
+    case "bintro": {
+      /* white particles drifting up */
+      for (const pa of particles) {
+        pa.y -= pa.s * 26 * dt;
+        if (pa.y < -4) { pa.y = H + 4; pa.x = 20 + Math.random() * 280; }
+      }
+      const breathe = (Math.sin(mt * 2.1) + 1) / 2;
+      drawBattleUI(g, gt, { a: .25 + breathe * .45, volatile: false, select: false });
+      drawOutline(g, 160, 122, mt);
+      drawHeart(g, 156, 155, 1.6);
+      g.fillStyle = "rgba(255,255,255,.65)";
+      for (const pa of particles) g.fillRect(pa.x, pa.y, pa.s > .6 ? 2 : 1, pa.s > .6 ? 2 : 1);
+      if (mt > 6) go("placeholder");
+      break;
+    }
+    case "placeholder": {
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      setFont(g, 8);
+      const msg = "AUTHOR HAVENT DO ANIMATION";
+      const shown = msg.slice(0, Math.floor(mt * 24));
+      g.fillStyle = "#c8c8c8";
+      g.fillText(shown, (W - msg.length * 8) / 2 + 4, 114);
+      if (mt > 2.9) go("bmain");
+      break;
+    }
+
+    /* ============ BATTLE MAIN ============ */
+    case "bmain": {
+      bpt += dt;
+      /* embers rise once volatile */
+      if (particles.length < 46 && Math.random() < dt * 9)
+        particles.push({ x: 20 + Math.random() * 280, y: H + 3, s: .4 + Math.random() * .6, o: true });
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pa = particles[i];
+        pa.y -= pa.s * 30 * dt;
+        if (pa.y < -4) particles.splice(i, 1);
+      }
+
+      /* phase logic */
+      if (bp === "volatile" && bpt > 1.3) {
+        setBp("sentence");
+        btext = tw("* It smells like rain and old memories. Something is blocking the path.", 26);
+      } else if (bp === "sentence") {
+        twUpdate(btext, dt);
+        if (xHit) twSkip(btext);
+        if (btext.done && (bpt > btext.text.length / 26 + 1.2 || zHit)) { zHit = false; setBp("reveal"); }
+      } else if (bp === "reveal") {
+        jia.reveal = clamp(jia.reveal + dt / 1.2, 0, 1);
+        if (jia.reveal >= 1 && bpt > 1.6) {
+          setBp("pturn");
+          btext = tw("* JIAHUI blocks the way.", 30);
+        }
+      } else if (bp === "pturn") {
+        twUpdate(btext, dt);
+        if (keys.ArrowLeft && !bpFlags.l) { btnSel = (btnSel + 3) % 4; bpFlags.l = 1; }
+        if (!keys.ArrowLeft) bpFlags.l = 0;
+        if (keys.ArrowRight && !bpFlags.r) { btnSel = (btnSel + 1) % 4; bpFlags.r = 1; }
+        if (!keys.ArrowRight) bpFlags.r = 0;
+        if (zHit) {
+          zHit = false;
+          if (btnSel === 0) { setBp("aim"); missT = -1; }
+          else btext = tw("* Not yet. Something tells you to FIGHT first.", 30);
+        }
+      } else if (bp === "aim") {
+        if (zHit) {
+          zHit = false;
+          setBp("strike");
+          slashT = 0;
+        }
+      } else if (bp === "strike") {
+        slashT += dt;
+        if (slashT > .22 && !bpFlags.dodged) {
+          bpFlags.dodged = 1;
+          missT = 0;
+        }
+        if (missT >= 0) {
+          missT += dt;
+          jia.dx = lerp(jia.dx, 40, dt * 10);
+          if (Math.random() < dt * 24 && jia.dx < 34)
+            jia.ghosts.push({ dx: jia.dx, t: .3 });
+        }
+        if (slashT > 1.15) {
+          setBp("hisline");
+          bubble = tw("heh... quick one. but i've watched that exact move for six years.", 24);
+        }
+      } else if (bp === "hisline") {
+        twUpdate(bubble, dt);
+        if (xHit) twSkip(bubble);
+        if (bubble.done && (zHit || bpt > bubble.text.length / 24 + 2)) {
+          zHit = false;
+          bubble = null;
+          setBp("notfin");
+          btext = tw("* this things is not finished", 18);
+        }
+      } else if (bp === "notfin") {
+        twUpdate(btext, dt);
+        if (btext.done && bpt > btext.text.length / 18 + 2.4) go("end");
+      }
+      for (const gh of jia.ghosts) gh.t -= dt;
+      jia.ghosts = jia.ghosts.filter(gh => gh.t > 0);
+
+      /* ---- draw ---- */
+      const uiSelect = bp === "pturn";
+      drawBattleUI(g, gt, { a: .8, volatile: bp === "volatile" || bp === "sentence", select: uiSelect });
+
+      /* jiahui */
+      if (bp === "volatile" || bp === "sentence") {
+        drawOutline(g, 160, 122, mt);
+      } else {
+        for (const gh of jia.ghosts)
+          drawJiahuiBattle(g, 160, 122, gt, { dx: gh.dx, alpha: gh.t / .3 * .4 });
+        if (bp === "reveal") {
+          /* scanline reveal */
+          g.save();
+          g.beginPath();
+          g.rect(100, 122 - 66, 120, 66 * jia.reveal);
+          g.clip();
+          drawJiahuiBattle(g, 160, 122, gt, {});
+          g.restore();
+          g.fillStyle = "rgba(255,255,255,.8)";
+          g.fillRect(100, 122 - 66 + 66 * jia.reveal, 120, 1);
+        } else {
+          drawJiahuiBattle(g, 160, 122, gt, { dx: jia.dx });
+        }
+      }
+
+      /* slash fx */
+      if (bp === "strike" && slashT < .3) {
+        const sp = slashT / .3;
+        g.strokeStyle = `rgba(255,255,255,${1 - sp})`;
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(140 - sp * 8, 70 + sp * 40);
+        g.lineTo(175 + sp * 6, 105 + sp * 40);
+        g.stroke();
+        g.strokeStyle = `rgba(255,80,80,${(1 - sp) * .7})`;
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(146 - sp * 8, 66 + sp * 40);
+        g.lineTo(181 + sp * 6, 101 + sp * 40);
+        g.stroke();
+      }
+      if (missT >= 0 && missT < 1) {
+        setFont(g, 9);
+        g.fillStyle = `rgba(200,200,200,${1 - missT})`;
+        g.fillText("MISS", 146, 60 - missT * 14);
+      }
+
+      /* aim board */
+      if (bp === "aim") {
+        g.fillStyle = "#000";
+        g.fillRect(BOX.x + 2, BOX.y + 2, BOX.w - 4, BOX.h - 4);
+        for (let i = 0; i < 10; i++) {
+          g.fillStyle = i % 2 ? "#233a26" : "#1a2c1e";
+          g.fillRect(BOX.x + 4 + i * (BOX.w - 8) / 10, BOX.y + 6, (BOX.w - 8) / 10, BOX.h - 12);
+        }
+        g.fillStyle = "#48d868";
+        g.fillRect(BOX.x + BOX.w / 2 - 7, BOX.y + 6, 14, BOX.h - 12);
+        const sweep = (bpt * 200) % ((BOX.w - 12) * 2);
+        const sx2 = sweep < BOX.w - 12 ? sweep : (BOX.w - 12) * 2 - sweep;
+        g.fillStyle = "#fff";
+        g.fillRect(BOX.x + 6 + sx2, BOX.y + 4, 3, BOX.h - 8);
+        setFont(g, 7);
+        g.fillStyle = "#aaa";
+        g.fillText("Z !", BOX.x + BOX.w - 26, BOX.y + BOX.h - 12);
+      } else if (bp !== "volatile") {
+        boxText(g, gt);
+      }
+      /* soul in box during menu phases */
+      if (bp === "pturn") drawHeart(g, 62, BOX.y + BOX.h - 16, 1.2);
+
+      drawBubble(g, gt);
+
+      /* particles */
+      for (const pa of particles) {
+        g.fillStyle = pa.o ? "rgba(255,154,46,.45)" : "rgba(255,255,255,.5)";
+        g.fillRect(pa.x, pa.y, pa.s > .6 ? 2 : 1, pa.s > .6 ? 2 : 1);
+      }
+      break;
+    }
+
+    /* ============ END ============ */
+    case "end": {
+      const p = clamp(mt / 1.4, 0, 1);
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      g.globalAlpha = p;
+      drawHeart(g, 148, 62, 3);
+      setFont(g, 14);
+      g.fillStyle = "#fff";
+      g.fillText("MY SANS", 104, 100);
+      setFont(g, 8);
+      g.fillStyle = "#8fb4ff";
+      g.fillText("J I A H U I", 124, 126);
+      setFont(g, 7);
+      g.fillStyle = "#aab6d8";
+      g.fillText("chapter zero · to be continued", 62, 152);
+      g.fillStyle = "#5a6488";
+      g.fillText("this things is not finished", 74, 172);
+      if (Math.floor(gt * 2) % 2) {
+        g.fillStyle = "#fff";
+        g.fillText("press R to restart", 96, 206);
+      }
+      g.globalAlpha = 1;
+      break;
+    }
+  }
+
+  zHit = false; xHit = false;
+}
+requestAnimationFrame(loop);
+
+/* ---------------- test hooks ---------------- */
+window.__ms = {
+  get mode() { return mode; },
+  get bp() { return bp; },
+  get storyI() { return storyI; },
+  get dlgOpen() { return !!dlg; },
+  player, npc,
+  start() { if (mode === "menu") go("walk"); },
+  near(dist) { player.x = npc.x - dist; player.y = npc.y; },
+  slide(i) { if (mode === "story") { storyI = i; storyT = 0; capTW = tw(SLIDES[i].cap, 24); } },
+  jump(m) { go(m); },
+  setMet(a, b) { met1 = a; met2 = b; },
+};
+</script>
+</body>
+</html>
