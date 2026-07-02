@@ -86,161 +86,232 @@ function wrap(g, text, x, y, maxW, lh, color) {
   return yy + lh;
 }
 
-/* ---------------- heart sprite ---------------- */
-function drawHeart(g, x, y, s = 1, color = "#ff2038") {
-  const P = [[1,0],[2,0],[4,0],[5,0],[0,1],[3,1],[6,1],[0,2],[6,2],[1,3],[5,3],[2,4],[4,4],[3,5]];
+/* ---------------- heart sprite (clean, flat, no shine) ---------------- */
+const HEART_ROWS = [
+  ".XX...XX.",
+  "XXXX.XXXX",
+  "XXXXXXXXX",
+  "XXXXXXXXX",
+  ".XXXXXXX.",
+  "..XXXXX..",
+  "...XXX...",
+  "....X....",
+];
+function drawHeart(g, x, y, s = 1, color = "#ff0030") {
   g.fillStyle = color;
-  for (const [px2, py] of P) g.fillRect(x + px2 * s, y + py * s, s, s);
-  g.fillRect(x + 1 * s, y + 1 * s, s, s); g.fillRect(x + 2 * s, y + 1 * s, s, s);
-  g.fillRect(x + 4 * s, y + 1 * s, s, s); g.fillRect(x + 5 * s, y + 1 * s, s, s);
-  g.fillRect(x + 1 * s, y + 2 * s, s * 5, s);
-  g.fillRect(x + 2 * s, y + 3 * s, s * 3, s);
-  g.fillRect(x + 3 * s, y + 4 * s, s, s);
-  g.fillStyle = "rgba(255,255,255,.8)";
-  g.fillRect(x + 1 * s, y + 1 * s, s, s);
+  for (let r = 0; r < HEART_ROWS.length; r++)
+    for (let c = 0; c < 9; c++)
+      if (HEART_ROWS[r][c] === "X") g.fillRect(x + c * s, y + r * s, s, s);
 }
 
 /* ==========================================================
    PEOPLE (overworld pixel sprites, hand-painted)
    ========================================================== */
-function drawPerson(g, x, y, o) {
-  /* o: dir(down/up/left/right), step(0/1), hair, skin, jacket, jhi, shorts, tall, pockets, glow(0..1), t */
+function drawPerson(g, x, feetY, o) {
+  /* thin anime-style boy, 16px box, feet resting on feetY.
+     o: dir, step, walking, t, hair, hairHi, skin, jacket, jhi, shorts, tall, pockets, ahoge, glow */
   const tall = o.tall || 0;
-  const bob = o.walking ? (o.step ? -1 : 0) : Math.round(Math.sin((o.t || 0) * 2)) * .5 | 0;
-  y += bob - tall;
-  const J = o.jacket, JH = o.jhi, SKIN = o.skin, HAIR = o.hair;
+  const t = o.t || 0;
+  const step = o.walking ? (o.step ? 1 : -1) : 0;
+  const bob = o.walking ? (o.step ? -1 : 0) : (Math.sin(t * 2.1) < -.35 ? 1 : 0);
+  const H2 = 29 + tall;
+  const ty = feetY - H2 + bob;
+  const J = o.jacket, JH = o.jhi, SKIN = o.skin, HAIR = o.hair, HH = o.hairHi || o.jhi;
   const dir = o.dir || "down";
+  const side = dir === "left" ? -1 : dir === "right" ? 1 : 0;
+  const legTop = ty + 22 + tall;
 
-  /* legs + slippers */
+  /* --- thin legs + slippers --- */
   g.fillStyle = SKIN;
-  const lo = o.walking ? (o.step ? 1 : -1) : 0;
-  if (dir === "left" || dir === "right") {
-    g.fillRect(x + 4, y + 17 + tall, 3, 4 - lo);
-    g.fillRect(x + 8, y + 17 + tall, 3, 4 + lo);
+  if (side) {
+    g.fillRect(x + 7 - step, legTop, 2, 5);
+    g.fillRect(x + 7 + step, legTop, 2, 5);
   } else {
-    g.fillRect(x + 3 - (o.walking ? lo : 0), y + 17 + tall, 3, 4);
-    g.fillRect(x + 8 + (o.walking ? lo : 0), y + 17 + tall, 3, 4);
+    g.fillRect(x + 5, legTop + (o.walking && step > 0 ? 1 : 0), 2, 5);
+    g.fillRect(x + 9, legTop + (o.walking && step < 0 ? 1 : 0), 2, 5);
   }
   g.fillStyle = "#f2f2f2";
-  g.fillRect(x + 2, y + 21 + tall, 4, 2);
-  g.fillRect(x + 8, y + 21 + tall, 4, 2);
+  if (side) {
+    g.fillRect(x + 5 - step, feetY - 2, 3, 2);
+    g.fillRect(x + 8 + step, feetY - 2, 3, 2);
+  } else {
+    g.fillRect(x + 4, feetY - 2, 3, 2);
+    g.fillRect(x + 9, feetY - 2, 3, 2);
+  }
   g.fillStyle = "#ff8fb0";
-  g.fillRect(x + 3, y + 21 + tall, 2, 1);
-  g.fillRect(x + 9, y + 21 + tall, 2, 1);
+  g.fillRect(x + (side ? 6 - step : 5), feetY - 2, 1, 1);
+  g.fillRect(x + (side ? 9 + step : 10), feetY - 2, 1, 1);
 
-  /* shorts (black w/ white stripe) */
+  /* --- shorts --- */
   g.fillStyle = o.shorts;
-  g.fillRect(x + 2, y + 14, 10, 3 + tall);
+  g.fillRect(x + 4, ty + 19 + tall, 8, 3);
   g.fillStyle = "#e8e8e8";
-  g.fillRect(x + 2, y + 15, 10, 1);
+  g.fillRect(x + 4, ty + 20 + tall, 8, 1);
 
-  /* jacket torso */
+  /* --- slim jacket torso --- */
   g.fillStyle = J;
-  g.fillRect(x + 1, y + 7, 12, 7);
+  g.fillRect(x + 5, ty + 11, 6, 8 + tall);
   g.fillStyle = JH;
-  g.fillRect(x + 1, y + 7, 12, 1);
-  /* hood bump behind head */
-  g.fillStyle = JH;
-  g.fillRect(x + 3, y + 6, 8, 1);
-  if (dir === "up") { g.fillRect(x + 3, y + 3, 8, 4); g.fillStyle = J; g.fillRect(x + 4, y + 4, 6, 3); }
-  /* zipper + drawstrings (front only) */
+  g.fillRect(x + 5, ty + 11, 6, 1);
+  g.fillRect(x + 5, ty + 10, 6, 1);            /* hood roll behind neck */
   if (dir === "down") {
     g.fillStyle = "#dfe8f2";
-    g.fillRect(x + 6, y + 7, 1, 7);
-    g.fillRect(x + 4, y + 8, 1, 2);
-    g.fillRect(x + 9, y + 8, 1, 2);
+    g.fillRect(x + 8, ty + 12, 1, 7 + tall);   /* zipper */
+    g.fillRect(x + 6, ty + 12, 1, 2);          /* drawstrings */
+    g.fillRect(x + 9, ty + 12, 1, 2);
   }
-  /* arms / pockets */
+  /* --- arms --- */
   g.fillStyle = J;
   if (o.pockets && dir === "down") {
-    g.fillRect(x, y + 8, 2, 4); g.fillRect(x + 12, y + 8, 2, 4);
-    g.fillRect(x + 1, y + 11, 3, 2); g.fillRect(x + 10, y + 11, 3, 2);
-  } else {
-    const sw = o.walking ? lo : 0;
-    g.fillRect(x, y + 8 + sw, 2, 5); g.fillRect(x + 12, y + 8 - sw, 2, 5);
+    g.fillRect(x + 3, ty + 12, 2, 4);
+    g.fillRect(x + 11, ty + 12, 2, 4);
+    g.fillRect(x + 4, ty + 15, 2, 2);
+    g.fillRect(x + 10, ty + 15, 2, 2);
+  } else if (side) {
+    g.fillRect(x + 7, ty + 12 + step, 2, 5);
     g.fillStyle = SKIN;
-    g.fillRect(x, y + 13 + sw, 2, 1); g.fillRect(x + 12, y + 13 - sw, 2, 1);
+    g.fillRect(x + 7, ty + 17 + step, 2, 1);
+  } else {
+    g.fillRect(x + 3, ty + 12 - step, 2, 5);
+    g.fillRect(x + 11, ty + 12 + step, 2, 5);
+    g.fillStyle = SKIN;
+    g.fillRect(x + 3, ty + 17 - step, 2, 1);
+    g.fillRect(x + 11, ty + 17 + step, 2, 1);
   }
 
-  /* head */
+  /* --- neck + head --- */
   g.fillStyle = SKIN;
-  g.fillRect(x + 3, y + 1, 8, 6);
+  g.fillRect(x + 7, ty + 10, 2, 1);
+  g.fillRect(x + 4, ty + 3, 8, 7);
+  /* --- anime hair --- */
   g.fillStyle = HAIR;
   if (dir === "up") {
-    g.fillRect(x + 3, y, 8, 6);
+    g.fillRect(x + 3, ty, 10, 9);
+    g.fillRect(x + 4, ty + 9, 2, 1); g.fillRect(x + 7, ty + 9, 2, 1); g.fillRect(x + 10, ty + 9, 2, 1);
+    g.fillStyle = HH; g.fillRect(x + 5, ty + 1, 4, 1);
   } else if (dir === "down") {
-    g.fillRect(x + 3, y, 8, 2);
-    g.fillRect(x + 3, y + 2, 1, 3); g.fillRect(x + 10, y + 2, 1, 3);
-    g.fillRect(x + 4, y + 2, 2, 1); g.fillRect(x + 8, y + 2, 2, 1);
+    g.fillRect(x + 3, ty, 10, 3);
+    g.fillRect(x + 3, ty + 3, 1, 5);            /* side locks */
+    g.fillRect(x + 12, ty + 3, 1, 5);
+    g.fillRect(x + 4, ty + 3, 2, 1);            /* fringe */
+    g.fillRect(x + 7, ty + 3, 2, 1);
+    g.fillRect(x + 10, ty + 3, 2, 1);
+    g.fillRect(x + 4, ty + 4, 1, 1);
+    g.fillRect(x + 8, ty + 4, 1, 1);
+    g.fillRect(x + 11, ty + 4, 1, 1);
+    g.fillStyle = HH; g.fillRect(x + 5, ty + 1, 3, 1);
   } else {
-    g.fillRect(x + 3, y, 8, 2);
-    const bx = dir === "left" ? x + 9 : x + 3;
-    g.fillRect(bx, y + 2, 2, 4);
-    g.fillRect(x + 3, y + 2, 8, 1);
+    g.fillRect(x + 3, ty, 10, 3);
+    const back = side < 0 ? x + 11 : x + 3;
+    g.fillRect(back, ty + 3, 2, 5);
+    const front = side < 0 ? x + 4 : x + 10;
+    g.fillRect(front, ty + 3, 2, 2);
+    g.fillStyle = HH; g.fillRect(x + 5, ty + 1, 3, 1);
   }
-  /* face */
+  if (o.ahoge && dir !== "up") {
+    g.fillStyle = HAIR;
+    g.fillRect(x + 8, ty - 2, 1, 2);
+    g.fillRect(x + 9, ty - 3, 1, 2);
+  }
+  /* --- face --- */
   if (dir === "down") {
     g.fillStyle = "#20222c";
-    g.fillRect(x + 5, y + 4, 1, 1); g.fillRect(x + 8, y + 4, 1, 1);
+    g.fillRect(x + 5, ty + 6, 2, 2);
+    g.fillRect(x + 9, ty + 6, 2, 2);
+    g.fillStyle = "#b8875e";
+    g.fillRect(x + 7, ty + 8, 2, 1);
     if (o.glow > 0) {
-      const c = Math.floor((o.t || 0) * 8) % 2 ? "#ffa030" : "#40c8ff";
+      const c = Math.floor(t * 8) % 2 ? "#ffa030" : "#40c8ff";
       g.fillStyle = c;
-      g.fillRect(x + 5, y + 4, 1, 1);
-      g.globalAlpha = .5 * o.glow;
-      g.fillRect(x + 4, y + 3, 3, 3);
+      g.fillRect(x + 5, ty + 6, 2, 2);
+      g.globalAlpha = .35 * o.glow;
+      g.fillRect(x + 4, ty + 5, 4, 4);
       g.globalAlpha = 1;
     }
-  } else if (dir === "left" || dir === "right") {
+  } else if (side) {
     g.fillStyle = "#20222c";
-    g.fillRect(dir === "left" ? x + 4 : x + 9, y + 4, 1, 1);
+    g.fillRect(side < 0 ? x + 5 : x + 9, ty + 6, 2, 2);
   }
 }
 
-const FRISK = { hair: "#7a4a28", skin: "#f2c992", jacket: "#2a5ad8", jhi: "#4a7af8", shorts: "#20222c" };
-const JIAHUI = { hair: "#1c1e26", skin: "#f0c890", jacket: "#2a5ad8", jhi: "#4a7af8", shorts: "#20222c", tall: 2, pockets: true };
+const FRISK = { hair: "#7a4a28", hairHi: "#9a6438", skin: "#f2c992", jacket: "#2a5ad8", jhi: "#4a7af8", shorts: "#20222c" };
+const JIAHUI = { hair: "#1c1e26", hairHi: "#3a4058", skin: "#f0c890", jacket: "#2a5ad8", jhi: "#4a7af8", shorts: "#20222c", tall: 2, pockets: true, ahoge: true };
 
-/* ---------------- portrait head (dialogue) ---------------- */
+/* ---------------- portrait head (dialogue) — anime style ---------------- */
 function drawHead(g, x, y, kind, t) {
-  /* 36x36 pixel head of jiahui */
+  /* 36x36 anime pixel head of jiahui */
   g.fillStyle = "#000"; g.fillRect(x, y, 36, 36);
   g.strokeStyle = "#fff"; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, 35, 35);
-  const s = "#f0c890", h = "#1c1e26";
-  g.fillStyle = s; g.fillRect(x + 8, y + 8, 20, 20);
+  const s = "#f0c890", sh = "#d8a870", h = "#1c1e26", hh = "#3a4058", dk = "#20222c";
+
+  /* face with tapered anime jaw */
+  g.fillStyle = s;
+  g.fillRect(x + 9, y + 10, 18, 16);
+  g.fillRect(x + 11, y + 26, 14, 3);
+  g.fillRect(x + 14, y + 29, 8, 2);
+
+  /* hair: big layered mass + fringe + long side bangs */
   g.fillStyle = h;
-  g.fillRect(x + 6, y + 4, 24, 6);
-  g.fillRect(x + 6, y + 8, 3, 10); g.fillRect(x + 27, y + 8, 3, 10);
-  g.fillRect(x + 9, y + 9, 4, 2); g.fillRect(x + 15, y + 9, 5, 2); g.fillRect(x + 23, y + 9, 4, 2);
-  g.fillRect(x + 12, y + 7, 3, 3); g.fillRect(x + 20, y + 7, 3, 3);
-  /* ears */
-  g.fillStyle = s; g.fillRect(x + 5, y + 16, 3, 5); g.fillRect(x + 28, y + 16, 3, 5);
-  /* eyes */
+  g.fillRect(x + 6, y + 3, 24, 8);
+  g.fillRect(x + 5, y + 6, 3, 15);
+  g.fillRect(x + 28, y + 6, 3, 15);
+  /* fringe locks over the forehead */
+  g.fillRect(x + 8, y + 11, 4, 3);  g.fillRect(x + 9, y + 14, 2, 2);
+  g.fillRect(x + 13, y + 11, 4, 2); g.fillRect(x + 14, y + 13, 2, 2);
+  g.fillRect(x + 18, y + 11, 3, 4); g.fillRect(x + 19, y + 15, 1, 1);
+  g.fillRect(x + 22, y + 11, 4, 2); g.fillRect(x + 23, y + 13, 2, 3);
+  g.fillRect(x + 27, y + 11, 3, 3);
+  /* ahoge */
+  g.fillRect(x + 17, y + 1, 2, 2); g.fillRect(x + 19, y, 1, 2);
+  /* sheen */
+  g.fillStyle = hh;
+  g.fillRect(x + 9, y + 5, 7, 1); g.fillRect(x + 20, y + 4, 5, 1);
+
+  /* eyes (anime: lash line + iris + catchlight) */
+  const exL = x + 10, exR = x + 21, ey = y + 18;
   if (kind === "glow") {
     g.fillStyle = "#0a0a12";
-    g.fillRect(x + 11, y + 16, 6, 4); g.fillRect(x + 20, y + 16, 6, 4);
+    g.fillRect(exL, ey, 6, 5);
+    g.fillRect(exR, ey + 1, 6, 3);
     const c = Math.floor(t * 9) % 2 ? "#ffa030" : "#40c8ff";
     g.fillStyle = c;
-    g.fillRect(x + 12, y + 17, 3, 2);
-    g.globalAlpha = .45;
-    g.fillRect(x + 10, y + 15, 7, 6);
-    g.globalAlpha = 1;
+    g.fillRect(exL + 2, ey + 1, 2, 2);
+    g.fillRect(exL + 2, ey - 1, 2, 1);      /* flare up */
+    g.fillRect(exL + 2, ey + 4, 2, 1);      /* flare down */
     g.fillStyle = "#fff";
-    g.fillRect(x + 13, y + 17, 1, 1);
+    g.fillRect(exL + 2, ey + 1, 1, 1);
   } else if (kind === "serious") {
-    g.fillStyle = "#20222c";
-    g.fillRect(x + 11, y + 17, 5, 2); g.fillRect(x + 21, y + 17, 5, 2);
+    g.fillStyle = dk;
+    g.fillRect(exL, ey, 6, 2);
+    g.fillRect(exR, ey, 6, 2);
+    g.fillRect(exL + 2, ey + 2, 2, 2);
+    g.fillRect(exR + 2, ey + 2, 2, 2);
+    /* knitted brows */
+    g.fillRect(exL + 1, ey - 3, 5, 1); g.fillRect(exL + 4, ey - 2, 2, 1);
+    g.fillRect(exR, ey - 2, 2, 1);     g.fillRect(exR + 1, ey - 3, 5, 1);
   } else {
-    g.fillStyle = "#20222c";
-    g.fillRect(x + 11, y + 17, 5, 1); g.fillRect(x + 21, y + 17, 5, 1);
-    g.fillRect(x + 11, y + 16, 1, 1); g.fillRect(x + 25, y + 16, 1, 1);
+    /* calm: relaxed half-lidded */
+    g.fillStyle = dk;
+    g.fillRect(exL, ey, 6, 1);
+    g.fillRect(exR, ey, 6, 1);
+    g.fillRect(exL + 2, ey + 1, 3, 3);
+    g.fillRect(exR + 1, ey + 1, 3, 3);
+    g.fillStyle = "#fff";
+    g.fillRect(exL + 3, ey + 1, 1, 1);
+    g.fillRect(exR + 2, ey + 1, 1, 1);
   }
-  /* nose + tired smile */
-  g.fillStyle = "#caa070"; g.fillRect(x + 17, y + 21, 2, 1);
-  g.fillStyle = "#20222c";
+  /* tired eye-bags */
+  g.fillStyle = sh;
+  g.fillRect(exL + 1, y + 23, 3, 1);
+  g.fillRect(exR + 1, y + 23, 3, 1);
+  /* nose + small mouth */
+  g.fillStyle = sh; g.fillRect(x + 18, y + 24, 1, 1);
+  g.fillStyle = dk;
   if (kind === "glow") {
-    g.fillRect(x + 13, y + 25, 10, 1);
+    g.fillRect(x + 14, y + 27, 8, 1);
   } else {
-    g.fillRect(x + 14, y + 25, 8, 1);
-    g.fillRect(x + 13, y + 24, 1, 1); g.fillRect(x + 22, y + 24, 1, 1);
+    g.fillRect(x + 15, y + 27, 5, 1);
+    g.fillRect(x + 20, y + 26, 1, 1);
   }
 }
 
@@ -436,14 +507,14 @@ function drawWorld(g, t) {
   }
 
   /* npc jiahui */
-  drawPerson(g, npc.x - camX, npc.y - 22, { ...JIAHUI, dir: "down", t: npc.t, glow: npc.glow });
+  drawPerson(g, npc.x - camX, npc.y + 1, { ...JIAHUI, dir: "down", t: npc.t, glow: npc.glow });
   if (npc.glow > 0) {
-    g.fillStyle = `rgba(80,160,255,${npc.glow * .12})`;
-    g.beginPath(); g.arc(npc.x - camX + 7, npc.y - 16, 16, 0, 7); g.fill();
+    g.fillStyle = `rgba(80,160,255,${npc.glow * .1})`;
+    g.beginPath(); g.arc(npc.x - camX + 8, npc.y - 20, 16, 0, 7); g.fill();
   }
 
   /* player */
-  drawPerson(g, player.x - camX, player.y - 22, {
+  drawPerson(g, player.x - camX, player.y + 1, {
     ...FRISK, dir: player.dir, walking: player.walking,
     step: Math.floor(player.walkT * 7) % 2, t: player.walkT,
   });
@@ -775,101 +846,132 @@ let slashT = -1, missT = -1;
 let particles = [];
 
 function drawJiahuiBattle(g, cx, cy, t, opts = {}) {
-  /* hand-painted battle sprite (~46x60), centered on cx,cy bottom */
+  /* thin anime boy battle sprite (~36x66), centered on cx, feet at cy */
   const bob = Math.sin(t * 2.1) * 1.2;
-  const x = Math.round(cx - 23 + (opts.dx || 0)), y = Math.round(cy - 60 + bob);
-  const J = "#2a5ad8", JH = "#4a7af8", SKIN = "#f0c890", HAIR = "#171923", DARK = "#20222c";
+  const x = Math.round(cx - 18 + (opts.dx || 0)), y = Math.round(cy - 62 + bob);
+  const J = "#2a5ad8", JH = "#4a7af8", JD = "#1e42a8";
+  const SKIN = "#f0c890", SH = "#d8a870", HAIR = "#171923", HH = "#323850", DARK = "#20222c";
+  const sw = Math.round(Math.sin(t * 1.1) * .8);   /* hair sway */
+  const blink = (t % 3.6) > 3.42;
   if (opts.alpha !== undefined) g.globalAlpha = opts.alpha;
 
-  /* slippers + legs */
+  /* slippers */
   g.fillStyle = "#e8e8e8";
-  g.fillRect(x + 12, y + 56, 9, 4); g.fillRect(x + 25, y + 56, 9, 4);
+  g.fillRect(x + 8, y + 59, 8, 3); g.fillRect(x + 20, y + 59, 8, 3);
   g.fillStyle = "#ff8fb0";
-  g.fillRect(x + 14, y + 56, 5, 2); g.fillRect(x + 27, y + 56, 5, 2);
+  g.fillRect(x + 10, y + 59, 4, 1); g.fillRect(x + 22, y + 59, 4, 1);
+  /* thin legs with a gap */
   g.fillStyle = SKIN;
-  g.fillRect(x + 14, y + 48, 6, 8); g.fillRect(x + 26, y + 48, 6, 8);
+  g.fillRect(x + 10, y + 46, 4, 13); g.fillRect(x + 22, y + 46, 4, 13);
+  g.fillStyle = SH;
+  g.fillRect(x + 13, y + 46, 1, 13); g.fillRect(x + 25, y + 46, 1, 13);
   /* shorts */
   g.fillStyle = DARK;
-  g.fillRect(x + 11, y + 40, 24, 9);
+  g.fillRect(x + 8, y + 38, 20, 9);
   g.fillStyle = "#e8e8e8";
-  g.fillRect(x + 11, y + 43, 24, 2);
-  /* jacket body */
+  g.fillRect(x + 8, y + 41, 20, 2);
+  g.fillStyle = "#101218";
+  g.fillRect(x + 8, y + 46, 20, 1);
+  /* slim jacket, slight slouch */
   g.fillStyle = J;
-  g.fillRect(x + 8, y + 20, 30, 21);
+  g.fillRect(x + 7, y + 20, 22, 19);
   g.fillStyle = JH;
-  g.fillRect(x + 8, y + 20, 30, 2);
-  g.fillRect(x + 8, y + 20, 2, 21); g.fillRect(x + 36, y + 20, 2, 21);
+  g.fillRect(x + 7, y + 20, 22, 2);
+  g.fillStyle = JD;
+  g.fillRect(x + 7, y + 30, 1, 9); g.fillRect(x + 28, y + 30, 1, 9);
+  g.fillRect(x + 8, y + 38, 20, 1);
   /* zipper + drawstrings */
   g.fillStyle = "#dfe8f2";
-  g.fillRect(x + 22, y + 22, 2, 19);
-  g.fillRect(x + 19, y + 24, 1, 5); g.fillRect(x + 26, y + 24, 1, 5);
-  /* pockets with hands in */
-  g.fillStyle = JH;
-  g.fillRect(x + 10, y + 32, 9, 6); g.fillRect(x + 27, y + 32, 9, 6);
-  g.fillStyle = "#1e42a8";
-  g.fillRect(x + 10, y + 32, 9, 1); g.fillRect(x + 27, y + 32, 9, 1);
-  /* arms angled into pockets */
+  g.fillRect(x + 17, y + 22, 1, 17);
+  g.fillRect(x + 14, y + 23, 1, 4); g.fillRect(x + 20, y + 23, 1, 4);
+  /* pocket slits, hands in */
+  g.fillStyle = JD;
+  g.fillRect(x + 10, y + 31, 5, 1); g.fillRect(x + 9, y + 32, 5, 1);
+  g.fillRect(x + 21, y + 31, 5, 1); g.fillRect(x + 22, y + 32, 5, 1);
+  /* thin arms angled into the pockets */
   g.fillStyle = J;
-  g.fillRect(x + 4, y + 22, 5, 12); g.fillRect(x + 37, y + 22, 5, 12);
-  g.fillRect(x + 6, y + 32, 6, 4); g.fillRect(x + 34, y + 32, 6, 4);
-  /* hood behind neck */
+  g.fillRect(x + 3, y + 21, 4, 10);
+  g.fillRect(x + 29, y + 21, 4, 10);
+  g.fillRect(x + 5, y + 29, 4, 4);
+  g.fillRect(x + 27, y + 29, 4, 4);
+  g.fillStyle = JD;
+  g.fillRect(x + 3, y + 30, 4, 1); g.fillRect(x + 29, y + 30, 4, 1);
+  /* hood roll behind the neck */
   g.fillStyle = JH;
-  g.fillRect(x + 12, y + 16, 22, 5);
-  g.fillStyle = "#1e42a8";
-  g.fillRect(x + 12, y + 20, 22, 1);
-  /* head */
+  g.fillRect(x + 11, y + 17, 14, 3);
+  g.fillStyle = JD;
+  g.fillRect(x + 11, y + 19, 14, 1);
+  /* neck */
   g.fillStyle = SKIN;
-  g.fillRect(x + 13, y + 2, 20, 16);
-  /* messy hair */
+  g.fillRect(x + 16, y + 15, 4, 3);
+  /* head — bigger, anime proportion */
+  g.fillStyle = SKIN;
+  g.fillRect(x + 10, y + 2, 16, 13);
+  g.fillRect(x + 12, y + 15, 12, 1);
+  /* layered hair */
   g.fillStyle = HAIR;
-  g.fillRect(x + 11, y, 24, 6);
-  g.fillRect(x + 11, y + 5, 4, 7); g.fillRect(x + 31, y + 5, 4, 7);
-  g.fillRect(x + 15, y + 5, 4, 2); g.fillRect(x + 22, y + 4, 4, 3); g.fillRect(x + 28, y + 5, 3, 2);
-  g.fillRect(x + 9, y + 2, 2, 5); g.fillRect(x + 35, y + 2, 2, 5);
-  /* ears */
-  g.fillStyle = SKIN;
-  g.fillRect(x + 11, y + 10, 2, 4); g.fillRect(x + 33, y + 10, 2, 4);
-  /* eye sockets */
-  g.fillStyle = "#0a0a12";
-  g.fillRect(x + 16, y + 9, 6, 4); g.fillRect(x + 24, y + 9, 6, 4);
-  /* glowing eyes: left orange, right blue (flicker) */
+  g.fillRect(x + 8 + sw, y - 1, 20, 7);              /* top mass */
+  g.fillRect(x + 10 + sw, y - 3, 3, 2);              /* upward spikes */
+  g.fillRect(x + 16 + sw, y - 4, 3, 3);
+  g.fillRect(x + 22 + sw, y - 3, 2, 2);
+  g.fillRect(x + 19 + sw, y - 6, 1, 3);              /* ahoge */
+  g.fillRect(x + 20 + sw, y - 7, 1, 2);
+  g.fillRect(x + 8, y + 5, 2, 9);                    /* side bangs */
+  g.fillRect(x + 26, y + 5, 2, 9);
+  /* fringe locks over forehead */
+  g.fillRect(x + 10 + sw, y + 5, 4, 3); g.fillRect(x + 11 + sw, y + 8, 2, 1);
+  g.fillRect(x + 15 + sw, y + 5, 3, 2); g.fillRect(x + 16 + sw, y + 7, 1, 1);
+  g.fillRect(x + 19 + sw, y + 5, 4, 4);
+  g.fillRect(x + 24 + sw, y + 5, 2, 2);
+  g.fillStyle = HH;
+  g.fillRect(x + 11 + sw, y, 6, 1); g.fillRect(x + 20 + sw, y - 1, 4, 1);
+  /* eyes: left orange / right blue, anime lashes */
   const fl = Math.floor(t * 9) % 2;
   const oc = fl ? "#ffa030" : "#ffc060";
   const bc = fl ? "#40c8ff" : "#80e0ff";
-  g.fillStyle = oc; g.fillRect(x + 17, y + 10, 3, 2);
-  g.fillStyle = bc; g.fillRect(x + 26, y + 10, 3, 2);
-  g.fillStyle = "#fff";
-  g.fillRect(x + 18, y + 10, 1, 1); g.fillRect(x + 27, y + 10, 1, 1);
-  g.globalAlpha = (opts.alpha ?? 1) * .3;
-  g.fillStyle = oc; g.fillRect(x + 15, y + 8, 7, 5);
-  g.fillStyle = bc; g.fillRect(x + 24, y + 8, 7, 5);
-  g.globalAlpha = opts.alpha ?? 1;
-  /* nose + tired smile */
-  g.fillStyle = "#caa070"; g.fillRect(x + 22, y + 13, 2, 1);
   g.fillStyle = DARK;
-  g.fillRect(x + 18, y + 15, 10, 1);
-  g.fillRect(x + 17, y + 14, 1, 1); g.fillRect(x + 28, y + 14, 1, 1);
+  g.fillRect(x + 11, y + 9, 5, 1);
+  g.fillRect(x + 20, y + 9, 5, 1);
+  if (blink) {
+    g.fillRect(x + 11, y + 11, 5, 1);
+    g.fillRect(x + 20, y + 11, 5, 1);
+  } else {
+    g.fillStyle = oc; g.fillRect(x + 12, y + 10, 2, 2);
+    g.fillStyle = bc; g.fillRect(x + 22, y + 10, 2, 2);
+    g.fillStyle = "#fff";
+    g.fillRect(x + 12, y + 10, 1, 1); g.fillRect(x + 22, y + 10, 1, 1);
+    g.globalAlpha = (opts.alpha ?? 1) * .22;
+    g.fillStyle = oc; g.fillRect(x + 11, y + 9, 4, 4);
+    g.fillStyle = bc; g.fillRect(x + 21, y + 9, 4, 4);
+    g.globalAlpha = opts.alpha ?? 1;
+  }
+  /* tired eye-bags, nose, small smile */
+  g.fillStyle = SH;
+  g.fillRect(x + 12, y + 12, 2, 1); g.fillRect(x + 22, y + 12, 2, 1);
+  g.fillRect(x + 18, y + 12, 1, 1);
+  g.fillStyle = DARK;
+  g.fillRect(x + 15, y + 14, 6, 1);
+  g.fillRect(x + 14, y + 13, 1, 1); g.fillRect(x + 21, y + 13, 1, 1);
   g.globalAlpha = 1;
 }
 
 /* white-outline silhouette version (intro) */
 const silCvs = document.createElement("canvas");
-silCvs.width = 60; silCvs.height = 66;
+silCvs.width = 64; silCvs.height = 76;
 {
   const sg = silCvs.getContext("2d");
-  drawJiahuiBattle(sg, 30, 63, .3);
+  drawJiahuiBattle(sg, 32, 72, .3);
   sg.globalCompositeOperation = "source-in";
   sg.fillStyle = "#fff";
-  sg.fillRect(0, 0, 60, 66);
+  sg.fillRect(0, 0, 64, 76);
 }
 function drawOutline(g, cx, cy, t) {
-  const x = cx - 30, y = cy - 63 + Math.sin(t * 1.6) * 1.5;
+  const x = cx - 32, y = cy - 72 + Math.sin(t * 1.6) * 1.5;
   for (const [ox, oy] of [[-1,0],[1,0],[0,-1],[0,1]]) g.drawImage(silCvs, x + ox, y + oy);
   g.save();
   g.globalCompositeOperation = "destination-out";
   g.drawImage(silCvs, x, y);
   g.restore();
-  /* faint inner black to be safe on dark bg */
 }
 
 function drawBattleUI(g, t, glowStyle) {
@@ -970,7 +1072,7 @@ function loop(now) {
       g.fillStyle = "#aab6d8";
       g.fillText("an undertale-style pixel story", 56, 120);
       g.fillText("arrows / wasd move · Z confirm · X skip", 34, 150);
-      drawHeart(g, 152, 172, 2);
+      drawHeart(g, 151, 170, 2);
       if (Math.floor(gt * 2) % 2) {
         setFont(g, 8);
         g.fillStyle = "#fff";
@@ -1006,7 +1108,7 @@ function loop(now) {
       updateWorld(dt, false);
       drawWorld(g, gt);
       /* stun stars + "!" */
-      const sx = player.x - camX + 7, sy = player.y - 34;
+      const sx = player.x - camX + 7, sy = player.y - 40;
       g.fillStyle = "#ffe93a";
       setFont(g, 10);
       if (Math.floor(gt * 6) % 2) g.fillText("!", sx - 2, sy - 6);
@@ -1047,7 +1149,7 @@ function loop(now) {
       if (t2 > .82) black = true;
       if (black) { g.fillStyle = "#000"; g.fillRect(0, 0, W, H); }
       if (t2 > 1.02) {
-        if (!flashHeart) flashHeart = { x: player.x - camX + 3, y: player.y - 14 };
+        if (!flashHeart) flashHeart = { x: player.x - camX + 1, y: player.y - 16 };
         drawHeart(g, flashHeart.x, flashHeart.y, 1.6);
       }
       if (t2 > 1.55) { go("heartMove"); heartAnim = 0; }
@@ -1057,7 +1159,7 @@ function loop(now) {
       g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
       heartAnim += dt;
       const p = ease(clamp(heartAnim / 1.15, 0, 1));
-      const hx = lerp(flashHeart.x, 154, p), hy = lerp(flashHeart.y, 112, p);
+      const hx = lerp(flashHeart.x, 152, p), hy = lerp(flashHeart.y, 111, p);
       let show = true;
       if (heartAnim > 1.55) show = Math.floor((heartAnim - 1.55) * 9) % 2 === 0;
       if (heartAnim > 2.15) show = false;
@@ -1123,7 +1225,7 @@ function loop(now) {
       const breathe = (Math.sin(mt * 2.1) + 1) / 2;
       drawBattleUI(g, gt, { a: .25 + breathe * .45, volatile: false, select: false });
       drawOutline(g, 160, 122, mt);
-      drawHeart(g, 156, 155, 1.6);
+      drawHeart(g, 153, 153, 1.6);
       g.fillStyle = "rgba(255,255,255,.65)";
       for (const pa of particles) g.fillRect(pa.x, pa.y, pa.s > .6 ? 2 : 1, pa.s > .6 ? 2 : 1);
       if (mt > 6) go("placeholder");
@@ -1229,12 +1331,12 @@ function loop(now) {
           /* scanline reveal */
           g.save();
           g.beginPath();
-          g.rect(100, 122 - 66, 120, 66 * jia.reveal);
+          g.rect(100, 122 - 72, 120, 72 * jia.reveal);
           g.clip();
           drawJiahuiBattle(g, 160, 122, gt, {});
           g.restore();
           g.fillStyle = "rgba(255,255,255,.8)";
-          g.fillRect(100, 122 - 66 + 66 * jia.reveal, 120, 1);
+          g.fillRect(100, 122 - 72 + 72 * jia.reveal, 120, 1);
         } else {
           drawJiahuiBattle(g, 160, 122, gt, { dx: jia.dx });
         }
@@ -1300,7 +1402,7 @@ function loop(now) {
       const p = clamp(mt / 1.4, 0, 1);
       g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
       g.globalAlpha = p;
-      drawHeart(g, 148, 62, 3);
+      drawHeart(g, 147, 58, 3);
       setFont(g, 14);
       g.fillStyle = "#fff";
       g.fillText("MY SANS", 104, 100);
