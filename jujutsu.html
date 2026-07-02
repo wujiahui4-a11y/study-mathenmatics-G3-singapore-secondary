@@ -506,8 +506,8 @@ function resetPose(r) {
 
 const GOJO_CFG  = { gojo: true, torso: 0x191d33, pants: 0x14151d, shoes: 0x1c1e2e, skin: 0xf2c992 };
 const NAOYA_CFG = { naoya: true, torso: 0x1b2038, pants: 0xc9cdd4, pants2: 0xbfc3cb, shoes: 0x2a2c34, skin: 0xf2c992 };
-const DUMMY_CFG = { face: true, torso: 0x9aa0a8, pants: 0x6f7480, shoes: 0x3a3d46, skin: 0xe6c26a };
-const CURSE_CFG = { face: true, torso: 0x50224f, pants: 0x371a3c, shoes: 0x2a1030, skin: 0x9a4a78 };
+const DUMMY_CFG  = { face: true, torso: 0xc9a06a, pants: 0x8a6b44, shoes: 0x5c4630, skin: 0xd8b57e };
+const ATTACK_CFG = { face: true, torso: 0xa8433a, pants: 0x5c2a26, shoes: 0x33201e, skin: 0xe6c26a };
 
 /* ============================================================
    ANIMATION — procedural idle / walk / run / air (+ per-char flair)
@@ -869,22 +869,69 @@ function handWorld(anchor) {
 }
 
 /* ---------------- enemies ---------------- */
+/* attack dummy M1-M4 swing poses: guard stance, jab L, jab R, hook L, heavy straight */
+function poseDummySwing(r, n, st) {
+  r.shoulderL.rotation.x = -.55; r.shoulderR.rotation.x = -.55;
+  r.elbowL.rotation.x = -1.25;  r.elbowR.rotation.x = -1.25;
+  r.spine.rotation.x = -.08;
+  r.kneeL.rotation.x = .18; r.kneeR.rotation.x = .18;
+  r.hipL.rotation.z = -.05; r.hipR.rotation.z = .05;
+  if (n < 0) return;
+  const ext = ease(clamp01(st / .16)) * (1 - ease(clamp01((st - .22) / .26)));
+  switch (n) {
+    case 0:   /* left jab */
+      r.shoulderL.rotation.x = -.55 - 1.2 * ext;
+      r.elbowL.rotation.x = -1.25 + 1.15 * ext;
+      r.spine.rotation.y = .32 * ext;
+      break;
+    case 1:   /* right jab */
+      r.shoulderR.rotation.x = -.55 - 1.2 * ext;
+      r.elbowR.rotation.x = -1.25 + 1.15 * ext;
+      r.spine.rotation.y = -.32 * ext;
+      break;
+    case 2:   /* left hook */
+      r.shoulderL.rotation.x = -.55 - .5 * ext;
+      r.shoulderL.rotation.z = -.95 * ext;
+      r.elbowL.rotation.x = -1.25 + .6 * ext;
+      r.spine.rotation.y = .6 * ext;
+      r.hips.rotation.y = .25 * ext;
+      break;
+    case 3: { /* heavy straight with a lunge */
+      const wind = ease(clamp01(st / .14));
+      const go = ease(clamp01((st - .14) / .14)) * (1 - ease(clamp01((st - .46) / .3)));
+      r.spine.rotation.y = .45 * wind - 1.05 * go * wind;
+      r.shoulderR.rotation.x = -.3 - 1.55 * go;
+      r.shoulderR.rotation.z = .25 * wind * (1 - go);
+      r.elbowR.rotation.x = -1.5 + 1.45 * go;
+      r.spine.rotation.x = -.08 - .22 * go;
+      r.kneeR.rotation.x = .18 + .35 * go;
+      r.hips.position.y = r.hipsBaseY - .14 * go;
+      break;
+    }
+  }
+}
+
 const enemies = [];
 const debris = [];
 class Enemy {
-  constructor(x, z, curse) {
-    this.curse = curse;
-    this.rig = makeAnimeRig(curse ? CURSE_CFG : DUMMY_CFG);
+  constructor(x, z, kind) {
+    this.kind = kind;                 // "dummy": stands still · "attacker": rooted, loops M1-M4
+    this.rig = makeAnimeRig(kind === "attacker" ? ATTACK_CFG : DUMMY_CFG);
+    if (kind === "attacker") {
+      const band = boxMesh(.96, .14, .96, 0xd83a2a);
+      band.position.y = .78;
+      this.rig.head.add(band);
+    }
     this.spawn = new THREE.Vector3(x, 0, z);
     this.pos = this.spawn.clone();
     this.vel = new THREE.Vector3();
-    this.hp = this.maxHp = curse ? 120 : 100;
+    this.hp = this.maxHp = kind === "attacker" ? 120 : 100;
     this.onGround = true;
-    this.aggro = curse;
     this.stunT = 0; this.flung = false;
     this.anchorT = 0; this.anchorPos = new THREE.Vector3();
     this.lockT = 0;
-    this.punchCd = 0; this.punchAnim = 0;
+    this.swing = -1; this.swingT = 0; this.hitAt = null;
+    this.react = null;
     this.dead = false; this.respawnT = 0;
     this.animT = Math.random() * 9;
     this.facing = 0;
@@ -911,7 +958,7 @@ class Enemy {
     const g = this.hpC.getContext("2d");
     g.clearRect(0, 0, 96, 26);
     g.fillStyle = "rgba(0,0,0,.6)"; g.fillRect(0, 0, 96, 12);
-    g.fillStyle = this.curse ? "#c84fd8" : "#48d868";
+    g.fillStyle = this.kind === "attacker" ? "#ff6a5a" : "#48d868";
     g.fillRect(2, 2, 92 * Math.max(0, this.hp / this.maxHp), 8);
     /* projection meter under hp */
     if (this.proj > 0 || this.frameT > 0) {
@@ -935,6 +982,7 @@ class Enemy {
   enterFrame(owner) {
     this.proj = 0;
     this.frameT = 3;
+    this.react = null;
     this.frameOwner = owner;
     this.anchorT = 0; this.lockT = 0; this.flung = false;
     this.vel.set(0, 0, 0);
@@ -976,7 +1024,7 @@ class Enemy {
       this.unframe(true);
     }
     this.hp -= amount;
-    this.aggro = true;
+    if (opts.react) this.react = { type: opts.react, t: 0, dur: opts.reactDur ?? .5, side: opts.side ?? (Math.random() < .5 ? -1 : 1) };
     this.drawBars();
     damageNumber(this.pos.clone().add(new THREE.Vector3(0, 5.4, 0)), Math.round(amount), opts.color || "#fff");
     spark(this.pos.clone().add(new THREE.Vector3(0, 3.2, 0)), opts.spark || 0xffffff, 5, 12);
@@ -1025,12 +1073,74 @@ class Enemy {
     this.vel.set(0, 0, 0);
     this.flung = false; this.stunT = 0; this.anchorT = 0; this.lockT = 0;
     this.proj = 0; this.bleed = 0; this.hemo = null;
-    this.aggro = this.curse;
+    this.react = null; this.swing = -1; this.swingT = 0; this.hitAt = null;
     this.rig.body.rotation.set(0, 0, 0);
     this.rig.root.scale.z = 1;
     this.drawBars();
     scene.add(this.rig.root);
     spark(this.spawn.clone().add(new THREE.Vector3(0, 3, 0)), 0xaaddff, 10, 10);
+  }
+  /* per-skill hit reaction animations, layered over the current pose */
+  applyReact(dt) {
+    if (!this.react) return;
+    const rc = this.react;
+    rc.t += dt;
+    if (rc.t >= rc.dur) { this.react = null; return; }
+    const r = this.rig;
+    const k = rc.t / rc.dur;
+    const env = 1 - ease(k);              // eases out over the duration
+    const snap = Math.min(1, rc.t * 14);  // snaps in fast
+    const e2 = env * snap;
+    const t = this.animT;
+    switch (rc.type) {
+      case "head":      /* head snapped back by a jab */
+        r.neck.rotation.x = -.6 * e2;
+        r.neck.rotation.z = .25 * rc.side * e2;
+        r.spine.rotation.x = -.22 * e2;
+        r.spine.rotation.y = .3 * rc.side * e2;
+        r.shoulderL.rotation.x = .3 * e2; r.shoulderR.rotation.x = .3 * e2;
+        break;
+      case "gut":       /* doubled over clutching the stomach */
+        r.spine.rotation.x = .8 * e2;
+        r.neck.rotation.x = .35 * e2;
+        r.shoulderL.rotation.x = -1.15 * e2; r.shoulderR.rotation.x = -1.15 * e2;
+        r.shoulderL.rotation.z = .3 * e2;    r.shoulderR.rotation.z = -.3 * e2;
+        r.elbowL.rotation.x = -1.5 * e2;     r.elbowR.rotation.x = -1.5 * e2;
+        r.kneeL.rotation.x = .5 * e2;        r.kneeR.rotation.x = .5 * e2;
+        r.hips.position.y = r.hipsBaseY - .28 * e2;
+        break;
+      case "stab":      /* clutch the wound, tremble, sag down */
+        r.spine.rotation.x = (.55 + .25 * Math.sin(Math.min(1, k * 2) * Math.PI)) * snap;
+        r.spine.rotation.z = Math.sin(t * 26) * .06 * env;
+        r.neck.rotation.x = .5 * snap * (1 - k * .4);
+        r.shoulderL.rotation.x = -1.2 * snap; r.shoulderR.rotation.x = -1.3 * snap;
+        r.shoulderL.rotation.z = .35 * snap;  r.shoulderR.rotation.z = -.35 * snap;
+        r.elbowL.rotation.x = -1.55 * snap;   r.elbowR.rotation.x = -1.6 * snap;
+        r.kneeL.rotation.x = (.35 + .3 * k) * snap;
+        r.kneeR.rotation.x = (.45 + .3 * k) * snap;
+        r.hips.position.y = r.hipsBaseY - (.2 + .25 * k) * snap;
+        break;
+      case "pummel":    /* jerked around by a rapid barrage */
+        r.spine.rotation.x = -.08 + Math.sin(t * 38) * .14;
+        r.spine.rotation.y = Math.sin(t * 31) * .18;
+        r.neck.rotation.x = Math.sin(t * 33 + 1) * .3 - .1;
+        r.neck.rotation.z = Math.sin(t * 27) * .14;
+        r.shoulderL.rotation.x = .5 + Math.sin(t * 29) * .25;
+        r.shoulderR.rotation.x = .5 + Math.cos(t * 26) * .25;
+        r.shoulderL.rotation.z = -.25; r.shoulderR.rotation.z = .25;
+        r.elbowL.rotation.x = -.3; r.elbowR.rotation.x = -.3;
+        r.hips.position.y = r.hipsBaseY - .1 + Math.sin(t * 40) * .03;
+        break;
+      case "stagger":   /* knocked back onto the heels, arms windmilling */
+        r.spine.rotation.x = -.42 * e2;
+        r.neck.rotation.x = -.35 * e2;
+        r.shoulderL.rotation.x = -.9 * e2 + Math.sin(t * 16) * .25 * env;
+        r.shoulderR.rotation.x = -.9 * e2 + Math.cos(t * 15) * .25 * env;
+        r.shoulderL.rotation.z = -.5 * e2; r.shoulderR.rotation.z = .5 * e2;
+        r.hipL.rotation.x = -.35 * e2; r.kneeL.rotation.x = .2 * snap;
+        r.hipR.rotation.x = .25 * e2;  r.kneeR.rotation.x = .45 * e2;
+        break;
+    }
   }
   /* 24 FPS rule: entities under Projection render position at 24 Hz */
   syncVis(dt) {
@@ -1076,13 +1186,21 @@ class Enemy {
     }
 
     if (this.anchorT > 0) {
+      /* anchored mid-air: arched back, limbs dangling and slowly flailing */
       this.anchorT -= dt;
       this.vel.set(0, 0, 0);
       this.pos.lerp(this.anchorPos, Math.min(1, dt * 12));
-      r.body.rotation.x = Math.min(r.body.rotation.x + dt * 2, .5);
-      r.shoulderL.rotation.z = -1.1; r.shoulderR.rotation.z = 1.1;
-      r.hipL.rotation.x = -.4; r.hipR.rotation.x = .3;
-      r.kneeL.rotation.x = .7; r.kneeR.rotation.x = .5;
+      const fl = this.animT * 3.2;
+      r.body.rotation.x = Math.max(r.body.rotation.x - dt * 1.8, -.42);
+      r.neck.rotation.x = -.5;
+      r.shoulderL.rotation.z = -1.2 + Math.sin(fl) * .25;
+      r.shoulderR.rotation.z = 1.2 + Math.sin(fl + 1.4) * .25;
+      r.shoulderL.rotation.x = -.4 + Math.sin(fl * 1.3) * .3;
+      r.shoulderR.rotation.x = -.4 + Math.cos(fl * 1.1) * .3;
+      r.elbowL.rotation.x = -.5; r.elbowR.rotation.x = -.5;
+      r.hipL.rotation.x = -.55 + Math.sin(fl + .8) * .3;
+      r.hipR.rotation.x = .25 + Math.sin(fl + 2.6) * .3;
+      r.kneeL.rotation.x = .9; r.kneeR.rotation.x = .7;
       this.syncVis(dt);
       if (Math.random() < dt * 8) spark(this.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0xbfe2ff, 1, 4, .8);
       return;
@@ -1091,10 +1209,11 @@ class Enemy {
     if (this.lockT > 0) {
       this.lockT -= dt;
       this.vel.set(0, 0, 0);
-      r.body.rotation.z = Math.sin(this.animT * 42) * .04;
-      r.body.rotation.x = .08;
-      r.shoulderL.rotation.x = .3; r.shoulderR.rotation.x = .3;
-      r.elbowL.rotation.x = -.4; r.elbowR.rotation.x = -.4;
+      r.body.rotation.x = .06;
+      r.shoulderL.rotation.x = .35; r.shoulderR.rotation.x = .35;
+      r.elbowL.rotation.x = -.5; r.elbowR.rotation.x = -.5;
+      r.kneeL.rotation.x = .15; r.kneeR.rotation.x = .15;
+      this.applyReact(dt);
       this.syncVis(dt);
       r.root.rotation.y = this.facing;
       return;
@@ -1117,77 +1236,92 @@ class Enemy {
     collideWorld(this.pos, 1);
 
     if (this.flung) {
+      /* tumbling ragdoll with flailing limbs */
       r.body.rotation.x += 9 * dt;
       r.body.rotation.z += 5 * dt;
+      const fp = this.animT * 13;
+      r.shoulderL.rotation.x = Math.sin(fp) * 1.5;
+      r.shoulderR.rotation.x = Math.sin(fp + 2.1) * 1.5;
+      r.shoulderL.rotation.z = -.6; r.shoulderR.rotation.z = .6;
+      r.elbowL.rotation.x = -.5 + Math.sin(fp * 1.3) * .4;
+      r.elbowR.rotation.x = -.5 + Math.cos(fp * 1.2) * .4;
+      r.hipL.rotation.x = Math.sin(fp + 1) * 1.1;
+      r.hipR.rotation.x = Math.sin(fp + 3.2) * 1.1;
+      r.kneeL.rotation.x = .6 + Math.sin(fp * 1.4) * .4;
+      r.kneeR.rotation.x = .6 + Math.cos(fp * 1.5) * .4;
+      r.neck.rotation.x = Math.sin(fp * .9) * .4;
     } else if (this.stunT > 0) {
       this.stunT -= dt;
       r.body.rotation.x *= .85; r.body.rotation.z *= .85;
       r.body.rotation.x += Math.sin(this.animT * 30) * .05;
       r.neck.rotation.z = Math.sin(this.animT * 24) * .12;
+      r.shoulderL.rotation.x = .3; r.shoulderR.rotation.x = .3;
+      r.elbowL.rotation.x = -.6; r.elbowR.rotation.x = -.6;
+      r.kneeL.rotation.x = .2; r.kneeR.rotation.x = .2;
+      this.applyReact(dt);
     } else {
       r.body.rotation.x *= .8; r.body.rotation.z *= .8;
-      const toP = player.pos.clone().sub(this.pos); toP.y = 0;
-      const dist = toP.length();
-      if (this.aggro && !player.dead) {
-        const dir = toP.normalize();
-        if (dist > 2.6) {
-          const sp = this.curse ? 7.5 : 5.5;
-          this.pos.addScaledVector(dir, sp * dt);
-          const g2 = this.animT * 8.5;
-          const s = Math.sin(g2), c = Math.cos(g2);
-          r.hipL.rotation.x = -s * .55; r.hipR.rotation.x = s * .55;
-          r.kneeL.rotation.x = .1 + Math.max(0, c) * .6;
-          r.kneeR.rotation.x = .1 + Math.max(0, -c) * .6;
-          r.shoulderL.rotation.x = s * .5; r.shoulderR.rotation.x = -s * .5;
-          r.elbowL.rotation.x = -.3; r.elbowR.rotation.x = -.3;
-          r.spine.rotation.x = -.08;
-        } else {
-          this.punchCd -= dt;
-          if (this.punchCd <= 0) {
-            this.punchCd = this.curse ? 1 : 1.5;
-            this.punchAnim = .32;
-            /* a move going on cooldown removes one bleed stack, at a price */
-            if (this.bleed > 0) {
-              this.bleed--;
-              this.directDamage(4, "#ff3b4e");
-              sfx.bleed();
-              this.drawBars();
-              if (this.bleed <= 0) this.hemo = null;
-            }
-            setTimeout(() => {
-              if (this.dead || player.dead) return;
-              const d2 = player.pos.clone().sub(this.pos); d2.y = 0;
-              if (d2.length() < 3.2) hurtPlayer(this.curse ? 8 : 5, d2.normalize().multiplyScalar(8).setY(3));
-            }, 180);
+      if (this.kind === "attacker") {
+        /* attack dummy: rooted in place, endlessly cycling its M1 combo */
+        const toP = player.pos.clone().sub(this.pos); toP.y = 0;
+        if (!player.dead && toP.lengthSq() > .01) {
+          const want = Math.atan2(toP.x, toP.z);
+          let dyaw = want - this.facing;
+          while (dyaw > Math.PI) dyaw -= Math.PI * 2;
+          while (dyaw < -Math.PI) dyaw += Math.PI * 2;
+          this.facing += dyaw * Math.min(1, dt * 6);
+        }
+        this.swingT += dt;
+        const gap = this.swing === 3 ? 1.15 : .62;
+        if (this.swingT >= gap) {
+          this.swingT = 0;
+          this.swing = (this.swing + 1) % 4;
+          this.hitAt = .2;
+          if (player.pos.distanceTo(this.pos) < 14) sfx.whoosh();
+          /* spending a "move" burns one bleed stack, at a price */
+          if (this.swing === 3 && this.bleed > 0) {
+            this.bleed--;
+            this.directDamage(4, "#ff3b4e");
+            sfx.bleed();
+            this.drawBars();
+            if (this.bleed <= 0) this.hemo = null;
           }
         }
-        this.facing = Math.atan2(dir.x, dir.z);
+        if (this.hitAt !== null) {
+          this.hitAt -= dt;
+          if (this.hitAt <= 0) {
+            this.hitAt = null;
+            const d2 = player.pos.clone().sub(this.pos); d2.y = 0;
+            if (!player.dead && d2.length() < 3.4) {
+              const heavy = this.swing === 3;
+              hurtPlayer(heavy ? 6 : 3, d2.normalize().multiplyScalar(heavy ? 12 : 5).setY(heavy ? 4 : 1.5));
+            }
+          }
+        }
+        poseDummySwing(r, this.swing, this.swingT);
         r.root.rotation.y = this.facing;
       } else {
+        /* normal dummy: just stands there */
         const brr = Math.sin(this.animT * 1.6);
         r.shoulderL.rotation.x = .05 + brr * .04;
         r.shoulderR.rotation.x = .05 - brr * .04;
         r.elbowL.rotation.x = r.elbowR.rotation.x = -.15;
         r.spine.rotation.x = .03 + brr * .02;
         r.neck.rotation.y = Math.sin(this.animT * .4) * .2;
+        r.root.rotation.y = this.facing;
       }
-      if (this.punchAnim > 0) {
-        this.punchAnim -= dt;
-        r.shoulderR.rotation.x = -1.8 + this.punchAnim * 4.5;
-        r.elbowR.rotation.x = -.15;
-        r.spine.rotation.y = -.3;
-      }
+      this.applyReact(dt);
     }
     this.syncVis(dt);
   }
 }
 {
   const spots = [
-    [10, -8, false], [-12, -14, false], [18, 6, false], [-20, 8, false],
-    [4, -26, false], [-6, 18, false],
-    [28, -18, true], [-28, -20, true], [24, 22, true], [-24, 24, true],
+    [10, -8, "dummy"], [-12, -14, "dummy"], [18, 6, "dummy"], [-20, 8, "dummy"],
+    [4, -26, "dummy"], [-6, 18, "dummy"],
+    [28, -18, "attacker"], [-28, -20, "attacker"], [24, 22, "attacker"], [-24, 24, "attacker"],
   ];
-  for (const [x, z, c] of spots) enemies.push(new Enemy(x, z, c));
+  for (const [x, z, k] of spots) enemies.push(new Enemy(x, z, k));
 }
 
 function enemiesNear(pos, radius, dir = null, cosAngle = -1) {
@@ -1367,10 +1501,11 @@ function punch() {
     if (naoya) {
       /* full set = 8 dmg (2 per hit); final always knocks back w/ evadable stun, bypasses ragdoll */
       const kb = last ? dir.clone().multiplyScalar(16).setY(4) : dir.clone().multiplyScalar(4).setY(.5);
-      e.damage(2, kb, { stun: last ? .6 : .3, color: "#cfe4ff" });
+      e.damage(2, kb, { stun: last ? .7 : .3, color: "#cfe4ff",
+        react: last ? "stagger" : "head", reactDur: last ? .7 : .4, side: n % 2 ? -1 : 1 });
     } else {
       const kb = last ? dir.clone().multiplyScalar(26).setY(9) : dir.clone().multiplyScalar(5).setY(1);
-      e.damage(last ? 12 : 7, kb, { stun: .3 });
+      e.damage(last ? 12 : 7, kb, { stun: .3, react: "head", reactDur: .4, side: n % 2 ? -1 : 1 });
     }
     hitstop(.05);
     addShake(.12);
@@ -1616,7 +1751,7 @@ function drawShatter(dt) {
 function castN1() {
   if (player.char !== "naoya" || player.dead || cds.n1 > 0 || busy()) return;
   cds.n1 = CD.n1;
-  player.action = { type: "n1", t: 0, dur: .62, hit: false, dashed: false, lunged: false };
+  player.action = { type: "n1", t: 0, dur: .8, hit: false, dashed: false, lunged: false };
   showSplash("PROJECTION BREAKER", "", "#9fd8ff");
   sfx.whoosh();
 }
@@ -1684,7 +1819,7 @@ function stepAction(a, dt) {
           p.iframes = Math.max(p.iframes, 1.65);
           sfx.kick();
           addShake(.25);
-          tgt.damage(5, null, { stun: .4 });
+          tgt.damage(5, null, { stun: .4, react: "gut", reactDur: .45 });
         }
       }
       if (a.locked && !tgt.dead && a.t < 1.42) {
@@ -1693,7 +1828,7 @@ function stepAction(a, dt) {
           a.acc += dt;
           if (a.acc > .09) {
             a.acc = 0;
-            tgt.damage(3, null, { stun: .3 });
+            tgt.damage(3, null, { stun: .3, react: "pummel", reactDur: .3 });
             sfx.punch();
             addShake(.08);
             spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, 2.4 + Math.random() * 1.4, (Math.random() - .5) * 1.4)), 0xaad4ff, 3, 12);
@@ -1756,7 +1891,7 @@ function stepAction(a, dt) {
         if (a.t >= times[i] && !a.hits[i]) {
           a.hits[i] = true;
           if (!tgt.dead) {
-            tgt.damage(6, null, { stun: .35, color: "#ffd27a" });
+            tgt.damage(6, null, { stun: .35, color: "#ffd27a", react: "gut", reactDur: .42 });
             sfx.palm();
             hitstop(.02);
             addShake(.14);
@@ -1808,24 +1943,24 @@ function stepAction(a, dt) {
 
     /* ---------- NAOYA ---------- */
     case "n1": {
-      /* back-dash with i-frames, then spin kick */
-      if (!a.dashed) {
+      /* crouch -> i-frame back-dash -> full spin roundhouse */
+      if (a.t >= .12 && !a.dashed) {
         a.dashed = true;
         const f = facingVec();
-        p.vel.x -= f.x * 20; p.vel.z -= f.z * 20;
-        p.iframes = Math.max(p.iframes, .45);
-        ghostAfterimage(p.rig, 0x9fd8ff);
+        p.vel.x -= f.x * 22; p.vel.z -= f.z * 22;
+        p.iframes = Math.max(p.iframes, .5);
+        ghostAfterimage(p.rig, 0x9fd8ff, .35);
       }
-      if (a.t >= .24 && !a.lunged) {
+      if (a.t >= .3 && !a.lunged) {
         a.lunged = true;
         const f = facingVec();
-        p.vel.x += f.x * 26; p.vel.z += f.z * 26;
-        ghostAfterimage(p.rig, 0x9fd8ff);
+        p.vel.x += f.x * 34; p.vel.z += f.z * 34;
+        ghostAfterimage(p.rig, 0x9fd8ff, .35);
         sfx.whoosh();
       }
-      if (a.t >= .34 && !a.hit) {
+      if (a.t >= .44 && !a.hit) {
         a.hit = true;
-        const tgt = nearestFrontEnemy(3.8, .4);
+        const tgt = nearestFrontEnemy(4.8, .35);
         if (tgt) {
           const f = facingVec();
           tgt.damage(12, f.multiplyScalar(30).setY(10), { color: "#9fd8ff" });
@@ -1856,7 +1991,7 @@ function stepAction(a, dt) {
         const tgt = nearestFrontEnemy(3.2, .45);
         if (tgt) {
           a.tgt = tgt;
-          tgt.damage(8, facingVec().multiplyScalar(4).setY(1), { stun: .55, color: "#dfe6f2", spark: 0xff3b4e });
+          tgt.damage(8, facingVec().multiplyScalar(4).setY(1), { stun: .8, color: "#dfe6f2", spark: 0xff3b4e, react: "stab", reactDur: 1 });
           sfx.stab();
           hitstop(.05);
           addShake(.3);
@@ -1899,7 +2034,7 @@ function stepAction(a, dt) {
         if (a.t >= 1.18 && !a.neck) {
           a.neck = true;
           p.pos.copy(tgt.pos).add(facingVec().multiplyScalar(-1.6));
-          tgt.damage(20, null, { stun: .5, color: "#ff3b4e", spark: 0xd82a3c });
+          tgt.damage(20, null, { stun: .5, color: "#ff3b4e", spark: 0xd82a3c, react: "stab", reactDur: .8 });
           sfx.stab();
           hitstop(.1);
           addShake(.6);
@@ -1928,7 +2063,7 @@ function stepAction(a, dt) {
           a.fin = tgt.hp <= 25;
           a.dur = a.fin ? 2.9 : 1.75;
           p.vel.set(0, 0, 0);
-          tgt.damage(2, null, { stun: .5, color: "#ffd27a" });
+          tgt.damage(2, null, { stun: .5, color: "#ffd27a", react: "gut", reactDur: .4 });
           sfx.punch();
           addShake(.2);
         }
@@ -1948,7 +2083,7 @@ function stepAction(a, dt) {
           const rate = a.fin ? .07 : .1;
           if (a.acc > rate) {
             a.acc = 0;
-            tgt.damage(1, null, { stun: .3, color: "#ffd27a" });
+            tgt.damage(1, null, { stun: .3, color: "#ffd27a", react: "pummel", reactDur: .25 });
             sfx.punch();
             addShake(.06);
             spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, 2.2 + Math.random() * 1.6, (Math.random() - .5) * 1.4)), 0xffe2a8, 2, 10);
@@ -2160,139 +2295,271 @@ function poseAction(r, a) {
 
     /* ---------- NAOYA ---------- */
     case "n1": {
-      if (a.t < .24) {
-        /* back-dash lean */
-        const k = ease(a.t / .24);
-        r.spine.rotation.x = .35 * k;
-        r.shoulderL.rotation.x = -.9 * k; r.shoulderR.rotation.x = -.9 * k;
-        r.shoulderL.rotation.z = -.4; r.shoulderR.rotation.z = .4;
-        r.hipL.rotation.x = -.4 * k; r.kneeL.rotation.x = .5;
-        r.neck.rotation.x = -.15 * k;
+      /* crouch anticipation -> back-dash slide -> spin roundhouse -> follow-through */
+      if (a.t < .12) {
+        const k = ease(a.t / .12);
+        r.spine.rotation.x = .38 * k;
+        r.neck.rotation.x = .2 * k;
+        r.kneeL.rotation.x = .85 * k; r.kneeR.rotation.x = .85 * k;
+        r.hipL.rotation.x = -.42 * k; r.hipR.rotation.x = -.42 * k;
+        r.shoulderL.rotation.x = .7 * k; r.shoulderR.rotation.x = .7 * k;
+        r.hips.position.y = r.hipsBaseY - .32 * k;
+      } else if (a.t < .3) {
+        const k = ease((a.t - .12) / .18);
+        r.spine.rotation.x = lerp(.38, -.52, k);
+        r.neck.rotation.x = lerp(.2, .38, k);
+        r.shoulderL.rotation.x = lerp(.7, -1.3, k);
+        r.shoulderR.rotation.x = lerp(.7, -1.3, k);
+        r.shoulderL.rotation.z = -.35 * k; r.shoulderR.rotation.z = .35 * k;
+        r.elbowL.rotation.x = -.3; r.elbowR.rotation.x = -.3;
+        r.hipL.rotation.x = lerp(-.42, -1, k); r.kneeL.rotation.x = lerp(.85, .2, k);
+        r.hipR.rotation.x = lerp(-.42, .32, k); r.kneeR.rotation.x = lerp(.85, 1.2, k);
+        r.hips.position.y = r.hipsBaseY - .18;
+      } else if (a.t < .56) {
+        const k = ease((a.t - .3) / .26);
+        p.visYaw = k * Math.PI * 2;
+        const kick = Math.sin(Math.min(1, k * 1.35) * Math.PI);
+        r.hipR.rotation.x = -1.85 * kick;
+        r.kneeR.rotation.x = 1.4 * (1 - kick) + .08;
+        r.ankleR.rotation.x = .35 * kick;
+        r.hipL.rotation.x = .3; r.kneeL.rotation.x = .55;
+        r.spine.rotation.x = .1;
+        r.spine.rotation.z = -.32 * kick;
+        r.neck.rotation.z = .15 * kick;
+        r.shoulderL.rotation.z = -1.25 * kick; r.shoulderR.rotation.z = 1.25 * kick;
+        r.shoulderL.rotation.x = -.3; r.shoulderR.rotation.x = -.3;
+        r.hips.position.y = r.hipsBaseY - .12;
       } else {
-        /* spin + heavy roundhouse */
-        const k = clamp01((a.t - .24) / .26);
-        p.visYaw = ease(k) * Math.PI * 2;
-        r.hipR.rotation.x = -1.7 * Math.sin(Math.min(1, k * 1.2) * Math.PI);
-        r.kneeR.rotation.x = .1;
-        r.ankleR.rotation.x = .3;
-        r.hipL.rotation.x = .3; r.kneeL.rotation.x = .45;
-        r.spine.rotation.x = .18;
-        r.spine.rotation.z = -.15;
-        r.shoulderL.rotation.z = -1.1; r.shoulderR.rotation.z = 1.1;
+        const k = ease(clamp01((a.t - .56) / .24));
+        p.visYaw = Math.PI * 2;
+        r.hipR.rotation.x = lerp(-1.85, .2, k);
+        r.kneeR.rotation.x = lerp(.08, .5, k);
+        r.spine.rotation.z = lerp(-.32, 0, k);
+        r.spine.rotation.x = lerp(.1, .22, k);
+        r.kneeL.rotation.x = .55;
+        r.shoulderL.rotation.z = lerp(-1.25, -.15, k);
+        r.shoulderR.rotation.z = lerp(1.25, .15, k);
+        r.hips.position.y = r.hipsBaseY - .18 * (1 - k);
       }
       break;
     }
     case "n2": {
-      if (a.t < .32 && !a.fin) {
-        /* flourish: spin the tanto */
-        const k = a.t / .32;
-        r.shoulderR.rotation.x = -.9;
-        r.elbowR.rotation.x = -.5;
-        r.shoulderL.rotation.x = .25;
-        r.spine.rotation.y = .22;
-        if (r.tanto) r.tanto.rotation.x = k * Math.PI * 4;
-      } else if (!a.fin || a.t < .55) {
-        /* stab thrust */
-        const k = ease(clamp01((a.t - .32) / .12));
-        r.shoulderR.rotation.x = lerp(-.9, -1.6, k);
-        r.elbowR.rotation.x = -.06;
-        r.shoulderL.rotation.x = .45;
-        r.spine.rotation.y = lerp(.22, -.42, k);
-        r.spine.rotation.x = -.14;
-        r.hipL.rotation.x = -.3; r.hipR.rotation.x = .3; r.kneeR.rotation.x = .4;
+      /* blade flourish -> deep stab lunge -> withdraw (or finisher blitz) */
+      if (a.t < .3) {
+        const k = ease(a.t / .3);
+        r.shoulderR.rotation.x = -1.25 * k;
+        r.shoulderR.rotation.z = .45 * k;
+        r.elbowR.rotation.x = -1.55 * k;
+        r.shoulderL.rotation.x = -.75 * k;
+        r.elbowL.rotation.x = -.9 * k;
+        r.spine.rotation.y = .4 * k;
+        r.spine.rotation.x = .08 * k;
+        r.neck.rotation.y = -.3 * k;
+        r.hipL.rotation.x = -.15 * k; r.kneeR.rotation.x = .35 * k;
+        r.hips.position.y = r.hipsBaseY - .1 * k;
+        if (r.tanto) r.tanto.rotation.x = ease(k) * Math.PI * 6;
+      } else if (a.t < .46) {
+        const k = ease(clamp01((a.t - .3) / .16));
+        r.shoulderR.rotation.x = lerp(-1.25, -1.62, k);
+        r.shoulderR.rotation.z = lerp(.45, .05, k);
+        r.elbowR.rotation.x = lerp(-1.55, -.02, k);
+        r.shoulderL.rotation.x = lerp(-.75, .65, k);
+        r.elbowL.rotation.x = lerp(-.9, -1.35, k);
+        r.spine.rotation.y = lerp(.4, -.55, k);
+        r.spine.rotation.x = lerp(.08, -.18, k);
+        r.neck.rotation.y = lerp(-.3, .1, k);
+        r.hipL.rotation.x = -.55 * k; r.kneeL.rotation.x = .35 * k;
+        r.hipR.rotation.x = .4 * k; r.kneeR.rotation.x = lerp(.35, .5, k);
+        r.hips.position.y = r.hipsBaseY - .22 * k;
         if (r.tanto) r.tanto.rotation.x = 0;
+      } else if (!a.fin) {
+        const k = ease(clamp01((a.t - .46) / .32));
+        const inv = 1 - k;
+        r.shoulderR.rotation.x = -1.62 * inv - .2 * k;
+        r.elbowR.rotation.x = -.02 - .6 * k;
+        r.shoulderL.rotation.x = .65 * inv;
+        r.elbowL.rotation.x = -1.35 * inv - .2 * k;
+        r.spine.rotation.y = -.55 * inv;
+        r.spine.rotation.x = -.18 * inv;
+        r.hipL.rotation.x = -.55 * inv; r.hipR.rotation.x = .4 * inv;
+        r.kneeR.rotation.x = .5 * inv + .06;
+        r.hips.position.y = r.hipsBaseY - .22 * inv;
+      } else if (a.t < 1.15) {
+        /* finisher: blitzing slashes around the target, alternating sides */
+        const sl = Math.floor(a.t * 8) % 2 ? 1 : -1;
+        const jit = Math.sin(a.t * 34);
+        r.spine.rotation.y = .6 * sl;
+        r.spine.rotation.x = -.15;
+        r.neck.rotation.y = -.3 * sl;
+        r.shoulderR.rotation.x = -1.3 + jit * .3;
+        r.shoulderR.rotation.z = .3 * sl;
+        r.elbowR.rotation.x = -.15;
+        r.shoulderL.rotation.x = -.6 * sl;
+        r.elbowL.rotation.x = -.8;
+        r.kneeL.rotation.x = .5; r.kneeR.rotation.x = .5;
+        r.hipL.rotation.x = -.3; r.hipR.rotation.x = .2;
+        r.hips.position.y = r.hipsBaseY - .26;
+      } else if (a.t < 1.45) {
+        /* rising neck stab, up on the toes */
+        const k = ease(clamp01((a.t - 1.15) / .14));
+        r.shoulderR.rotation.x = lerp(-1.3, -2.05, k);
+        r.elbowR.rotation.x = -.04;
+        r.shoulderL.rotation.x = lerp(-.6, .5, k);
+        r.spine.rotation.y = -.5 * k;
+        r.spine.rotation.x = lerp(-.15, -.3, k);
+        r.neck.rotation.x = -.25 * k;
+        r.ankleL.rotation.x = -.3 * k; r.ankleR.rotation.x = -.3 * k;
+        r.hips.position.y = r.hipsBaseY + .08 * k;
       } else {
-        /* finisher blitz + neck stab */
-        const blur = Math.sin(a.t * 40);
-        r.shoulderR.rotation.x = -1.4 + blur * .3;
-        r.elbowR.rotation.x = -.1;
-        r.shoulderL.rotation.x = -.4;
-        r.spine.rotation.x = -.2;
-        if (a.t >= 1.18) {
-          const k = ease(clamp01((a.t - 1.18) / .15));
-          r.shoulderR.rotation.x = lerp(-.6, -2.1, k);
-          r.spine.rotation.y = -.5 * k;
-        }
+        /* wrenching the blade out and tossing the body */
+        const k = ease(clamp01((a.t - 1.45) / .2));
+        p.visYaw = k * Math.PI * .7;
+        r.shoulderR.rotation.x = lerp(-2.05, -.35, k);
+        r.shoulderR.rotation.z = .85 * k;
+        r.shoulderL.rotation.x = lerp(.5, -.9, k);
+        r.spine.rotation.y = lerp(-.5, .5, k);
+        r.spine.rotation.x = .12 * k;
+        r.kneeL.rotation.x = .3; r.kneeR.rotation.x = .4;
       }
       break;
     }
     case "n3": {
       if (!a.grabbed) {
-        /* sprint reach */
+        /* weaving sprint with a grasping reach */
         const s = Math.sin(a.t * 26);
-        r.spine.rotation.x = -.4;
-        r.neck.rotation.x = .25;
-        r.shoulderL.rotation.x = -1.4;
-        r.elbowL.rotation.x = -.15;
-        r.shoulderR.rotation.x = .7;
-        r.hipL.rotation.x = -s * 1; r.hipR.rotation.x = s * 1;
-        r.kneeL.rotation.x = .5 + Math.max(0, Math.cos(a.t * 26)) * .8;
-        r.kneeR.rotation.x = .5 + Math.max(0, -Math.cos(a.t * 26)) * .8;
+        p.visYaw = Math.sin(a.t * 16) * .12;
+        r.spine.rotation.x = -.45;
+        r.spine.rotation.y = Math.sin(a.t * 20) * .15;
+        r.neck.rotation.x = .3;
+        r.shoulderL.rotation.x = -1.5 + Math.sin(a.t * 10) * .1;
+        r.elbowL.rotation.x = -.1;
+        r.shoulderR.rotation.x = .8;
+        r.elbowR.rotation.x = -.4;
+        r.hipL.rotation.x = -s * 1.05; r.hipR.rotation.x = s * 1.05;
+        r.kneeL.rotation.x = .45 + Math.max(0, Math.cos(a.t * 26)) * .85;
+        r.kneeR.rotation.x = .45 + Math.max(0, -Math.cos(a.t * 26)) * .85;
+        r.hips.position.y = r.hipsBaseY - .18;
       } else if (!a.fin) {
-        /* two-handed flurry */
-        const f = Math.sin(a.t * 44);
-        r.shoulderR.rotation.x = -1.3 + f * .5;
-        r.shoulderL.rotation.x = -1.3 - f * .5;
-        r.elbowR.rotation.x = -.2; r.elbowL.rotation.x = -.2;
-        r.spine.rotation.x = -.16;
-        r.hipL.rotation.x = -.22; r.hipR.rotation.x = .25;
-        r.kneeL.rotation.x = .3; r.kneeR.rotation.x = .32;
+        /* alternating straights driven from the hips, with sudden knee strikes */
+        const alt = Math.sin(a.t * 22);
+        const kneeStrike = Math.sin(a.t * 2.9 - 1) > .93;
+        r.spine.rotation.x = -.22;
+        r.spine.rotation.y = alt * .38;
+        r.neck.rotation.x = .1;
+        r.shoulderR.rotation.x = -1.15 - Math.max(0, alt) * .75;
+        r.shoulderL.rotation.x = -1.15 - Math.max(0, -alt) * .75;
+        r.elbowR.rotation.x = -.18 - Math.max(0, -alt) * .95;
+        r.elbowL.rotation.x = -.18 - Math.max(0, alt) * .95;
+        if (kneeStrike) {
+          r.hipR.rotation.x = -1.35; r.kneeR.rotation.x = 1.25;
+          r.spine.rotation.x = -.32;
+        } else {
+          r.hipL.rotation.x = -.25; r.hipR.rotation.x = .28;
+          r.kneeL.rotation.x = .35; r.kneeR.rotation.x = .38;
+        }
+        r.hips.position.y = r.hipsBaseY - .12 + Math.sin(a.t * 44) * .02;
       } else {
         if (a.t < 1.9) {
-          /* one-arm barrage while caressing hair */
-          const f = Math.sin(a.t * 52);
-          r.shoulderR.rotation.x = -1.35 + f * .6;
-          r.elbowR.rotation.x = -.15;
-          r.shoulderL.rotation.x = -2.5;      /* hand in hair */
-          r.elbowL.rotation.x = -1.5;
-          r.neck.rotation.z = -.12;
-          r.neck.rotation.x = -.1;
-          r.spine.rotation.x = -.1;
+          /* overwhelming one-arm blur while the other caresses his hair */
+          const f = Math.sin(a.t * 54);
+          r.shoulderR.rotation.x = -1.35 + f * .65;
+          r.elbowR.rotation.x = -.12;
+          r.spine.rotation.y = -.15 + f * .08;
+          r.spine.rotation.x = -.12;
+          r.shoulderL.rotation.x = -2.55;
+          r.shoulderL.rotation.z = -.25;
+          r.elbowL.rotation.x = -1.42 + Math.sin(a.t * 2.2) * .12;
+          r.neck.rotation.z = -.14;
+          r.neck.rotation.x = -.16;
+          r.hipL.rotation.z = -.08;
+          r.kneeR.rotation.x = .3;
+          r.hips.position.x = .1;
         } else if (a.t < 2.1) {
-          /* block the retaliation */
-          r.shoulderR.rotation.x = -1.2;
-          r.elbowR.rotation.x = -1.2;
-          r.shoulderL.rotation.x = -.9;
-          r.elbowL.rotation.x = -1.3;
-          r.spine.rotation.x = .1;
+          /* snapping into a cross-arm block */
+          const k = ease(clamp01((a.t - 1.9) / .08));
+          r.shoulderL.rotation.x = -1.05 * k; r.shoulderR.rotation.x = -1.05 * k;
+          r.elbowL.rotation.x = -1.35 * k;    r.elbowR.rotation.x = -1.35 * k;
+          r.spine.rotation.x = .12 * k;
+          r.neck.rotation.x = .2 * k;
+          r.kneeL.rotation.x = .3; r.kneeR.rotation.x = .3;
+          r.hips.position.y = r.hipsBaseY - .1 * k;
         } else if (a.t < 2.55) {
-          /* frame moment — dramatic pause */
-          r.shoulderR.rotation.x = -.4;
-          r.shoulderL.rotation.x = .3;
-          r.neck.rotation.z = .08;
-          r.spine.rotation.y = -.2;
+          /* dismissive flick, chin up, half turned away as the frame sets */
+          const k = ease(clamp01((a.t - 2.1) / .2));
+          p.visYaw = -.6 * k;
+          r.shoulderR.rotation.x = -.3;
+          r.shoulderR.rotation.z = .85 * k;
+          r.elbowR.rotation.x = -.25 + Math.sin((a.t - 2.1) * 18) * .2 * (1 - k);
+          r.shoulderL.rotation.x = .25;
+          r.neck.rotation.z = .12;
+          r.neck.rotation.x = -.18;
+          r.spine.rotation.y = .35 * k;
         } else {
-          /* heavy kick */
-          const k = ease(clamp01((a.t - 2.55) / .15));
-          r.hipR.rotation.x = -1.8 * k;
-          r.kneeR.rotation.x = .1;
-          r.spine.rotation.x = .3 * k;
-          r.shoulderL.rotation.x = -.7; r.shoulderR.rotation.x = .5;
+          /* wheeling heavy kick */
+          const k = ease(clamp01((a.t - 2.55) / .14));
+          p.visYaw = lerp(-.6, 0, k);
+          r.hipR.rotation.x = -1.95 * k;
+          r.kneeR.rotation.x = .08;
+          r.ankleR.rotation.x = .3 * k;
+          r.spine.rotation.x = .35 * k;
+          r.spine.rotation.z = -.25 * k;
+          r.shoulderL.rotation.x = .5; r.shoulderR.rotation.x = -.85;
+          r.shoulderL.rotation.z = -.8 * k; r.shoulderR.rotation.z = .5;
+          r.kneeL.rotation.x = .4;
+          r.hips.position.y = r.hipsBaseY - .15 * k;
         }
       }
       break;
     }
     case "nr": {
-      /* leaning blitz, arm raised — frames snap at 24fps via hops */
+      /* 24fps blitz: pose changes with every projection hop */
+      const mode = a.hop % 3;
       r.spine.rotation.x = -.5;
-      r.neck.rotation.x = .3;
-      r.shoulderR.rotation.x = -2.4;
-      r.elbowR.rotation.x = -.15;
-      r.shoulderL.rotation.x = .9;
-      r.hipL.rotation.x = -.8; r.kneeL.rotation.x = .9;
-      r.hipR.rotation.x = .5; r.kneeR.rotation.x = .3;
+      r.neck.rotation.x = .32;
+      if (mode === 0) {
+        r.shoulderL.rotation.x = .95; r.shoulderR.rotation.x = .95;
+        r.shoulderL.rotation.z = -.35; r.shoulderR.rotation.z = .35;
+        r.hipL.rotation.x = -.9; r.kneeL.rotation.x = 1;
+        r.hipR.rotation.x = .55; r.kneeR.rotation.x = .25;
+      } else if (mode === 1) {
+        /* low slide */
+        r.spine.rotation.x = -.3;
+        r.hips.position.y = r.hipsBaseY - .5;
+        r.hipL.rotation.x = -1.3; r.kneeL.rotation.x = .2;
+        r.hipR.rotation.x = .8; r.kneeR.rotation.x = 1.5;
+        r.shoulderL.rotation.x = -.6; r.shoulderR.rotation.x = .8;
+      } else {
+        /* upright glide, hand raised in the technique sign */
+        r.shoulderR.rotation.x = -2.5; r.elbowR.rotation.x = -.1;
+        r.shoulderL.rotation.x = .8;
+        r.hipL.rotation.x = -.5; r.kneeL.rotation.x = .7;
+        r.hipR.rotation.x = .35; r.kneeR.rotation.x = .4;
+      }
       break;
     }
     case "nrf": {
-      if (a.t < .32) {
-        r.shoulderR.rotation.x = -2.2;
-        r.spine.rotation.x = -.3;
+      /* frame break: cock the fist behind, then a full-body straight */
+      if (a.t < .18) {
+        const k = ease(a.t / .18);
+        r.spine.rotation.y = .55 * k;
+        r.shoulderR.rotation.x = .75 * k;
+        r.shoulderR.rotation.z = .35 * k;
+        r.elbowR.rotation.x = -1.1 * k;
+        r.shoulderL.rotation.x = -.8 * k;
+        r.kneeL.rotation.x = .3; r.kneeR.rotation.x = .4;
+        r.hips.position.y = r.hipsBaseY - .12 * k;
       } else {
-        const k = ease(clamp01((a.t - .32) / .12));
-        r.shoulderR.rotation.x = lerp(-2.2, -1.5, k);
-        r.elbowR.rotation.x = -.05;
-        r.spine.rotation.y = -.5 * k;
-        r.hipL.rotation.x = -.3; r.hipR.rotation.x = .35;
+        const k = ease(clamp01((a.t - .18) / .16));
+        r.spine.rotation.y = lerp(.55, -.65, k);
+        r.spine.rotation.x = -.15 * k;
+        r.shoulderR.rotation.x = lerp(.75, -1.55, k);
+        r.shoulderR.rotation.z = lerp(.35, .05, k);
+        r.elbowR.rotation.x = lerp(-1.1, -.02, k);
+        r.shoulderL.rotation.x = lerp(-.8, .5, k);
+        r.elbowL.rotation.x = -.9;
+        r.hipL.rotation.x = -.5 * k; r.kneeL.rotation.x = .3;
+        r.hipR.rotation.x = .45 * k; r.kneeR.rotation.x = .55 * k;
+        r.hips.position.y = r.hipsBaseY - .18 * k;
       }
       break;
     }
