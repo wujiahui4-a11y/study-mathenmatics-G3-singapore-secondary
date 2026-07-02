@@ -97,11 +97,23 @@ const HEART_ROWS = [
   "...XXX...",
   "....X....",
 ];
-function drawHeart(g, x, y, s = 1, color = "#ff0030") {
+/* bake once per colour, then scale with nearest-neighbour: no grid seams */
+const heartCache = {};
+function heartCanvas(color) {
+  if (heartCache[color]) return heartCache[color];
+  const c = document.createElement("canvas");
+  c.width = 9; c.height = 8;
+  const g = c.getContext("2d");
   g.fillStyle = color;
   for (let r = 0; r < HEART_ROWS.length; r++)
-    for (let c = 0; c < 9; c++)
-      if (HEART_ROWS[r][c] === "X") g.fillRect(x + c * s, y + r * s, s, s);
+    for (let col = 0; col < 9; col++)
+      if (HEART_ROWS[r][col] === "X") g.fillRect(col, r, 1, 1);
+  heartCache[color] = c;
+  return c;
+}
+function drawHeart(g, x, y, s = 1, color = "#ff0030") {
+  g.imageSmoothingEnabled = false;
+  g.drawImage(heartCanvas(color), Math.round(x), Math.round(y), Math.round(9 * s), Math.round(8 * s));
 }
 
 /* ==========================================================
@@ -846,112 +858,142 @@ let slashT = -1, missT = -1;
 let particles = [];
 
 function drawJiahuiBattle(g, cx, cy, t, opts = {}) {
-  /* thin anime boy battle sprite (~36x66), centered on cx, feet at cy */
+  /* monochrome anime battle sprite (~36x66) — only the eyes carry colour.
+     opts: dx, alpha, dodge (0..1 dodge animation progress) */
   const bob = Math.sin(t * 2.1) * 1.2;
+  /* dodge keyframes: crouch -> side-step lean -> settle */
+  const dg = opts.dodge ?? 0;
+  let headDx = 0, bodyDx = 0, crouch = 0, stepK = 0;
+  if (dg > 0 && dg < 1) {
+    if (dg < .18) { crouch = 2 * (dg / .18); }
+    else if (dg < .55) {
+      const k = ease((dg - .18) / .37);
+      crouch = 2 - k; headDx = 3 * k; bodyDx = 2 * k; stepK = k;
+    } else {
+      const k = ease((dg - .55) / .45);
+      crouch = 1 - k; headDx = 3 * (1 - k); bodyDx = 2 * (1 - k); stepK = 1 - k;
+    }
+  }
+  crouch = Math.round(crouch);
+  const bxo = Math.round(bodyDx);
+  const hxo = Math.round(headDx + bodyDx);
+  const stepX = Math.round(6 * stepK);
+
   const x = Math.round(cx - 18 + (opts.dx || 0)), y = Math.round(cy - 62 + bob);
-  const J = "#2a5ad8", JH = "#4a7af8", JD = "#1e42a8";
-  const SKIN = "#f0c890", SH = "#d8a870", HAIR = "#171923", HH = "#323850", DARK = "#20222c";
-  const sw = Math.round(Math.sin(t * 1.1) * .8);   /* hair sway */
+  const by = y + crouch;
+  /* monochrome palette */
+  const J = "#eef1f6", JH = "#ffffff", JD = "#8c93a2";
+  const SKIN = "#d9dee8", SH = "#a7aebd", HAIR = "#0b0c11", HH = "#3a3f4c", DARK = "#14151c";
+  const sw = Math.round(Math.sin(t * 1.1) * .8);
   const blink = (t % 3.6) > 3.42;
   if (opts.alpha !== undefined) g.globalAlpha = opts.alpha;
 
-  /* slippers */
-  g.fillStyle = "#e8e8e8";
-  g.fillRect(x + 8, y + 59, 8, 3); g.fillRect(x + 20, y + 59, 8, 3);
-  g.fillStyle = "#ff8fb0";
-  g.fillRect(x + 10, y + 59, 4, 1); g.fillRect(x + 22, y + 59, 4, 1);
-  /* thin legs with a gap */
+  /* legs (trailing leg extends when side-stepping) + slippers */
   g.fillStyle = SKIN;
-  g.fillRect(x + 10, y + 46, 4, 13); g.fillRect(x + 22, y + 46, 4, 13);
+  g.fillRect(x + 10 - stepX, y + 46 + Math.round(stepK * 2), 4, 13 - Math.round(stepK * 2));
+  g.fillRect(x + 22, y + 46, 4, 13);
   g.fillStyle = SH;
-  g.fillRect(x + 13, y + 46, 1, 13); g.fillRect(x + 25, y + 46, 1, 13);
+  g.fillRect(x + 13 - stepX, y + 46 + Math.round(stepK * 2), 1, 13 - Math.round(stepK * 2));
+  g.fillRect(x + 25, y + 46, 1, 13);
+  g.fillStyle = "#ffffff";
+  g.fillRect(x + 8 - stepX, y + 59, 8, 3);
+  g.fillRect(x + 20, y + 59, 8, 3);
+  g.fillStyle = "#8c93a2";
+  g.fillRect(x + 10 - stepX, y + 59, 4, 1);
+  g.fillRect(x + 22, y + 59, 4, 1);
   /* shorts */
   g.fillStyle = DARK;
-  g.fillRect(x + 8, y + 38, 20, 9);
-  g.fillStyle = "#e8e8e8";
-  g.fillRect(x + 8, y + 41, 20, 2);
-  g.fillStyle = "#101218";
-  g.fillRect(x + 8, y + 46, 20, 1);
-  /* slim jacket, slight slouch */
+  g.fillRect(x + 8 + bxo, by + 38, 20, 9);
+  g.fillStyle = "#eef1f6";
+  g.fillRect(x + 8 + bxo, by + 41, 20, 2);
+  g.fillStyle = "#000";
+  g.fillRect(x + 8 + bxo, by + 46, 20, 1);
+  /* white jacket, slight slouch */
   g.fillStyle = J;
-  g.fillRect(x + 7, y + 20, 22, 19);
+  g.fillRect(x + 7 + bxo, by + 20, 22, 19);
   g.fillStyle = JH;
-  g.fillRect(x + 7, y + 20, 22, 2);
+  g.fillRect(x + 7 + bxo, by + 20, 22, 2);
   g.fillStyle = JD;
-  g.fillRect(x + 7, y + 30, 1, 9); g.fillRect(x + 28, y + 30, 1, 9);
-  g.fillRect(x + 8, y + 38, 20, 1);
+  g.fillRect(x + 7 + bxo, by + 30, 1, 9); g.fillRect(x + 28 + bxo, by + 30, 1, 9);
+  g.fillRect(x + 8 + bxo, by + 38, 20, 1);
   /* zipper + drawstrings */
-  g.fillStyle = "#dfe8f2";
-  g.fillRect(x + 17, y + 22, 1, 17);
-  g.fillRect(x + 14, y + 23, 1, 4); g.fillRect(x + 20, y + 23, 1, 4);
+  g.fillStyle = "#6f7686";
+  g.fillRect(x + 17 + bxo, by + 22, 1, 17);
+  g.fillRect(x + 14 + bxo, by + 23, 1, 4); g.fillRect(x + 20 + bxo, by + 23, 1, 4);
   /* pocket slits, hands in */
   g.fillStyle = JD;
-  g.fillRect(x + 10, y + 31, 5, 1); g.fillRect(x + 9, y + 32, 5, 1);
-  g.fillRect(x + 21, y + 31, 5, 1); g.fillRect(x + 22, y + 32, 5, 1);
+  g.fillRect(x + 10 + bxo, by + 31, 5, 1); g.fillRect(x + 9 + bxo, by + 32, 5, 1);
+  g.fillRect(x + 21 + bxo, by + 31, 5, 1); g.fillRect(x + 22 + bxo, by + 32, 5, 1);
   /* thin arms angled into the pockets */
   g.fillStyle = J;
-  g.fillRect(x + 3, y + 21, 4, 10);
-  g.fillRect(x + 29, y + 21, 4, 10);
-  g.fillRect(x + 5, y + 29, 4, 4);
-  g.fillRect(x + 27, y + 29, 4, 4);
+  g.fillRect(x + 3 + bxo, by + 21, 4, 10);
+  g.fillRect(x + 29 + bxo, by + 21, 4, 10);
+  g.fillRect(x + 5 + bxo, by + 29, 4, 4);
+  g.fillRect(x + 27 + bxo, by + 29, 4, 4);
   g.fillStyle = JD;
-  g.fillRect(x + 3, y + 30, 4, 1); g.fillRect(x + 29, y + 30, 4, 1);
-  /* hood roll behind the neck */
+  g.fillRect(x + 3 + bxo, by + 30, 4, 1); g.fillRect(x + 29 + bxo, by + 30, 4, 1);
+  /* hood roll */
   g.fillStyle = JH;
-  g.fillRect(x + 11, y + 17, 14, 3);
+  g.fillRect(x + 11 + bxo, by + 17, 14, 3);
   g.fillStyle = JD;
-  g.fillRect(x + 11, y + 19, 14, 1);
+  g.fillRect(x + 11 + bxo, by + 19, 14, 1);
   /* neck */
   g.fillStyle = SKIN;
-  g.fillRect(x + 16, y + 15, 4, 3);
-  /* head — bigger, anime proportion */
+  g.fillRect(x + 16 + bxo, by + 15, 4, 3);
+  /* head */
   g.fillStyle = SKIN;
-  g.fillRect(x + 10, y + 2, 16, 13);
-  g.fillRect(x + 12, y + 15, 12, 1);
-  /* layered hair */
+  g.fillRect(x + 10 + hxo, by + 2, 16, 13);
+  g.fillRect(x + 12 + hxo, by + 15, 12, 1);
+  /* black layered hair */
   g.fillStyle = HAIR;
-  g.fillRect(x + 8 + sw, y - 1, 20, 7);              /* top mass */
-  g.fillRect(x + 10 + sw, y - 3, 3, 2);              /* upward spikes */
-  g.fillRect(x + 16 + sw, y - 4, 3, 3);
-  g.fillRect(x + 22 + sw, y - 3, 2, 2);
-  g.fillRect(x + 19 + sw, y - 6, 1, 3);              /* ahoge */
-  g.fillRect(x + 20 + sw, y - 7, 1, 2);
-  g.fillRect(x + 8, y + 5, 2, 9);                    /* side bangs */
-  g.fillRect(x + 26, y + 5, 2, 9);
-  /* fringe locks over forehead */
-  g.fillRect(x + 10 + sw, y + 5, 4, 3); g.fillRect(x + 11 + sw, y + 8, 2, 1);
-  g.fillRect(x + 15 + sw, y + 5, 3, 2); g.fillRect(x + 16 + sw, y + 7, 1, 1);
-  g.fillRect(x + 19 + sw, y + 5, 4, 4);
-  g.fillRect(x + 24 + sw, y + 5, 2, 2);
+  g.fillRect(x + 8 + sw + hxo, by - 1, 20, 7);
+  g.fillRect(x + 10 + sw + hxo, by - 3, 3, 2);
+  g.fillRect(x + 16 + sw + hxo, by - 4, 3, 3);
+  g.fillRect(x + 22 + sw + hxo, by - 3, 2, 2);
+  g.fillRect(x + 19 + sw + hxo, by - 6, 1, 3);
+  g.fillRect(x + 20 + sw + hxo, by - 7, 1, 2);
+  g.fillRect(x + 8 + hxo, by + 5, 2, 9);
+  g.fillRect(x + 26 + hxo, by + 5, 2, 9);
+  g.fillRect(x + 10 + sw + hxo, by + 5, 4, 3); g.fillRect(x + 11 + sw + hxo, by + 8, 2, 1);
+  g.fillRect(x + 15 + sw + hxo, by + 5, 3, 2); g.fillRect(x + 16 + sw + hxo, by + 7, 1, 1);
+  g.fillRect(x + 19 + sw + hxo, by + 5, 4, 4);
+  g.fillRect(x + 24 + sw + hxo, by + 5, 2, 2);
   g.fillStyle = HH;
-  g.fillRect(x + 11 + sw, y, 6, 1); g.fillRect(x + 20 + sw, y - 1, 4, 1);
-  /* eyes: left orange / right blue, anime lashes */
+  g.fillRect(x + 11 + sw + hxo, by, 6, 1); g.fillRect(x + 20 + sw + hxo, by - 1, 4, 1);
+  /* eyes — the only colour on him. pupils track the player while dodging */
   const fl = Math.floor(t * 9) % 2;
   const oc = fl ? "#ffa030" : "#ffc060";
   const bc = fl ? "#40c8ff" : "#80e0ff";
+  const look = stepK > .15 ? -1 : 0;
   g.fillStyle = DARK;
-  g.fillRect(x + 11, y + 9, 5, 1);
-  g.fillRect(x + 20, y + 9, 5, 1);
+  g.fillRect(x + 11 + hxo, by + 9, 5, 1);
+  g.fillRect(x + 20 + hxo, by + 9, 5, 1);
   if (blink) {
-    g.fillRect(x + 11, y + 11, 5, 1);
-    g.fillRect(x + 20, y + 11, 5, 1);
+    g.fillRect(x + 11 + hxo, by + 11, 5, 1);
+    g.fillRect(x + 20 + hxo, by + 11, 5, 1);
   } else {
-    g.fillStyle = oc; g.fillRect(x + 12, y + 10, 2, 2);
-    g.fillStyle = bc; g.fillRect(x + 22, y + 10, 2, 2);
+    g.fillStyle = oc; g.fillRect(x + 12 + hxo + look, by + 10, 2, 2);
+    g.fillStyle = bc; g.fillRect(x + 22 + hxo + look, by + 10, 2, 2);
     g.fillStyle = "#fff";
-    g.fillRect(x + 12, y + 10, 1, 1); g.fillRect(x + 22, y + 10, 1, 1);
+    g.fillRect(x + 12 + hxo + look, by + 10, 1, 1);
+    g.fillRect(x + 22 + hxo + look, by + 10, 1, 1);
     g.globalAlpha = (opts.alpha ?? 1) * .22;
-    g.fillStyle = oc; g.fillRect(x + 11, y + 9, 4, 4);
-    g.fillStyle = bc; g.fillRect(x + 21, y + 9, 4, 4);
+    g.fillStyle = oc; g.fillRect(x + 11 + hxo, by + 9, 4, 4);
+    g.fillStyle = bc; g.fillRect(x + 21 + hxo, by + 9, 4, 4);
     g.globalAlpha = opts.alpha ?? 1;
   }
-  /* tired eye-bags, nose, small smile */
+  /* eye-bags, nose, smile (grows a little mid-dodge) */
   g.fillStyle = SH;
-  g.fillRect(x + 12, y + 12, 2, 1); g.fillRect(x + 22, y + 12, 2, 1);
-  g.fillRect(x + 18, y + 12, 1, 1);
+  g.fillRect(x + 12 + hxo, by + 12, 2, 1); g.fillRect(x + 22 + hxo, by + 12, 2, 1);
+  g.fillRect(x + 18 + hxo, by + 12, 1, 1);
   g.fillStyle = DARK;
-  g.fillRect(x + 15, y + 14, 6, 1);
-  g.fillRect(x + 14, y + 13, 1, 1); g.fillRect(x + 21, y + 13, 1, 1);
+  if (stepK > .3) {
+    g.fillRect(x + 14 + hxo, by + 14, 8, 1);
+    g.fillRect(x + 13 + hxo, by + 13, 1, 1); g.fillRect(x + 22 + hxo, by + 13, 1, 1);
+  } else {
+    g.fillRect(x + 15 + hxo, by + 14, 6, 1);
+    g.fillRect(x + 14 + hxo, by + 13, 1, 1); g.fillRect(x + 21 + hxo, by + 13, 1, 1);
+  }
   g.globalAlpha = 1;
 }
 
@@ -974,35 +1016,79 @@ function drawOutline(g, cx, cy, t) {
   g.restore();
 }
 
+/* crisp pixel border made of fill rects (no stroke fuzz) */
+function rectBorder(g, x, y, w, h, th, color) {
+  g.fillStyle = color;
+  g.fillRect(x, y, w, th);
+  g.fillRect(x, y + h - th, w, th);
+  g.fillRect(x, y + th, th, h - th * 2);
+  g.fillRect(x + w - th, y + th, th, h - th * 2);
+}
+/* hand-drawn 12x10 monochrome icons */
+function drawBtnIcon(g, i, x, y, color) {
+  g.fillStyle = color;
+  if (i === 0) {            /* sword */
+    g.fillRect(x + 4, y - 1, 2, 6);
+    g.fillRect(x + 2, y + 5, 6, 1);
+    g.fillRect(x + 4, y + 6, 2, 2);
+    g.fillRect(x + 3, y + 8, 4, 1);
+  } else if (i === 1) {     /* hand */
+    g.fillRect(x + 2, y + 3, 6, 4);
+    g.fillRect(x + 2, y + 1, 1, 2);
+    g.fillRect(x + 4, y, 1, 3);
+    g.fillRect(x + 6, y + 1, 1, 2);
+    g.fillRect(x + 1, y + 4, 1, 2);
+    g.fillRect(x + 3, y + 7, 4, 1);
+  } else if (i === 2) {     /* bag */
+    g.fillRect(x + 1, y + 3, 8, 6);
+    g.fillRect(x + 3, y + 1, 1, 2);
+    g.fillRect(x + 6, y + 1, 1, 2);
+    g.fillRect(x + 3, y, 4, 1);
+    g.fillStyle = "#000";
+    g.fillRect(x + 4, y + 5, 2, 2);
+  }
+}
+
 function drawBattleUI(g, t, glowStyle) {
-  /* glowStyle: {a: alpha, volatile:bool} */
+  /* glowStyle: {a: alpha, volatile:bool, select:bool} */
   const vol = glowStyle.volatile;
   let a = glowStyle.a;
   if (vol) a = clamp(a + (Math.random() - .5) * .5, .18, 1);
   const col = vol ? `rgba(255,154,46,${a})` : `rgba(255,255,255,${a})`;
+  const colDim = vol ? `rgba(255,154,46,${a * .35})` : `rgba(255,255,255,${a * .35})`;
 
-  /* battle box */
-  g.strokeStyle = col; g.lineWidth = 2;
-  g.strokeRect(BOX.x, BOX.y, BOX.w, BOX.h);
+  /* battle box: thick outer line + faint inner line */
+  rectBorder(g, BOX.x, BOX.y, BOX.w, BOX.h, 2, col);
+  rectBorder(g, BOX.x + 4, BOX.y + 4, BOX.w - 8, BOX.h - 8, 1, colDim);
 
   /* buttons */
   setFont(g, 8);
   for (let i = 0; i < 4; i++) {
     const bx = 12 + i * 76, by = 206, bw = 70, bh = 26;
     const sel = glowStyle.select && btnSel === i;
-    g.strokeStyle = sel ? "#ffe93a" : col;
-    g.strokeRect(bx, by, bw, bh);
-    g.fillStyle = sel ? "#ffe93a" : col;
     const label = BTNS[i];
-    g.fillText(label, bx + (bw - label.length * 8) / 2 + 6, by + 9);
-    /* tiny icon */
-    const ix = bx + 4, iy = by + 8;
-    g.fillStyle = sel ? "#ffe93a" : col;
-    if (i === 0) { g.fillRect(ix, iy + 6, 8, 2); g.fillRect(ix + 3, iy, 2, 8); }
-    else if (i === 1) { g.fillRect(ix + 1, iy, 5, 7); g.fillRect(ix, iy + 2, 7, 2); }
-    else if (i === 2) { g.fillRect(ix, iy + 2, 7, 6); g.fillRect(ix + 2, iy, 3, 3); }
-    else { drawHeart(g, ix - 1, iy, 1, sel ? "#ffe93a" : (vol ? "#ff9a2e" : "#fff")); }
-    if (sel) drawHeart(g, bx - 1, by + 9, 1);
+    if (sel) {
+      /* inverted: white plate, black ink, red soul cursor */
+      g.fillStyle = `rgba(255,255,255,${a})`;
+      g.fillRect(bx, by - 1, bw, bh);
+      g.fillStyle = "#101218";
+      g.fillText(label, bx + (bw - label.length * 8) / 2 + 7, by + 8);
+      drawHeart(g, bx + 5, by + 8, 1);
+    } else {
+      rectBorder(g, bx, by, bw, bh, 2, col);
+      rectBorder(g, bx + 3, by + 3, bw - 6, bh - 6, 1, colDim);
+      const tx = bx + (bw - (label.length * 8 + 12)) / 2 + 12;
+      if (i === 3) {
+        const prev = g.globalAlpha;
+        g.globalAlpha = prev * a;
+        drawHeart(g, tx - 12, by + 9, 1, vol ? "#ff9a2e" : "#ffffff");
+        g.globalAlpha = prev;
+      } else {
+        drawBtnIcon(g, i, tx - 12, by + 9, col);
+      }
+      g.fillStyle = col;
+      g.fillText(label, tx, by + 9);
+    }
   }
 }
 
@@ -1293,9 +1379,10 @@ function loop(now) {
         }
         if (missT >= 0) {
           missT += dt;
-          jia.dx = lerp(jia.dx, 40, dt * 10);
+          /* anticipation crouch first, then the side-step slide */
+          if (missT > .12) jia.dx = lerp(jia.dx, 40, dt * 10);
           if (Math.random() < dt * 24 && jia.dx < 34)
-            jia.ghosts.push({ dx: jia.dx, t: .3 });
+            jia.ghosts.push({ dx: jia.dx, t: .3, dg: clamp(missT / .9, 0, 1) });
         }
         if (slashT > 1.15) {
           setBp("hisline");
@@ -1322,11 +1409,12 @@ function loop(now) {
       drawBattleUI(g, gt, { a: .8, volatile: bp === "volatile" || bp === "sentence", select: uiSelect });
 
       /* jiahui */
+      const dgP = (bp === "strike" && missT >= 0) ? clamp(missT / .9, 0, 1) : 0;
       if (bp === "volatile" || bp === "sentence") {
         drawOutline(g, 160, 122, mt);
       } else {
         for (const gh of jia.ghosts)
-          drawJiahuiBattle(g, 160, 122, gt, { dx: gh.dx, alpha: gh.t / .3 * .4 });
+          drawJiahuiBattle(g, 160, 122, gt, { dx: gh.dx, alpha: gh.t / .3 * .4, dodge: gh.dg ?? 0 });
         if (bp === "reveal") {
           /* scanline reveal */
           g.save();
@@ -1338,7 +1426,7 @@ function loop(now) {
           g.fillStyle = "rgba(255,255,255,.8)";
           g.fillRect(100, 122 - 72 + 72 * jia.reveal, 120, 1);
         } else {
-          drawJiahuiBattle(g, 160, 122, gt, { dx: jia.dx });
+          drawJiahuiBattle(g, 160, 122, gt, { dx: jia.dx, dodge: dgP });
         }
       }
 
@@ -1351,7 +1439,7 @@ function loop(now) {
         g.moveTo(140 - sp * 8, 70 + sp * 40);
         g.lineTo(175 + sp * 6, 105 + sp * 40);
         g.stroke();
-        g.strokeStyle = `rgba(255,80,80,${(1 - sp) * .7})`;
+        g.strokeStyle = `rgba(160,170,190,${(1 - sp) * .7})`;
         g.lineWidth = 1.5;
         g.beginPath();
         g.moveTo(146 - sp * 8, 66 + sp * 40);
@@ -1364,34 +1452,62 @@ function loop(now) {
         g.fillText("MISS", 146, 60 - missT * 14);
       }
 
-      /* aim board */
+      /* aim board — monochrome target bar */
       if (bp === "aim") {
         g.fillStyle = "#000";
         g.fillRect(BOX.x + 2, BOX.y + 2, BOX.w - 4, BOX.h - 4);
-        for (let i = 0; i < 10; i++) {
-          g.fillStyle = i % 2 ? "#233a26" : "#1a2c1e";
-          g.fillRect(BOX.x + 4 + i * (BOX.w - 8) / 10, BOX.y + 6, (BOX.w - 8) / 10, BOX.h - 12);
+        rectBorder(g, BOX.x + 5, BOX.y + 5, BOX.w - 10, BOX.h - 10, 1, "#3a3f4c");
+        /* ruler ticks */
+        g.fillStyle = "#3a3f4c";
+        for (let tx2 = BOX.x + 10; tx2 < BOX.x + BOX.w - 10; tx2 += 12) {
+          g.fillRect(tx2, BOX.y + 7, 1, 3);
+          g.fillRect(tx2, BOX.y + BOX.h - 10, 1, 3);
         }
-        g.fillStyle = "#48d868";
-        g.fillRect(BOX.x + BOX.w / 2 - 7, BOX.y + 6, 14, BOX.h - 12);
-        const sweep = (bpt * 200) % ((BOX.w - 12) * 2);
-        const sx2 = sweep < BOX.w - 12 ? sweep : (BOX.w - 12) * 2 - sweep;
+        /* centre target zone + chevrons */
+        const tcx = BOX.x + BOX.w / 2;
+        g.fillStyle = "rgba(255,255,255,.14)";
+        g.fillRect(tcx - 8, BOX.y + 7, 16, BOX.h - 14);
+        g.fillStyle = "rgba(255,255,255,.3)";
+        g.fillRect(tcx - 8, BOX.y + 7, 1, BOX.h - 14);
+        g.fillRect(tcx + 7, BOX.y + 7, 1, BOX.h - 14);
         g.fillStyle = "#fff";
-        g.fillRect(BOX.x + 6 + sx2, BOX.y + 4, 3, BOX.h - 8);
+        g.fillRect(tcx - 1, BOX.y + 7, 2, BOX.h - 14);
+        g.fillRect(tcx - 4, BOX.y + 3, 8, 2);
+        g.fillRect(tcx - 2, BOX.y + 5, 4, 1);
+        g.fillRect(tcx - 4, BOX.y + BOX.h - 5, 8, 2);
+        g.fillRect(tcx - 2, BOX.y + BOX.h - 6, 4, 1);
+        /* sweeping cursor with a fading trail */
+        const span = BOX.w - 20;
+        const sweep = (bpt * 190) % (span * 2);
+        const sx2 = BOX.x + 10 + (sweep < span ? sweep : span * 2 - sweep);
+        const dir2 = sweep < span ? 1 : -1;
+        for (let k2 = 1; k2 <= 4; k2++) {
+          g.fillStyle = `rgba(255,255,255,${.3 - k2 * .06})`;
+          g.fillRect(sx2 - dir2 * k2 * 3 - 1, BOX.y + 8, 2, BOX.h - 16);
+        }
+        g.fillStyle = "#fff";
+        g.fillRect(sx2 - 1, BOX.y + 6, 3, BOX.h - 12);
         setFont(g, 7);
-        g.fillStyle = "#aaa";
-        g.fillText("Z !", BOX.x + BOX.w - 26, BOX.y + BOX.h - 12);
+        if (Math.floor(gt * 3) % 2) {
+          g.fillStyle = "#9aa2b0";
+          g.fillText("PRESS Z", BOX.x + BOX.w - 64, BOX.y + BOX.h - 14);
+        }
       } else if (bp !== "volatile") {
         boxText(g, gt);
+      }
+      /* strike flash on the box frame */
+      if (bp === "strike" && slashT < .1) {
+        rectBorder(g, BOX.x, BOX.y, BOX.w, BOX.h, 2, `rgba(255,255,255,${1 - slashT * 8}`);
       }
       /* soul in box during menu phases */
       if (bp === "pturn") drawHeart(g, 62, BOX.y + BOX.h - 16, 1.2);
 
       drawBubble(g, gt);
 
-      /* particles */
+      /* particles (kept monochrome; orange only while the UI is volatile) */
       for (const pa of particles) {
-        g.fillStyle = pa.o ? "rgba(255,154,46,.45)" : "rgba(255,255,255,.5)";
+        const orange = pa.o && (bp === "volatile" || bp === "sentence");
+        g.fillStyle = orange ? "rgba(255,154,46,.4)" : "rgba(225,232,245,.38)";
         g.fillRect(pa.x, pa.y, pa.s > .6 ? 2 : 1, pa.s > .6 ? 2 : 1);
       }
       break;
