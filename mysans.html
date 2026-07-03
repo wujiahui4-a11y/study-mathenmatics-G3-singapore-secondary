@@ -853,9 +853,424 @@ let bpt = 0;
 let bpFlags = {};
 let btext = null;      /* box narration */
 let bubble = null;     /* jiahui speech */
-let jia = { x: 160, y: 96, dx: 0, ghosts: [], reveal: 0 };
+let jia = { x: 160, y: 96, dx: 0, ghosts: [], reveal: 0, face: "serious" };
 let slashT = -1, missT = -1;
 let particles = [];
+let shakeT = 0;
+
+/* ==========================================================
+   THE SEVEN ROUNDS — undertale-style attack phases
+   string spikes (his "bones"): blue = hold still,
+   orange = keep moving, colourful = always dodge.
+   ========================================================== */
+const soul = { x: 160, y: 174, vx: 0, vy: 0, mode: "red", gdir: "down",
+               hp: 20, maxHp: 20, inv: 0, slam: false, deadT: 0, pj: false };
+let spikes = [], blasters = [];
+const battle = { round: 0, atkT: 0, dur: 0, tm: {} };
+
+const SPIKE_PALS = {
+  blue:   ["#2a4ad8", "#3a6cf8", "#5ad8ff", "#8ab8ff"],
+  orange: ["#e86a1a", "#ff9a2e", "#ffce5a", "#ffe9a8"],
+  multi:  ["#ff4a6a", "#ffd23f", "#4af0a0", "#4ab8ff", "#c86aff", "#f4f4f4"],
+};
+
+function addSpike(edge, pos, len, w, kind, vel = 0) {
+  spikes.push({ edge, pos, len: 0, target: len, w, kind, vel, ph: Math.random() * 9 });
+}
+function addFullWall(pos, kind, vel) {
+  addSpike("bottom", pos, BOX.h - 8, 9, kind, vel);
+}
+function addWallGap(pos, gapY, gapH, kind, vel) {
+  const topLen = clamp(gapY - gapH / 2 - (BOX.y + 2), 0, BOX.h - 6);
+  const botLen = clamp((BOX.y + BOX.h - 2) - (gapY + gapH / 2), 0, BOX.h - 6);
+  if (topLen > 3) addSpike("top", pos, topLen, 9, kind, vel);
+  if (botLen > 3) addSpike("bottom", pos, botLen, 9, kind, vel);
+}
+function addBlaster(axis, at) {
+  blasters.push({ axis, at, t: 0 });
+}
+function setGravity(d) {
+  if (soul.gdir === d && soul.mode === "blue") return;
+  soul.mode = "blue";
+  soul.gdir = d;
+  soul.slam = true;
+  soul.vx = 0; soul.vy = 0;
+}
+function flipAndSpikes(dir) {
+  setGravity(dir);
+  if (dir === "down" || dir === "up") {
+    const edge = dir === "down" ? "bottom" : "top";
+    for (let i = 0; i < 3; i++)
+      addSpike(edge, BOX.x + BOX.w + 14 + i * 36, 14 + Math.random() * 9, 10, "multi", -95);
+  } else {
+    for (let i = 0; i < 3; i++)
+      addSpike(dir, BOX.y + BOX.h + 14 + i * 30, 13 + Math.random() * 8, 10, "multi", -80);
+  }
+}
+function every(key, interval, first = 0) {
+  const k = battle.tm;
+  if (k[key] === undefined) k[key] = first;
+  if (battle.atkT >= k[key]) { k[key] += interval; return true; }
+  return false;
+}
+function once(key, time) {
+  if (!battle.tm["o" + key] && battle.atkT >= time) { battle.tm["o" + key] = 1; return true; }
+  return false;
+}
+
+/* ----- the rounds: different pattern, dialogue, face each ----- */
+const ROUNDS = [
+  { face: "serious", dur: 8.5, blue: false,
+    dlg: "seven memories. that's all i'll show you. try to keep up.",
+    update() {
+      if (every("w", 1.15, .6))
+        addWallGap(BOX.x + BOX.w + 16, BOX.y + 14 + Math.random() * (BOX.h - 28), 22, "multi", -88);
+    } },
+  { face: "cold", dur: 9, blue: false,
+    dlg: "listen. blue strings sleep — hold still. orange ones starve — keep moving.",
+    update() {
+      if (every("w", 1.35, .7)) {
+        battle.tm.alt = !battle.tm.alt;
+        addFullWall(BOX.x + BOX.w + 16, battle.tm.alt ? "blue" : "orange", -95);
+      }
+    } },
+  { face: "annoyed", dur: 9, blue: true,
+    dlg: "you feel heavy yet? good. that's how every day felt.",
+    update() {
+      if (every("s", .85, .8))
+        addSpike("bottom", BOX.x + BOX.w + 12, 15 + Math.random() * 11, 10, "multi", -(105 + Math.random() * 35));
+      if (once("b1", 3.4)) addFullWall(BOX.x + BOX.w + 16, "blue", -70);
+      if (once("b2", 6.5)) addFullWall(BOX.x + BOX.w + 16, "blue", -70);
+    } },
+  { face: "tired", dur: 10.5, blue: true,
+    dlg: "up. down. left. right. the world flips easier than you'd think.",
+    update() {
+      if (once("f1", 1.8)) flipAndSpikes("right");
+      if (once("f2", 4.2)) flipAndSpikes("up");
+      if (once("f3", 6.6)) flipAndSpikes("left");
+      if (once("f4", 9)) flipAndSpikes("down");
+    } },
+  { face: "smirk", dur: 9, blue: false,
+    dlg: "heh. these ones sing when they fire. don't stop to listen.",
+    update() {
+      if (every("bl", 1.5, .7)) {
+        battle.tm.n = (battle.tm.n || 0) + 1;
+        if (battle.tm.n % 2) addBlaster("h", clamp(soul.y, BOX.y + 10, BOX.y + BOX.h - 10));
+        else addBlaster("v", clamp(soul.x, BOX.x + 12, BOX.x + BOX.w - 12));
+      }
+      if (every("s", 1.7, 1.2))
+        addSpike("bottom", BOX.x + BOX.w + 12, 16, 10, "multi", -62);
+    } },
+  { face: "angry", dur: 10.5, blue: true,
+    dlg: "WHY do you keep getting up? STAY DOWN.",
+    update() {
+      if (every("w", 1.45, .8)) {
+        battle.tm.alt = !battle.tm.alt;
+        addFullWall(BOX.x + BOX.w + 16, battle.tm.alt ? "blue" : "orange", -88);
+      }
+      if (every("bl", 2.6, 1.6)) addBlaster("h", clamp(soul.y, BOX.y + 10, BOX.y + BOX.h - 10));
+      if (once("f1", 5.2)) setGravity("up");
+      if (once("f2", 8.2)) setGravity("down");
+    } },
+  { face: "empty", dur: 11, blue: true,
+    dlg: "...last one. after this, there's nothing left to show you.",
+    update() {
+      if (every("s", .68, .5)) {
+        battle.tm.side = !battle.tm.side;
+        addSpike("bottom", battle.tm.side ? BOX.x + BOX.w + 12 : BOX.x - 12,
+          14 + Math.random() * 12, 10, "multi", battle.tm.side ? -145 : 145);
+      }
+      if (every("bl", 1.9, 1)) {
+        if (Math.random() < .5) addBlaster("h", clamp(soul.y, BOX.y + 10, BOX.y + BOX.h - 10));
+        else addBlaster("v", clamp(soul.x, BOX.x + 12, BOX.x + BOX.w - 12));
+      }
+      if (once("f1", 3.6)) flipAndSpikes("right");
+      if (once("f2", 7.2)) flipAndSpikes("down");
+    } },
+];
+
+function startRound(i) {
+  battle.round = i;
+  const R = ROUNDS[i - 1];
+  jia.face = R.face;
+  jia.dx = 0;
+  missT = -1; slashT = -1;
+  btext = null;
+  bubble = tw(R.dlg, 24);
+  setBp("rdlg");
+}
+function beginAttack() {
+  const R = ROUNDS[battle.round - 1];
+  spikes = []; blasters = [];
+  battle.atkT = 0; battle.dur = R.dur; battle.tm = {};
+  soul.x = BOX.x + BOX.w / 2; soul.y = BOX.y + BOX.h - 12;
+  soul.vx = 0; soul.vy = 0;
+  soul.mode = R.blue ? "blue" : "red";
+  soul.gdir = "down";
+  soul.inv = .9; soul.slam = false; soul.deadT = 0;
+  setBp("attack");
+}
+function endAttack() {
+  spikes = []; blasters = [];
+  soul.slam = false;
+  if (battle.round >= 7) {
+    jia.face = "empty";
+    setBp("notfin");
+    btext = tw("* havent finished.", 16);
+  } else {
+    setBp("pturn");
+    btnSel = 0;
+    btext = tw("* the strings settle. your move.", 30);
+  }
+}
+function damageSoul() {
+  if (soul.inv > 0 || soul.deadT > 0) return;
+  soul.hp -= 1;
+  soul.inv = 1;
+  shakeT = Math.max(shakeT, .18);
+  if (soul.hp <= 0) soul.deadT = 1.4;
+}
+
+function updateAttack(dt) {
+  if (soul.deadT > 0) {
+    soul.deadT -= dt;
+    if (soul.deadT <= 0) { soul.hp = soul.maxHp; soul.inv = 1.5; }
+    return;
+  }
+  battle.atkT += dt;
+  ROUNDS[battle.round - 1].update();
+
+  /* spikes slide + grow */
+  for (let i = spikes.length - 1; i >= 0; i--) {
+    const s = spikes[i];
+    s.len = Math.min(s.target, s.len + 95 * dt);
+    s.pos += s.vel * dt;
+    const horiz = s.edge === "bottom" || s.edge === "top";
+    const lo = horiz ? BOX.x - 26 : BOX.y - 26;
+    const hi = horiz ? BOX.x + BOX.w + 26 : BOX.y + BOX.h + 26;
+    if (s.pos < lo || s.pos > hi) spikes.splice(i, 1);
+  }
+  for (let i = blasters.length - 1; i >= 0; i--) {
+    blasters[i].t += dt;
+    if (blasters[i].t > 1.25) blasters.splice(i, 1);
+  }
+
+  /* ----- soul control ----- */
+  const L = BOX.x + 6, Rt = BOX.x + BOX.w - 6, T = BOX.y + 6, B = BOX.y + BOX.h - 6;
+  const spd = 76;
+  let ix = 0, iy = 0;
+  if (left()) ix--; if (right()) ix++;
+  if (up()) iy--; if (down()) iy++;
+  const gd = soul.gdir;
+  if (soul.mode === "red") {
+    soul.vx = ix * spd; soul.vy = iy * spd;
+  } else {
+    const ga = 620 * (soul.slam ? 3.2 : 1);
+    const grounded =
+      (gd === "down" && soul.y >= B - .5) || (gd === "up" && soul.y <= T + .5) ||
+      (gd === "left" && soul.x <= L + .5) || (gd === "right" && soul.x >= Rt + .5);
+    const jHeld = keys.KeyZ || keys.Space || keys.Enter ||
+      (gd === "down" && (keys.ArrowUp || keys.KeyW)) ||
+      (gd === "up" && (keys.ArrowDown || keys.KeyS)) ||
+      (gd === "left" && (keys.ArrowRight || keys.KeyD)) ||
+      (gd === "right" && (keys.ArrowLeft || keys.KeyA));
+    const jump = ((jHeld && !soul.pj) || zHit) && grounded && !soul.slam;
+    soul.pj = jHeld;
+    if (gd === "down" || gd === "up") {
+      soul.vx = ix * spd;
+      soul.vy += (gd === "down" ? 1 : -1) * ga * dt;
+      if (jump) soul.vy = (gd === "down" ? -1 : 1) * 174;
+      soul.vy = clamp(soul.vy, -265, 265);
+    } else {
+      soul.vy = iy * spd;
+      soul.vx += (gd === "right" ? 1 : -1) * ga * dt;
+      if (jump) soul.vx = (gd === "right" ? -1 : 1) * 174;
+      soul.vx = clamp(soul.vx, -265, 265);
+    }
+  }
+  zHit = false;                     /* Z belongs to the soul during attacks */
+  soul.x += soul.vx * dt;
+  soul.y += soul.vy * dt;
+  const land = () => { if (soul.slam) { soul.slam = false; shakeT = Math.max(shakeT, .24); } };
+  if (soul.x < L) { soul.x = L; if (soul.vx < 0) soul.vx = 0; if (gd === "left") land(); }
+  if (soul.x > Rt) { soul.x = Rt; if (soul.vx > 0) soul.vx = 0; if (gd === "right") land(); }
+  if (soul.y < T) { soul.y = T; if (soul.vy < 0) soul.vy = 0; if (gd === "up") land(); }
+  if (soul.y > B) { soul.y = B; if (soul.vy > 0) soul.vy = 0; if (gd === "down") land(); }
+
+  soul.inv = Math.max(0, soul.inv - dt);
+
+  /* ----- collisions ----- */
+  const speed = Math.hypot(soul.vx, soul.vy);
+  const sb = { x: soul.x - 3, y: soul.y - 3, w: 6, h: 6 };
+  const hitRect = r => sb.x < r.x + r.w && sb.x + sb.w > r.x && sb.y < r.y + r.h && sb.y + sb.h > r.y;
+  for (const s of spikes) {
+    if (s.len < 4) continue;
+    const r = spikeRect(s);
+    r.x += 1; r.y += 1; r.w = Math.max(1, r.w - 2); r.h = Math.max(1, r.h - 2);
+    if (!hitRect(r)) continue;
+    if (s.kind === "multi") damageSoul();
+    else if (s.kind === "blue" && speed > 12) damageSoul();
+    else if (s.kind === "orange" && speed < 12) damageSoul();
+  }
+  for (const b of blasters) {
+    if (b.t > .55 && b.t < 1.0) {
+      const r = blasterBeamRect(b);
+      r.x += 2; r.y += 2; r.w -= 4; r.h -= 4;
+      if (hitRect(r)) damageSoul();
+    }
+  }
+
+  if (battle.atkT >= battle.dur) endAttack();
+}
+
+/* ----- drawing: string spikes / blaster / soul / hp ----- */
+function spikeRect(s) {
+  if (s.edge === "bottom") return { x: s.pos - s.w / 2, y: BOX.y + BOX.h - 2 - s.len, w: s.w, h: s.len };
+  if (s.edge === "top")    return { x: s.pos - s.w / 2, y: BOX.y + 2, w: s.w, h: s.len };
+  if (s.edge === "left")   return { x: BOX.x + 2, y: s.pos - s.w / 2, w: s.len, h: s.w };
+  return { x: BOX.x + BOX.w - 2 - s.len, y: s.pos - s.w / 2, w: s.len, h: s.w };
+}
+function drawSpike(g, s, t) {
+  if (s.len < 2) return;
+  const pal = SPIKE_PALS[s.kind];
+  const n = 6;
+  g.lineWidth = 1;
+  for (let i = 0; i < n; i++) {
+    g.strokeStyle = pal[i % pal.length];
+    g.globalAlpha = .9;
+    const f = i / (n - 1) - .5;
+    const wob = Math.sin(t * 3 + s.ph + i) * 2;
+    g.beginPath();
+    if (s.edge === "bottom") {
+      g.moveTo(s.pos + f * s.w, BOX.y + BOX.h - 2);
+      g.quadraticCurveTo(s.pos + f * s.w * .4 + wob, BOX.y + BOX.h - 2 - s.len * .55, s.pos, BOX.y + BOX.h - 2 - s.len);
+    } else if (s.edge === "top") {
+      g.moveTo(s.pos + f * s.w, BOX.y + 2);
+      g.quadraticCurveTo(s.pos + f * s.w * .4 + wob, BOX.y + 2 + s.len * .55, s.pos, BOX.y + 2 + s.len);
+    } else if (s.edge === "left") {
+      g.moveTo(BOX.x + 2, s.pos + f * s.w);
+      g.quadraticCurveTo(BOX.x + 2 + s.len * .55, s.pos + f * s.w * .4 + wob, BOX.x + 2 + s.len, s.pos);
+    } else {
+      g.moveTo(BOX.x + BOX.w - 2, s.pos + f * s.w);
+      g.quadraticCurveTo(BOX.x + BOX.w - 2 - s.len * .55, s.pos + f * s.w * .4 + wob, BOX.x + BOX.w - 2 - s.len, s.pos);
+    }
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+function blasterBeamRect(b) {
+  if (b.axis === "h") return { x: BOX.x + 2, y: b.at - 5, w: BOX.w - 4, h: 10 };
+  return { x: b.at - 5, y: BOX.y + 2, w: 10, h: BOX.h - 4 };
+}
+function drawBlaster(g, b, t) {
+  let sx, sy;
+  if (b.axis === "h") { sx = BOX.x - 13; sy = b.at; }
+  else { sx = b.at; sy = BOX.y - 13; }
+  const charge = clamp(b.t / .55, 0, 1);
+  const firing = b.t > .55 && b.t < 1.0;
+  const fade = b.t >= 1.0 ? clamp((1.25 - b.t) / .25, 0, 1) : 1;
+  if (firing) { if (b.axis === "h") sx -= 2; else sy -= 2; }
+  /* aim line */
+  if (!firing && b.t < .55) {
+    const r = blasterBeamRect(b);
+    g.fillStyle = `rgba(255,255,255,${.1 + charge * .12})`;
+    if (b.axis === "h") g.fillRect(r.x, b.at - 1, r.w, 2);
+    else g.fillRect(b.at - 1, r.y, 2, r.h);
+  }
+  /* string beam */
+  if (firing) {
+    const r = blasterBeamRect(b);
+    const pulse = .75 + Math.sin(t * 40) * .25;
+    g.fillStyle = `rgba(255,255,255,${.85 * pulse})`;
+    g.fillRect(r.x, r.y + 1, r.w, r.h - 2);
+    const pal = SPIKE_PALS.multi;
+    g.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      g.strokeStyle = pal[i];
+      g.globalAlpha = .8;
+      g.beginPath();
+      if (b.axis === "h") {
+        const yy = b.at + (i < 2 ? -6 - i : 4 + i);
+        g.moveTo(r.x, yy);
+        for (let xx = r.x; xx <= r.x + r.w; xx += 8)
+          g.lineTo(xx, yy + Math.sin(xx * .2 + t * 20 + i) * 1.5);
+      } else {
+        const xx2 = b.at + (i < 2 ? -6 - i : 4 + i);
+        g.moveTo(xx2, r.y);
+        for (let yy2 = r.y; yy2 <= r.y + r.h; yy2 += 8)
+          g.lineTo(xx2 + Math.sin(yy2 * .2 + t * 20 + i) * 1.5, yy2);
+      }
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+  }
+  g.globalAlpha = fade;
+  drawSkull(g, sx, sy, t, charge, firing);
+  g.globalAlpha = 1;
+}
+function drawSkull(g, cx, cy, t, charge, firing) {
+  const open = Math.round(1 + charge * 4);
+  const x = Math.round(cx - 9), y = Math.round(cy - 7);
+  /* colour strings on top of its head */
+  const pal = SPIKE_PALS.multi;
+  g.lineWidth = 1;
+  for (let i = 0; i < 6; i++) {
+    g.strokeStyle = pal[i % pal.length];
+    g.beginPath();
+    const bx2 = x + 4 + i * 2;
+    g.moveTo(bx2, y + 1);
+    g.quadraticCurveTo(bx2 + Math.sin(t * 3 + i) * 3, y - 5,
+      bx2 + Math.sin(t * 2 + i * 2) * 5, y - 9 - (i % 3));
+    g.stroke();
+  }
+  /* skull */
+  g.fillStyle = "#eef1f6";
+  g.fillRect(x + 2, y, 14, 7);
+  g.fillRect(x, y + 2, 18, 4);
+  g.fillRect(x + 3, y + 6 + open, 12, 3);      /* jaw */
+  g.fillStyle = "#0c0d12";
+  g.fillRect(x + 3, y + 6, 12, open);          /* open mouth */
+  g.fillStyle = "#fff";
+  for (let i = 0; i < 4; i++) g.fillRect(x + 4 + i * 3, y + 6, 1, Math.min(2, open));
+  /* orange + blue eye sockets, like his */
+  g.fillStyle = "#0c0d12";
+  g.fillRect(x + 3, y + 2, 4, 3); g.fillRect(x + 11, y + 2, 4, 3);
+  g.fillStyle = firing ? "#ffa030" : "#ffce5a"; g.fillRect(x + 4, y + 3, 2, 1);
+  g.fillStyle = firing ? "#40c8ff" : "#80e0ff"; g.fillRect(x + 12, y + 3, 2, 1);
+  g.fillStyle = "#0c0d12"; g.fillRect(x + 8, y + 4, 2, 2);
+  if (!firing && charge > 0) {
+    g.fillStyle = `rgba(255,255,255,${charge * .6})`;
+    const r2 = Math.round(1 + charge * 3);
+    g.fillRect(x + 9 - (r2 >> 1), y + 6, r2, r2);
+  }
+}
+function drawAttack(g) {
+  for (const s of spikes) drawSpike(g, s, gt);
+  for (const b of blasters) drawBlaster(g, b, gt);
+  if (soul.deadT > 0) {
+    drawHeart(g, soul.x - 4, soul.y - 4, 1, "#b8bfcc");
+    g.fillStyle = "#000";
+    g.fillRect(Math.round(soul.x) - 1, Math.round(soul.y) - 4, 1, 3);
+    g.fillRect(Math.round(soul.x), Math.round(soul.y) - 1, 1, 2);
+    g.fillRect(Math.round(soul.x) - 1, Math.round(soul.y) + 1, 1, 3);
+    setFont(g, 7);
+    g.fillStyle = "#c8ccd8";
+    g.fillText("not yet.", soul.x - 26, soul.y - 18);
+  } else if (soul.inv <= 0 || Math.floor(gt * 14) % 2) {
+    drawHeart(g, soul.x - 4, soul.y - 4, 1, soul.mode === "blue" ? "#3a6cf8" : "#ff0030");
+  }
+}
+function drawHpBar(g) {
+  setFont(g, 7);
+  g.fillStyle = "#fff";
+  g.fillText("YOU", 58, 194);
+  g.fillStyle = "#6a1018";
+  g.fillRect(92, 193, 80, 8);
+  g.fillStyle = "#ffe93a";
+  g.fillRect(92, 193, 80 * clamp(soul.hp / soul.maxHp, 0, 1), 8);
+  g.fillStyle = "#fff";
+  g.fillText(soul.hp + "/" + soul.maxHp, 180, 194);
+}
 
 function drawJiahuiBattle(g, cx, cy, t, opts = {}) {
   /* monochrome anime battle sprite (~36x66) — only the eyes carry colour.
@@ -960,39 +1375,87 @@ function drawJiahuiBattle(g, cx, cy, t, opts = {}) {
   g.fillRect(x + 24 + sw + hxo, by + 5, 2, 2);
   g.fillStyle = HH;
   g.fillRect(x + 11 + sw + hxo, by, 6, 1); g.fillRect(x + 20 + sw + hxo, by - 1, 4, 1);
+
+  /* expression: serious by default, smirk while dodging */
+  const face = stepK > .15 ? "smirk" : (opts.face || "serious");
+
+  /* forehead covered in shade */
+  const shadeA = (opts.alpha ?? 1) * (face === "empty" ? .68 : .5);
+  g.fillStyle = `rgba(6,8,14,${shadeA})`;
+  g.fillRect(x + 10 + hxo, by + 3, 16, face === "empty" ? 6 : 5);
+  g.fillStyle = `rgba(6,8,14,${shadeA * .5})`;
+  g.fillRect(x + 10 + hxo, by + (face === "empty" ? 9 : 8), 16, 1);
+
+  /* brows */
+  g.fillStyle = DARK;
+  if (face === "angry") {
+    g.fillRect(x + 11 + hxo, by + 6, 3, 1); g.fillRect(x + 13 + hxo, by + 7, 2, 1);
+    g.fillRect(x + 22 + hxo, by + 6, 3, 1); g.fillRect(x + 21 + hxo, by + 7, 2, 1);
+  } else if (face === "cold") {
+    g.fillRect(x + 11 + hxo, by + 8, 5, 1);
+    g.fillRect(x + 20 + hxo, by + 8, 5, 1);
+  } else if (face === "annoyed") {
+    g.fillRect(x + 11 + hxo, by + 7, 4, 1);
+    g.fillRect(x + 21 + hxo, by + 6, 4, 1);
+  } else if (face === "serious") {
+    g.fillRect(x + 11 + hxo, by + 7, 4, 1);
+    g.fillRect(x + 21 + hxo, by + 7, 4, 1);
+  }
+
   /* eyes — the only colour on him. pupils track the player while dodging */
   const fl = Math.floor(t * 9) % 2;
-  const oc = fl ? "#ffa030" : "#ffc060";
-  const bc = fl ? "#40c8ff" : "#80e0ff";
+  const dim = face === "empty";
+  const oc = dim ? "#8a5a20" : (fl ? "#ffa030" : "#ffc060");
+  const bc = dim ? "#2a5a70" : (fl ? "#40c8ff" : "#80e0ff");
   const look = stepK > .15 ? -1 : 0;
+  const lidded = face === "tired" || face === "cold";
   g.fillStyle = DARK;
-  g.fillRect(x + 11 + hxo, by + 9, 5, 1);
-  g.fillRect(x + 20 + hxo, by + 9, 5, 1);
+  g.fillRect(x + 11 + hxo, by + 9, 5, lidded ? 2 : 1);
+  g.fillRect(x + 20 + hxo, by + 9, 5, lidded ? 2 : 1);
   if (blink) {
     g.fillRect(x + 11 + hxo, by + 11, 5, 1);
     g.fillRect(x + 20 + hxo, by + 11, 5, 1);
+  } else if (dim) {
+    g.fillStyle = oc; g.fillRect(x + 13 + hxo, by + 10, 1, 1);
+    g.fillStyle = bc; g.fillRect(x + 23 + hxo, by + 10, 1, 1);
   } else {
-    g.fillStyle = oc; g.fillRect(x + 12 + hxo + look, by + 10, 2, 2);
-    g.fillStyle = bc; g.fillRect(x + 22 + hxo + look, by + 10, 2, 2);
+    const ey = by + 10 + (lidded ? 1 : 0);
+    g.fillStyle = oc; g.fillRect(x + 12 + hxo + look, ey, 2, lidded ? 1 : 2);
+    g.fillStyle = bc; g.fillRect(x + 22 + hxo + look, ey, 2, lidded ? 1 : 2);
     g.fillStyle = "#fff";
-    g.fillRect(x + 12 + hxo + look, by + 10, 1, 1);
-    g.fillRect(x + 22 + hxo + look, by + 10, 1, 1);
-    g.globalAlpha = (opts.alpha ?? 1) * .22;
+    g.fillRect(x + 12 + hxo + look, ey, 1, 1);
+    g.fillRect(x + 22 + hxo + look, ey, 1, 1);
+    const halo = face === "angry" ? .35 : .22;
+    g.globalAlpha = (opts.alpha ?? 1) * halo;
     g.fillStyle = oc; g.fillRect(x + 11 + hxo, by + 9, 4, 4);
     g.fillStyle = bc; g.fillRect(x + 21 + hxo, by + 9, 4, 4);
     g.globalAlpha = opts.alpha ?? 1;
   }
-  /* eye-bags, nose, smile (grows a little mid-dodge) */
+  /* eye-bags + nose */
   g.fillStyle = SH;
   g.fillRect(x + 12 + hxo, by + 12, 2, 1); g.fillRect(x + 22 + hxo, by + 12, 2, 1);
+  if (face === "tired") { g.fillRect(x + 12 + hxo, by + 13, 2, 1); g.fillRect(x + 22 + hxo, by + 13, 2, 1); }
   g.fillRect(x + 18 + hxo, by + 12, 1, 1);
+
+  /* mouth — not a happy one */
   g.fillStyle = DARK;
-  if (stepK > .3) {
+  if (face === "smirk") {
     g.fillRect(x + 14 + hxo, by + 14, 8, 1);
     g.fillRect(x + 13 + hxo, by + 13, 1, 1); g.fillRect(x + 22 + hxo, by + 13, 1, 1);
-  } else {
+  } else if (face === "angry") {
+    g.fillRect(x + 14 + hxo, by + 13, 8, 3);
+    g.fillStyle = "#eef1f6";
     g.fillRect(x + 15 + hxo, by + 14, 6, 1);
-    g.fillRect(x + 14 + hxo, by + 13, 1, 1); g.fillRect(x + 21 + hxo, by + 13, 1, 1);
+    g.fillStyle = DARK;
+    g.fillRect(x + 16 + hxo, by + 14, 1, 1); g.fillRect(x + 19 + hxo, by + 14, 1, 1);
+  } else if (face === "annoyed") {
+    g.fillRect(x + 15 + hxo, by + 14, 5, 1);
+    g.fillRect(x + 20 + hxo, by + 15, 1, 1);
+  } else if (face === "empty") {
+    g.fillRect(x + 16 + hxo, by + 14, 4, 1);
+  } else {
+    /* serious / cold / tired: flat line */
+    g.fillRect(x + 15 + hxo, by + 14, 6, 1);
   }
   g.globalAlpha = 1;
 }
@@ -1124,7 +1587,13 @@ function go(m) {
     particles = [];
     for (let i = 0; i < 26; i++) particles.push({ x: 20 + Math.random() * 280, y: Math.random() * H, s: .35 + Math.random() * .5 });
   }
-  if (m === "bmain") { bp = "volatile"; bpt = 0; btext = null; bubble = null; btnSel = 0; jia.dx = 0; jia.reveal = 0; }
+  if (m === "bmain") {
+    bp = "volatile"; bpt = 0; btext = null; bubble = null; btnSel = 0;
+    jia.dx = 0; jia.reveal = 0; jia.face = "serious";
+    battle.round = 0; battle.tm = {};
+    soul.hp = soul.maxHp; soul.mode = "red"; soul.gdir = "down";
+    spikes = []; blasters = []; shakeT = 0;
+  }
 }
 
 function setBp(p) { bp = p; bpt = 0; bpFlags = {}; }
@@ -1354,6 +1823,20 @@ function loop(now) {
           setBp("pturn");
           btext = tw("* JIAHUI blocks the way.", 30);
         }
+      } else if (bp === "rdlg") {
+        twUpdate(bubble, dt);
+        if (xHit) twSkip(bubble);
+        if (bubble && bubble.done && (zHit || bpt > bubble.text.length / 24 + 1.8)) {
+          zHit = false;
+          bubble = null;
+          beginAttack();
+        }
+      } else if (bp === "attack") {
+        updateAttack(dt);
+      } else if (bp === "acted") {
+        twUpdate(btext, dt);
+        if (btext && btext.done && bpt > btext.text.length / 30 + 1.4)
+          startRound(battle.round + 1);
       } else if (bp === "pturn") {
         twUpdate(btext, dt);
         if (keys.ArrowLeft && !bpFlags.l) { btnSel = (btnSel + 3) % 4; bpFlags.l = 1; }
@@ -1363,7 +1846,20 @@ function loop(now) {
         if (zHit) {
           zHit = false;
           if (btnSel === 0) { setBp("aim"); missT = -1; }
-          else btext = tw("* Not yet. Something tells you to FIGHT first.", 30);
+          else {
+            const lines = [null,
+              "* you try to say something. the rain is louder.",
+              "* your pockets are empty.",
+              "* he shakes his head, slowly."];
+            btext = tw(lines[btnSel], 30);
+            setBp(battle.round === 0 ? "acted0" : "acted");
+          }
+        }
+      } else if (bp === "acted0") {
+        twUpdate(btext, dt);
+        if (btext.done && bpt > 1.6) {
+          setBp("pturn");
+          btext = tw("* JIAHUI blocks the way.", 30);
         }
       } else if (bp === "aim") {
         if (zHit) {
@@ -1385,8 +1881,13 @@ function loop(now) {
             jia.ghosts.push({ dx: jia.dx, t: .3, dg: clamp(missT / .9, 0, 1) });
         }
         if (slashT > 1.15) {
-          setBp("hisline");
-          bubble = tw("heh... quick one. but i've watched that exact move for six years.", 24);
+          if (battle.round === 0) {
+            setBp("hisline");
+            bubble = tw("heh... quick one. but i've watched that exact move for six years.", 24);
+            jia.face = "smirk";
+          } else {
+            startRound(battle.round + 1);
+          }
         }
       } else if (bp === "hisline") {
         twUpdate(bubble, dt);
@@ -1394,8 +1895,7 @@ function loop(now) {
         if (bubble.done && (zHit || bpt > bubble.text.length / 24 + 2)) {
           zHit = false;
           bubble = null;
-          setBp("notfin");
-          btext = tw("* this things is not finished", 18);
+          startRound(1);
         }
       } else if (bp === "notfin") {
         twUpdate(btext, dt);
@@ -1405,8 +1905,18 @@ function loop(now) {
       jia.ghosts = jia.ghosts.filter(gh => gh.t > 0);
 
       /* ---- draw ---- */
+      g.save();
+      if (shakeT > 0) {
+        shakeT -= dt;
+        g.translate(Math.round((Math.random() - .5) * 4), Math.round((Math.random() - .5) * 4));
+      }
+      const inAttack = bp === "attack";
       const uiSelect = bp === "pturn";
-      drawBattleUI(g, gt, { a: .8, volatile: bp === "volatile" || bp === "sentence", select: uiSelect });
+      drawBattleUI(g, gt, {
+        a: inAttack || bp === "rdlg" ? .5 : .8,
+        volatile: bp === "volatile" || bp === "sentence",
+        select: uiSelect,
+      });
 
       /* jiahui */
       const dgP = (bp === "strike" && missT >= 0) ? clamp(missT / .9, 0, 1) : 0;
@@ -1414,19 +1924,19 @@ function loop(now) {
         drawOutline(g, 160, 122, mt);
       } else {
         for (const gh of jia.ghosts)
-          drawJiahuiBattle(g, 160, 122, gt, { dx: gh.dx, alpha: gh.t / .3 * .4, dodge: gh.dg ?? 0 });
+          drawJiahuiBattle(g, 160, 122, gt, { dx: gh.dx, alpha: gh.t / .3 * .4, dodge: gh.dg ?? 0, face: jia.face });
         if (bp === "reveal") {
           /* scanline reveal */
           g.save();
           g.beginPath();
           g.rect(100, 122 - 72, 120, 72 * jia.reveal);
           g.clip();
-          drawJiahuiBattle(g, 160, 122, gt, {});
+          drawJiahuiBattle(g, 160, 122, gt, { face: jia.face });
           g.restore();
           g.fillStyle = "rgba(255,255,255,.8)";
           g.fillRect(100, 122 - 72 + 72 * jia.reveal, 120, 1);
         } else {
-          drawJiahuiBattle(g, 160, 122, gt, { dx: jia.dx, dodge: dgP });
+          drawJiahuiBattle(g, 160, 122, gt, { dx: jia.dx, dodge: dgP, face: jia.face });
         }
       }
 
@@ -1492,6 +2002,8 @@ function loop(now) {
           g.fillStyle = "#9aa2b0";
           g.fillText("PRESS Z", BOX.x + BOX.w - 64, BOX.y + BOX.h - 14);
         }
+      } else if (inAttack) {
+        drawAttack(g);
       } else if (bp !== "volatile") {
         boxText(g, gt);
       }
@@ -1501,6 +2013,9 @@ function loop(now) {
       }
       /* soul in box during menu phases */
       if (bp === "pturn") drawHeart(g, 62, BOX.y + BOX.h - 16, 1.2);
+      /* player hp during the rounds */
+      if (battle.round > 0 && (inAttack || bp === "pturn" || bp === "aim" || bp === "strike" || bp === "acted" || bp === "rdlg"))
+        drawHpBar(g);
 
       drawBubble(g, gt);
 
@@ -1510,6 +2025,7 @@ function loop(now) {
         g.fillStyle = orange ? "rgba(255,154,46,.4)" : "rgba(225,232,245,.38)";
         g.fillRect(pa.x, pa.y, pa.s > .6 ? 2 : 1, pa.s > .6 ? 2 : 1);
       }
+      g.restore();
       break;
     }
 
@@ -1549,12 +2065,25 @@ window.__ms = {
   get bp() { return bp; },
   get storyI() { return storyI; },
   get dlgOpen() { return !!dlg; },
+  get battle() { return battle; },
+  get soul() { return soul; },
+  get spikeCount() { return spikes.length; },
+  get blasterCount() { return blasters.length; },
+  get jiaFace() { return jia.face; },
   player, npc,
   start() { if (mode === "menu") go("walk"); },
   near(dist) { player.x = npc.x - dist; player.y = npc.y; },
   slide(i) { if (mode === "story") { storyI = i; storyT = 0; capTW = tw(SLIDES[i].cap, 24); } },
   jump(m) { go(m); },
   setMet(a, b) { met1 = a; met2 = b; },
+  toRound(i) {
+    if (mode !== "bmain") go("bmain");
+    jia.reveal = 1;
+    startRound(i);
+  },
+  skipAttack() { if (bp === "attack") battle.atkT = battle.dur - .05; },
+  hurtSoul() { soul.inv = 0; damageSoul(); },
+  setHp(n) { soul.hp = n; },
 };
 </script>
 </body>
