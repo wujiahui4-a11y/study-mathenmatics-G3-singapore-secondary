@@ -111,10 +111,21 @@ function heartCanvas(color) {
   heartCache[color] = c;
   return c;
 }
-function drawHeart(g, x, y, s = 1, color = "#ff0030") {
+function drawHeart(g, x, y, s = 1, color = "#ff0030", ang = 0) {
   g.imageSmoothingEnabled = false;
-  g.drawImage(heartCanvas(color), Math.round(x), Math.round(y), Math.round(9 * s), Math.round(8 * s));
+  const w = Math.round(9 * s), h = Math.round(8 * s);
+  if (!ang) {
+    g.drawImage(heartCanvas(color), Math.round(x), Math.round(y), w, h);
+    return;
+  }
+  g.save();
+  g.translate(Math.round(x) + w / 2, Math.round(y) + h / 2);
+  g.rotate(ang);
+  g.drawImage(heartCanvas(color), -w / 2, -h / 2, w, h);
+  g.restore();
 }
+/* the tip of the heart points along gravity, like the blue soul slam */
+const HEART_ANG = { down: 0, up: Math.PI, left: Math.PI / 2, right: -Math.PI / 2 };
 
 /* ==========================================================
    PEOPLE (overworld pixel sprites, hand-painted)
@@ -1068,7 +1079,7 @@ function updateAttack(dt) {
     const ga = 620 * (soul.slam ? 3.2 : 1);
     const grounded =
       (gd === "down" && soul.y >= B - .5) || (gd === "up" && soul.y <= T + .5) ||
-      (gd === "left" && soul.x <= L + .5) || (gd === "right" && soul.x >= Rt + .5);
+      (gd === "left" && soul.x <= L + .5) || (gd === "right" && soul.x >= Rt - .5);
     const jHeld = keys.KeyZ || keys.Space || keys.Enter ||
       (gd === "down" && (keys.ArrowUp || keys.KeyW)) ||
       (gd === "up" && (keys.ArrowDown || keys.KeyS)) ||
@@ -1257,7 +1268,8 @@ function drawAttack(g) {
     g.fillStyle = "#c8ccd8";
     g.fillText("not yet.", soul.x - 26, soul.y - 18);
   } else if (soul.inv <= 0 || Math.floor(gt * 14) % 2) {
-    drawHeart(g, soul.x - 4, soul.y - 4, 1, soul.mode === "blue" ? "#3a6cf8" : "#ff0030");
+    const ang = soul.mode === "blue" ? HEART_ANG[soul.gdir] : 0;
+    drawHeart(g, soul.x - 4, soul.y - 4, 1, soul.mode === "blue" ? "#3a6cf8" : "#ff0030", ang);
   }
 }
 function drawHpBar(g) {
@@ -1376,8 +1388,8 @@ function drawJiahuiBattle(g, cx, cy, t, opts = {}) {
   g.fillStyle = HH;
   g.fillRect(x + 11 + sw + hxo, by, 6, 1); g.fillRect(x + 20 + sw + hxo, by - 1, 4, 1);
 
-  /* expression: serious by default, smirk while dodging */
-  const face = stepK > .15 ? "smirk" : (opts.face || "serious");
+  /* expression: keep whatever face the round set — no smiling while dodging */
+  const face = opts.face || "serious";
 
   /* forehead covered in shade */
   const shadeA = (opts.alpha ?? 1) * (face === "empty" ? .68 : .5);
@@ -1884,7 +1896,7 @@ function loop(now) {
           if (battle.round === 0) {
             setBp("hisline");
             bubble = tw("heh... quick one. but i've watched that exact move for six years.", 24);
-            jia.face = "smirk";
+            jia.face = "serious";
           } else {
             startRound(battle.round + 1);
           }
