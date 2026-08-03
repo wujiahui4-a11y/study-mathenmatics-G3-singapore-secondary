@@ -85,8 +85,10 @@
 /* ============================================================
    MERLIO — Singapore Pixel Adventure
    A love letter to the Lion City, in 16x16 pixels.
-   Stomp durians, grab orchid coins, eat chilli crab,
-   and raise the flag at Marina Bay. Majulah!
+   FIVE levels across Singapore: stomp durians at Marina Bay,
+   dodge pigeons in the HDB heartlands, mind the gap on the MRT,
+   surf coconuts at Sentosa, and raise the flag at Jewel.
+   Majulah! (Tip: ?level=1..5 jumps straight to a level.)
    ============================================================ */
 
 const TILE = 16, VW = 320, VH = 240, SCALE = 3;
@@ -211,6 +213,86 @@ const SPR_D_SQ = bake([
   ".ggggggggggggg..",
 ], DPAL);
 
+/* ---------------- pigeon enemy (void deck terror) ---------------- */
+const GPAL = { G:"#a8b2c0", g:"#7c8694", O:"#ff9a3c", B:"#1c1c28", W:"#ffffff", R:"#c84a5a", N:"#8a4a6a" };
+const PIG_BODY1 = [
+  "....gGGGG.......",
+  "...gGGGGGG......",
+  "..gGGWBGGG......",
+  "..GGGGGGGGO.....",
+  "..GGGGGGGGOO....",
+  "..gGNGGGGGG.....",
+  "..gGNNGGGGg.....",
+  "...gGGGGGg......",
+  "....GGGGG.......",
+  "....R..R........",
+  "...RR..RR.......",
+  "................",
+];
+const PIG_BODY2 = [
+  "....gGGGG.......",
+  "...gGGGGGG......",
+  "..gGGWBGGG......",
+  "..GGGGGGGGO.....",
+  ".gGGGGGGGGOO.....",
+  ".gGNGGGGGG.......",
+  "..gNNGGGGg.......",
+  "...gGGGGGg......",
+  "....GGGGG.......",
+  "................",
+  "....R..R........",
+  "................",
+];
+const SPR_PIG1 = bake(PIG_BODY1, GPAL);
+const SPR_PIG2 = bake(PIG_BODY2, GPAL);
+
+/* ---------------- tissue packet enemy (chope champion) ---------------- */
+const TPAL = { W:"#f2f5fa", B:"#3a6fd8", K:"#1c1c28", G:"#c2cdd8" };
+const SPR_TIS = bake([
+  "..WWWWWWWWWW....",
+  ".WWWWWWWWWWWW...",
+  ".WKKWWWWWWKKW...",
+  ".WKKWWWWWWKKW...",
+  ".WWWWWWWWWWWW...",
+  ".WBBBBBBBBBBW...",
+  ".WBWWWWWWWWBW...",
+  ".WWWWWWWWWWWW...",
+  "..GGGGGGGGGG....",
+  "................",
+], TPAL);
+
+/* ---------------- coconut enemy (sentosa roller) ---------------- */
+const COPAL = { B:"#8a5a2c", b:"#5f3a16", K:"#1c1c28", W:"#ffffff" };
+const SPR_COCO = bake([
+  "....bbbb........",
+  "..bbBBBBBBb.....",
+  ".bBBBBBBBBBB....",
+  ".bBKWBBBBKWB....",
+  "bBBKWBBBKWBBb...",
+  "bBBBBBBBBBBBb...",
+  "bBBBbBBBbBBBb...",
+  ".bBBBBBBBBBB....",
+  ".bBBBBBBBBBb....",
+  "..bbBBBBBBb.....",
+  "....bbbbb.......",
+  "................",
+], COPAL);
+
+/* squashed variants for stomped non-durian enemies */
+function flatten(spr) {
+  const c = document.createElement("canvas");
+  c.width = 16; c.height = 16;
+  c.getContext("2d").drawImage(spr, 0, 11, 16, 5);
+  return c;
+}
+const SQUASH = { pigeon: flatten(SPR_PIG1), tissue: flatten(SPR_TIS), coconut: flatten(SPR_COCO) };
+const ENEMY_SPR = {
+  durian: [SPR_D1, SPR_D2],
+  pigeon: [SPR_PIG1, SPR_PIG2],
+  tissue: [SPR_TIS, SPR_TIS],
+  coconut: [SPR_COCO],
+};
+
 /* ---------------- coin (star coin) ---------------- */
 const CPAL = { Y:"#ffd23f", y:"#c8901e", W:"#fffbe8" };
 const SPR_COIN = bake([
@@ -297,6 +379,22 @@ const T_GROUND = bakeTile(g => {
   [[0,3],[3,2],[6,3],[9,2],[12,3],[15,2]].forEach(([x,y]) => g.fillRect(x, y, 2, 4 - y));
   g.fillStyle = "#63d670"; g.fillRect(0, 0, 16, 1);
 });
+const T_SAND = bakeTile(g => {
+  g.fillStyle = "#e6c986"; g.fillRect(0, 0, 16, 16);
+  g.fillStyle = "#c8a862";
+  [[2,7],[9,10],[5,13],[12,5],[1,11],[13,13],[7,5]].forEach(([x,y]) => g.fillRect(x, y, 2, 2));
+  g.fillStyle = "#f4e2ae"; g.fillRect(0, 0, 16, 4);
+  g.fillStyle = "#fff3c8"; g.fillRect(0, 0, 16, 1);
+});
+const T_PLATFORM = bakeTile(g => {
+  g.fillStyle = "#5f6672"; g.fillRect(0, 0, 16, 16);
+  g.fillStyle = "#4a505a";
+  [[3,8],[10,11],[6,14],[13,6],[1,11],[12,13]].forEach(([x,y]) => g.fillRect(x, y, 2, 2));
+  g.fillStyle = "#8a929e"; g.fillRect(0, 0, 16, 4);
+  g.fillStyle = "#ffd23f"; g.fillRect(0, 0, 16, 2);
+  g.fillStyle = "#1c1c28";
+  for (let x = 1; x < 16; x += 4) g.fillRect(x, 0, 2, 2);
+});
 const T_BRICK = bakeTile(g => {
   g.fillStyle = "#c8452c"; g.fillRect(0, 0, 16, 16);
   g.fillStyle = "#e06045"; g.fillRect(0, 0, 16, 1);
@@ -353,33 +451,42 @@ const sfx = {
   power() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.12, "square", 0.10, 0, i * 0.07)); },
   die()   { [494, 466, 440, 220, 165, 110].forEach((f, i) => tone(f, 0.16, "triangle", 0.14, 0, i * 0.13)); },
   win()   { [523, 587, 659, 784, 880, 1047, 1319].forEach((f, i) => tone(f, 0.18, "square", 0.10, 0, i * 0.12)); },
+  train() { tone(160, 0.7, "sawtooth", 0.05, -110); tone(330, 0.3, "square", 0.03, -180, 0.12); },
 };
 
-/* ---------------- level ---------------- */
-const LEVEL_W = 232;
+/* ---------------- levels ---------------- */
+const MAX_LEVEL_W = 240;
+let levelW = 232, flagX = 214, levelIndex = 0;
 let grid, qContents, bumpMap;
 let enemySpawns, coinSpawns, decorations;
-const FLAG_X = 214;
+const cur = () => LEVELS[levelIndex];
 
 function key(x, y) { return x + "," + y; }
 
-function buildLevel() {
-  grid = Array.from({ length: ROWS }, () => new Array(LEVEL_W).fill(0));
-  qContents = {}; bumpMap = {};
-  enemySpawns = []; coinSpawns = []; decorations = [];
+/* level-building helpers (operate on the module-level grid) */
+function ground(x1, x2) { for (let x = x1; x <= x2; x++) { grid[13][x] = 1; grid[14][x] = 1; } }
+function block(x, y, t) { grid[y][x] = t; }
+function q(x, y, what) { grid[y][x] = 3; qContents[key(x, y)] = what; }
+function coins(list) { list.forEach(([x, y]) => coinSpawns.push({ x: x * TILE + 2, y: y * TILE + 2 })); }
+function foe(kind, x) { enemySpawns.push({ kind, x: x * TILE, y: 12 * TILE }); }
+const durian = x => foe("durian", x);
+const pigeon = x => foe("pigeon", x);
+const tissue = x => foe("tissue", x);
+const coconut = x => foe("coconut", x);
+function stairsUp(x0, h) { for (let i = 0; i < h; i++) for (let j = 0; j <= i; j++) grid[12 - j][x0 + i] = 1; }
+function stairsDn(x0, h) { for (let i = 0; i < h; i++) for (let j = 0; j <= h - 1 - i; j++) grid[12 - j][x0 + i] = 1; }
+function deco(d) { decorations.push(d); }
+function pole(x) { for (let y = 4; y <= 12; y++) grid[y][x] = 5; }
+function sign(x, text) { deco({ type: "sign", x: x * TILE, y: 13 * TILE - 20, text }); }
 
-  const ground = (x1, x2) => { for (let x = x1; x <= x2; x++) { grid[13][x] = 1; grid[14][x] = 1; } };
-  const block  = (x, y, t) => { grid[y][x] = t; };
-  const q      = (x, y, what) => { grid[y][x] = 3; qContents[key(x, y)] = what; };
-  const coins  = (list) => list.forEach(([x, y]) => coinSpawns.push({ x: x * TILE + 2, y: y * TILE + 2 }));
-  const durian = (x) => enemySpawns.push({ x: x * TILE, y: 12 * TILE });
-  const stairsUp = (x0, h) => { for (let i = 0; i < h; i++) for (let j = 0; j <= i; j++) grid[12 - j][x0 + i] = 1; };
-  const stairsDn = (x0, h) => { for (let i = 0; i < h; i++) for (let j = 0; j <= h - 1 - i; j++) grid[12 - j][x0 + i] = 1; };
+/* LEVEL 1 — Marina Bay (the original) */
+function buildLevel1() {
+  levelW = 232; flagX = 214;
 
-  ground(0, 60); ground(64, 95); ground(99, 140); ground(144, 175); ground(179, LEVEL_W - 1);
+  ground(0, 60); ground(64, 95); ground(99, 140); ground(144, 175); ground(179, levelW - 1);
 
-  decorations.push({ type: "merlion", x: 6 * TILE, y: 13 * TILE - 36 });
-  decorations.push({ type: "sign", x: 3 * TILE, y: 13 * TILE - 20, text: "MARINA BAY \u2192" });
+  deco({ type: "merlion", x: 6 * TILE, y: 13 * TILE - 36 });
+  sign(3, "MARINA BAY \u2192");
 
   q(11, 9, "coin");
   block(15, 9, 2); q(16, 9, "coin"); block(17, 9, 2); q(18, 9, "coin"); block(19, 9, 2);
@@ -391,31 +498,28 @@ function buildLevel() {
   coins([[50, 8], [51, 7], [52, 7], [53, 8]]);
   q(55, 9, "coin"); q(57, 9, "coin");
 
-  // gap 61-63
   coins([[61, 9], [62, 8], [63, 9]]);
 
-  decorations.push({ type: "supertree", x: 67 * TILE });
+  deco({ type: "supertree", x: 67 * TILE });
   block(68, 9, 2); block(69, 9, 2); q(70, 9, "coin"); block(71, 9, 2); block(72, 9, 2);
   q(70, 5, "coin");
   durian(75); durian(79); durian(83);
   coins([[86, 8], [87, 8], [88, 8], [89, 8], [90, 8]]);
   stairsUp(90, 3); stairsDn(93, 3);
-  decorations.push({ type: "supertree", x: 88 * TILE });
+  deco({ type: "supertree", x: 88 * TILE });
 
-  // gap 96-98 (ground level)
   coins([[96, 9], [97, 8], [98, 9]]);
   durian(107);
   block(108, 8, 2); q(109, 8, "coin"); q(110, 8, "coin"); block(111, 8, 2);
   durian(114); durian(118);
-  decorations.push({ type: "supertree", x: 116 * TILE });
-  decorations.push({ type: "supertree", x: 121 * TILE });
+  deco({ type: "supertree", x: 116 * TILE });
+  deco({ type: "supertree", x: 121 * TILE });
   coins([[122, 9], [123, 9], [124, 9]]);
   q(127, 9, "crab");
   durian(130); durian(133);
   block(136, 9, 2); block(137, 9, 2); block(138, 9, 2);
   coins([[136, 5], [137, 5], [138, 5]]);
 
-  // gap 141-143
   coins([[141, 9], [142, 8], [143, 9]]);
 
   durian(148);
@@ -424,22 +528,306 @@ function buildLevel() {
   stairsUp(166, 3);
   coins([[168, 7], [169, 6], [170, 6]]);
   stairsDn(170, 3);
-  decorations.push({ type: "merlion", x: 173 * TILE, y: 13 * TILE - 36 });
+  deco({ type: "merlion", x: 173 * TILE, y: 13 * TILE - 36 });
 
-  // gap 176-178
   coins([[176, 8], [177, 7], [178, 8]]);
 
   durian(183); durian(187);
   q(190, 9, "coin"); q(192, 9, "coin");
   coins([[195, 9], [196, 9], [197, 9]]);
   stairsUp(200, 8);
-  for (let y = 4; y <= 12; y++) grid[y][FLAG_X] = 5;
-  decorations.push({ type: "hdb", x: 220 * TILE });
-  decorations.push({ type: "sign", x: 216 * TILE, y: 13 * TILE - 20, text: "MAJULAH!" });
+  pole(flagX);
+  deco({ type: "hdb", x: 220 * TILE });
+  sign(216, "MAJULAH!");
+}
+
+/* LEVEL 2 — HDB Heartlands: kopitiams, laundry poles, killer pigeons */
+function buildLevel2() {
+  levelW = 228; flagX = 210;
+
+  ground(0, 44); ground(48, 86); ground(90, 130); ground(135, 178); ground(182, levelW - 1);
+
+  deco({ type: "kopitiam", x: 4 * TILE });
+  sign(7, "VOID DECK \u2192");
+  q(11, 9, "coin");
+  deco({ type: "laundry", x: 14 * TILE });
+  block(15, 9, 2); q(16, 9, "coin"); block(17, 9, 2);
+  pigeon(20); pigeon(24);
+  deco({ type: "hdb", x: 29 * TILE });
+  deco({ type: "laundry", x: 36 * TILE });
+  q(40, 9, "coin");
+  durian(43);
+
+  coins([[44, 9], [45, 8], [46, 8], [47, 9]]);
+
+  sign(49, "KOPI $1.20");
+  q(52, 9, "crab");
+  durian(56);
+  block(59, 9, 2); block(60, 9, 2); block(61, 9, 2);
+  coins([[59, 5], [60, 5], [61, 5]]);
+  deco({ type: "laundry", x: 64 * TILE });
+  pigeon(66); pigeon(70);
+  stairsUp(74, 4);
+  coins([[76, 8], [77, 8]]);
+  stairsDn(78, 4);
+
+  coins([[86, 9], [87, 8], [88, 9]]);
+
+  deco({ type: "kopitiam", x: 93 * TILE });
+  sign(99, "BTO 2030");
+  q(103, 9, "coin"); q(105, 9, "crab");
+  pigeon(108); pigeon(112); pigeon(116);
+  durian(119);
+  coins([[122, 9], [123, 9], [124, 9], [125, 9]]);
+
+  coins([[131, 9], [132, 8], [133, 8], [134, 9]]);
+
+  durian(140);
+  deco({ type: "laundry", x: 144 * TILE });
+  sign(146, "NO FEED PIGEON");
+  q(149, 9, "coin"); block(150, 9, 2); q(151, 9, "coin"); block(152, 9, 2);
+  pigeon(156); pigeon(160);
+  q(163, 9, "coin");
+  stairsUp(166, 5);
+  coins([[168, 7], [169, 7]]);
+  stairsDn(171, 5);
+
+  coins([[178, 9], [179, 8], [180, 8], [181, 9]]);
+
+  pigeon(186); pigeon(190);
+  durian(194);
+  q(198, 9, "crab");
+  coins([[200, 9], [201, 9]]);
+  stairsUp(202, 6);
+  pole(flagX);
+  deco({ type: "hdb", x: 216 * TILE });
+  sign(212, "HOME SWEET HOME");
+}
+
+/* LEVEL 3 — MRT Rush Hour: tissue packets chope the platform */
+function buildLevel3() {
+  levelW = 224; flagX = 206;
+
+  ground(0, 40); ground(45, 84); ground(88, 124); ground(130, 172); ground(176, levelW - 1);
+
+  deco({ type: "mrtsign", x: 5 * TILE });
+  sign(8, "NO DURIANS");
+  sign(13, "$500 FINE");
+  tissue(16); tissue(22);
+  q(18, 9, "coin");
+  block(25, 9, 2); q(26, 9, "coin"); block(27, 9, 2);
+  pigeon(30);
+  sign(36, "MIND THE GAP");
+
+  coins([[41, 9], [42, 8], [43, 8], [44, 9]]);
+
+  sign(46, "STAND LEFT");
+  durian(50);
+  q(53, 9, "crab");
+  block(56, 9, 2); block(57, 9, 2); q(58, 9, "coin"); block(59, 9, 2);
+  tissue(63); tissue(67);
+  coins([[70, 9], [71, 9], [72, 9]]);
+  stairsUp(75, 4);
+  coins([[77, 8]]);
+  stairsDn(79, 4);
+
+  coins([[84, 9], [85, 8], [86, 9]]);
+
+  deco({ type: "mrtsign", x: 92 * TILE });
+  sign(95, "EAT = $500");
+  pigeon(98);
+  tissue(101); tissue(105);
+  q(108, 9, "coin"); q(110, 9, "crab");
+  coins([[114, 9], [115, 8], [116, 8], [117, 9]]);
+
+  sign(121, "MIND THE GAP");
+  coins([[125, 9], [126, 8], [127, 8], [128, 9], [129, 9]]);
+
+  durian(134); durian(138);
+  tissue(142);
+  block(146, 9, 2); q(147, 9, "coin"); block(148, 9, 2);
+  q(147, 5, "coin");
+  pigeon(152); pigeon(156);
+  coins([[160, 9], [161, 9], [162, 9]]);
+  stairsUp(165, 5); stairsDn(170, 5);
+
+  coins([[172, 9], [173, 8], [174, 8], [175, 9]]);
+
+  tissue(180); tissue(184);
+  pigeon(188);
+  durian(192);
+  q(196, 9, "crab");
+  stairsUp(198, 6);
+  pole(flagX);
+  deco({ type: "mrtsign", x: 212 * TILE });
+  sign(216, "LAST STOP!");
+}
+
+/* LEVEL 4 — Sentosa Shores: palms, cable cars, rampaging coconuts */
+function buildLevel4() {
+  levelW = 226; flagX = 208;
+
+  ground(0, 38); ground(42, 72); ground(77, 108); ground(112, 150); ground(155, 190); ground(194, levelW - 1);
+
+  deco({ type: "palm", x: 6 * TILE });
+  sign(9, "SILOSO \u2192");
+  coconut(14);
+  q(17, 9, "coin");
+  block(20, 9, 2); q(21, 9, "coin"); block(22, 9, 2);
+  deco({ type: "palm", x: 26 * TILE });
+  coconut(29); coconut(32);
+  coins([[34, 9], [35, 9]]);
+
+  coins([[38, 9], [39, 8], [40, 9], [41, 9]]);
+
+  sign(43, "NO FISHING");
+  durian(47);
+  q(50, 9, "crab");
+  deco({ type: "palm", x: 54 * TILE });
+  coconut(57); coconut(60);
+  block(63, 9, 2); block(64, 9, 2); block(65, 9, 2);
+  coins([[63, 5], [64, 5], [65, 5]]);
+  coins([[68, 9], [69, 8], [70, 9]]);
+
+  coins([[72, 9], [73, 8], [74, 8], [75, 8], [76, 9]]);
+
+  deco({ type: "palm", x: 80 * TILE });
+  sign(84, "ICE KACHANG");
+  coconut(87); coconut(90);
+  q(93, 9, "coin");
+  stairsUp(96, 4);
+  coins([[98, 8]]);
+  stairsDn(100, 4);
+
+  coins([[108, 9], [109, 8], [110, 9], [111, 9]]);
+
+  deco({ type: "palm", x: 115 * TILE });
+  durian(119); durian(123);
+  q(126, 9, "crab");
+  coconut(129); coconut(132);
+  block(136, 9, 2); q(137, 9, "coin"); block(138, 9, 2);
+  q(137, 5, "coin");
+  coins([[142, 9], [143, 9], [144, 9], [145, 9]]);
+
+  coins([[151, 9], [152, 8], [153, 8], [154, 9]]);
+
+  deco({ type: "palm", x: 158 * TILE });
+  sign(162, "SUNBLOCK PLS");
+  coconut(165); coconut(168); coconut(171);
+  q(174, 9, "coin");
+  stairsUp(178, 5);
+  coins([[180, 7], [181, 7]]);
+  stairsDn(183, 5);
+
+  coins([[190, 9], [191, 8], [192, 8], [193, 9]]);
+
+  coconut(197); coconut(200);
+  durian(203);
+  stairsUp(200, 6);
+  pole(flagX);
+  deco({ type: "palm", x: 214 * TILE });
+  sign(217, "SHIOK!");
+}
+
+/* LEVEL 5 — Jewel Finale: everything everywhere all at once */
+function buildLevel5() {
+  levelW = 236; flagX = 216;
+
+  ground(0, 36); ground(40, 66); ground(71, 100); ground(104, 138); ground(143, 172); ground(177, levelW - 1);
+
+  sign(5, "JEWEL \u2192");
+  deco({ type: "supertree", x: 10 * TILE });
+  durian(12);
+  q(15, 9, "coin");
+  tissue(18);
+  block(21, 9, 2); q(22, 9, "crab"); block(23, 9, 2);
+  pigeon(26); pigeon(29);
+  coins([[32, 9], [33, 9]]);
+
+  coins([[36, 9], [37, 8], [38, 8], [39, 9]]);
+
+  coconut(43); coconut(46);
+  q(49, 9, "coin");
+  block(52, 9, 2); block(53, 9, 2); block(54, 9, 2);
+  coins([[52, 5], [53, 5], [54, 5]]);
+  deco({ type: "supertree", x: 56 * TILE });
+  pigeon(59); pigeon(62);
+  durian(64);
+
+  coins([[66, 9], [67, 8], [68, 8], [69, 8], [70, 9]]);
+
+  sign(72, "CANOPY PARK");
+  tissue(76); tissue(79);
+  q(82, 9, "crab");
+  coconut(85);
+  stairsUp(88, 4);
+  coins([[90, 8]]);
+  stairsDn(92, 4);
+
+  coins([[100, 9], [101, 8], [102, 8], [103, 9]]);
+
+  deco({ type: "supertree", x: 108 * TILE });
+  durian(110); durian(113);
+  pigeon(116);
+  q(119, 9, "coin"); q(121, 9, "coin");
+  coins([[124, 9], [125, 8], [126, 8], [127, 9]]);
+  block(130, 9, 2); q(131, 9, "crab"); block(132, 9, 2);
+
+  coins([[138, 9], [139, 8], [140, 8], [141, 8], [142, 9]]);
+
+  sign(144, "GATE C22");
+  coconut(147); coconut(150);
+  tissue(153);
+  pigeon(156); pigeon(159);
+  q(162, 9, "coin");
+  block(164, 9, 2); q(165, 9, "coin");
+  stairsUp(166, 3); stairsDn(169, 3);
+
+  coins([[172, 9], [173, 8], [174, 8], [175, 8], [176, 9]]);
+
+  deco({ type: "supertree", x: 180 * TILE });
+  durian(184); durian(187);
+  coconut(190); coconut(193);
+  q(196, 9, "crab");
+  pigeon(199);
+  coins([[202, 9], [203, 9], [204, 9]]);
+  stairsUp(206, 7);
+  pole(flagX);
+  deco({ type: "controltower", x: 222 * TILE });
+  sign(218, "SHIOK!");
+}
+
+const LEVELS = [
+  { name: "MARINA BAY",      sub: "Stomp durians by the Bay. Don't kena splash!", clear: "SHIOK! Next stop: the heartlands.",    theme: "bay",   time: 300, build: buildLevel1 },
+  { name: "HDB HEARTLANDS",  sub: "Void deck vibes. Mind ah ma's laundry!",       clear: "STEADY LAH! Now go catch the train.",  theme: "hdb",   time: 320, build: buildLevel2 },
+  { name: "MRT RUSH HOUR",   sub: "Mind the gap. No, really. MIND IT.",           clear: "PHEW! Next: sun, sand and Sentosa.",   theme: "mrt",   time: 300, build: buildLevel3 },
+  { name: "SENTOSA SHORES",  sub: "Coconuts ahead. Wear helmet can?",             clear: "SEDAP! One last stop: the Jewel.",     theme: "beach", time: 320, build: buildLevel4 },
+  { name: "JEWEL FINALE",    sub: "Everything everywhere all at Jewel!",          clear: "",                                     theme: "jewel", time: 350, build: buildLevel5 },
+];
+
+const THEMES = {
+  bay:   { ground: T_GROUND,    bg: bgBay },
+  hdb:   { ground: T_GROUND,    bg: bgHDB },
+  mrt:   { ground: T_PLATFORM,  bg: bgMRT },
+  beach: { ground: T_SAND,      bg: bgBeach },
+  jewel: { ground: T_GROUND,    bg: bgJewel },
+};
+
+function loadLevel(i) {
+  levelIndex = i;
+  grid = Array.from({ length: ROWS }, () => new Array(MAX_LEVEL_W).fill(0));
+  qContents = {}; bumpMap = {};
+  enemySpawns = []; coinSpawns = []; decorations = [];
+  cur().build();
+  spawnWorld();
+  resetPlayer();
+  timeLeft = cur().time;
+  camX = 0; winTimer = 0; shake = 0;
+  player.inv = 1.2;
 }
 
 function solidAt(tx, ty) {
-  if (tx < 0 || tx >= LEVEL_W) return true;
+  if (tx < 0 || tx >= levelW) return true;
   if (ty < 0) return false;
   if (ty >= ROWS) return false;
   const t = grid[ty][tx];
@@ -449,6 +837,7 @@ function solidAt(tx, ty) {
 /* ---------------- entities & state ---------------- */
 let state, player, enemies, items, coinsE, particles, popups;
 let camX, score, coinCount, lives, timeLeft, winTimer, deadTimer, shake;
+let introTimer = 0, doneTimer = 0;
 
 function resetPlayer() {
   player = {
@@ -457,21 +846,38 @@ function resetPlayer() {
     coyote: 0, jbuf: 0, anim: 0, power: 0, inv: 0,
   };
 }
+const ENEMY_DEF = {
+  durian:  { w: 13, h: 13, vx: -30 },
+  pigeon:  { w: 12, h: 10, vx: -42 },
+  tissue:  { w: 11, h: 10, vx: -16 },
+  coconut: { w: 11, h: 11, vx: -62 },
+};
 function spawnWorld() {
   enemies = enemySpawns.map(s => ({
-    x: s.x, y: s.y, w: 13, h: 13, vx: -30, vy: 0,
+    kind: s.kind || "durian",
+    x: s.x, y: s.y, vy: 0,
+    ...ENEMY_DEF[s.kind || "durian"],
     alive: true, squash: 0, anim: Math.random() * 10, active: false,
   }));
   coinsE = coinSpawns.map(s => ({ x: s.x, y: s.y, taken: false }));
   items = []; particles = []; popups = [];
   bumpMap = {};
 }
+const START_IDX = Math.min(4, Math.max(0, parseInt(new URLSearchParams(location.search).get("level") || "1", 10) - 1 || 0));
+function startLevel(i) {
+  loadLevel(i);
+  deadTimer = 0;
+  state = "intro"; introTimer = 0;
+}
 function newGame() {
-  buildLevel();
-  score = 0; coinCount = 0; lives = 3; timeLeft = 300;
-  resetPlayer(); spawnWorld();
-  camX = 0; winTimer = 0; deadTimer = 0; shake = 0;
-  state = "play";
+  score = 0; coinCount = 0; lives = 3;
+  startLevel(START_IDX);
+}
+function handleConfirm() {
+  audio();
+  if (state === "title" || state === "gameover" || state === "won") newGame();
+  else if (state === "levelDone") startLevel(levelIndex + 1);
+  else if (state === "intro") introTimer = 99;
 }
 
 /* ---------------- input ---------------- */
@@ -481,9 +887,9 @@ addEventListener("keydown", e => {
   keys[e.key.toLowerCase()] = true;
   if (e.key === " ") keys["space"] = true;
   if (e.key.toLowerCase() === "m" && !e.repeat) muted = !muted;
-  const onScreen = state === "title" || state === "gameover" || state === "won";
-  if ((e.key === "Enter" || e.key === " ") && onScreen) {
-    audio(); newGame();
+  const canConfirm = !["play", "dying", "winAnim"].includes(state);
+  if ((e.key === "Enter" || e.key === " ") && canConfirm) {
+    handleConfirm();
   } else if (state === "play" && (e.key === " " || e.key === "ArrowUp" || e.key.toLowerCase() === "w") && !e.repeat) {
     player.jbuf = 0.12;
   }
@@ -497,7 +903,7 @@ function bindBtn(id, k) {
   const el = document.getElementById(id);
   const on  = e => { e.preventDefault(); keys[k] = true; audio();
                      if (k === "space" && state === "play") player.jbuf = 0.12;
-                     if (k === "space" && state !== "play") newGame(); };
+                     else if (k === "space") handleConfirm(); };
   const off = e => { e.preventDefault(); keys[k] = false; };
   el.addEventListener("touchstart", on); el.addEventListener("touchend", off);
   el.addEventListener("mousedown", on);  el.addEventListener("mouseup", off);
@@ -602,7 +1008,7 @@ function updatePlayer(dt) {
 
   p.vy = Math.min(p.vy + GRAV * dt, 420);
   moveAndCollide(p, true);
-  p.x = Math.max(0, Math.min(p.x, LEVEL_W * TILE - p.w));
+  p.x = Math.max(0, Math.min(p.x, levelW * TILE - p.w));
 
   if (p.inv > 0) p.inv -= dt;
   if (p.power > 0) {
@@ -618,19 +1024,22 @@ function updatePlayer(dt) {
   if (p.y > ROWS * TILE + 24) killPlayer(true);
 
   // reached the flag
-  if (p.x + p.w / 2 >= FLAG_X * TILE + 6 && state === "play") {
+  if (p.x + p.w / 2 >= flagX * TILE + 6 && state === "play") {
     state = "winAnim"; winTimer = 0;
     addScore(Math.floor(timeLeft) * 10);
     sfx.win();
   }
 }
 
+const DEATH_CRIES = ["AIYO!", "WAH LAU!", "ALAMAK!", "OH NO LAH!", "KENA!"];
+const STOMP_CRIES = ["PAK!", "SISU!", "SORRY AH!", "TAKE THAT!"];
 function killPlayer(fell) {
   if (state !== "play") return;
   state = "dying"; deadTimer = 0;
   player.vy = fell ? 0 : -380;
   player.vx = 0;
   shake = 0.3;
+  popup(player.x - 10, player.y - 12, DEATH_CRIES[Math.floor(Math.random() * DEATH_CRIES.length)], "#ff8896");
   sfx.die();
 }
 function hurtPlayer() {
@@ -655,12 +1064,14 @@ function updateEnemies(dt) {
     e.hitWall = false;
     e.vy = Math.min(e.vy + GRAV * dt, 420);
     moveAndCollide(e, false);
-    // turn at ledges
-    if (e.onGround) {
+    // turn at ledges (coconuts just roll off, it's the Sentosa way)
+    if (e.onGround && e.kind !== "coconut") {
       const ahead = e.vx > 0 ? Math.floor((e.x + e.w + 1) / TILE) : Math.floor((e.x - 1) / TILE);
       const below = Math.floor((e.y + e.h + 2) / TILE);
       if (!solidAt(ahead, below)) e.vx = -e.vx;
     }
+    // pigeons hop around like they own the void deck
+    if (e.kind === "pigeon" && e.onGround && Math.random() < dt * 1.1) e.vy = -150;
     if (e.x > camX - 40 && state === "play") {
       // vs player
       const p = player;
@@ -668,10 +1079,12 @@ function updateEnemies(dt) {
         if (p.power > 0) {
           e.flung = true; e.vx = 120 * Math.sign(e.x - p.x + 0.1); e.vy = -260;
           addScore(200, e.x, e.y - 8); burst(e.x + 8, e.y + 8, "#8fbc3f"); sfx.stomp();
+          popup(e.x, e.y - 16, "KENA!", "#ffd23f");
         } else if (p.vy > 60 && p.y + p.h - e.y < 11) {
           e.squash = 0.45;
           p.vy = -260; p.jbuf = 0;
           addScore(100, e.x, e.y - 8); burst(e.x + 8, e.y + 10, "#8fbc3f", 6, 50); sfx.stomp();
+          popup(e.x, e.y - 16, STOMP_CRIES[Math.floor(Math.random() * STOMP_CRIES.length)], "#9fe8ff");
         } else {
           hurtPlayer();
         }
@@ -734,14 +1147,35 @@ const cityBuildings = [];
 {
   let bx = 0; let seed = 7;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  while (bx < LEVEL_W * TILE * 0.3 + VW + 200) {
+  while (bx < MAX_LEVEL_W * TILE * 0.3 + VW + 200) {
     const w = 18 + rnd() * 26, h = 30 + rnd() * 55;
     cityBuildings.push({ x: bx, w, h, win: rnd() });
     bx += w + 4 + rnd() * 14;
   }
 }
 
-function drawBackground(t) {
+function drawBackground(t) { THEMES[cur().theme].bg(t); }
+
+function drawCloudPuffs(t, color) {
+  ctx.fillStyle = color;
+  for (const c of clouds) {
+    const cx = ((c.x + t * c.spd - camX * 0.1) % (VW + 120) + VW + 120) % (VW + 120) - 60;
+    ctx.fillRect(cx, c.y, c.w, 5);
+    ctx.fillRect(cx + 5, c.y - 4, c.w * 0.6, 4);
+    ctx.fillRect(cx + 8, c.y + 5, c.w * 0.7, 3);
+  }
+}
+
+function drawBirds(t, color) {
+  ctx.fillStyle = color;
+  for (let i = 0; i < 3; i++) {
+    const bx = ((i * 120 + t * 14) % (VW + 40)) - 20;
+    const by = 44 + i * 13 + Math.sin(t * 3 + i) * 3;
+    ctx.fillRect(bx, by, 2, 1); ctx.fillRect(bx + 2, by - 1, 2, 1); ctx.fillRect(bx + 4, by, 2, 1);
+  }
+}
+
+function bgBay(t) {
   const g = ctx.createLinearGradient(0, 0, 0, VH);
   g.addColorStop(0, "#0c1238");
   g.addColorStop(0.45, "#2c2260");
@@ -863,6 +1297,237 @@ function drawBackground(t) {
   }
 }
 
+/* ---------------- HDB heartlands: sunny daytime ---------------- */
+const hdbBlocks = [];
+{
+  let bx = 0, seed = 31;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const cols = ["#f4e3c2", "#f2c9c0", "#c9e2f4", "#d4ecd2", "#efe6f7", "#f7dcc0"];
+  while (bx < MAX_LEVEL_W * TILE * 0.3 + VW + 200) {
+    const w = 26 + rnd() * 20, h = 46 + rnd() * 46;
+    hdbBlocks.push({ x: bx, w, h, col: cols[Math.floor(rnd() * cols.length)] });
+    bx += w + 6 + rnd() * 12;
+  }
+}
+function bgHDB(t) {
+  const g = ctx.createLinearGradient(0, 0, 0, VH);
+  g.addColorStop(0, "#5fb8f0");
+  g.addColorStop(0.6, "#9fd8f8");
+  g.addColorStop(1, "#d8f0fc");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, VW, VH);
+
+  ctx.fillStyle = "rgba(255,244,190,0.5)";
+  ctx.beginPath(); ctx.arc(274, 34, 17, 0, 7); ctx.fill();
+  ctx.fillStyle = "#fff3b0";
+  ctx.beginPath(); ctx.arc(274, 34, 11, 0, 7); ctx.fill();
+
+  drawCloudPuffs(t, "rgba(255,255,255,0.75)");
+
+  const HOR = 172;
+  const par = camX * 0.25;
+  for (const b of hdbBlocks) {
+    const sx = b.x - par;
+    if (sx + b.w < -10 || sx > VW + 10) continue;
+    ctx.fillStyle = b.col;
+    ctx.fillRect(sx, HOR - b.h, b.w, b.h);
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    ctx.fillRect(sx, HOR - b.h, b.w, 3);
+    for (let wy = HOR - b.h + 6; wy < HOR - 4; wy += 8) {
+      for (let wx = 3; wx < b.w - 3; wx += 7) {
+        ctx.fillStyle = ((wx * 31 + wy * 17 + b.x) % 13) < 5 ? "#fff6d8" : "#3d4a5c";
+        ctx.fillRect(sx + wx, wy, 3, 4);
+      }
+    }
+  }
+
+  drawBirds(t, "#2c3542");
+
+  ctx.fillStyle = "#79c268";
+  ctx.fillRect(0, HOR, VW, VH - HOR);
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  for (let i = 0; i < 8; i++) ctx.fillRect((i * 47 + 20) % VW, HOR + 6 + (i * 17) % 50, 10, 1);
+}
+
+/* ---------------- MRT rush hour: tunnel, ads, passing trains ---------------- */
+let lastTrainCyc = 0;
+function bgMRT(t) {
+  ctx.fillStyle = "#07080f";
+  ctx.fillRect(0, 0, VW, VH);
+
+  ctx.strokeStyle = "rgba(70,80,110,0.35)";
+  ctx.lineWidth = 2;
+  for (let r = 150; r <= 300; r += 30) {
+    ctx.beginPath(); ctx.arc(VW / 2, VH + 40, r, Math.PI, 2 * Math.PI); ctx.stroke();
+  }
+
+  for (let x = 10; x < VW + 44; x += 44) {
+    const fl = 0.6 + 0.4 * Math.sin(t * 4 + x * 1.7);
+    ctx.fillStyle = `rgba(220,235,255,${0.25 + fl * 0.35})`;
+    ctx.fillRect(((x - camX * 0.1) % (VW + 44) + VW + 44) % (VW + 44) - 22, 14, 18, 3);
+  }
+
+  const HOR = 172;
+  ctx.fillStyle = "#14161f";
+  ctx.fillRect(0, 60, VW, HOR - 60);
+
+  const ads = [["LAKSA -50%", "#c8402a"], ["BBT $2", "#3a6fd8"], ["TUITION 99", "#7b3a8e"], ["SALE SALE!", "#c8862a"], ["MERLIO", "#2e8a3a"]];
+  ctx.font = "5px monospace";
+  for (let i = 0; i < ads.length; i++) {
+    const ax = ((i * 90 - camX * 0.15) % (VW + 90) + VW + 90) % (VW + 90) - 45;
+    ctx.fillStyle = "#dfe3ea"; ctx.fillRect(ax, 78, 52, 30);
+    ctx.fillStyle = ads[i][1]; ctx.fillRect(ax + 2, 80, 48, 26);
+    ctx.fillStyle = "#ffffff"; ctx.textAlign = "center";
+    ctx.fillText(ads[i][0], ax + 26, 95);
+    ctx.textAlign = "left";
+  }
+
+  ctx.fillStyle = "#0b0d16";
+  ctx.fillRect(0, HOR, VW, VH - HOR);
+  ctx.fillStyle = "rgba(255,210,63,0.5)";
+  ctx.fillRect(0, HOR, VW, 1);
+  ctx.strokeStyle = "#232a3d";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, 205); ctx.lineTo(VW, 197); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 214); ctx.lineTo(VW, 206); ctx.stroke();
+
+  const cyc = t % 12;
+  if (cyc < 1.7) {
+    const dir = Math.floor(t / 12) % 2 ? -1 : 1;
+    const tx = dir > 0 ? -260 + (cyc / 1.7) * (VW + 520) : VW + 260 - (cyc / 1.7) * (VW + 520);
+    ctx.fillStyle = "#aeb8c4"; ctx.fillRect(tx, 148, 240, 24);
+    ctx.fillStyle = "#8a929e"; ctx.fillRect(tx, 148, 240, 3);
+    ctx.fillStyle = "#d6402e"; ctx.fillRect(tx, 164, 240, 4);
+    ctx.fillStyle = "#ffe9a8";
+    for (let wx = 8; wx < 232; wx += 20) ctx.fillRect(tx + wx, 153, 12, 8);
+    ctx.fillStyle = "#5f6672"; ctx.fillRect(tx + 2, 150, 4, 20);
+  }
+  if (cyc >= 0.05 && lastTrainCyc < 0.05) {
+    sfx.train();
+    if (state === "play") shake = Math.max(shake, 0.1);
+  }
+  lastTrainCyc = cyc;
+}
+
+/* ---------------- Sentosa: sun, sea, cable cars ---------------- */
+function bgBeach(t) {
+  const g = ctx.createLinearGradient(0, 0, 0, VH);
+  g.addColorStop(0, "#4fb8e8");
+  g.addColorStop(0.55, "#8fd8f4");
+  g.addColorStop(0.78, "#d8f2fc");
+  g.addColorStop(1, "#f6e6b8");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, VW, VH);
+
+  ctx.fillStyle = "rgba(255,244,190,0.55)";
+  ctx.beginPath(); ctx.arc(52, 40, 18, 0, 7); ctx.fill();
+  ctx.fillStyle = "#fff3b0";
+  ctx.beginPath(); ctx.arc(52, 40, 13, 0, 7); ctx.fill();
+  ctx.strokeStyle = "rgba(255,240,170,0.7)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4 + t * 0.2;
+    ctx.beginPath();
+    ctx.moveTo(52 + Math.cos(a) * 20, 40 + Math.sin(a) * 20);
+    ctx.lineTo(52 + Math.cos(a) * 26, 40 + Math.sin(a) * 26);
+    ctx.stroke();
+  }
+
+  drawCloudPuffs(t, "rgba(255,255,255,0.8)");
+
+  ctx.strokeStyle = "rgba(60,70,90,0.8)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-10, 58); ctx.lineTo(VW + 10, 34); ctx.stroke();
+  for (let i = 0; i < 3; i++) {
+    const p = (t * 0.03 + i / 3) % 1;
+    const cx = -10 + p * (VW + 20), cy = 58 + p * (34 - 58);
+    ctx.fillStyle = "#3c465a"; ctx.fillRect(cx, cy, 1, 3);
+    ctx.fillStyle = "#d6402e"; ctx.fillRect(cx - 4, cy + 3, 9, 8);
+    ctx.fillStyle = "#ffe9a8"; ctx.fillRect(cx - 2, cy + 5, 5, 3);
+  }
+
+  drawBirds(t, "#1d3a52");
+
+  const HOR = 150;
+  const wg = ctx.createLinearGradient(0, HOR, 0, VH);
+  wg.addColorStop(0, "#2a9df4");
+  wg.addColorStop(1, "#0b5fa8");
+  ctx.fillStyle = wg;
+  ctx.fillRect(0, HOR, VW, VH - HOR);
+
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  for (let i = 0; i < 6; i++) {
+    const fy = HOR + 5 + i * 11;
+    for (let k = 0; k < 4; k++) {
+      const fx = ((k * 97 + i * 41 + t * 18) % (VW + 30)) - 15;
+      ctx.fillRect(fx, fy, 14, 1);
+    }
+  }
+
+  const bx = ((t * 7) % (VW + 80)) - 40;
+  ctx.fillStyle = "#6e4520"; ctx.fillRect(bx, HOR - 7, 26, 6);
+  ctx.fillStyle = "#c8862a"; ctx.fillRect(bx + 5, HOR - 12, 16, 5);
+  ctx.fillStyle = "#3c465a"; ctx.fillRect(bx + 7, HOR - 11, 3, 3); ctx.fillRect(bx + 14, HOR - 11, 3, 3);
+}
+
+/* ---------------- Jewel: rain vortex, rainbow, fireflies ---------------- */
+const fireflies = Array.from({ length: 22 }, (_, i) => ({
+  x: (i * 53) % VW, y: 56 + (i * 37) % 100, p: i * 0.7,
+}));
+function bgJewel(t) {
+  ctx.fillStyle = "#0a1024";
+  ctx.fillRect(0, 0, VW, VH);
+
+  ctx.strokeStyle = "rgba(140,170,255,0.14)";
+  ctx.lineWidth = 2;
+  for (let r = 120; r <= 260; r += 35) {
+    ctx.beginPath(); ctx.arc(VW / 2, VH + 60, r, Math.PI, 2 * Math.PI); ctx.stroke();
+  }
+
+  const HOR = 172;
+  const fg = ctx.createLinearGradient(0, HOR, 0, VH);
+  fg.addColorStop(0, "#14204a");
+  fg.addColorStop(1, "#0a1024");
+  ctx.fillStyle = fg;
+  ctx.fillRect(0, HOR, VW, VH - HOR);
+
+  const vxK = VW / 2 + 0.35 * (levelW * TILE / 2 - VW / 2);
+  const vx = vxK - camX * 0.35;
+  if (vx > -60 && vx < VW + 60) {
+    const vg = ctx.createLinearGradient(0, 0, 0, HOR);
+    vg.addColorStop(0, "rgba(140,210,255,0.10)");
+    vg.addColorStop(1, "rgba(140,210,255,0.42)");
+    ctx.fillStyle = vg;
+    ctx.fillRect(vx - 17, 0, 34, HOR);
+    ctx.fillStyle = "rgba(220,240,255,0.55)";
+    for (let i = 0; i < 6; i++) {
+      const yy = (t * 90 + i * 31) % HOR;
+      ctx.fillRect(vx - 13 + i * 5, yy, 2, 12);
+    }
+    ctx.fillStyle = "rgba(160,220,255,0.35)";
+    ctx.beginPath(); ctx.ellipse(vx, HOR, 30, 6, 0, 0, 7); ctx.fill();
+    const cols = ["#ff5b6e", "#ffb02e", "#ffd23f", "#5ce18a", "#5ce1e6", "#8a7cf2"];
+    ctx.lineWidth = 2;
+    cols.forEach((c, i) => {
+      ctx.strokeStyle = c;
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath(); ctx.arc(vx, HOR, 44 + i * 3, Math.PI, 2 * Math.PI); ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  for (const d of decorations) {
+    if (d.type === "supertree") drawSupertree(d.x - camX * 0.55, 13 * TILE, t);
+  }
+
+  for (const f of fireflies) {
+    ctx.globalAlpha = 0.3 + 0.7 * Math.abs(Math.sin(t * 1.8 + f.p));
+    ctx.fillStyle = "#d8ffb0";
+    ctx.fillRect(((f.x - camX * 0.2) % VW + VW) % VW, f.y + Math.sin(t + f.p) * 4, 1, 1);
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawSupertree(x, groundY, t) {
   if (x < -40 || x > VW + 40) return;
   const topY = groundY - 66;
@@ -902,19 +1567,110 @@ function drawHDB(x, groundY) {
 }
 
 function drawSign(x, y, text) {
-  ctx.fillStyle = "#7a5230"; ctx.fillRect(x + 14, y + 8, 3, 12);
-  ctx.fillStyle = "#9c6b3c"; ctx.fillRect(x, y, 32, 10);
-  ctx.fillStyle = "#5c3a1c"; ctx.fillRect(x, y + 9, 32, 1);
+  ctx.font = "5px monospace";
+  const w = Math.max(32, text.length * 3 + 10);
+  ctx.fillStyle = "#7a5230"; ctx.fillRect(x + w / 2 - 1, y + 8, 3, 12);
+  ctx.fillStyle = "#9c6b3c"; ctx.fillRect(x, y, w, 10);
+  ctx.fillStyle = "#5c3a1c"; ctx.fillRect(x, y + 9, w, 1);
   ctx.fillStyle = "#fff2d0";
-  ctx.font = "5px monospace"; ctx.textAlign = "center";
-  ctx.fillText(text, x + 16, y + 7);
+  ctx.textAlign = "center";
+  ctx.fillText(text, x + w / 2, y + 7);
   ctx.textAlign = "left";
+}
+
+/* bamboo laundry pole with ah ma's washing, swaying in the wind */
+function drawLaundry(x, groundY, t) {
+  if (x < -50 || x > VW + 50) return;
+  ctx.fillStyle = "#c8a862";
+  ctx.fillRect(x, groundY - 24, 2, 24);
+  ctx.fillRect(x + 34, groundY - 24, 2, 24);
+  ctx.strokeStyle = "#8a929e"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x, groundY - 22); ctx.lineTo(x + 36, groundY - 22); ctx.stroke();
+  const cloth = ["#ff5b6e", "#5ce1e6", "#ffd23f", "#7cf25c"];
+  for (let i = 0; i < 4; i++) {
+    const sway = Math.sin(t * 2 + i * 1.3) * 1.5;
+    ctx.fillStyle = cloth[i];
+    ctx.fillRect(x + 4 + i * 8 + sway, groundY - 22, 6, 8);
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    ctx.fillRect(x + 4 + i * 8 + sway, groundY - 22, 6, 2);
+  }
+}
+
+/* two-storey kopitiam shophouse */
+function drawKopitiam(x, groundY) {
+  if (x < -60 || x > VW + 60) return;
+  const w = 46, h = 42, y = groundY - h;
+  ctx.fillStyle = "#f2e6c8"; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "#c8402a"; ctx.fillRect(x - 2, y, w + 4, 9);
+  ctx.fillStyle = "#ffd23f"; ctx.font = "bold 6px monospace"; ctx.textAlign = "center";
+  ctx.fillText("KOPITIAM", x + w / 2, y + 7); ctx.textAlign = "left";
+  ctx.fillStyle = "#8a5a2c"; ctx.fillRect(x, y + 9, w, 2);
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = "#3a6fd8"; ctx.fillRect(x + 5 + i * 14, y + 14, 9, 9);
+    ctx.fillStyle = "#bfe8ff"; ctx.fillRect(x + 6 + i * 14, y + 15, 7, 7);
+  }
+  ctx.fillStyle = "#4a2c12"; ctx.fillRect(x + 4, groundY - 16, w - 8, 16);
+  ctx.fillStyle = "#ffe9a8";
+  ctx.fillRect(x + 7, groundY - 13, 10, 6);
+  ctx.fillStyle = "#e8442c";
+  ctx.fillRect(x + 22, groundY - 13, 6, 6);
+  ctx.fillStyle = "#f4f4f4";
+  ctx.fillRect(x + 32, groundY - 13, 8, 4);
+}
+
+/* coconut palm */
+function drawPalm(x, groundY, t) {
+  if (x < -40 || x > VW + 40) return;
+  ctx.fillStyle = "#8a5a2c";
+  for (let i = 0; i < 8; i++) ctx.fillRect(x + i * 0.9, groundY - 4 - i * 3, 3, 3);
+  const tx = x + 7, ty = groundY - 27;
+  ctx.strokeStyle = "#2e8a3a"; ctx.lineWidth = 2;
+  for (let i = -2; i <= 2; i++) {
+    const sway = Math.sin(t * 1.5 + i) * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.quadraticCurveTo(tx + i * 7, ty - 4 - Math.abs(i), tx + i * 11 + sway, ty + 1);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "#5f3a16";
+  ctx.fillRect(tx - 3, ty + 1, 2, 2); ctx.fillRect(tx + 1, ty + 2, 2, 2);
+}
+
+/* MRT station sign on a pole */
+function drawMrtSign(x, groundY) {
+  if (x < -30 || x > VW + 30) return;
+  ctx.fillStyle = "#8a929e"; ctx.fillRect(x + 6, groundY - 30, 2, 30);
+  ctx.fillStyle = "#d6402e";
+  ctx.beginPath(); ctx.arc(x + 7, groundY - 34, 7, 0, 7); ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x + 2, groundY - 36, 10, 4);
+  ctx.fillStyle = "#d6402e";
+  ctx.fillRect(x + 5, groundY - 35, 4, 2);
+}
+
+/* Changi control tower for the finale */
+function drawControlTower(x, groundY, t) {
+  if (x < -50 || x > VW + 50) return;
+  ctx.fillStyle = "#26335e";
+  ctx.beginPath();
+  ctx.moveTo(x + 4, groundY); ctx.lineTo(x + 9, groundY - 58);
+  ctx.lineTo(x + 15, groundY - 58); ctx.lineTo(x + 20, groundY);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#3a4a8c";
+  ctx.beginPath(); ctx.ellipse(x + 12, groundY - 62, 13, 6, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#9fe8ff";
+  for (let i = -2; i <= 2; i++) ctx.fillRect(x + 12 + i * 4 - 1, groundY - 64, 2, 3);
+  if (Math.floor(t * 2) % 2) {
+    ctx.fillStyle = "#ff5b6e";
+    ctx.fillRect(x + 11, groundY - 71, 2, 2);
+  }
 }
 
 /* ---------------- world drawing ---------------- */
 function drawTiles() {
+  const groundTile = THEMES[cur().theme].ground;
   const x0 = Math.max(0, Math.floor(camX / TILE));
-  const x1 = Math.min(LEVEL_W - 1, Math.ceil((camX + VW) / TILE));
+  const x1 = Math.min(levelW - 1, Math.ceil((camX + VW) / TILE));
   for (let ty = 0; ty < ROWS; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
       const t = grid[ty][tx];
@@ -923,7 +1679,7 @@ function drawTiles() {
       const b = bumpMap[key(tx, ty)];
       if (b !== undefined) dy = -Math.sin((0.25 - b) / 0.25 * Math.PI) * 5;
       const sx = Math.round(tx * TILE - camX), sy = Math.round(ty * TILE + dy);
-      if (t === 1)      ctx.drawImage(T_GROUND, sx, sy);
+      if (t === 1)      ctx.drawImage(groundTile, sx, sy);
       else if (t === 2) ctx.drawImage(T_BRICK, sx, sy);
       else if (t === 3) ctx.drawImage(T_Q, sx, sy);
       else if (t === 4) ctx.drawImage(T_USED, sx, sy);
@@ -931,7 +1687,7 @@ function drawTiles() {
     }
   }
   // flag at top of pole
-  const fx = Math.round(FLAG_X * TILE - camX);
+  const fx = Math.round(flagX * TILE - camX);
   if (fx > -40 && fx < VW + 40) {
     const wave = Math.sin(performance.now() / 300) * 1.5;
     ctx.drawImage(SPR_FLAG, fx + 10, 4 * TILE - 8 + wave);
@@ -956,16 +1712,27 @@ function drawEnemies() {
     if (!e.alive) continue;
     const sx = Math.round(e.x - camX - 1), sy = Math.round(e.y - 2);
     if (sx < -24 || sx > VW + 24) continue;
-    if (e.squash > 0) { ctx.drawImage(SPR_D_SQ, sx, sy); continue; }
-    if (e.flung) {
+    if (e.squash > 0) { ctx.drawImage(e.kind === "durian" ? SPR_D_SQ : SQUASH[e.kind], sx, sy); continue; }
+    const frames = ENEMY_SPR[e.kind];
+    const spr = frames[Math.floor(e.anim) % frames.length];
+    if (e.flung || e.kind === "coconut") {
       ctx.save();
       ctx.translate(sx + 8, sy + 8);
-      ctx.rotate(performance.now() / 100);
-      ctx.drawImage(SPR_D1, -8, -8);
+      ctx.rotate(e.flung ? performance.now() / 100 : e.x / 9);
+      ctx.drawImage(spr, -8, -8);
       ctx.restore();
       continue;
     }
-    ctx.drawImage(Math.floor(e.anim) % 2 ? SPR_D1 : SPR_D2, sx, sy);
+    const bob = e.kind === "tissue" ? Math.round(Math.sin(e.anim) * 1) : 0;
+    if (e.vx > 0 && (e.kind === "pigeon" || e.kind === "tissue")) {
+      ctx.save();
+      ctx.translate(sx + 16, sy + bob);
+      ctx.scale(-1, 1);
+      ctx.drawImage(spr, 0, 0);
+      ctx.restore();
+    } else {
+      ctx.drawImage(spr, sx, sy + bob);
+    }
   }
 }
 
@@ -1026,9 +1793,12 @@ function drawHUD() {
   ctx.drawImage(SPR_COIN, 2, 0, 12, 12, 108, 3, 9, 9);
   ctx.fillText("x" + String(coinCount).padStart(2, "0"), 119, 10);
   ctx.fillStyle = "#ff5b6e";
-  ctx.fillText("\u2665", 158, 10);
+  ctx.fillText("\u2665", 152, 10);
   ctx.fillStyle = "#ffffff";
-  ctx.fillText("x" + lives, 166, 10);
+  ctx.fillText("x" + lives, 160, 10);
+  ctx.fillStyle = "#8fd0ff";
+  ctx.fillText("L" + (levelIndex + 1), 178, 10);
+  ctx.fillStyle = "#ffffff";
   ctx.fillText("TIME " + String(Math.max(0, Math.ceil(timeLeft))).padStart(3, "0"), 208, 10);
   if (player.power > 0) {
     ctx.fillStyle = "#ff5252";
@@ -1072,17 +1842,37 @@ function drawTitle(t) {
   ctx.drawImage(SPR_P_STAND, VW / 2 - 8, 116, 32, 32);
   ctx.drawImage(SPR_D1, VW / 2 + 34, 124, 28, 28);
 
-  centerText("STOMP THE DURIANS \u00b7 GRAB THE CHILLI CRAB", 168, 7, "#9fe8ff");
-  centerText("ARROWS / WASD MOVE \u00b7 SPACE JUMP \u00b7 M MUTE", 180, 7, "#c9d4ff");
-  if (Math.floor(t * 2) % 2) centerText("- PRESS ENTER TO START -", 204, 9, "#ffffff", "#000");
+  centerText("STOMP THE DURIANS \u00b7 GRAB THE CHILLI CRAB", 166, 7, "#9fe8ff");
+  centerText("5 LEVELS: BAY \u2192 HEARTLANDS \u2192 MRT \u2192 SENTOSA \u2192 JEWEL", 177, 7, "#ffd23f");
+  centerText("ARROWS / WASD MOVE \u00b7 SPACE JUMP \u00b7 M MUTE", 188, 7, "#c9d4ff");
+  if (Math.floor(t * 2) % 2) centerText("- PRESS ENTER TO START -", 206, 9, "#ffffff", "#000");
   centerText("MAJULAH SINGAPURA!", 226, 7, "#ff8896");
+}
+
+function drawIntroCard(t) {
+  ctx.fillStyle = "rgba(6,8,24,0.62)";
+  ctx.fillRect(0, 58, VW, 112);
+  centerText("LEVEL " + (levelIndex + 1) + " / 5", 84, 9, "#9fe8ff");
+  centerText(cur().name, 110, 20, "#ffd23f", "#7c2415");
+  centerText(cur().sub, 132, 7, "#ffffff");
+  if (Math.floor(t * 2) % 2) centerText("- GET READY LAH! -", 152, 8, "#ffffff", "#000");
+}
+
+function drawLevelDone(t) {
+  ctx.fillStyle = "rgba(6,8,24,0.6)";
+  ctx.fillRect(0, 52, VW, 124);
+  centerText("LEVEL CLEAR!", 80, 18, "#ffd23f", "#7c2415");
+  centerText(cur().clear, 100, 8, "#9fe8ff");
+  centerText("SCORE " + score + "   COINS " + coinCount + "   LIVES " + lives, 118, 8, "#ffffff");
+  if (Math.floor(t * 2) % 2) centerText("NEXT: " + LEVELS[levelIndex + 1].name + " \u2192", 142, 9, "#ffffff", "#000");
 }
 
 function drawWinOverlay(t) {
   ctx.fillStyle = "rgba(6,8,24,0.55)";
-  ctx.fillRect(0, 40, VW, 120);
-  centerText("MAJULAH!", 78, 22, "#ffd23f", "#7c2415");
-  centerText("YOU REACHED MARINA BAY!", 98, 9, "#ffffff", "#000");
+  ctx.fillRect(0, 34, VW, 132);
+  centerText("MAJULAH CHAMPION!", 64, 18, "#ffd23f", "#7c2415");
+  centerText("YOU CONQUERED ALL 5 LEVELS!", 84, 9, "#ffffff", "#000");
+  centerText("MERLIO SAYS: SHIOK AH!", 98, 8, "#ff8896");
   centerText("SCORE " + score + "   COINS " + coinCount, 118, 8, "#9fe8ff");
   if (Math.floor(t * 2) % 2) centerText("- PRESS ENTER TO PLAY AGAIN -", 140, 8, "#ffffff", "#000");
   // fireworks
@@ -1115,6 +1905,9 @@ function frame(now) {
     updateEnemies(dt);
     updateItems(dt);
     updateCoins(dt);
+  } else if (state === "intro") {
+    introTimer += dt;
+    if (introTimer > 2.4) state = "play";
   } else if (state === "dying") {
     deadTimer += dt;
     player.vy += GRAV * dt;
@@ -1122,16 +1915,22 @@ function frame(now) {
     if (deadTimer > 1.6) {
       lives--;
       if (lives <= 0) state = "gameover";
-      else { resetPlayer(); spawnWorld(); timeLeft = 300; camX = 0; state = "play"; player.inv = 2; }
+      else { resetPlayer(); spawnWorld(); timeLeft = cur().time; camX = 0; state = "play"; player.inv = 2; }
     }
   } else if (state === "winAnim") {
     winTimer += dt;
     const p = player;
     // slide to pole base then walk right
-    if (p.y + p.h < 13 * TILE - 1) { p.x = FLAG_X * TILE + 1; p.y += 90 * dt; p.vx = 0; }
+    if (p.y + p.h < 13 * TILE - 1) { p.x = flagX * TILE + 1; p.y += 90 * dt; p.vx = 0; }
     else { p.y = 13 * TILE - p.h; p.x += 55 * dt; p.dir = 1; p.anim += dt * 8; }
-    if (winTimer > 2.6) state = "won";
+    if (winTimer > 2.6) {
+      if (levelIndex < LEVELS.length - 1) { state = "levelDone"; doneTimer = 0; sfx.win(); }
+      else state = "won";
+    }
     updateEnemies(dt);
+  } else if (state === "levelDone") {
+    doneTimer += dt;
+    if (doneTimer > 3.4) startLevel(levelIndex + 1);
   } else if (state === "won") {
     // idle celebrate
   }
@@ -1141,7 +1940,7 @@ function frame(now) {
   if (state !== "won") {
     const target = player.x - VW * 0.38;
     camX += (target - camX) * Math.min(1, dt * 8);
-    camX = Math.max(0, Math.min(camX, LEVEL_W * TILE - VW));
+    camX = Math.max(0, Math.min(camX, levelW * TILE - VW));
   }
 
   /* --- draw --- */
@@ -1155,6 +1954,11 @@ function frame(now) {
     if (d.type === "merlion") ctx.drawImage(SPR_MERLION, sx, d.y, 32, 36);
     else if (d.type === "hdb") drawHDB(sx, 13 * TILE);
     else if (d.type === "sign") drawSign(sx, d.y, d.text);
+    else if (d.type === "laundry") drawLaundry(sx, 13 * TILE, tGlobal);
+    else if (d.type === "kopitiam") drawKopitiam(sx, 13 * TILE);
+    else if (d.type === "palm") drawPalm(sx, 13 * TILE, tGlobal);
+    else if (d.type === "mrtsign") drawMrtSign(sx, 13 * TILE);
+    else if (d.type === "controltower") drawControlTower(sx, 13 * TILE, tGlobal);
   }
   drawTiles();
   drawCoins(tGlobal);
@@ -1163,6 +1967,9 @@ function frame(now) {
   if (!(state === "dying" && deadTimer > 1.3)) drawPlayer(tGlobal);
   drawFx();
   drawHUD();
+
+  if (state === "intro") drawIntroCard(tGlobal);
+  if (state === "levelDone") drawLevelDone(tGlobal);
 
   if (state === "gameover") {
     ctx.fillStyle = "rgba(6,8,24,0.7)";
@@ -1175,10 +1982,9 @@ function frame(now) {
 }
 
 /* ---------------- boot ---------------- */
-buildLevel();
-score = 0; coinCount = 0; lives = 3; timeLeft = 300;
-resetPlayer(); spawnWorld();
-camX = 0; state = "title";
+loadLevel(START_IDX);
+score = 0; coinCount = 0; lives = 3;
+state = "title";
 requestAnimationFrame(frame);
 </script>
 </body>
