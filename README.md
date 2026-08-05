@@ -2,4 +2,4 @@
 
 ## Interactive HTML
 
-- [`footjob.html`](footjob.html) — biomechanical 3D footjob stimulator (Three.js girl + boy models)
+- [`footjob.html`](footjob.html) — anime girl footjob stimulator with **Overstimulate** mode (Three.js)
