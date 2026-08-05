@@ -186,7 +186,7 @@
     <div class="meter"><i id="bar"></i></div>
     <div class="sliders">
       <label>Stroke speed<input id="speed" type="range" min="0.4" max="2.4" step="0.05" value="1.15"></label>
-      <label>Grip pressure<input id="grip" type="range" min="0.2" max="1.5" step="0.05" value="0.85"></label>
+      <label>Grip pressure<input id="grip" type="range" min="0.2" max="1.5" step="0.05" value="1.15"></label>
       <label>Foot angle<input id="angle" type="range" min="-35" max="35" step="1" value="8"></label>
       <label>Camera orbit<input id="orbit" type="range" min="0" max="1" step="0.01" value="0.35"></label>
     </div>
@@ -392,15 +392,24 @@ function makeHair(long = true) {
 
 function makeFoot(mat, side = 1) {
   const g = new THREE.Group();
-  const sole = mesh(new THREE.BoxGeometry(0.075, 0.03, 0.2), mat);
-  sole.position.set(0, 0, 0.02);
+  // darker sole pad so contact face is obvious in-scene
+  const soleMat = mat.clone();
+  soleMat.color = new THREE.Color(0xc47a6a);
+  const sole = mesh(new THREE.BoxGeometry(0.08, 0.028, 0.2), soleMat);
+  sole.position.set(0, -0.002, 0.02);
   g.add(sole);
+  // soft sole pad facing -Y (the contact face)
+  const pad = mesh(new THREE.BoxGeometry(0.085, 0.016, 0.18), new THREE.MeshPhysicalMaterial({
+    color: 0xc4685c, roughness: 0.48, clearcoat: 0.18, clearcoatRoughness: 0.5
+  }));
+  pad.position.set(0, -0.02, 0.025);
+  g.add(pad);
   const ball = mesh(new THREE.SphereGeometry(0.038, 16, 12), mat);
-  ball.position.set(0, 0.005, 0.09);
+  ball.position.set(0, 0.008, 0.09);
   ball.scale.set(1.15, 0.7, 0.9);
   g.add(ball);
   const heel = mesh(new THREE.SphereGeometry(0.032, 14, 12), mat);
-  heel.position.set(0, 0.0, -0.07);
+  heel.position.set(0, 0.004, -0.07);
   heel.scale.set(1.0, 0.85, 0.95);
   g.add(heel);
   // toes
@@ -410,10 +419,10 @@ function makeFoot(mat, side = 1) {
   toeOffsets.forEach((ox, i) => {
     const toe = mesh(new THREE.CapsuleGeometry(toeR[i], toeLen[i], 4, 8), mat);
     toe.rotation.x = Math.PI / 2;
-    toe.position.set(ox * side, 0.008, 0.12 + toeLen[i] * 0.35);
+    toe.position.set(ox * side, 0.01, 0.12 + toeLen[i] * 0.35);
     g.add(toe);
     const nail = mesh(new THREE.BoxGeometry(toeR[i] * 1.4, 0.004, toeLen[i] * 0.45), nailMat, false);
-    nail.position.set(ox * side, 0.018, 0.13 + toeLen[i] * 0.45);
+    nail.position.set(ox * side, 0.02, 0.13 + toeLen[i] * 0.45);
     g.add(nail);
   });
   g.userData.side = side;
@@ -628,37 +637,38 @@ function makeBoy() {
   shorts.position.set(0, -0.02, -0.05);
   hips.add(shorts);
 
-  // anatomy
+  // anatomy — slightly larger for clear foot contact
   const gen = new THREE.Group();
   gen.position.set(0, 0.02, 0.12);
   hips.add(gen);
-  const shaft = mesh(new THREE.CapsuleGeometry(0.028, 0.13, 6, 16), skinM);
+  const SHAFT_R = 0.038;
+  const shaft = mesh(new THREE.CapsuleGeometry(SHAFT_R, 0.15, 8, 20), skinM);
   shaft.rotation.x = Math.PI / 2;
-  shaft.position.z = 0.08;
+  shaft.position.z = 0.09;
   gen.add(shaft);
-  const headG = mesh(new THREE.SphereGeometry(0.034, 20, 14), new THREE.MeshPhysicalMaterial({
+  const headG = mesh(new THREE.SphereGeometry(0.04, 24, 16), new THREE.MeshPhysicalMaterial({
     color: 0xc88878, roughness: 0.4, clearcoat: 0.25, clearcoatRoughness: 0.4,
     sheen: 0.3, sheenColor: new THREE.Color(0xffa090)
   }));
-  headG.position.z = 0.175;
+  headG.position.z = 0.195;
   headG.scale.set(1.05, 0.95, 1.1);
   gen.add(headG);
   for (const sx of [-1, 1]) {
-    const ball = mesh(new THREE.SphereGeometry(0.03, 14, 12), skinM);
-    ball.position.set(sx * 0.028, -0.025, 0.02);
+    const ball = mesh(new THREE.SphereGeometry(0.032, 14, 12), skinM);
+    ball.position.set(sx * 0.03, -0.028, 0.015);
     ball.scale.set(1, 0.9, 1.05);
     gen.add(ball);
   }
 
   // shaft path anchors in local gen space (base -> tip)
   const shaftBase = new THREE.Object3D();
-  shaftBase.position.set(0, 0, 0.02);
+  shaftBase.position.set(0, 0, 0.015);
   gen.add(shaftBase);
   const shaftTip = new THREE.Object3D();
-  shaftTip.position.set(0, 0, 0.185);
+  shaftTip.position.set(0, 0, 0.205);
   gen.add(shaftTip);
 
-  root.userData = { hips, torso, head, legs, gen, shaft, headG, shaftBase, shaftTip };
+  root.userData = { hips, torso, head, legs, gen, shaft, headG, shaftBase, shaftTip, SHAFT_R };
   return root;
 }
 
@@ -667,15 +677,41 @@ const boy = makeBoy();
 scene.add(girl);
 scene.add(boy);
 
-/* Girl sits just past boy's hips, facing his crotch; feet reach the shaft */
-girl.userData.hips.position.set(0.02, 0.48, 0.72);
-girl.userData.hips.rotation.set(0.05, Math.PI, 0);
-girl.userData.torso.rotation.set(0.25, 0, 0);
-girl.userData.head.rotation.set(-0.15, 0, 0);
+/* ============================================================
+   Stroke contact rig — feet are LOCKED to the shaft so contact
+   cannot drift. Legs IK toward the feet for body continuity.
+   ============================================================ */
+const strokeRig = new THREE.Group();
+boy.userData.gen.add(strokeRig);
 
-/* Aim camera at contact zone */
-controls.target.set(0, 0.35, 0.25);
-camera.position.set(1.35, 0.95, 1.55);
+const footL = girl.userData.legs.L.foot;
+const footR = girl.userData.legs.R.foot;
+// detach from ankles → attach to shaft rig
+girl.userData.legs.L.ankle.remove(footL);
+girl.userData.legs.R.ankle.remove(footR);
+strokeRig.add(footL);
+strokeRig.add(footR);
+// Bigger feet so shaft grip reads clearly
+footL.scale.setScalar(1.55);
+footR.scale.setScalar(1.55);
+
+// Hide empty ankle stubs — real feet live on the shaft rig
+for (const side of ["L", "R"]) {
+  girl.userData.legs[side].ankle.visible = false;
+}
+
+/* Girl sits at boy's feet-end, facing his crotch (classic footjob seat) */
+girl.userData.hips.position.set(0.0, 0.38, 0.95);
+girl.userData.hips.rotation.set(0.1, Math.PI, 0);
+girl.userData.torso.rotation.set(0.35, 0, 0);
+girl.userData.head.rotation.set(-0.2, 0, 0);
+// arms brace behind
+girl.userData.arms.L.shoulder.rotation.set(-0.6, 0.2, -0.9);
+girl.userData.arms.R.shoulder.rotation.set(-0.6, -0.2, 0.9);
+
+/* Side-on camera so sole-on-shaft contact is obvious */
+controls.target.set(0, 0.4, 0.12);
+camera.position.set(1.65, 0.48, 0.18);
 controls.update();
 
 /* ============================================================
@@ -802,118 +838,127 @@ function triggerClimax() {
   }
 }
 
-/* foot contact solver — analytic 2-bone IK onto shaft */
-const _base = new THREE.Vector3();
-const _tip = new THREE.Vector3();
-const _dir = new THREE.Vector3();
-const _pos = new THREE.Vector3();
-const _side = new THREE.Vector3();
-const _up = new THREE.Vector3(0, 1, 0);
-const _hipW = new THREE.Vector3();
-const _to = new THREE.Vector3();
-const _fwd = new THREE.Vector3();
-const _right = new THREE.Vector3();
-const _norm = new THREE.Vector3();
+/* ============================================================
+   Feet are children of strokeRig (on gen). Every frame we set
+   their LOCAL pose so soles sandwich the shaft — guaranteed contact.
+   Legs only IK toward those world positions for continuity.
+   ============================================================ */
+const _footW = new THREE.Vector3();
 const THIGH_LEN = 0.28;
 const CALF_LEN = 0.26;
+const SOLE_HALF = 0.015;
 
-function solveLegIK(leg, target, sign) {
+function solveLegToward(leg, target, sign) {
   const hip = leg.hip;
   const knee = leg.knee;
   const ankle = leg.ankle;
+  const parent = hip.parent;
+  parent.updateWorldMatrix(true, false);
 
-  hip.updateWorldMatrix(true, false);
-  hip.getWorldPosition(_hipW);
+  const localTarget = target.clone();
+  parent.worldToLocal(localTarget);
+  const lv = localTarget.sub(hip.position.clone());
+  let dist = lv.length();
+  dist = THREE.MathUtils.clamp(dist, 0.08, THIGH_LEN + CALF_LEN - 0.02);
 
-  _to.subVectors(target, _hipW);
-  let dist = _to.length();
-  const maxReach = THIGH_LEN + CALF_LEN - 0.01;
-  const minReach = Math.abs(THIGH_LEN - CALF_LEN) + 0.02;
-  dist = THREE.MathUtils.clamp(dist, minReach, maxReach);
-  _to.normalize();
-
-  // knee angle from law of cosines
   const cosKnee = THREE.MathUtils.clamp(
     (THIGH_LEN * THIGH_LEN + CALF_LEN * CALF_LEN - dist * dist) / (2 * THIGH_LEN * CALF_LEN),
     -1, 1
   );
   const kneeFlex = Math.PI - Math.acos(cosKnee);
 
-  // hip pitch toward target in hip-parent space
-  const parent = hip.parent;
-  parent.updateWorldMatrix(true, false);
-  const localTarget = target.clone();
-  parent.worldToLocal(localTarget);
-  const localHip = hip.position.clone();
-  const lv = localTarget.sub(localHip);
   const yaw = Math.atan2(lv.x, -lv.z);
   const planar = Math.sqrt(lv.x * lv.x + lv.z * lv.z);
-  const pitch = Math.atan2(planar, -lv.y) - Math.acos(THREE.MathUtils.clamp(
+  const elev = Math.atan2(planar, Math.max(0.001, -lv.y));
+  const cosHip = THREE.MathUtils.clamp(
     (THIGH_LEN * THIGH_LEN + dist * dist - CALF_LEN * CALF_LEN) / (2 * THIGH_LEN * dist),
     -1, 1
-  ));
+  );
+  const hipPitch = elev - Math.acos(cosHip);
 
   hip.rotation.order = "YXZ";
-  hip.rotation.y = THREE.MathUtils.clamp(yaw, -1.2, 1.2);
-  hip.rotation.x = THREE.MathUtils.clamp(-pitch, -2.4, 0.3);
-  hip.rotation.z = sign * 0.08;
+  hip.rotation.y = THREE.MathUtils.clamp(yaw, -1.4, 1.4);
+  hip.rotation.x = THREE.MathUtils.clamp(-hipPitch, -2.6, 0.4);
+  hip.rotation.z = sign * 0.12;
   knee.rotation.set(kneeFlex, 0, 0);
+  ankle.rotation.set(-0.4, sign * 0.1, 0);
+}
 
-  // orient sole toward shaft axis
-  ankle.rotation.order = "YXZ";
-  ankle.rotation.x = -0.55 + stim.pos * 0.15;
-  ankle.rotation.y = sign * 0.35;
-  ankle.rotation.z = sign * stim.footAngle + THREE.MathUtils.clamp(stim.vel * 0.08, -0.2, 0.2);
+function orientSoleInward(foot, inwardX) {
+  // Right-handed basis: local -Y (sole pad) faces +inwardX toward shaft.
+  // local +Y = top of foot (outward), local +Z = toes along shaft.
+  const up = new THREE.Vector3(-inwardX, 0, 0); // top points outward
+  const toes = new THREE.Vector3(0, 0, 1);
+  // side × up = toes  =>  side = up × toes
+  const side = new THREE.Vector3().crossVectors(up, toes).normalize();
+  toes.copy(new THREE.Vector3().crossVectors(side, up).normalize());
+  const m = new THREE.Matrix4().makeBasis(side, up, toes);
+  foot.quaternion.setFromRotationMatrix(m);
 }
 
 function placeFeet(dt) {
-  boy.userData.shaftBase.getWorldPosition(_base);
-  boy.userData.shaftTip.getWorldPosition(_tip);
-  _dir.subVectors(_tip, _base);
-  const shaftLen = Math.max(0.05, _dir.length());
-  _dir.multiplyScalar(1 / shaftLen);
-  _side.crossVectors(_up, _dir).normalize();
-  if (_side.lengthSq() < 1e-6) _side.set(1, 0, 0);
-  _norm.crossVectors(_dir, _side).normalize();
-
+  const r = boy.userData.SHAFT_R;
+  const grip = stim.grip;
+  // Distance from foot origin to sole CONTACT FACE along local -Y.
+  // pad center at y=-0.02, half-thickness 0.006 → contact at 0.026.
+  const PAD_TO_CONTACT = 0.026 * footL.scale.y; // matches scaled sole
+  // Place origins so contact faces sit on the shaft surface, then sink with grip.
+  const sep = r + PAD_TO_CONTACT - 0.01 * grip;
   const stroke = stim.pos;
-  const sep = (stim.bothFeet ? 0.034 : 0.0) * (0.7 + stim.grip * 0.5);
-  const press = 0.018 + stim.grip * 0.014;
+  const zBase = 0.03;
+  const zTip = 0.2;
+  const z = THREE.MathUtils.lerp(zBase, zTip, stroke);
+  const zR = THREE.MathUtils.lerp(zBase, zTip, THREE.MathUtils.clamp(stroke - (stim.bothFeet ? 0.08 : 0), 0, 1));
 
-  const feet = [
-    { leg: girl.userData.legs.L, sign: -1, lag: 0 },
-    { leg: girl.userData.legs.R, sign: 1, lag: stim.bothFeet ? 0.06 : 0 },
-  ];
+  // Extra squeeze from stroke speed so soles visibly dig in
+  const squeeze = 1 - Math.min(0.2, Math.abs(stim.vel) * 0.06) - grip * 0.04;
+  const sepL = Math.max(r * 0.6, sep * squeeze);
+  const sepR = stim.bothFeet ? Math.max(r * 0.6, sep * squeeze) : sep + 0.12;
 
-  for (const f of feet) {
-    if (!stim.bothFeet && f.sign === 1) {
-      f.leg.hip.rotation.set(-0.7, 0.35, 0.45);
-      f.leg.knee.rotation.set(1.35, 0, 0);
-      f.leg.ankle.rotation.set(-0.3, 0.2, 0.2);
-      continue;
-    }
+  // Left foot on -X, sole faces +X (inward) — locked to shaft
+  footL.visible = true;
+  footL.position.set(-sepL, 0, z);
+  orientSoleInward(footL, +1);
+  // slight cup only (keep soles on shaft — no big twists)
+  footL.rotateZ(THREE.MathUtils.clamp(stim.footAngle * 0.35, -0.25, 0.25));
+  footL.rotateX(THREE.MathUtils.clamp(stim.vel * 0.1, -0.2, 0.2));
 
-    const t = THREE.MathUtils.clamp(stroke - f.lag, 0.06, 0.94);
-    _pos.copy(_base).addScaledVector(_dir, t * shaftLen);
-    _pos.addScaledVector(_side, f.sign * sep);
-    // soles press inward onto shaft
-    _pos.addScaledVector(_norm, -press);
-    // slight sole thickness lift so top of foot isn't buried
-    _pos.y += 0.01;
-
-    solveLegIK(f.leg, _pos, f.sign);
+  if (stim.bothFeet) {
+    footR.visible = true;
+    footR.position.set(sepR, 0, zR);
+    orientSoleInward(footR, -1);
+    footR.rotateZ(THREE.MathUtils.clamp(-stim.footAngle * 0.35, -0.25, 0.25));
+    footR.rotateX(THREE.MathUtils.clamp(-stim.vel * 0.1, -0.2, 0.2));
+  } else {
+    footR.visible = true;
+    footR.position.set(0.14, -0.03, 0.0);
+    footR.quaternion.identity();
+    footR.rotation.set(0.5, 0.4, -0.6);
   }
 
-  // shaft soft-body cue
-  const squash = 1 - stim.grip * 0.05 * (stim.bothFeet ? 1 : 0.55);
-  boy.userData.shaft.scale.set(squash, squash, 1 + Math.abs(stim.vel) * 0.025);
+  // micro knead along shaft axis (gen Z), not off the shaft
+  footL.position.z += 0.004 * Math.sin(stim.phase * 2);
+  if (stim.bothFeet) footR.position.z -= 0.004 * Math.sin(stim.phase * 2);
 
-  // girl body language
-  girl.userData.torso.rotation.x = 0.22 + Math.sin(stim.phase) * 0.04;
+  const squash = 1 - grip * 0.14 * (stim.bothFeet ? 1 : 0.55);
+  boy.userData.shaft.scale.set(squash, squash, 1 + Math.abs(stim.vel) * 0.03);
+
+  // legs reach toward locked feet
+  strokeRig.updateWorldMatrix(true, true);
+  footL.getWorldPosition(_footW);
+  solveLegToward(girl.userData.legs.L, _footW.clone(), -1);
+  footR.getWorldPosition(_footW);
+  if (stim.bothFeet) {
+    solveLegToward(girl.userData.legs.R, _footW.clone(), 1);
+  } else {
+    girl.userData.legs.R.hip.rotation.set(-0.5, 0.4, 0.55);
+    girl.userData.legs.R.knee.rotation.set(1.2, 0, 0);
+  }
+
+  girl.userData.torso.rotation.x = 0.32 + Math.sin(stim.phase) * 0.05;
   girl.userData.head.rotation.y = Math.sin(performance.now() * 0.0011) * 0.06;
-  girl.userData.head.rotation.x = -0.12 + stim.arousal * 0.08;
+  girl.userData.head.rotation.x = -0.18 + stim.arousal * 0.1;
 
-  // boy arousal response
   const swell = 1 + stim.arousal * 0.14 + (stim.climax ? 0.06 : 0);
   boy.userData.headG.scale.set(1.05 * swell, 0.95 * swell, 1.1 * swell);
   boy.userData.hips.rotation.x = -Math.PI / 2 + 0.05 + Math.sin(stim.phase * 2) * 0.012 * stim.arousal;
