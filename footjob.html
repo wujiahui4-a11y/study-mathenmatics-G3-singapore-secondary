@@ -158,6 +158,23 @@
 <div id="fx"></div>
 <div id="hearts"></div>
 <div id="burst">OVERSTIM!!</div>
+<script>
+// Failsafe: never leave the user stuck on the loader
+window.addEventListener("error", (e) => {
+  const el = document.getElementById("load");
+  if (el) el.textContent = "Load error — check console / network (Three.js CDN)";
+});
+window.addEventListener("unhandledrejection", () => {
+  const el = document.getElementById("load");
+  if (el) el.textContent = "Load error — Three.js failed to import";
+});
+setTimeout(() => {
+  const el = document.getElementById("load");
+  if (el && !el.classList.contains("hide")) {
+    el.textContent = "Still loading… if this persists, allow cdn.jsdelivr.net";
+  }
+}, 8000);
+</script>
 <div id="ui">
   <div class="panel" id="title">
     <h1>Anime Footjob ★ Overstimulate</h1>
@@ -245,7 +262,9 @@ key.shadow.camera.left = -3; key.shadow.camera.right = 3;
 key.shadow.camera.top = 3; key.shadow.camera.bottom = -3;
 key.shadow.bias = -0.0002;
 scene.add(key);
-scene.add(Object.assign(new THREE.DirectionalLight(0xaaccff, 0.7), { position: new THREE.Vector3(-3, 2, -2) }));
+const rim = new THREE.DirectionalLight(0xaaccff, 0.7);
+rim.position.set(-3, 2, -2);
+scene.add(rim);
 const blushLight = new THREE.PointLight(0xff66aa, 0.45, 7);
 blushLight.position.set(0.2, 1.0, 0.8);
 scene.add(blushLight);
