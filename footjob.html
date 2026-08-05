@@ -899,36 +899,34 @@ function orientSoleInward(foot, inwardX) {
 function placeFeet(dt) {
   const r = boy.userData.SHAFT_R;
   const grip = stim.grip;
-  // Distance from foot origin to sole CONTACT FACE along local -Y.
-  // pad center at y=-0.02, half-thickness 0.006 → contact at 0.026.
-  const PAD_TO_CONTACT = 0.026 * footL.scale.y; // matches scaled sole
-  // Place origins so contact faces sit on the shaft surface, then sink with grip.
-  const sep = r + PAD_TO_CONTACT - 0.01 * grip;
+  // Sole contact face is ~0.028 from foot origin along local -Y, then scaled.
+  // Pull origins IN so that face digs into the shaft (no gap).
+  const padReach = 0.028 * footL.scale.y;
+  const dig = 0.022 + grip * 0.028; // stronger grip → deeper press
+  const sep = Math.max(0.012, padReach - dig); // origins inside / on shaft
   const stroke = stim.pos;
   const zBase = 0.03;
   const zTip = 0.2;
   const z = THREE.MathUtils.lerp(zBase, zTip, stroke);
   const zR = THREE.MathUtils.lerp(zBase, zTip, THREE.MathUtils.clamp(stroke - (stim.bothFeet ? 0.08 : 0), 0, 1));
 
-  // Extra squeeze from stroke speed so soles visibly dig in
-  const squeeze = 1 - Math.min(0.2, Math.abs(stim.vel) * 0.06) - grip * 0.04;
-  const sepL = Math.max(r * 0.6, sep * squeeze);
-  const sepR = stim.bothFeet ? Math.max(r * 0.6, sep * squeeze) : sep + 0.12;
+  const squeeze = Math.min(0.18, Math.abs(stim.vel) * 0.05);
+  const sepL = Math.max(0.008, sep - squeeze);
+  const sepR = stim.bothFeet ? Math.max(0.008, sep - squeeze) : 0.14;
 
-  // Left foot on -X, sole faces +X (inward) — locked to shaft
+  // Left foot: sole smashed onto shaft
   footL.visible = true;
   footL.position.set(-sepL, 0, z);
   orientSoleInward(footL, +1);
-  // slight cup only (keep soles on shaft — no big twists)
-  footL.rotateZ(THREE.MathUtils.clamp(stim.footAngle * 0.35, -0.25, 0.25));
-  footL.rotateX(THREE.MathUtils.clamp(stim.vel * 0.1, -0.2, 0.2));
+  footL.rotateZ(THREE.MathUtils.clamp(stim.footAngle * 0.25, -0.2, 0.2));
+  footL.rotateX(THREE.MathUtils.clamp(stim.vel * 0.08, -0.15, 0.15));
 
   if (stim.bothFeet) {
     footR.visible = true;
     footR.position.set(sepR, 0, zR);
     orientSoleInward(footR, -1);
-    footR.rotateZ(THREE.MathUtils.clamp(-stim.footAngle * 0.35, -0.25, 0.25));
-    footR.rotateX(THREE.MathUtils.clamp(-stim.vel * 0.1, -0.2, 0.2));
+    footR.rotateZ(THREE.MathUtils.clamp(-stim.footAngle * 0.25, -0.2, 0.2));
+    footR.rotateX(THREE.MathUtils.clamp(-stim.vel * 0.08, -0.15, 0.15));
   } else {
     footR.visible = true;
     footR.position.set(0.14, -0.03, 0.0);
@@ -936,11 +934,10 @@ function placeFeet(dt) {
     footR.rotation.set(0.5, 0.4, -0.6);
   }
 
-  // micro knead along shaft axis (gen Z), not off the shaft
   footL.position.z += 0.004 * Math.sin(stim.phase * 2);
   if (stim.bothFeet) footR.position.z -= 0.004 * Math.sin(stim.phase * 2);
 
-  const squash = 1 - grip * 0.14 * (stim.bothFeet ? 1 : 0.55);
+  const squash = 1 - (0.08 + grip * 0.16) * (stim.bothFeet ? 1 : 0.55);
   boy.userData.shaft.scale.set(squash, squash, 1 + Math.abs(stim.vel) * 0.03);
 
   // legs reach toward locked feet
