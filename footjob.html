@@ -778,17 +778,24 @@ function triggerClimax() {
   stim.climax = true;
   stim.climaxT = 0;
   stim.climaxCount += 1;
-  stim.shake = 1;
-  stim.twitch = 1;
+  // softer shake in overstim — comfortable, not jarring
+  stim.shake = stim.overstim ? 0.35 : 1;
+  stim.twitch = stim.overstim ? 0.55 : 1;
   fxEl.classList.add("on");
-  setTimeout(() => { if (!stim.overstim) fxEl.classList.remove("on"); }, 350);
-  flashBurst(stim.overstim ? (stim.climaxCount > 1 ? "AGAIN!!" : "CUM!!") : "♥");
-  for (let i = 0; i < 5; i++) setTimeout(spawnHeart, i * 80);
+  if (stim.overstim) fxEl.classList.add("over");
+  else setTimeout(() => fxEl.classList.remove("on"), 350);
 
-  // overstim: sensitivity spikes and stays high
+  const label = stim.overstim
+    ? (stim.climaxCount === 1 ? "CUM… keep going" : stim.climaxCount === 2 ? "AGAIN~" : `WAVE ${stim.climaxCount}`)
+    : "♥";
+  flashBurst(label);
+  for (let i = 0; i < (stim.overstim ? 8 : 5); i++) setTimeout(spawnHeart, i * 70);
+
   if (stim.overstim) {
-    stim.sensitivity = Math.min(3.5, stim.sensitivity + 0.45);
-    ui.hint.textContent = `Climax #${stim.climaxCount} — sensitivity ${stim.sensitivity.toFixed(1)}× — keep going`;
+    stim.sensitivity = Math.min(5, stim.sensitivity + 0.35);
+    // stay high — never dump arousal to zero
+    stim.arousal = 0.82;
+    ui.hint.textContent = `Climax #${stim.climaxCount} · milking through it · ${stim.sensitivity.toFixed(1)}× sensitive`;
   } else {
     ui.hint.textContent = "Peak — climax";
   }
@@ -796,11 +803,11 @@ function triggerClimax() {
 
   const tip = new THREE.Vector3();
   boy.userData.shaftTip.getWorldPosition(tip);
-  const n = stim.overstim ? 36 : 22;
+  const n = stim.overstim ? 42 : 22;
   for (let i = 0; i < n; i++) {
     spawnDrop(
       tip.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.03, Math.random() * 0.02, (Math.random() - 0.5) * 0.03)),
-      new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.7 + Math.random() * 1.1, 0.2 + Math.random() * 0.55)
+      new THREE.Vector3((Math.random() - 0.5) * 0.45, 0.55 + Math.random() * 1.0, 0.15 + Math.random() * 0.5)
     );
   }
 }
@@ -918,28 +925,37 @@ function placeFeet(dt) {
 function updateSolver(dt) {
   stim.speed = +ui.speed.value;
   stim.grip = +ui.grip.value;
-  stim.twitch = Math.max(0, stim.twitch - dt * 0.65);
-  stim.shake = Math.max(0, stim.shake - dt * 1.6);
+  stim.twitch = Math.max(0, stim.twitch - dt * (stim.overstim ? 0.35 : 0.65));
+  stim.shake = Math.max(0, stim.shake - dt * (stim.overstim ? 1.1 : 1.6));
 
-  const speedMul = stim.overstim ? 1.35 + stim.sensitivity * 0.15 : 1;
+  // Overstim never pauses the stroke — climax becomes a soft milk wave
+  const inOverClimax = stim.overstim && stim.climax;
+  const speedMul = stim.overstim
+    ? (inOverClimax ? 0.85 + stim.sensitivity * 0.08 : 1.25 + stim.sensitivity * 0.12)
+    : 1;
   const continueStroke = stim.auto && !stim.manualDrive && (!stim.climax || stim.overstim);
 
   if (continueStroke) {
-    stim.phase += dt * stim.speed * 2.6 * speedMul;
+    // During climax: slower, fuller milking strokes (comfortable overstim)
+    const phaseRate = stim.speed * 2.6 * speedMul * (inOverClimax ? 0.72 : 1);
+    stim.phase += dt * phaseRate;
     const s = Math.sin(stim.phase);
-    const amp = stim.overstim ? 0.42 : 0.38;
-    const shaped = Math.sign(s) * Math.pow(Math.abs(s), stim.overstim ? 0.55 : 0.75);
-    stim.target = 0.5 + shaped * amp;
+    const amp = inOverClimax ? 0.46 : (stim.overstim ? 0.42 : 0.38);
+    const shaped = Math.sign(s) * Math.pow(Math.abs(s), inOverClimax ? 0.9 : (stim.overstim ? 0.55 : 0.75));
+    // bias toward tip during climax milking
+    const bias = inOverClimax ? 0.08 : 0;
+    stim.target = 0.5 + bias + shaped * amp;
   }
 
-  const k = stim.overstim ? 62 : 48;
-  const c = 2 * Math.sqrt(k) * 0.9;
+  // Softer spring during climax = smooth continuous glide
+  const k = inOverClimax ? 28 : (stim.overstim ? 52 : 48);
+  const c = 2 * Math.sqrt(k) * (inOverClimax ? 1.05 : 0.9);
   const acc = (stim.target - stim.pos) * k - stim.vel * c;
   stim.vel += acc * dt;
   const prev = stim.pos;
   stim.pos = THREE.MathUtils.clamp(stim.pos + stim.vel * dt, 0.05, 0.95);
 
-  stim.contactForce = stim.grip * (12 + Math.abs(stim.vel) * 40) * (stim.overstim ? 1.2 : 1);
+  stim.contactForce = stim.grip * (12 + Math.abs(stim.vel) * 40) * (stim.overstim ? 1.25 : 1);
 
   if (prev < 0.5 && stim.pos >= 0.5) {
     const now = performance.now() / 1000;
@@ -947,46 +963,62 @@ function updateSolver(dt) {
     stim.lastZero = now;
   }
 
-  // arousal — overstim multiplies by sensitivity and allows re-climax
-  if (!stim.climax || stim.overstim) {
-    const work = stim.contactForce * Math.abs(stim.vel) * dt * 0.0045 * stim.sensitivity;
-    const sweet = 1 - Math.abs(stim.pos - 0.55) * 0.45;
-    const overBonus = stim.overstim ? 1.35 : 1;
-    if (!stim.climax) {
-      stim.arousal = THREE.MathUtils.clamp(stim.arousal + work * sweet * overBonus, 0, 1);
-    } else if (stim.overstim && stim.climaxT > 0.85) {
-      // after brief peak, build again from high floor
-      stim.arousal = THREE.MathUtils.clamp(0.55 + work * sweet * 2.2, 0.55, 1);
-      if (stim.arousal >= 0.995) triggerClimax();
-    }
+  // Arousal — overstim keeps building through climax with no dead zone
+  const work = stim.contactForce * Math.abs(stim.vel) * dt * 0.0045 * stim.sensitivity;
+  const sweet = 1 - Math.abs(stim.pos - 0.55) * 0.4;
+
+  if (!stim.climax) {
+    const overBonus = stim.overstim ? 1.45 : 1;
+    stim.arousal = THREE.MathUtils.clamp(stim.arousal + work * sweet * overBonus, 0, 1);
     if (!stim.auto && !stim.manualDrive && Math.abs(stim.vel) < 0.05 && !stim.overstim) {
       stim.arousal = Math.max(0, stim.arousal - dt * 0.03);
     }
-    if (!stim.climax && stim.arousal >= 0.995) triggerClimax();
+    if (stim.arousal >= 0.995) triggerClimax();
+  } else if (stim.overstim) {
+    // Continuous milking: arousal gently breathes but stays elevated
+    const milk = work * sweet * 1.8;
+    // soft floor so it never collapses mid-climax
+    const floor = 0.72 + Math.min(0.15, (stim.climaxCount - 1) * 0.03);
+    stim.arousal = THREE.MathUtils.clamp(
+      Math.max(floor, stim.arousal * (1 - dt * 0.15) + milk),
+      floor,
+      1
+    );
+    // next wave as soon as topped off again (short refractory)
+    if (stim.climaxT > 0.55 && stim.arousal >= 0.98) triggerClimax();
   }
 
   if (stim.climax) {
     stim.climaxT += dt;
-    const burstWindow = stim.overstim ? 2.2 : 1.5;
-    if (stim.climaxT < burstWindow && Math.random() < (stim.overstim ? 0.55 : 0.4)) {
+    const burstWindow = stim.overstim ? 3.5 : 1.5;
+    // steady comfortable drip during overstim climax, not a violent burst only
+    const dripChance = stim.overstim ? (stim.climaxT < burstWindow ? 0.45 : 0.12) : 0.4;
+    if (stim.climaxT < burstWindow && Math.random() < dripChance) {
       const tip = new THREE.Vector3();
       boy.userData.shaftTip.getWorldPosition(tip);
-      spawnDrop(tip, new THREE.Vector3((Math.random() - 0.5) * 0.25, 0.35 + Math.random() * 0.6, 0.15 + Math.random() * 0.35));
+      spawnDrop(tip, new THREE.Vector3((Math.random() - 0.5) * 0.2, 0.25 + Math.random() * 0.5, 0.1 + Math.random() * 0.3));
     }
-    // normal mode ends climax; overstim rolls into hypersensitivity
+
     if (!stim.overstim && stim.climaxT > 2.5) {
       stim.climax = false;
       stim.arousal = 0.15;
-    } else if (stim.overstim && stim.climaxT > 0.9 && stim.climaxT < 1.0) {
-      // stay in climax-capable loop; mark ready for next
-      stim.twitch = Math.max(stim.twitch, 0.7);
+      fxEl.classList.remove("on");
+    } else if (stim.overstim) {
+      // never leave climax-lock that blocks stroking; clear flag after short wave
+      // so the next peak can fire, while arousal stays high
+      if (stim.climaxT > 1.1 && stim.arousal < 0.97) {
+        stim.climax = false; // ready for next wave, still hypersensitive
+        stim.twitch = Math.max(stim.twitch, 0.4);
+        ui.hint.textContent = `Riding the afterglow · ${stim.sensitivity.toFixed(1)}× · don't stop`;
+      }
+      if (Math.random() < 0.03) spawnHeart();
     }
   }
 
-  // overstim passive sensitivity creep while stroking
-  if (stim.overstim && (stim.auto || stim.manualDrive) && Math.abs(stim.vel) > 0.05) {
-    stim.sensitivity = Math.min(3.5, stim.sensitivity + dt * 0.08);
-    if (Math.random() < 0.02) spawnHeart();
+  // Overstim: sensitivity keeps climbing while feet move
+  if (stim.overstim && (stim.auto || stim.manualDrive) && Math.abs(stim.vel) > 0.03) {
+    stim.sensitivity = Math.min(5, stim.sensitivity + dt * 0.1);
+    if (Math.random() < 0.025) spawnHeart();
   }
 
   for (let i = stim.droplets.length - 1; i >= 0; i--) {
@@ -1006,7 +1038,7 @@ function updateSolver(dt) {
   const p = Math.round(stim.arousal * 100);
   ui.bar.style.width = p + "%";
   ui.pct.textContent = p + "%";
-  const sPct = Math.round((stim.sensitivity / 3.5) * 100);
+  const sPct = Math.round((stim.sensitivity / 5) * 100);
   ui.senseBar.style.width = sPct + "%";
   ui.sensePct.textContent = Math.round(stim.sensitivity * 100) + "%";
   ui.tPos.textContent = stim.pos.toFixed(2);
@@ -1016,8 +1048,11 @@ function updateSolver(dt) {
   ui.tSense.textContent = stim.sensitivity.toFixed(1) + "×";
   ui.tClimax.textContent = String(stim.climaxCount);
 
-  if (!stim.climax && stim.arousal > 0.8) {
-    ui.hint.textContent = stim.overstim ? "Edge… then ruin him" : "Almost — keep going";
+  if (stim.overstim && stim.climax) {
+    ui.hint.textContent = `Milking climax #${stim.climaxCount} — smooth & continuous`;
+    ui.hint.classList.add("hot");
+  } else if (!stim.climax && stim.arousal > 0.8) {
+    ui.hint.textContent = stim.overstim ? "Edge… then milk him through it" : "Almost — keep going";
     ui.hint.classList.add("hot");
   }
 }
