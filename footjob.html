@@ -3,199 +3,193 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Footjob Stimulator — Biomechanical 3D</title>
+<title>Anime Footjob — Overstimulate</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
   :root {
-    --bg: #0b0e14;
-    --panel: rgba(14, 18, 28, 0.78);
-    --line: rgba(140, 190, 255, 0.22);
-    --text: #e8eef8;
-    --muted: #8b9bb4;
-    --accent: #7ec8ff;
-    --hot: #ff7a9a;
-    --ok: #7dffb3;
+    --bg: #1a1020;
+    --panel: rgba(36, 18, 40, 0.82);
+    --line: rgba(255, 140, 190, 0.28);
+    --text: #ffeaf2;
+    --muted: #c49aaf;
+    --accent: #ff8ec8;
+    --hot: #ff4d8d;
+    --over: #ffe066;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
-    height: 100%;
-    overflow: hidden;
-    background: var(--bg);
-    color: var(--text);
-    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: "M PLUS Rounded 1c", system-ui, sans-serif;
     touch-action: none;
   }
   canvas#view { display: block; width: 100%; height: 100%; }
-  #ui {
-    position: fixed; inset: 0;
-    pointer-events: none;
-    z-index: 5;
-  }
+  #ui { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
   .panel {
     pointer-events: auto;
     background: var(--panel);
     border: 1px solid var(--line);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 14px 16px;
-    box-shadow: 0 18px 50px rgba(0,0,0,.45);
+    box-shadow: 0 18px 50px rgba(40, 0, 30, .45);
   }
-  #title {
-    position: absolute; left: 18px; top: 16px;
-    max-width: min(360px, calc(100vw - 36px));
-  }
+  #title { position: absolute; left: 18px; top: 16px; max-width: min(360px, calc(100vw - 36px)); }
   #title h1 {
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    font-size: 16px; font-weight: 800; letter-spacing: 0.06em;
+    background: linear-gradient(90deg, #ff9ad5, #ffd6ea, #ffe08a);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  #title p {
-    margin-top: 6px;
-    font-size: 12px;
-    color: var(--muted);
-    line-height: 1.45;
-  }
+  #title p { margin-top: 6px; font-size: 12px; color: var(--muted); line-height: 1.45; }
   #telemetry {
     position: absolute; right: 18px; top: 16px;
     width: min(280px, calc(100vw - 36px));
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 11px;
+    font-family: "IBM Plex Mono", monospace; font-size: 11px;
   }
   #telemetry .h {
-    color: var(--accent);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    font-size: 10px;
+    color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: 8px; font-size: 10px; font-family: "M PLUS Rounded 1c", sans-serif;
   }
-  .row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 3px 0;
-    color: var(--muted);
-  }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; color: var(--muted); }
   .row b { color: var(--text); font-weight: 500; }
   #controls {
-    position: absolute;
-    left: 50%;
-    bottom: 18px;
-    transform: translateX(-50%);
-    width: min(520px, calc(100vw - 24px));
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+    width: min(540px, calc(100vw - 24px));
   }
   .meter-label {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 6px;
+    display: flex; justify-content: space-between;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
   }
   .meter {
-    height: 9px;
-    border-radius: 999px;
-    background: rgba(255,255,255,.08);
-    overflow: hidden;
-    margin-bottom: 12px;
+    height: 10px; border-radius: 999px;
+    background: rgba(255,255,255,.08); overflow: hidden; margin-bottom: 8px;
   }
   .meter > i {
-    display: block;
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #5aa7ff, #ff7a9a 70%, #ffe0a8);
-    box-shadow: 0 0 12px rgba(255,122,154,.35);
+    display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, #ff9ad5, #ff4d8d 55%, #ffe066);
+    box-shadow: 0 0 14px rgba(255, 100, 160, .45);
+  }
+  .meter.sense > i {
+    background: linear-gradient(90deg, #ffe066, #ff4d8d, #ff9ad5);
   }
   .btns { display: flex; flex-wrap: wrap; gap: 8px; }
-  button, label.btn {
-    appearance: none;
-    border: 1px solid var(--line);
-    background: rgba(255,255,255,.05);
-    color: var(--text);
-    border-radius: 8px;
-    padding: 9px 12px;
-    font: 500 12px/1 "IBM Plex Sans", sans-serif;
-    letter-spacing: 0.04em;
-    cursor: pointer;
-    pointer-events: auto;
+  button {
+    appearance: none; border: 1px solid var(--line);
+    background: rgba(255,255,255,.06); color: var(--text);
+    border-radius: 999px; padding: 9px 14px;
+    font: 700 12px/1 "M PLUS Rounded 1c", sans-serif;
+    letter-spacing: 0.04em; cursor: pointer; pointer-events: auto;
   }
-  button:hover, label.btn:hover { background: rgba(255,255,255,.1); }
-  button.active { border-color: var(--accent); color: var(--accent); }
+  button:hover { background: rgba(255,255,255,.12); }
+  button.active { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 16px rgba(255,142,200,.25); }
+  button#overstim.active {
+    border-color: var(--over); color: var(--over);
+    background: rgba(255, 224, 102, .12);
+    animation: pulse 0.9s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(255,224,102,.2); }
+    50% { box-shadow: 0 0 22px rgba(255,77,141,.55); }
+  }
   .sliders {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px 14px;
-    margin: 10px 0 12px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px 14px; margin: 10px 0 12px;
   }
   .sliders label {
-    display: grid;
-    gap: 4px;
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    display: grid; gap: 4px; font-size: 11px; color: var(--muted);
+    letter-spacing: 0.06em; text-transform: uppercase;
   }
-  input[type=range] {
-    width: 100%;
-    accent-color: var(--accent);
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  #hint { margin-top: 8px; text-align: center; font-size: 12px; color: var(--muted); }
+  #hint.hot { color: var(--hot); font-weight: 700; }
+  #fx {
+    position: fixed; inset: 0; pointer-events: none; z-index: 4;
+    opacity: 0; transition: opacity .15s;
+    background:
+      radial-gradient(circle at 50% 55%, rgba(255,120,180,.35), transparent 55%),
+      radial-gradient(circle at 50% 50%, rgba(255,230,120,.2), transparent 40%);
   }
-  #hint {
-    margin-top: 8px;
-    text-align: center;
-    font-size: 12px;
-    color: var(--muted);
+  #fx.on { opacity: 1; }
+  #fx.over {
+    opacity: 1;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(255,80,140,.45), transparent 50%),
+      radial-gradient(circle at 30% 40%, rgba(255,220,100,.25), transparent 35%),
+      radial-gradient(circle at 70% 60%, rgba(255,150,220,.3), transparent 40%);
   }
-  #hint.hot { color: var(--hot); }
+  #burst {
+    position: fixed; left: 50%; top: 42%; transform: translate(-50%,-50%) scale(.8);
+    pointer-events: none; z-index: 6; opacity: 0;
+    font: 800 42px/1 "M PLUS Rounded 1c", sans-serif;
+    letter-spacing: 0.08em; color: #ffe066;
+    text-shadow: 0 0 20px rgba(255,80,140,.8), 0 4px 0 #ff4d8d;
+    transition: opacity .2s, transform .2s;
+  }
+  #burst.show { opacity: 1; transform: translate(-50%,-50%) scale(1.05); }
+  #hearts {
+    position: fixed; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;
+  }
+  .heart {
+    position: absolute; font-size: 18px; opacity: 0.9;
+    animation: floatHeart 1.4s ease-out forwards;
+  }
+  @keyframes floatHeart {
+    0% { transform: translateY(0) scale(.6); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: translateY(-120px) scale(1.2); opacity: 0; }
+  }
   #load {
-    position: fixed; inset: 0; z-index: 20;
-    display: grid; place-items: center;
-    background: #0b0e14;
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 13px;
-    color: var(--muted);
-    letter-spacing: 0.08em;
+    position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+    background: #1a1020; font-size: 14px; color: var(--muted); letter-spacing: 0.08em;
   }
   #load.hide { opacity: 0; pointer-events: none; transition: opacity .4s; }
   @media (max-width: 700px) {
     #telemetry { display: none; }
     .sliders { grid-template-columns: 1fr; }
+    #burst { font-size: 28px; }
   }
 </style>
 </head>
 <body>
-<div id="load">INITIALIZING BIOMECHANICAL SOLVER…</div>
+<div id="load">Loading anime footjob…</div>
 <canvas id="view"></canvas>
+<div id="fx"></div>
+<div id="hearts"></div>
+<div id="burst">OVERSTIM!!</div>
 <div id="ui">
   <div class="panel" id="title">
-    <h1>Footjob Stimulator</h1>
-    <p>High-quality Three.js scene with girl &amp; boy models. Foot contact uses a damped biomechanical stroke solver (position · velocity · contact force).</p>
+    <h1>Anime Footjob ★ Overstimulate</h1>
+    <p>Pink-haired anime girl · soles locked on shaft · overstim mode keeps going past climax.</p>
   </div>
   <div class="panel" id="telemetry">
-    <div class="h">Telemetry</div>
-    <div class="row"><span>stroke pos</span><b id="tPos">0.00</b></div>
-    <div class="row"><span>velocity</span><b id="tVel">0.00 m/s</b></div>
-    <div class="row"><span>contact F</span><b id="tForce">0.00 N</b></div>
+    <div class="h">Status</div>
+    <div class="row"><span>stroke</span><b id="tPos">0.00</b></div>
+    <div class="row"><span>velocity</span><b id="tVel">0.00</b></div>
+    <div class="row"><span>contact</span><b id="tForce">0.0 N</b></div>
     <div class="row"><span>cadence</span><b id="tCad">0.0 Hz</b></div>
-    <div class="row"><span>arousal</span><b id="tAro">0%</b></div>
-    <div class="row"><span>solver</span><b id="tSol">RK4 · soft-body</b></div>
+    <div class="row"><span>sensitivity</span><b id="tSense">1.0×</b></div>
+    <div class="row"><span>climaxes</span><b id="tClimax">0</b></div>
   </div>
   <div class="panel" id="controls">
     <div class="meter-label"><span>Arousal</span><span id="pct">0%</span></div>
     <div class="meter"><i id="bar"></i></div>
+    <div class="meter-label"><span>Sensitivity</span><span id="sensePct">100%</span></div>
+    <div class="meter sense"><i id="senseBar"></i></div>
     <div class="sliders">
-      <label>Stroke speed<input id="speed" type="range" min="0.4" max="2.4" step="0.05" value="1.15"></label>
-      <label>Grip pressure<input id="grip" type="range" min="0.2" max="1.5" step="0.05" value="1.15"></label>
-      <label>Foot angle<input id="angle" type="range" min="-35" max="35" step="1" value="8"></label>
-      <label>Camera orbit<input id="orbit" type="range" min="0" max="1" step="0.01" value="0.35"></label>
+      <label>Stroke speed<input id="speed" type="range" min="0.4" max="3.2" step="0.05" value="1.35"></label>
+      <label>Grip pressure<input id="grip" type="range" min="0.2" max="1.5" step="0.05" value="1.2"></label>
+      <label>Foot angle<input id="angle" type="range" min="-35" max="35" step="1" value="10"></label>
+      <label>Camera orbit<input id="orbit" type="range" min="0" max="1" step="0.01" value="0.25"></label>
     </div>
     <div class="btns">
+      <button type="button" id="overstim">Overstimulate</button>
       <button type="button" id="auto" class="active">Auto stroke</button>
-      <button type="button" id="both">Both feet</button>
+      <button type="button" id="both" class="active">Both feet</button>
       <button type="button" id="reset">Reset</button>
     </div>
-    <div id="hint">Drag vertically on the scene to drive the stroke · scroll to zoom</div>
+    <div id="hint">Tap Overstimulate for ruthless post-climax teasing · Shift+drag to stroke</div>
   </div>
 </div>
 
@@ -212,78 +206,61 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
-/* ============================================================
-   Footjob Stimulator — biomechanical 3D
-   Procedural girl + boy figures, soft contact stroke solver.
-   ============================================================ */
-
 const canvas = document.getElementById("view");
+const fxEl = document.getElementById("fx");
+const burstEl = document.getElementById("burst");
+const heartsEl = document.getElementById("hearts");
+
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.12;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b0e14);
-scene.fog = new THREE.Fog(0x0b0e14, 6, 16);
+scene.background = new THREE.Color(0x1a1020);
+scene.fog = new THREE.Fog(0x1a1020, 5.5, 14);
 
 const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.05, 50);
-camera.position.set(1.55, 1.05, 2.35);
-
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
-controls.target.set(0, 0.72, 0);
-controls.minDistance = 1.2;
+controls.minDistance = 1.1;
 controls.maxDistance = 5.5;
 controls.maxPolarAngle = Math.PI * 0.49;
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-/* ---------- lights ---------- */
-const hemi = new THREE.HemisphereLight(0xb9d7ff, 0x2a1a18, 0.55);
-scene.add(hemi);
-const key = new THREE.DirectionalLight(0xfff0e4, 2.1);
-key.position.set(2.8, 5.2, 2.2);
+scene.add(new THREE.HemisphereLight(0xffd6ea, 0x2a1520, 0.7));
+const key = new THREE.DirectionalLight(0xfff0f5, 2.0);
+key.position.set(2.6, 5.0, 2.0);
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
-key.shadow.camera.near = 0.5;
-key.shadow.camera.far = 16;
-key.shadow.camera.left = -3;
-key.shadow.camera.right = 3;
-key.shadow.camera.top = 3;
-key.shadow.camera.bottom = -3;
+key.shadow.camera.near = 0.5; key.shadow.camera.far = 16;
+key.shadow.camera.left = -3; key.shadow.camera.right = 3;
+key.shadow.camera.top = 3; key.shadow.camera.bottom = -3;
 key.shadow.bias = -0.0002;
 scene.add(key);
-const rim = new THREE.DirectionalLight(0x88aaff, 0.85);
-rim.position.set(-3, 2, -2);
-scene.add(rim);
-const warm = new THREE.PointLight(0xff8866, 0.55, 8);
-warm.position.set(-0.4, 1.2, 1.2);
-scene.add(warm);
+scene.add(Object.assign(new THREE.DirectionalLight(0xaaccff, 0.7), { position: new THREE.Vector3(-3, 2, -2) }));
+const blushLight = new THREE.PointLight(0xff66aa, 0.45, 7);
+blushLight.position.set(0.2, 1.0, 0.8);
+scene.add(blushLight);
 
-/* ---------- ground / set ---------- */
-const floorMat = new THREE.MeshStandardMaterial({
-  color: 0x151922, roughness: 0.92, metalness: 0.05
-});
-const floor = new THREE.Mesh(new THREE.CircleGeometry(5, 64), floorMat);
-floor.rotation.x = -Math.PI / 2;
-floor.receiveShadow = true;
-scene.add(floor);
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(5, 64),
+  new THREE.MeshStandardMaterial({ color: 0x201018, roughness: 0.92 })
+);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
 
 const sheet = new THREE.Mesh(
   new THREE.PlaneGeometry(2.4, 1.6, 32, 20),
-  new THREE.MeshStandardMaterial({ color: 0xd8cfc4, roughness: 0.85, metalness: 0.02, side: THREE.DoubleSide })
+  new THREE.MeshStandardMaterial({ color: 0xffd6ea, roughness: 0.82, side: THREE.DoubleSide })
 );
-sheet.rotation.x = -Math.PI / 2;
-sheet.position.set(0, 0.01, 0.1);
-sheet.receiveShadow = true;
-// soft wrinkles
+sheet.rotation.x = -Math.PI / 2; sheet.position.set(0, 0.01, 0.1); sheet.receiveShadow = true;
 {
   const pos = sheet.geometry.attributes.position;
   for (let i = 0; i < pos.count; i++) {
@@ -294,125 +271,168 @@ sheet.receiveShadow = true;
 }
 scene.add(sheet);
 
-/* ---------- materials ---------- */
+/* ---------- anime materials ---------- */
 const skinF = new THREE.MeshPhysicalMaterial({
-  color: 0xe8b39a, roughness: 0.48, metalness: 0.0,
-  clearcoat: 0.18, clearcoatRoughness: 0.55,
-  sheen: 0.35, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xffc2b0)
+  color: 0xffd0be, roughness: 0.42, metalness: 0,
+  clearcoat: 0.22, clearcoatRoughness: 0.5,
+  sheen: 0.55, sheenRoughness: 0.45, sheenColor: new THREE.Color(0xffb0c8)
 });
 const skinM = new THREE.MeshPhysicalMaterial({
-  color: 0xd4a07e, roughness: 0.52, metalness: 0.0,
-  clearcoat: 0.12, clearcoatRoughness: 0.6,
-  sheen: 0.2, sheenRoughness: 0.7, sheenColor: new THREE.Color(0xe8b090)
+  color: 0xe0b090, roughness: 0.52, metalness: 0,
+  clearcoat: 0.1, sheen: 0.2, sheenColor: new THREE.Color(0xe8b090)
 });
-const hairMat = new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.55, metalness: 0.05 });
-const clothF = new THREE.MeshStandardMaterial({ color: 0x5b4a78, roughness: 0.7, metalness: 0.05 });
-const clothM = new THREE.MeshStandardMaterial({ color: 0x2c3548, roughness: 0.75, metalness: 0.08 });
-const nailMat = new THREE.MeshStandardMaterial({ color: 0xff8fb0, roughness: 0.35, metalness: 0.1 });
+const hairMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff8ec8, roughness: 0.35, metalness: 0.08,
+  clearcoat: 0.4, clearcoatRoughness: 0.3
+});
+const hairDark = new THREE.MeshStandardMaterial({ color: 0xff5fa8, roughness: 0.4 });
+const clothF = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 });
+const clothAccent = new THREE.MeshStandardMaterial({ color: 0xff6ea9, roughness: 0.45 });
+const clothM = new THREE.MeshStandardMaterial({ color: 0x3a3048, roughness: 0.72 });
+const nailMat = new THREE.MeshStandardMaterial({ color: 0xff4d9a, roughness: 0.28, metalness: 0.15 });
+const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
+const irisMat = new THREE.MeshStandardMaterial({ color: 0x6ec8ff, roughness: 0.2, emissive: 0x224466, emissiveIntensity: 0.15 });
+const pupilMat = new THREE.MeshStandardMaterial({ color: 0x1a1020, roughness: 0.4 });
+const blushMat = new THREE.MeshStandardMaterial({
+  color: 0xff7aa8, transparent: true, opacity: 0.45, roughness: 0.8, depthSide: THREE.DoubleSide
+});
 
 function mesh(geo, mat, cast = true, receive = true) {
   const m = new THREE.Mesh(geo, mat);
-  m.castShadow = cast;
-  m.receiveShadow = receive;
+  m.castShadow = cast; m.receiveShadow = receive;
   return m;
 }
-
 function limb(len, r0, r1, mat, segs = 12) {
   return mesh(new THREE.CylinderGeometry(r1, r0, len, segs), mat);
 }
 
-/* ============================================================
-   Character builders — articulated groups for animation
-   ============================================================ */
-
-function makeHead(mat, feminine = true) {
+/* ---------- anime girl head / hair ---------- */
+function makeAnimeHead() {
   const g = new THREE.Group();
-  const head = mesh(new THREE.SphereGeometry(feminine ? 0.105 : 0.112, 32, 24), mat);
-  head.scale.set(1, 1.08, 0.95);
+  const head = mesh(new THREE.SphereGeometry(0.12, 32, 24), skinF);
+  head.scale.set(0.95, 1.05, 0.9);
   g.add(head);
-  const jaw = mesh(new THREE.SphereGeometry(feminine ? 0.07 : 0.08, 24, 16), mat);
-  jaw.position.set(0, -0.07, 0.01);
-  jaw.scale.set(1, 0.7, 0.9);
+  const jaw = mesh(new THREE.SphereGeometry(0.07, 24, 16), skinF);
+  jaw.position.set(0, -0.08, 0.01); jaw.scale.set(0.95, 0.65, 0.85);
   g.add(jaw);
-  // eyes
-  const eyeWhite = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.3 });
-  const iris = new THREE.MeshStandardMaterial({ color: feminine ? 0x4a6fa5 : 0x3d5a3a, roughness: 0.25 });
+
+  // huge anime eyes
   for (const sx of [-1, 1]) {
-    const eye = mesh(new THREE.SphereGeometry(0.018, 16, 12), eyeWhite, false);
-    eye.position.set(sx * 0.032, 0.01, 0.088);
-    g.add(eye);
-    const ir = mesh(new THREE.SphereGeometry(0.01, 12, 10), iris, false);
-    ir.position.set(sx * 0.032, 0.01, 0.102);
-    g.add(ir);
+    const white = mesh(new THREE.SphereGeometry(0.032, 20, 14), eyeWhiteMat, false);
+    white.position.set(sx * 0.038, 0.02, 0.092);
+    white.scale.set(0.85, 1.15, 0.55);
+    g.add(white);
+    const iris = mesh(new THREE.SphereGeometry(0.018, 16, 12), irisMat, false);
+    iris.position.set(sx * 0.038, 0.016, 0.108);
+    g.add(iris);
+    const pupil = mesh(new THREE.SphereGeometry(0.009, 12, 10), pupilMat, false);
+    pupil.position.set(sx * 0.038, 0.014, 0.118);
+    g.add(pupil);
+    const shine = mesh(new THREE.SphereGeometry(0.006, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), false);
+    shine.position.set(sx * 0.032, 0.028, 0.122);
+    g.add(shine);
+    const shine2 = mesh(new THREE.SphereGeometry(0.0035, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), false);
+    shine2.position.set(sx * 0.045, 0.008, 0.122);
+    g.add(shine2);
   }
-  // brows / lips hint
-  const brow = new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.8 });
+
+  // brows
   for (const sx of [-1, 1]) {
-    const b = mesh(new THREE.BoxGeometry(0.03, 0.005, 0.008), brow, false);
-    b.position.set(sx * 0.033, 0.035, 0.095);
-    b.rotation.z = sx * (feminine ? -0.2 : -0.05);
+    const b = mesh(new THREE.CapsuleGeometry(0.004, 0.028, 4, 6), hairDark, false);
+    b.position.set(sx * 0.04, 0.055, 0.1);
+    b.rotation.z = sx * -0.35; b.rotation.x = -0.2;
     g.add(b);
   }
-  const lip = mesh(new THREE.SphereGeometry(0.022, 12, 8), new THREE.MeshStandardMaterial({
-    color: feminine ? 0xc86a72 : 0xa86a60, roughness: 0.4
+
+  // blush patches
+  for (const sx of [-1, 1]) {
+    const bl = mesh(new THREE.CircleGeometry(0.022, 16), blushMat, false);
+    bl.position.set(sx * 0.055, -0.01, 0.1);
+    bl.rotation.y = sx * 0.35;
+    g.add(bl);
+  }
+
+  // small mouth
+  const mouth = mesh(new THREE.SphereGeometry(0.016, 10, 8), new THREE.MeshStandardMaterial({
+    color: 0xff6a90, roughness: 0.35
   }), false);
-  lip.position.set(0, -0.035, 0.095);
-  lip.scale.set(1.1, 0.35, 0.5);
-  g.add(lip);
+  mouth.position.set(0, -0.04, 0.1); mouth.scale.set(1.0, 0.28, 0.45);
+  g.add(mouth);
+
+  // tiny nose
+  const nose = mesh(new THREE.SphereGeometry(0.006, 8, 6), skinF, false);
+  nose.position.set(0, 0.0, 0.112);
+  g.add(nose);
+
+  g.userData.blush = g.children.filter(c => c.material === blushMat);
+  g.userData.mouth = mouth;
   return g;
 }
 
-function makeHair(long = true) {
+function makeAnimeHair() {
   const g = new THREE.Group();
-  const scalp = mesh(new THREE.SphereGeometry(0.112, 24, 16), hairMat);
-  scalp.position.y = 0.02;
-  scalp.scale.set(1.05, 1.0, 1.05);
+  const scalp = mesh(new THREE.SphereGeometry(0.125, 24, 16), hairMat);
+  scalp.position.y = 0.02; scalp.scale.set(1.05, 1.0, 1.05);
   g.add(scalp);
-  if (long) {
-    for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * Math.PI * 2;
-      const strand = limb(0.28, 0.03, 0.018, hairMat, 8);
-      strand.position.set(Math.cos(a) * 0.06, -0.14, Math.sin(a) * 0.05 - 0.02);
-      strand.rotation.x = 0.15 + Math.random() * 0.1;
-      strand.rotation.z = Math.cos(a) * 0.2;
-      g.add(strand);
-    }
-    const bang = mesh(new THREE.SphereGeometry(0.08, 16, 12), hairMat);
-    bang.position.set(0, 0.05, 0.08);
-    bang.scale.set(1.2, 0.45, 0.5);
+
+  // bangs
+  for (let i = -2; i <= 2; i++) {
+    const bang = mesh(new THREE.SphereGeometry(0.045, 12, 10), hairMat);
+    bang.position.set(i * 0.035, 0.04, 0.1);
+    bang.scale.set(0.7, 1.1, 0.55);
+    bang.rotation.x = 0.35;
     g.add(bang);
-  } else {
-    const top = mesh(new THREE.SphereGeometry(0.1, 16, 12), hairMat);
-    top.position.set(0, 0.06, -0.01);
-    top.scale.set(1.05, 0.7, 1.1);
-    g.add(top);
   }
+
+  // twin tails
+  for (const sx of [-1, 1]) {
+    const base = mesh(new THREE.SphereGeometry(0.04, 12, 10), hairMat);
+    base.position.set(sx * 0.1, 0.02, -0.02);
+    g.add(base);
+    const tail = limb(0.38, 0.032, 0.018, hairMat, 10);
+    tail.position.set(sx * 0.12, -0.18, -0.04);
+    tail.rotation.z = sx * 0.25; tail.rotation.x = 0.2;
+    g.add(tail);
+    const tip = mesh(new THREE.SphereGeometry(0.025, 10, 8), hairDark);
+    tip.position.set(sx * 0.145, -0.38, -0.05);
+    g.add(tip);
+  }
+
+  // side locks
+  for (const sx of [-1, 1]) {
+    const lock = limb(0.22, 0.022, 0.014, hairMat, 8);
+    lock.position.set(sx * 0.1, -0.08, 0.04);
+    lock.rotation.z = sx * 0.45;
+    g.add(lock);
+  }
+
+  // ahoge
+  const ahoge = mesh(new THREE.CapsuleGeometry(0.01, 0.08, 4, 6), hairMat);
+  ahoge.position.set(0.02, 0.16, 0.0);
+  ahoge.rotation.z = -0.5; ahoge.rotation.x = 0.3;
+  g.add(ahoge);
+
   return g;
 }
 
 function makeFoot(mat, side = 1) {
   const g = new THREE.Group();
-  // darker sole pad so contact face is obvious in-scene
   const soleMat = mat.clone();
-  soleMat.color = new THREE.Color(0xc47a6a);
+  soleMat.color = new THREE.Color(0xf0a090);
   const sole = mesh(new THREE.BoxGeometry(0.08, 0.028, 0.2), soleMat);
   sole.position.set(0, -0.002, 0.02);
   g.add(sole);
-  // soft sole pad facing -Y (the contact face)
   const pad = mesh(new THREE.BoxGeometry(0.085, 0.016, 0.18), new THREE.MeshPhysicalMaterial({
-    color: 0xc4685c, roughness: 0.48, clearcoat: 0.18, clearcoatRoughness: 0.5
+    color: 0xe88878, roughness: 0.45, clearcoat: 0.2
   }));
   pad.position.set(0, -0.02, 0.025);
   g.add(pad);
   const ball = mesh(new THREE.SphereGeometry(0.038, 16, 12), mat);
-  ball.position.set(0, 0.008, 0.09);
-  ball.scale.set(1.15, 0.7, 0.9);
+  ball.position.set(0, 0.008, 0.09); ball.scale.set(1.15, 0.7, 0.9);
   g.add(ball);
   const heel = mesh(new THREE.SphereGeometry(0.032, 14, 12), mat);
-  heel.position.set(0, 0.004, -0.07);
-  heel.scale.set(1.0, 0.85, 0.95);
+  heel.position.set(0, 0.004, -0.07); heel.scale.set(1.0, 0.85, 0.95);
   g.add(heel);
-  // toes
   const toeOffsets = [-0.028, -0.014, 0, 0.014, 0.026];
   const toeLen = [0.028, 0.034, 0.036, 0.032, 0.024];
   const toeR = [0.009, 0.01, 0.011, 0.01, 0.008];
@@ -425,14 +445,12 @@ function makeFoot(mat, side = 1) {
     nail.position.set(ox * side, 0.02, 0.13 + toeLen[i] * 0.45);
     g.add(nail);
   });
-  g.userData.side = side;
   return g;
 }
 
 function makeHand(mat, side = 1) {
   const g = new THREE.Group();
-  const palm = mesh(new THREE.BoxGeometry(0.055, 0.02, 0.08), mat);
-  g.add(palm);
+  g.add(mesh(new THREE.BoxGeometry(0.055, 0.02, 0.08), mat));
   for (let i = 0; i < 4; i++) {
     const f = mesh(new THREE.CapsuleGeometry(0.007, 0.045, 4, 6), mat);
     f.position.set((-0.02 + i * 0.013) * side, 0.005, 0.055);
@@ -440,315 +458,209 @@ function makeHand(mat, side = 1) {
     g.add(f);
   }
   const thumb = mesh(new THREE.CapsuleGeometry(0.008, 0.03, 4, 6), mat);
-  thumb.position.set(0.035 * side, 0.0, 0.01);
-  thumb.rotation.z = side * 0.8;
-  thumb.rotation.x = 0.5;
+  thumb.position.set(0.035 * side, 0, 0.01);
+  thumb.rotation.z = side * 0.8; thumb.rotation.x = 0.5;
   g.add(thumb);
+  return g;
+}
+
+function makeHeadBoy() {
+  const g = new THREE.Group();
+  const head = mesh(new THREE.SphereGeometry(0.112, 28, 20), skinM);
+  head.scale.set(1, 1.05, 0.95); g.add(head);
+  const jaw = mesh(new THREE.SphereGeometry(0.075, 20, 14), skinM);
+  jaw.position.set(0, -0.07, 0.01); jaw.scale.set(1, 0.7, 0.9); g.add(jaw);
+  for (const sx of [-1, 1]) {
+    const eye = mesh(new THREE.SphereGeometry(0.016, 12, 10), eyeWhiteMat, false);
+    eye.position.set(sx * 0.03, 0.01, 0.095); g.add(eye);
+    const ir = mesh(new THREE.SphereGeometry(0.008, 10, 8), new THREE.MeshStandardMaterial({ color: 0x4a5a3a }), false);
+    ir.position.set(sx * 0.03, 0.01, 0.108); g.add(ir);
+  }
+  const hair = mesh(new THREE.SphereGeometry(0.1, 16, 12), new THREE.MeshStandardMaterial({ color: 0x2a2030, roughness: 0.55 }));
+  hair.position.set(0, 0.05, -0.01); hair.scale.set(1.05, 0.7, 1.1); g.add(hair);
   return g;
 }
 
 function makeGirl() {
   const root = new THREE.Group();
-  root.name = "girl";
-
   const hips = new THREE.Group();
   hips.position.set(0, 0.5, 0.75);
   root.add(hips);
 
-  const pelvis = mesh(new THREE.SphereGeometry(0.12, 24, 16), skinF);
-  pelvis.scale.set(1.35, 0.85, 1.05);
-  hips.add(pelvis);
+  const pelvis = mesh(new THREE.SphereGeometry(0.115, 24, 16), skinF);
+  pelvis.scale.set(1.3, 0.8, 1.0); hips.add(pelvis);
 
   const torso = new THREE.Group();
-  torso.position.set(0, 0.16, 0);
-  hips.add(torso);
-  const chest = mesh(new THREE.SphereGeometry(0.13, 24, 16), skinF);
-  chest.scale.set(1.15, 1.2, 0.85);
-  chest.position.y = 0.12;
-  torso.add(chest);
-  // breasts
+  torso.position.set(0, 0.15, 0); hips.add(torso);
+  const chest = mesh(new THREE.SphereGeometry(0.125, 24, 16), skinF);
+  chest.scale.set(1.1, 1.15, 0.8); chest.position.y = 0.12; torso.add(chest);
   for (const sx of [-1, 1]) {
-    const b = mesh(new THREE.SphereGeometry(0.055, 20, 14), skinF);
-    b.position.set(sx * 0.055, 0.14, 0.07);
-    torso.add(b);
+    const b = mesh(new THREE.SphereGeometry(0.058, 20, 14), skinF);
+    b.position.set(sx * 0.055, 0.14, 0.07); torso.add(b);
   }
-  const top = mesh(new THREE.SphereGeometry(0.14, 20, 14), clothF);
-  top.scale.set(1.05, 0.55, 0.85);
-  top.position.set(0, 0.08, 0);
-  torso.add(top);
+  // cute crop top
+  const top = mesh(new THREE.SphereGeometry(0.135, 20, 14), clothF);
+  top.scale.set(1.05, 0.5, 0.82); top.position.set(0, 0.1, 0); torso.add(top);
+  const ribbon = mesh(new THREE.SphereGeometry(0.03, 10, 8), clothAccent);
+  ribbon.position.set(0, 0.02, 0.1); torso.add(ribbon);
 
-  const neck = limb(0.06, 0.03, 0.035, skinF, 10);
-  neck.position.set(0, 0.3, 0);
-  torso.add(neck);
+  const neck = limb(0.055, 0.028, 0.032, skinF, 10);
+  neck.position.set(0, 0.3, 0); torso.add(neck);
 
-  const head = makeHead(skinF, true);
-  head.position.set(0, 0.38, 0.01);
+  const head = makeAnimeHead();
+  head.position.set(0, 0.4, 0.01); head.scale.setScalar(1.08);
   torso.add(head);
-  const hair = makeHair(true);
-  hair.position.copy(head.position);
+  const hair = makeAnimeHair();
+  hair.position.copy(head.position); hair.scale.setScalar(1.08);
   torso.add(hair);
 
-  // arms — resting back / supporting
   const arms = {};
   for (const side of [-1, 1]) {
     const shoulder = new THREE.Group();
-    shoulder.position.set(side * 0.14, 0.24, 0);
-    torso.add(shoulder);
-    const upper = limb(0.22, 0.035, 0.03, skinF);
-    upper.position.y = -0.11;
-    shoulder.add(upper);
-    const elbow = new THREE.Group();
-    elbow.position.y = -0.22;
-    shoulder.add(elbow);
-    const fore = limb(0.2, 0.028, 0.025, skinF);
-    fore.position.y = -0.1;
-    elbow.add(fore);
-    const hand = makeHand(skinF, side);
-    hand.position.set(0, -0.2, 0);
-    hand.rotation.x = -1.1;
-    elbow.add(hand);
-    shoulder.rotation.z = side * 0.55;
-    shoulder.rotation.x = -0.4;
-    elbow.rotation.x = -0.9;
+    shoulder.position.set(side * 0.13, 0.24, 0); torso.add(shoulder);
+    const upper = limb(0.2, 0.03, 0.026, skinF); upper.position.y = -0.1; shoulder.add(upper);
+    const elbow = new THREE.Group(); elbow.position.y = -0.2; shoulder.add(elbow);
+    const fore = limb(0.18, 0.024, 0.022, skinF); fore.position.y = -0.09; elbow.add(fore);
+    const hand = makeHand(skinF, side); hand.position.set(0, -0.18, 0); hand.rotation.x = -1.1; elbow.add(hand);
+    shoulder.rotation.z = side * 0.55; shoulder.rotation.x = -0.4; elbow.rotation.x = -0.9;
     arms[side === -1 ? "L" : "R"] = { shoulder, elbow, hand };
   }
 
-  // legs + feet (animated)
   const legs = {};
   for (const side of [-1, 1]) {
     const hip = new THREE.Group();
-    hip.position.set(side * 0.08, -0.02, 0);
-    hips.add(hip);
-    const thigh = limb(0.28, 0.055, 0.042, skinF);
-    thigh.position.y = -0.14;
-    hip.add(thigh);
-    const knee = new THREE.Group();
-    knee.position.y = -0.28;
-    hip.add(knee);
-    const calf = limb(0.26, 0.04, 0.03, skinF);
-    calf.position.y = -0.13;
-    knee.add(calf);
-    const ankle = new THREE.Group();
-    ankle.position.y = -0.26;
-    knee.add(ankle);
+    hip.position.set(side * 0.075, -0.02, 0); hips.add(hip);
+    const thigh = limb(0.28, 0.05, 0.038, skinF); thigh.position.y = -0.14; hip.add(thigh);
+    const knee = new THREE.Group(); knee.position.y = -0.28; hip.add(knee);
+    const calf = limb(0.26, 0.036, 0.028, skinF); calf.position.y = -0.13; knee.add(calf);
+    const ankle = new THREE.Group(); ankle.position.y = -0.26; knee.add(ankle);
     const foot = makeFoot(skinF, side);
-    foot.rotation.x = -Math.PI / 2;
-    ankle.add(foot);
+    foot.rotation.x = -Math.PI / 2; ankle.add(foot);
     legs[side === -1 ? "L" : "R"] = { hip, knee, ankle, foot };
   }
 
-  // panty
-  const panty = mesh(new THREE.SphereGeometry(0.11, 20, 14), clothF);
-  panty.scale.set(1.25, 0.45, 1.0);
-  panty.position.set(0, 0.02, 0.01);
-  hips.add(panty);
+  const panty = mesh(new THREE.SphereGeometry(0.105, 20, 14), clothAccent);
+  panty.scale.set(1.25, 0.4, 1.0); panty.position.set(0, 0.02, 0.01); hips.add(panty);
 
-  root.userData = { hips, torso, head, legs, arms };
+  root.userData = { hips, torso, head, hair, legs, arms };
   return root;
 }
 
 function makeBoy() {
   const root = new THREE.Group();
-  root.name = "boy";
-
-  // lying on back along +Z, hips near origin
   const hips = new THREE.Group();
   hips.position.set(0, 0.2, 0.05);
   hips.rotation.x = -Math.PI / 2 + 0.05;
   root.add(hips);
 
   const pelvis = mesh(new THREE.SphereGeometry(0.13, 24, 16), skinM);
-  pelvis.scale.set(1.2, 0.8, 1.05);
-  hips.add(pelvis);
+  pelvis.scale.set(1.2, 0.8, 1.05); hips.add(pelvis);
 
-  const torso = new THREE.Group();
-  torso.position.set(0, 0.18, 0);
-  hips.add(torso);
+  const torso = new THREE.Group(); torso.position.set(0, 0.18, 0); hips.add(torso);
   const chest = mesh(new THREE.CapsuleGeometry(0.12, 0.22, 8, 16), skinM);
-  chest.position.y = 0.12;
-  torso.add(chest);
-  const abs = mesh(new THREE.BoxGeometry(0.18, 0.14, 0.1), skinM);
-  abs.position.set(0, -0.02, 0.02);
-  torso.add(abs);
+  chest.position.y = 0.12; torso.add(chest);
 
   const neck = limb(0.055, 0.035, 0.04, skinM, 10);
-  neck.position.set(0, 0.32, 0);
-  torso.add(neck);
-  const head = makeHead(skinM, false);
-  head.position.set(0, 0.42, 0.02);
-  head.rotation.x = 0.25;
-  torso.add(head);
-  const hair = makeHair(false);
-  hair.position.copy(head.position);
-  torso.add(hair);
+  neck.position.set(0, 0.32, 0); torso.add(neck);
+  const head = makeHeadBoy();
+  head.position.set(0, 0.42, 0.02); head.rotation.x = 0.25; torso.add(head);
 
-  // arms out
   for (const side of [-1, 1]) {
     const shoulder = new THREE.Group();
-    shoulder.position.set(side * 0.15, 0.22, 0);
-    torso.add(shoulder);
-    const upper = limb(0.24, 0.04, 0.035, skinM);
-    upper.position.y = -0.12;
-    shoulder.add(upper);
-    const elbow = new THREE.Group();
-    elbow.position.y = -0.24;
-    shoulder.add(elbow);
-    const fore = limb(0.22, 0.032, 0.028, skinM);
-    fore.position.y = -0.11;
-    elbow.add(fore);
-    const hand = makeHand(skinM, side);
-    hand.position.y = -0.22;
-    elbow.add(hand);
-    shoulder.rotation.z = side * 1.1;
-    shoulder.rotation.x = -0.3;
-    elbow.rotation.x = -0.4;
+    shoulder.position.set(side * 0.15, 0.22, 0); torso.add(shoulder);
+    const upper = limb(0.24, 0.04, 0.035, skinM); upper.position.y = -0.12; shoulder.add(upper);
+    const elbow = new THREE.Group(); elbow.position.y = -0.24; shoulder.add(elbow);
+    const fore = limb(0.22, 0.032, 0.028, skinM); fore.position.y = -0.11; elbow.add(fore);
+    const hand = makeHand(skinM, side); hand.position.y = -0.22; elbow.add(hand);
+    shoulder.rotation.z = side * 1.1; shoulder.rotation.x = -0.3; elbow.rotation.x = -0.4;
   }
 
-  // legs bent open
-  const legs = {};
   for (const side of [-1, 1]) {
     const hip = new THREE.Group();
-    hip.position.set(side * 0.09, -0.04, 0);
-    hips.add(hip);
-    const thigh = limb(0.3, 0.058, 0.045, skinM);
-    thigh.position.y = -0.15;
-    hip.add(thigh);
-    const knee = new THREE.Group();
-    knee.position.y = -0.3;
-    hip.add(knee);
-    const calf = limb(0.28, 0.042, 0.032, skinM);
-    calf.position.y = -0.14;
-    knee.add(calf);
-    const ankle = new THREE.Group();
-    ankle.position.y = -0.28;
-    knee.add(ankle);
-    const foot = makeFoot(skinM, side);
-    foot.rotation.x = -Math.PI / 2;
-    ankle.add(foot);
-    hip.rotation.z = side * 0.55;
-    hip.rotation.x = -0.35;
-    knee.rotation.x = 0.85;
-    legs[side === -1 ? "L" : "R"] = { hip, knee, ankle, foot };
+    hip.position.set(side * 0.09, -0.04, 0); hips.add(hip);
+    const thigh = limb(0.3, 0.058, 0.045, skinM); thigh.position.y = -0.15; hip.add(thigh);
+    const knee = new THREE.Group(); knee.position.y = -0.3; hip.add(knee);
+    const calf = limb(0.28, 0.042, 0.032, skinM); calf.position.y = -0.14; knee.add(calf);
+    const ankle = new THREE.Group(); ankle.position.y = -0.28; knee.add(ankle);
+    const foot = makeFoot(skinM, side); foot.rotation.x = -Math.PI / 2; ankle.add(foot);
+    hip.rotation.z = side * 0.55; hip.rotation.x = -0.35; knee.rotation.x = 0.85;
   }
 
-  // shorts pulled down
   const shorts = mesh(new THREE.TorusGeometry(0.14, 0.035, 10, 24), clothM);
-  shorts.rotation.x = Math.PI / 2;
-  shorts.position.set(0, -0.02, -0.05);
-  hips.add(shorts);
+  shorts.rotation.x = Math.PI / 2; shorts.position.set(0, -0.02, -0.05); hips.add(shorts);
 
-  // anatomy — slightly larger for clear foot contact
-  const gen = new THREE.Group();
-  gen.position.set(0, 0.02, 0.12);
-  hips.add(gen);
+  const gen = new THREE.Group(); gen.position.set(0, 0.02, 0.12); hips.add(gen);
   const SHAFT_R = 0.038;
   const shaft = mesh(new THREE.CapsuleGeometry(SHAFT_R, 0.15, 8, 20), skinM);
-  shaft.rotation.x = Math.PI / 2;
-  shaft.position.z = 0.09;
-  gen.add(shaft);
+  shaft.rotation.x = Math.PI / 2; shaft.position.z = 0.09; gen.add(shaft);
   const headG = mesh(new THREE.SphereGeometry(0.04, 24, 16), new THREE.MeshPhysicalMaterial({
-    color: 0xc88878, roughness: 0.4, clearcoat: 0.25, clearcoatRoughness: 0.4,
-    sheen: 0.3, sheenColor: new THREE.Color(0xffa090)
+    color: 0xd09080, roughness: 0.38, clearcoat: 0.28, sheen: 0.35, sheenColor: new THREE.Color(0xffa0a0)
   }));
-  headG.position.z = 0.195;
-  headG.scale.set(1.05, 0.95, 1.1);
-  gen.add(headG);
+  headG.position.z = 0.195; headG.scale.set(1.05, 0.95, 1.1); gen.add(headG);
   for (const sx of [-1, 1]) {
     const ball = mesh(new THREE.SphereGeometry(0.032, 14, 12), skinM);
-    ball.position.set(sx * 0.03, -0.028, 0.015);
-    ball.scale.set(1, 0.9, 1.05);
-    gen.add(ball);
+    ball.position.set(sx * 0.03, -0.028, 0.015); gen.add(ball);
   }
+  const shaftBase = new THREE.Object3D(); shaftBase.position.set(0, 0, 0.015); gen.add(shaftBase);
+  const shaftTip = new THREE.Object3D(); shaftTip.position.set(0, 0, 0.205); gen.add(shaftTip);
 
-  // shaft path anchors in local gen space (base -> tip)
-  const shaftBase = new THREE.Object3D();
-  shaftBase.position.set(0, 0, 0.015);
-  gen.add(shaftBase);
-  const shaftTip = new THREE.Object3D();
-  shaftTip.position.set(0, 0, 0.205);
-  gen.add(shaftTip);
-
-  root.userData = { hips, torso, head, legs, gen, shaft, headG, shaftBase, shaftTip, SHAFT_R };
+  root.userData = { hips, torso, head, gen, shaft, headG, shaftBase, shaftTip, SHAFT_R };
   return root;
 }
 
 const girl = makeGirl();
 const boy = makeBoy();
-scene.add(girl);
-scene.add(boy);
+scene.add(girl); scene.add(boy);
 
-/* ============================================================
-   Stroke contact rig — feet are LOCKED to the shaft so contact
-   cannot drift. Legs IK toward the feet for body continuity.
-   ============================================================ */
 const strokeRig = new THREE.Group();
 boy.userData.gen.add(strokeRig);
-
 const footL = girl.userData.legs.L.foot;
 const footR = girl.userData.legs.R.foot;
-// detach from ankles → attach to shaft rig
 girl.userData.legs.L.ankle.remove(footL);
 girl.userData.legs.R.ankle.remove(footR);
-strokeRig.add(footL);
-strokeRig.add(footR);
-// Bigger feet so shaft grip reads clearly
-footL.scale.setScalar(1.55);
-footR.scale.setScalar(1.55);
+strokeRig.add(footL); strokeRig.add(footR);
+footL.scale.setScalar(1.55); footR.scale.setScalar(1.55);
+for (const side of ["L", "R"]) girl.userData.legs[side].ankle.visible = false;
 
-// Hide empty ankle stubs — real feet live on the shaft rig
-for (const side of ["L", "R"]) {
-  girl.userData.legs[side].ankle.visible = false;
-}
-
-/* Girl sits at boy's feet-end, facing his crotch (classic footjob seat) */
 girl.userData.hips.position.set(0.0, 0.38, 0.95);
 girl.userData.hips.rotation.set(0.1, Math.PI, 0);
 girl.userData.torso.rotation.set(0.35, 0, 0);
-girl.userData.head.rotation.set(-0.2, 0, 0);
-// arms brace behind
+girl.userData.head.rotation.set(-0.15, 0, 0);
 girl.userData.arms.L.shoulder.rotation.set(-0.6, 0.2, -0.9);
 girl.userData.arms.R.shoulder.rotation.set(-0.6, -0.2, 0.9);
 
-/* Side-on camera so sole-on-shaft contact is obvious */
 controls.target.set(0, 0.4, 0.12);
-camera.position.set(1.65, 0.48, 0.18);
+camera.position.set(1.65, 0.55, 0.35);
 controls.update();
 
-/* ============================================================
-   Biomechanical stroke solver
-   ============================================================ */
-
+/* ---------- stim / overstim state ---------- */
 const stim = {
-  pos: 0.55,          // 0 base .. 1 tip
-  vel: 0,
-  target: 0.55,
-  auto: true,
-  bothFeet: true,
-  phase: 0,
-  speed: 1.15,
-  grip: 0.85,
-  footAngle: 8 * Math.PI / 180,
-  arousal: 0,
-  climax: false,
-  climaxT: 0,
-  contactForce: 0,
-  cadence: 0,
-  lastZero: 0,
-  droplets: [],
-  manualDrive: false,
+  pos: 0.55, vel: 0, target: 0.55,
+  auto: true, bothFeet: true, overstim: false,
+  phase: 0, speed: 1.35, grip: 1.2,
+  footAngle: 10 * Math.PI / 180,
+  arousal: 0, sensitivity: 1,
+  climax: false, climaxT: 0, climaxCount: 0,
+  contactForce: 0, cadence: 0, lastZero: 0,
+  droplets: [], hearts: [], manualDrive: false,
+  twitch: 0, shake: 0,
 };
 
 const ui = {
   bar: document.getElementById("bar"),
   pct: document.getElementById("pct"),
+  senseBar: document.getElementById("senseBar"),
+  sensePct: document.getElementById("sensePct"),
   hint: document.getElementById("hint"),
   tPos: document.getElementById("tPos"),
   tVel: document.getElementById("tVel"),
   tForce: document.getElementById("tForce"),
   tCad: document.getElementById("tCad"),
-  tAro: document.getElementById("tAro"),
+  tSense: document.getElementById("tSense"),
+  tClimax: document.getElementById("tClimax"),
   auto: document.getElementById("auto"),
   both: document.getElementById("both"),
+  overstim: document.getElementById("overstim"),
   reset: document.getElementById("reset"),
   speed: document.getElementById("speed"),
   grip: document.getElementById("grip"),
@@ -756,43 +668,73 @@ const ui = {
   orbit: document.getElementById("orbit"),
 };
 
+function spawnHeart() {
+  const el = document.createElement("div");
+  el.className = "heart";
+  el.textContent = Math.random() > 0.5 ? "♥" : "♡";
+  el.style.left = (40 + Math.random() * 20) + "%";
+  el.style.top = (48 + Math.random() * 20) + "%";
+  el.style.color = Math.random() > 0.5 ? "#ff6aad" : "#ffe066";
+  heartsEl.appendChild(el);
+  setTimeout(() => el.remove(), 1400);
+}
+
+function flashBurst(text) {
+  burstEl.textContent = text;
+  burstEl.classList.add("show");
+  setTimeout(() => burstEl.classList.remove("show"), 700);
+}
+
 ui.auto.onclick = () => {
   stim.auto = !stim.auto;
   ui.auto.classList.toggle("active", stim.auto);
-  ui.hint.textContent = stim.auto
-    ? "Auto biomechanical stroke engaged"
-    : "Drag vertically on the scene to drive the stroke · scroll to zoom";
-  ui.hint.classList.toggle("hot", false);
 };
 ui.both.onclick = () => {
   stim.bothFeet = !stim.bothFeet;
   ui.both.classList.toggle("active", stim.bothFeet);
   ui.both.textContent = stim.bothFeet ? "Both feet" : "Single foot";
 };
+ui.overstim.onclick = () => {
+  stim.overstim = !stim.overstim;
+  ui.overstim.classList.toggle("active", stim.overstim);
+  document.body.classList.toggle("over", stim.overstim);
+  if (stim.overstim) {
+    stim.auto = true;
+    ui.auto.classList.add("active");
+    ui.speed.value = Math.max(+ui.speed.value, 2.2);
+    stim.speed = +ui.speed.value;
+    ui.grip.value = Math.max(+ui.grip.value, 1.25);
+    stim.grip = +ui.grip.value;
+    ui.hint.textContent = "OVERSTIM ON — no mercy after climax, sensitivity keeps climbing";
+    ui.hint.classList.add("hot");
+    flashBurst("OVERSTIM!!");
+    fxEl.classList.add("over");
+  } else {
+    ui.hint.textContent = "Overstim off";
+    ui.hint.classList.remove("hot");
+    fxEl.classList.remove("over");
+  }
+};
 ui.reset.onclick = () => {
-  stim.arousal = 0;
-  stim.climax = false;
-  stim.climaxT = 0;
-  stim.pos = 0.55;
-  stim.vel = 0;
+  stim.arousal = 0; stim.sensitivity = 1;
+  stim.climax = false; stim.climaxT = 0; stim.climaxCount = 0;
+  stim.pos = 0.55; stim.vel = 0; stim.twitch = 0; stim.shake = 0;
   stim.droplets.forEach(d => scene.remove(d.mesh));
   stim.droplets = [];
-  ui.hint.textContent = "Reset — solver cooled";
+  ui.hint.textContent = "Reset — cooled down";
   ui.hint.classList.remove("hot");
+  fxEl.classList.remove("on");
+  if (!stim.overstim) fxEl.classList.remove("over");
 };
 ui.speed.oninput = () => { stim.speed = +ui.speed.value; };
 ui.grip.oninput = () => { stim.grip = +ui.grip.value; };
 ui.angle.oninput = () => { stim.footAngle = (+ui.angle.value) * Math.PI / 180; };
 
-/* manual stroke via pointer drag (vertical) */
 let dragY = null;
 canvas.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return;
-  // only steal drag if shift held OR auto off — keep orbit usable
   if (stim.auto && !e.shiftKey) return;
-  stim.manualDrive = true;
-  dragY = e.clientY;
-  controls.enabled = false;
+  stim.manualDrive = true; dragY = e.clientY; controls.enabled = false;
 });
 window.addEventListener("pointermove", (e) => {
   if (!stim.manualDrive || dragY == null) return;
@@ -801,216 +743,233 @@ window.addEventListener("pointermove", (e) => {
   stim.target = THREE.MathUtils.clamp(stim.target + dy * 2.8, 0.05, 0.95);
 });
 window.addEventListener("pointerup", () => {
-  stim.manualDrive = false;
-  dragY = null;
-  controls.enabled = true;
+  stim.manualDrive = false; dragY = null; controls.enabled = true;
 });
 
-/* fluid droplets */
 const dropMat = new THREE.MeshPhysicalMaterial({
-  color: 0xf5e6c8, roughness: 0.15, transmission: 0.35,
-  thickness: 0.2, transparent: true, opacity: 0.85
+  color: 0xfff0d8, roughness: 0.12, transmission: 0.4, thickness: 0.2, transparent: true, opacity: 0.85
 });
 function spawnDrop(worldPos, vel) {
-  const m = mesh(new THREE.SphereGeometry(0.008 + Math.random() * 0.01, 10, 8), dropMat, false, false);
-  m.position.copy(worldPos);
-  scene.add(m);
-  stim.droplets.push({
-    mesh: m,
-    v: vel.clone(),
-    life: 1.2 + Math.random() * 0.8
-  });
+  const m = mesh(new THREE.SphereGeometry(0.008 + Math.random() * 0.012, 10, 8), dropMat, false, false);
+  m.position.copy(worldPos); scene.add(m);
+  stim.droplets.push({ mesh: m, v: vel.clone(), life: 1.2 + Math.random() * 0.9 });
 }
 
 function triggerClimax() {
-  if (stim.climax) return;
   stim.climax = true;
   stim.climaxT = 0;
-  ui.hint.textContent = "Peak response — climax";
+  stim.climaxCount += 1;
+  stim.shake = 1;
+  stim.twitch = 1;
+  fxEl.classList.add("on");
+  setTimeout(() => { if (!stim.overstim) fxEl.classList.remove("on"); }, 350);
+  flashBurst(stim.overstim ? (stim.climaxCount > 1 ? "AGAIN!!" : "CUM!!") : "♥");
+  for (let i = 0; i < 5; i++) setTimeout(spawnHeart, i * 80);
+
+  // overstim: sensitivity spikes and stays high
+  if (stim.overstim) {
+    stim.sensitivity = Math.min(3.5, stim.sensitivity + 0.45);
+    ui.hint.textContent = `Climax #${stim.climaxCount} — sensitivity ${stim.sensitivity.toFixed(1)}× — keep going`;
+  } else {
+    ui.hint.textContent = "Peak — climax";
+  }
   ui.hint.classList.add("hot");
+
   const tip = new THREE.Vector3();
   boy.userData.shaftTip.getWorldPosition(tip);
-  for (let i = 0; i < 22; i++) {
+  const n = stim.overstim ? 36 : 22;
+  for (let i = 0; i < n; i++) {
     spawnDrop(
       tip.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.03, Math.random() * 0.02, (Math.random() - 0.5) * 0.03)),
-      new THREE.Vector3((Math.random() - 0.5) * 0.4, 0.6 + Math.random() * 0.9, 0.2 + Math.random() * 0.5)
+      new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.7 + Math.random() * 1.1, 0.2 + Math.random() * 0.55)
     );
   }
 }
 
-/* ============================================================
-   Feet are children of strokeRig (on gen). Every frame we set
-   their LOCAL pose so soles sandwich the shaft — guaranteed contact.
-   Legs only IK toward those world positions for continuity.
-   ============================================================ */
 const _footW = new THREE.Vector3();
-const THIGH_LEN = 0.28;
-const CALF_LEN = 0.26;
-const SOLE_HALF = 0.015;
+const THIGH_LEN = 0.28, CALF_LEN = 0.26;
 
 function solveLegToward(leg, target, sign) {
-  const hip = leg.hip;
-  const knee = leg.knee;
-  const ankle = leg.ankle;
+  const hip = leg.hip, knee = leg.knee, ankle = leg.ankle;
   const parent = hip.parent;
   parent.updateWorldMatrix(true, false);
-
   const localTarget = target.clone();
   parent.worldToLocal(localTarget);
   const lv = localTarget.sub(hip.position.clone());
-  let dist = lv.length();
-  dist = THREE.MathUtils.clamp(dist, 0.08, THIGH_LEN + CALF_LEN - 0.02);
-
+  let dist = THREE.MathUtils.clamp(lv.length(), 0.08, THIGH_LEN + CALF_LEN - 0.02);
   const cosKnee = THREE.MathUtils.clamp(
-    (THIGH_LEN * THIGH_LEN + CALF_LEN * CALF_LEN - dist * dist) / (2 * THIGH_LEN * CALF_LEN),
-    -1, 1
-  );
+    (THIGH_LEN * THIGH_LEN + CALF_LEN * CALF_LEN - dist * dist) / (2 * THIGH_LEN * CALF_LEN), -1, 1);
   const kneeFlex = Math.PI - Math.acos(cosKnee);
-
   const yaw = Math.atan2(lv.x, -lv.z);
   const planar = Math.sqrt(lv.x * lv.x + lv.z * lv.z);
   const elev = Math.atan2(planar, Math.max(0.001, -lv.y));
   const cosHip = THREE.MathUtils.clamp(
-    (THIGH_LEN * THIGH_LEN + dist * dist - CALF_LEN * CALF_LEN) / (2 * THIGH_LEN * dist),
-    -1, 1
-  );
-  const hipPitch = elev - Math.acos(cosHip);
-
+    (THIGH_LEN * THIGH_LEN + dist * dist - CALF_LEN * CALF_LEN) / (2 * THIGH_LEN * dist), -1, 1);
   hip.rotation.order = "YXZ";
   hip.rotation.y = THREE.MathUtils.clamp(yaw, -1.4, 1.4);
-  hip.rotation.x = THREE.MathUtils.clamp(-hipPitch, -2.6, 0.4);
+  hip.rotation.x = THREE.MathUtils.clamp(-(elev - Math.acos(cosHip)), -2.6, 0.4);
   hip.rotation.z = sign * 0.12;
   knee.rotation.set(kneeFlex, 0, 0);
   ankle.rotation.set(-0.4, sign * 0.1, 0);
 }
 
 function orientSoleInward(foot, inwardX) {
-  // Right-handed basis: local -Y (sole pad) faces +inwardX toward shaft.
-  // local +Y = top of foot (outward), local +Z = toes along shaft.
-  const up = new THREE.Vector3(-inwardX, 0, 0); // top points outward
+  const up = new THREE.Vector3(-inwardX, 0, 0);
   const toes = new THREE.Vector3(0, 0, 1);
-  // side × up = toes  =>  side = up × toes
   const side = new THREE.Vector3().crossVectors(up, toes).normalize();
   toes.copy(new THREE.Vector3().crossVectors(side, up).normalize());
-  const m = new THREE.Matrix4().makeBasis(side, up, toes);
-  foot.quaternion.setFromRotationMatrix(m);
+  foot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, toes));
 }
 
 function placeFeet(dt) {
   const r = boy.userData.SHAFT_R;
   const grip = stim.grip;
-  // Sole contact face is ~0.028 from foot origin along local -Y, then scaled.
-  // Pull origins IN so that face digs into the shaft (no gap).
   const padReach = 0.028 * footL.scale.y;
-  const dig = 0.022 + grip * 0.028; // stronger grip → deeper press
-  const sep = Math.max(0.012, padReach - dig); // origins inside / on shaft
+  const dig = 0.022 + grip * 0.028 + (stim.overstim ? 0.012 : 0);
+  const sep = Math.max(0.01, padReach - dig);
   const stroke = stim.pos;
-  const zBase = 0.03;
-  const zTip = 0.2;
-  const z = THREE.MathUtils.lerp(zBase, zTip, stroke);
-  const zR = THREE.MathUtils.lerp(zBase, zTip, THREE.MathUtils.clamp(stroke - (stim.bothFeet ? 0.08 : 0), 0, 1));
-
-  const squeeze = Math.min(0.18, Math.abs(stim.vel) * 0.05);
+  const z = THREE.MathUtils.lerp(0.03, 0.2, stroke);
+  const zR = THREE.MathUtils.lerp(0.03, 0.2, THREE.MathUtils.clamp(stroke - (stim.bothFeet ? 0.08 : 0), 0, 1));
+  const squeeze = Math.min(0.2, Math.abs(stim.vel) * 0.05 + stim.twitch * 0.02);
   const sepL = Math.max(0.008, sep - squeeze);
   const sepR = stim.bothFeet ? Math.max(0.008, sep - squeeze) : 0.14;
 
-  // Left foot: sole smashed onto shaft
   footL.visible = true;
   footL.position.set(-sepL, 0, z);
   orientSoleInward(footL, +1);
   footL.rotateZ(THREE.MathUtils.clamp(stim.footAngle * 0.25, -0.2, 0.2));
-  footL.rotateX(THREE.MathUtils.clamp(stim.vel * 0.08, -0.15, 0.15));
+  footL.rotateX(THREE.MathUtils.clamp(stim.vel * 0.08 + stim.twitch * 0.15, -0.35, 0.35));
 
   if (stim.bothFeet) {
     footR.visible = true;
     footR.position.set(sepR, 0, zR);
     orientSoleInward(footR, -1);
     footR.rotateZ(THREE.MathUtils.clamp(-stim.footAngle * 0.25, -0.2, 0.2));
-    footR.rotateX(THREE.MathUtils.clamp(-stim.vel * 0.08, -0.15, 0.15));
+    footR.rotateX(THREE.MathUtils.clamp(-stim.vel * 0.08 - stim.twitch * 0.15, -0.35, 0.35));
   } else {
-    footR.visible = true;
-    footR.position.set(0.14, -0.03, 0.0);
-    footR.quaternion.identity();
+    footR.position.set(0.14, -0.03, 0); footR.quaternion.identity();
     footR.rotation.set(0.5, 0.4, -0.6);
   }
 
   footL.position.z += 0.004 * Math.sin(stim.phase * 2);
   if (stim.bothFeet) footR.position.z -= 0.004 * Math.sin(stim.phase * 2);
 
-  const squash = 1 - (0.08 + grip * 0.16) * (stim.bothFeet ? 1 : 0.55);
+  // overstim toe-curl knead
+  if (stim.overstim) {
+    const curl = Math.sin(stim.phase * 4) * 0.006;
+    footL.position.x -= curl; footR.position.x += curl;
+  }
+
+  const squash = 1 - (0.08 + grip * 0.16 + (stim.overstim ? 0.04 : 0)) * (stim.bothFeet ? 1 : 0.55);
   boy.userData.shaft.scale.set(squash, squash, 1 + Math.abs(stim.vel) * 0.03);
 
-  // legs reach toward locked feet
   strokeRig.updateWorldMatrix(true, true);
   footL.getWorldPosition(_footW);
   solveLegToward(girl.userData.legs.L, _footW.clone(), -1);
   footR.getWorldPosition(_footW);
-  if (stim.bothFeet) {
-    solveLegToward(girl.userData.legs.R, _footW.clone(), 1);
-  } else {
+  if (stim.bothFeet) solveLegToward(girl.userData.legs.R, _footW.clone(), 1);
+  else {
     girl.userData.legs.R.hip.rotation.set(-0.5, 0.4, 0.55);
     girl.userData.legs.R.knee.rotation.set(1.2, 0, 0);
   }
 
-  girl.userData.torso.rotation.x = 0.32 + Math.sin(stim.phase) * 0.05;
-  girl.userData.head.rotation.y = Math.sin(performance.now() * 0.0011) * 0.06;
-  girl.userData.head.rotation.x = -0.18 + stim.arousal * 0.1;
+  // anime girl reactions
+  const react = stim.arousal * 0.08 + stim.twitch * 0.12;
+  girl.userData.torso.rotation.x = 0.32 + Math.sin(stim.phase) * 0.05 + react;
+  girl.userData.head.rotation.y = Math.sin(performance.now() * 0.0012) * 0.08;
+  girl.userData.head.rotation.x = -0.12 + stim.arousal * 0.15 + (stim.overstim ? 0.08 : 0);
+  girl.userData.head.rotation.z = Math.sin(stim.phase * 1.5) * 0.04 * stim.arousal;
+  // blush intensity
+  const blushOp = 0.25 + stim.arousal * 0.45 + (stim.overstim ? 0.15 : 0);
+  girl.userData.head.userData.blush?.forEach(b => { b.material.opacity = blushOp; });
+  if (girl.userData.head.userData.mouth) {
+    girl.userData.head.userData.mouth.scale.y = 0.28 + stim.arousal * 0.35 + stim.twitch * 0.2;
+  }
+  // ahoge / hair sway
+  girl.userData.hair.rotation.z = Math.sin(performance.now() * 0.002) * 0.04;
 
-  const swell = 1 + stim.arousal * 0.14 + (stim.climax ? 0.06 : 0);
+  const swell = 1 + stim.arousal * 0.14 + (stim.climax ? 0.08 : 0) + (stim.overstim ? stim.sensitivity * 0.02 : 0);
   boy.userData.headG.scale.set(1.05 * swell, 0.95 * swell, 1.1 * swell);
-  boy.userData.hips.rotation.x = -Math.PI / 2 + 0.05 + Math.sin(stim.phase * 2) * 0.012 * stim.arousal;
+  const hipTwitch = Math.sin(stim.phase * 2) * 0.012 * stim.arousal + stim.twitch * Math.sin(performance.now() * 0.04) * 0.02;
+  boy.userData.hips.rotation.x = -Math.PI / 2 + 0.05 + hipTwitch;
+
+  blushLight.intensity = 0.35 + stim.arousal * 0.55 + (stim.overstim ? 0.3 : 0);
 }
 
 function updateSolver(dt) {
   stim.speed = +ui.speed.value;
   stim.grip = +ui.grip.value;
+  stim.twitch = Math.max(0, stim.twitch - dt * 0.65);
+  stim.shake = Math.max(0, stim.shake - dt * 1.6);
 
-  if (stim.auto && !stim.manualDrive && !stim.climax) {
-    stim.phase += dt * stim.speed * 2.6;
-    // asymmetric stroke profile (slower up, faster down) — biomechanical
+  const speedMul = stim.overstim ? 1.35 + stim.sensitivity * 0.15 : 1;
+  const continueStroke = stim.auto && !stim.manualDrive && (!stim.climax || stim.overstim);
+
+  if (continueStroke) {
+    stim.phase += dt * stim.speed * 2.6 * speedMul;
     const s = Math.sin(stim.phase);
-    const shaped = Math.sign(s) * Math.pow(Math.abs(s), 0.75);
-    stim.target = 0.5 + shaped * 0.38;
+    const amp = stim.overstim ? 0.42 : 0.38;
+    const shaped = Math.sign(s) * Math.pow(Math.abs(s), stim.overstim ? 0.55 : 0.75);
+    stim.target = 0.5 + shaped * amp;
   }
 
-  // critically-damped spring toward target
-  const k = 48;
+  const k = stim.overstim ? 62 : 48;
   const c = 2 * Math.sqrt(k) * 0.9;
   const acc = (stim.target - stim.pos) * k - stim.vel * c;
   stim.vel += acc * dt;
   const prev = stim.pos;
   stim.pos = THREE.MathUtils.clamp(stim.pos + stim.vel * dt, 0.05, 0.95);
 
-  // contact force proxy: pressure * |velocity| * grip
-  stim.contactForce = stim.grip * (12 + Math.abs(stim.vel) * 40);
+  stim.contactForce = stim.grip * (12 + Math.abs(stim.vel) * 40) * (stim.overstim ? 1.2 : 1);
 
-  // cadence estimate on zero-cross of velocity
   if (prev < 0.5 && stim.pos >= 0.5) {
     const now = performance.now() / 1000;
     if (stim.lastZero > 0) stim.cadence = 1 / Math.max(0.05, now - stim.lastZero);
     stim.lastZero = now;
   }
 
-  // arousal integration — work = force · distance
-  if (!stim.climax) {
-    const work = stim.contactForce * Math.abs(stim.vel) * dt * 0.0045;
-    const sweet = 1 - Math.abs(stim.pos - 0.55) * 0.5;
-    stim.arousal = THREE.MathUtils.clamp(stim.arousal + work * sweet, 0, 1);
-    // idle decay
-    if (!stim.auto && !stim.manualDrive && Math.abs(stim.vel) < 0.05) {
+  // arousal — overstim multiplies by sensitivity and allows re-climax
+  if (!stim.climax || stim.overstim) {
+    const work = stim.contactForce * Math.abs(stim.vel) * dt * 0.0045 * stim.sensitivity;
+    const sweet = 1 - Math.abs(stim.pos - 0.55) * 0.45;
+    const overBonus = stim.overstim ? 1.35 : 1;
+    if (!stim.climax) {
+      stim.arousal = THREE.MathUtils.clamp(stim.arousal + work * sweet * overBonus, 0, 1);
+    } else if (stim.overstim && stim.climaxT > 0.85) {
+      // after brief peak, build again from high floor
+      stim.arousal = THREE.MathUtils.clamp(0.55 + work * sweet * 2.2, 0.55, 1);
+      if (stim.arousal >= 0.995) triggerClimax();
+    }
+    if (!stim.auto && !stim.manualDrive && Math.abs(stim.vel) < 0.05 && !stim.overstim) {
       stim.arousal = Math.max(0, stim.arousal - dt * 0.03);
     }
-    if (stim.arousal >= 0.995) triggerClimax();
-  } else {
+    if (!stim.climax && stim.arousal >= 0.995) triggerClimax();
+  }
+
+  if (stim.climax) {
     stim.climaxT += dt;
-    if (stim.climaxT < 1.5 && Math.random() < 0.4) {
+    const burstWindow = stim.overstim ? 2.2 : 1.5;
+    if (stim.climaxT < burstWindow && Math.random() < (stim.overstim ? 0.55 : 0.4)) {
       const tip = new THREE.Vector3();
       boy.userData.shaftTip.getWorldPosition(tip);
-      spawnDrop(tip, new THREE.Vector3((Math.random() - 0.5) * 0.2, 0.3 + Math.random() * 0.5, 0.15 + Math.random() * 0.3));
+      spawnDrop(tip, new THREE.Vector3((Math.random() - 0.5) * 0.25, 0.35 + Math.random() * 0.6, 0.15 + Math.random() * 0.35));
+    }
+    // normal mode ends climax; overstim rolls into hypersensitivity
+    if (!stim.overstim && stim.climaxT > 2.5) {
+      stim.climax = false;
+      stim.arousal = 0.15;
+    } else if (stim.overstim && stim.climaxT > 0.9 && stim.climaxT < 1.0) {
+      // stay in climax-capable loop; mark ready for next
+      stim.twitch = Math.max(stim.twitch, 0.7);
     }
   }
 
-  // droplets physics
+  // overstim passive sensitivity creep while stroking
+  if (stim.overstim && (stim.auto || stim.manualDrive) && Math.abs(stim.vel) > 0.05) {
+    stim.sensitivity = Math.min(3.5, stim.sensitivity + dt * 0.08);
+    if (Math.random() < 0.02) spawnHeart();
+  }
+
   for (let i = stim.droplets.length - 1; i >= 0; i--) {
     const d = stim.droplets[i];
     d.v.y -= 3.2 * dt;
@@ -1018,59 +977,54 @@ function updateSolver(dt) {
     d.life -= dt;
     d.mesh.material.opacity = Math.max(0, d.life);
     if (d.mesh.position.y < 0.02) {
-      d.mesh.position.y = 0.02;
-      d.v.y *= -0.2;
-      d.v.x *= 0.7;
-      d.v.z *= 0.7;
+      d.mesh.position.y = 0.02; d.v.y *= -0.2; d.v.x *= 0.7; d.v.z *= 0.7;
     }
-    if (d.life <= 0) {
-      scene.remove(d.mesh);
-      stim.droplets.splice(i, 1);
-    }
+    if (d.life <= 0) { scene.remove(d.mesh); stim.droplets.splice(i, 1); }
   }
 
   placeFeet(dt);
 
-  // UI
   const p = Math.round(stim.arousal * 100);
   ui.bar.style.width = p + "%";
   ui.pct.textContent = p + "%";
+  const sPct = Math.round((stim.sensitivity / 3.5) * 100);
+  ui.senseBar.style.width = sPct + "%";
+  ui.sensePct.textContent = Math.round(stim.sensitivity * 100) + "%";
   ui.tPos.textContent = stim.pos.toFixed(2);
   ui.tVel.textContent = (stim.vel * 0.15).toFixed(2) + " m/s";
   ui.tForce.textContent = stim.contactForce.toFixed(1) + " N";
   ui.tCad.textContent = stim.cadence.toFixed(2) + " Hz";
-  ui.tAro.textContent = p + "%";
+  ui.tSense.textContent = stim.sensitivity.toFixed(1) + "×";
+  ui.tClimax.textContent = String(stim.climaxCount);
 
   if (!stim.climax && stim.arousal > 0.8) {
-    ui.hint.textContent = "High afferent load — maintain cadence";
+    ui.hint.textContent = stim.overstim ? "Edge… then ruin him" : "Almost — keep going";
     ui.hint.classList.add("hot");
   }
 }
 
-/* camera slow orbit */
 let orbitT = 0;
 function updateCamera(dt) {
+  if (stim.shake > 0.05) {
+    camera.position.x += (Math.random() - 0.5) * 0.03 * stim.shake;
+    camera.position.y += (Math.random() - 0.5) * 0.02 * stim.shake;
+  }
   const amt = +ui.orbit.value;
   if (amt <= 0.001 || stim.manualDrive) return;
   orbitT += dt * 0.15 * amt;
   const r = camera.position.distanceTo(controls.target);
-  const x = Math.cos(orbitT) * r * 0.35 + 1.2;
-  const z = Math.sin(orbitT) * r * 0.25 + 2.0;
-  camera.position.x = THREE.MathUtils.lerp(camera.position.x, x, dt * 0.3 * amt);
-  camera.position.z = THREE.MathUtils.lerp(camera.position.z, z, dt * 0.3 * amt);
+  camera.position.x = THREE.MathUtils.lerp(camera.position.x, Math.cos(orbitT) * r * 0.35 + 1.2, dt * 0.3 * amt);
+  camera.position.z = THREE.MathUtils.lerp(camera.position.z, Math.sin(orbitT) * r * 0.25 + 2.0, dt * 0.3 * amt);
 }
 
-/* resize */
 window.addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
 
-/* boot */
 document.getElementById("load").classList.add("hide");
-setTimeout(() => document.getElementById("load").remove(), 450);
-ui.both.classList.add("active");
+setTimeout(() => document.getElementById("load")?.remove(), 450);
 
 const clock = new THREE.Clock();
 function frame() {
