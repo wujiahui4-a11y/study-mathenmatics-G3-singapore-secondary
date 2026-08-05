@@ -443,7 +443,7 @@ function makeGirl() {
   root.name = "girl";
 
   const hips = new THREE.Group();
-  hips.position.set(0.55, 0.55, 0.05);
+  hips.position.set(0, 0.5, 0.75);
   root.add(hips);
 
   const pelvis = mesh(new THREE.SphereGeometry(0.12, 24, 16), skinF);
@@ -544,8 +544,8 @@ function makeBoy() {
 
   // lying on back along +Z, hips near origin
   const hips = new THREE.Group();
-  hips.position.set(-0.15, 0.18, 0.15);
-  hips.rotation.x = -Math.PI / 2 + 0.08;
+  hips.position.set(0, 0.2, 0.05);
+  hips.rotation.x = -Math.PI / 2 + 0.05;
   root.add(hips);
 
   const pelvis = mesh(new THREE.SphereGeometry(0.13, 24, 16), skinM);
@@ -667,10 +667,16 @@ const boy = makeBoy();
 scene.add(girl);
 scene.add(boy);
 
-/* recline girl: sitting near boy's hips, facing him, feet toward genitals */
-girl.userData.hips.position.set(0.35, 0.42, 0.55);
-girl.userData.hips.rotation.set(-0.15, -1.15, 0.1);
-girl.userData.torso.rotation.set(0.15, 0.1, 0);
+/* Girl sits just past boy's hips, facing his crotch; feet reach the shaft */
+girl.userData.hips.position.set(0.02, 0.48, 0.72);
+girl.userData.hips.rotation.set(0.05, Math.PI, 0);
+girl.userData.torso.rotation.set(0.25, 0, 0);
+girl.userData.head.rotation.set(-0.15, 0, 0);
+
+/* Aim camera at contact zone */
+controls.target.set(0, 0.35, 0.25);
+camera.position.set(1.35, 0.95, 1.55);
+controls.update();
 
 /* ============================================================
    Biomechanical stroke solver
@@ -796,86 +802,121 @@ function triggerClimax() {
   }
 }
 
-/* foot IK-ish placement along shaft */
+/* foot contact solver — analytic 2-bone IK onto shaft */
 const _base = new THREE.Vector3();
 const _tip = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _pos = new THREE.Vector3();
 const _side = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
-const _q = new THREE.Quaternion();
-const _m = new THREE.Matrix4();
+const _hipW = new THREE.Vector3();
+const _to = new THREE.Vector3();
+const _fwd = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _norm = new THREE.Vector3();
+const THIGH_LEN = 0.28;
+const CALF_LEN = 0.26;
+
+function solveLegIK(leg, target, sign) {
+  const hip = leg.hip;
+  const knee = leg.knee;
+  const ankle = leg.ankle;
+
+  hip.updateWorldMatrix(true, false);
+  hip.getWorldPosition(_hipW);
+
+  _to.subVectors(target, _hipW);
+  let dist = _to.length();
+  const maxReach = THIGH_LEN + CALF_LEN - 0.01;
+  const minReach = Math.abs(THIGH_LEN - CALF_LEN) + 0.02;
+  dist = THREE.MathUtils.clamp(dist, minReach, maxReach);
+  _to.normalize();
+
+  // knee angle from law of cosines
+  const cosKnee = THREE.MathUtils.clamp(
+    (THIGH_LEN * THIGH_LEN + CALF_LEN * CALF_LEN - dist * dist) / (2 * THIGH_LEN * CALF_LEN),
+    -1, 1
+  );
+  const kneeFlex = Math.PI - Math.acos(cosKnee);
+
+  // hip pitch toward target in hip-parent space
+  const parent = hip.parent;
+  parent.updateWorldMatrix(true, false);
+  const localTarget = target.clone();
+  parent.worldToLocal(localTarget);
+  const localHip = hip.position.clone();
+  const lv = localTarget.sub(localHip);
+  const yaw = Math.atan2(lv.x, -lv.z);
+  const planar = Math.sqrt(lv.x * lv.x + lv.z * lv.z);
+  const pitch = Math.atan2(planar, -lv.y) - Math.acos(THREE.MathUtils.clamp(
+    (THIGH_LEN * THIGH_LEN + dist * dist - CALF_LEN * CALF_LEN) / (2 * THIGH_LEN * dist),
+    -1, 1
+  ));
+
+  hip.rotation.order = "YXZ";
+  hip.rotation.y = THREE.MathUtils.clamp(yaw, -1.2, 1.2);
+  hip.rotation.x = THREE.MathUtils.clamp(-pitch, -2.4, 0.3);
+  hip.rotation.z = sign * 0.08;
+  knee.rotation.set(kneeFlex, 0, 0);
+
+  // orient sole toward shaft axis
+  ankle.rotation.order = "YXZ";
+  ankle.rotation.x = -0.55 + stim.pos * 0.15;
+  ankle.rotation.y = sign * 0.35;
+  ankle.rotation.z = sign * stim.footAngle + THREE.MathUtils.clamp(stim.vel * 0.08, -0.2, 0.2);
+}
 
 function placeFeet(dt) {
   boy.userData.shaftBase.getWorldPosition(_base);
   boy.userData.shaftTip.getWorldPosition(_tip);
-  _dir.subVectors(_tip, _base).normalize();
+  _dir.subVectors(_tip, _base);
+  const shaftLen = Math.max(0.05, _dir.length());
+  _dir.multiplyScalar(1 / shaftLen);
   _side.crossVectors(_up, _dir).normalize();
-  if (_side.lengthSq() < 1e-5) _side.set(1, 0, 0);
+  if (_side.lengthSq() < 1e-6) _side.set(1, 0, 0);
+  _norm.crossVectors(_dir, _side).normalize();
 
   const stroke = stim.pos;
-  const sep = stim.bothFeet ? 0.028 * stim.grip : 0.0;
-  const press = 0.01 + stim.grip * 0.012;
+  const sep = (stim.bothFeet ? 0.034 : 0.0) * (0.7 + stim.grip * 0.5);
+  const press = 0.018 + stim.grip * 0.014;
 
   const feet = [
-    { leg: girl.userData.legs.L, sign: -1, offset: stim.bothFeet ? 0 : 0 },
-    { leg: girl.userData.legs.R, sign: 1, offset: stim.bothFeet ? 0.04 : 0 },
+    { leg: girl.userData.legs.L, sign: -1, lag: 0 },
+    { leg: girl.userData.legs.R, sign: 1, lag: stim.bothFeet ? 0.06 : 0 },
   ];
 
-  // pose legs roughly toward target zone first
   for (const f of feet) {
     if (!stim.bothFeet && f.sign === 1) {
-      // park right foot
-      f.leg.hip.rotation.set(-0.9, 0.2, 0.5);
-      f.leg.knee.rotation.set(1.5, 0, 0);
-      f.leg.ankle.rotation.set(-0.2, 0, 0);
+      f.leg.hip.rotation.set(-0.7, 0.35, 0.45);
+      f.leg.knee.rotation.set(1.35, 0, 0);
+      f.leg.ankle.rotation.set(-0.3, 0.2, 0.2);
       continue;
     }
 
-    const t = THREE.MathUtils.clamp(stroke + f.offset * 0.15, 0.08, 0.92);
-    _pos.copy(_base).addScaledVector(_dir, t * _base.distanceTo(_tip));
+    const t = THREE.MathUtils.clamp(stroke - f.lag, 0.06, 0.94);
+    _pos.copy(_base).addScaledVector(_dir, t * shaftLen);
     _pos.addScaledVector(_side, f.sign * sep);
-    // press into shaft slightly
-    _pos.addScaledVector(_dir.clone().cross(_side).normalize(), -press);
+    // soles press inward onto shaft
+    _pos.addScaledVector(_norm, -press);
+    // slight sole thickness lift so top of foot isn't buried
+    _pos.y += 0.01;
 
-    // analytic leg pose aimed at contact — sit-forward configuration
-    const hip = f.leg.hip;
-    const knee = f.leg.knee;
-    const ankle = f.leg.ankle;
-
-    // base seated reach pose
-    hip.rotation.order = "YXZ";
-    hip.rotation.y = f.sign * -0.15;
-    hip.rotation.z = f.sign * (0.15 + (1 - stroke) * 0.05);
-    hip.rotation.x = -1.05 - stroke * 0.25;
-
-    knee.rotation.x = 1.55 - stroke * 0.35;
-    ankle.rotation.x = -0.35 + stroke * 0.2;
-    ankle.rotation.z = f.sign * stim.footAngle;
-    ankle.rotation.y = f.sign * 0.15;
-
-    // micro roll from velocity (tissue deformation cue)
-    const roll = THREE.MathUtils.clamp(stim.vel * 0.15, -0.25, 0.25);
-    ankle.rotation.x += roll * f.sign * 0.1;
-
-    // move ankle world toward contact by adjusting hip yaw lightly via look
-    // (lightweight — full IK unnecessary for stimulator quality)
-    const ankleWorld = new THREE.Vector3();
-    ankle.getWorldPosition(ankleWorld);
-    // visual squash on shaft from grip
-    const squash = 1 - stim.grip * 0.04 * (stim.bothFeet ? 1 : 0.6);
-    boy.userData.shaft.scale.set(squash, squash, 1 + Math.abs(stim.vel) * 0.02);
+    solveLegIK(f.leg, _pos, f.sign);
   }
 
-  // girl torso subtle reaction
-  girl.userData.torso.rotation.x = 0.12 + Math.sin(stim.phase) * 0.03;
-  girl.userData.head.rotation.y = -0.2 + Math.sin(performance.now() * 0.001) * 0.05;
-  girl.userData.head.rotation.x = 0.1;
+  // shaft soft-body cue
+  const squash = 1 - stim.grip * 0.05 * (stim.bothFeet ? 1 : 0.55);
+  boy.userData.shaft.scale.set(squash, squash, 1 + Math.abs(stim.vel) * 0.025);
+
+  // girl body language
+  girl.userData.torso.rotation.x = 0.22 + Math.sin(stim.phase) * 0.04;
+  girl.userData.head.rotation.y = Math.sin(performance.now() * 0.0011) * 0.06;
+  girl.userData.head.rotation.x = -0.12 + stim.arousal * 0.08;
 
   // boy arousal response
-  const swell = 1 + stim.arousal * 0.12 + (stim.climax ? 0.05 : 0);
+  const swell = 1 + stim.arousal * 0.14 + (stim.climax ? 0.06 : 0);
   boy.userData.headG.scale.set(1.05 * swell, 0.95 * swell, 1.1 * swell);
-  boy.userData.hips.rotation.x = -Math.PI / 2 + 0.08 + Math.sin(stim.phase * 2) * 0.01 * stim.arousal;
+  boy.userData.hips.rotation.x = -Math.PI / 2 + 0.05 + Math.sin(stim.phase * 2) * 0.012 * stim.arousal;
 }
 
 function updateSolver(dt) {
