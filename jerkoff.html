@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Jerk Off — Interactive</title>
+<style>
+  :root {
+    --bg0: #12080c;
+    --bg1: #2a1018;
+    --skin: #e8b89a;
+    --skin-deep: #c4896a;
+    --flush: #d45a6a;
+    --cream: #f5e6c8;
+    --ink: #f7ebe3;
+    --muted: #b89a9a;
+    --accent: #ff6b7a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 20%, #3a1520 0%, transparent 55%),
+      radial-gradient(ellipse 70% 50% at 80% 90%, #1a0a12 0%, transparent 50%),
+      linear-gradient(165deg, var(--bg1), var(--bg0));
+    color: var(--ink);
+    font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px;
+  }
+  h1 {
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-size: clamp(1.1rem, 3.5vw, 1.6rem);
+    text-transform: uppercase;
+    color: var(--ink);
+    text-shadow: 0 2px 18px rgba(255, 80, 100, 0.35);
+  }
+  #stage {
+    position: relative;
+    line-height: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(255, 180, 190, 0.12),
+      0 24px 60px rgba(0, 0, 0, 0.55);
+  }
+  canvas {
+    display: block;
+    width: min(420px, 92vw);
+    height: auto;
+    background: transparent;
+    cursor: grab;
+  }
+  canvas:active { cursor: grabbing; }
+  #hud {
+    width: min(420px, 92vw);
+    display: grid;
+    gap: 10px;
+  }
+  .meter-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meter {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+  }
+  .meter > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #ff8a9a, #ff4d6d 55%, #ffe0a3);
+    box-shadow: 0 0 12px rgba(255, 90, 110, 0.45);
+    transition: width 0.05s linear;
+  }
+  #hint {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--muted);
+    min-height: 1.2em;
+  }
+  #hint.hot { color: var(--accent); }
+  .row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  button {
+    appearance: none;
+    border: 1px solid rgba(255, 200, 210, 0.25);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--ink);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+  button:hover { background: rgba(255, 255, 255, 0.12); }
+  button:active { transform: scale(0.98); }
+  #flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 55%, rgba(255, 240, 210, 0.55), transparent 55%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  #flash.on { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="flash"></div>
+<h1>Jerk Off</h1>
+<div id="stage"><canvas id="c" width="420" height="560"></canvas></div>
+<div id="hud">
+  <div>
+    <div class="meter-label"><span>Arousal</span><span id="pct">0%</span></div>
+    <div class="meter"><i id="bar"></i></div>
+  </div>
+  <p id="hint">Drag up &amp; down on the shaft · or hold Space / tap rhythmically</p>
+  <div class="row">
+    <button type="button" id="auto">Auto stroke</button>
+    <button type="button" id="reset">Reset</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const cvs = document.getElementById("c");
+const ctx = cvs.getContext("2d");
+const bar = document.getElementById("bar");
+const pctEl = document.getElementById("pct");
+const hint = document.getElementById("hint");
+const flash = document.getElementById("flash");
+const autoBtn = document.getElementById("auto");
+const resetBtn = document.getElementById("reset");
+
+const W = cvs.width;
+const H = cvs.height;
+
+const state = {
+  arousal: 0,          // 0..1
+  stroke: 0.55,        // hand Y along shaft 0..1
+  vel: 0,
+  pumping: false,
+  auto: false,
+  autoPhase: 0,
+  climax: false,
+  climaxT: 0,
+  drip: [],
+  shake: 0,
+  lastY: null,
+  pointerDown: false,
+  lastStrokeAt: 0,
+  throb: 0,
+};
+
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function shaftGeom() {
+  const cx = W * 0.5;
+  const top = H * 0.22;
+  const bottom = H * 0.78;
+  const len = bottom - top;
+  return { cx, top, bottom, len, rBase: 38, rTip: 46 };
+}
+
+function addDrip(x, y, vx, vy, life) {
+  state.drip.push({ x, y, vx, vy, life, max: life, r: 3 + Math.random() * 5 });
+}
+
+function triggerClimax() {
+  if (state.climax) return;
+  state.climax = true;
+  state.climaxT = 0;
+  state.shake = 1;
+  flash.classList.add("on");
+  setTimeout(() => flash.classList.remove("on"), 280);
+  hint.textContent = "Finish.";
+  hint.classList.add("hot");
+  const g = shaftGeom();
+  for (let i = 0; i < 28; i++) {
+    const ang = -Math.PI / 2 + (Math.random() - 0.5) * 0.9;
+    const sp = 4 + Math.random() * 10;
+    addDrip(
+      g.cx + (Math.random() - 0.5) * 20,
+      g.top + 20,
+      Math.cos(ang) * sp,
+      Math.sin(ang) * sp,
+      1.2 + Math.random() * 0.8
+    );
+  }
+}
+
+function applyStroke(delta) {
+  if (state.climax) return;
+  const mag = Math.abs(delta);
+  if (mag < 0.002) return;
+  // Favor full-length strokes
+  const gain = clamp(mag * 2.4, 0, 0.045);
+  state.arousal = clamp(state.arousal + gain, 0, 1);
+  state.throb = Math.min(1, state.throb + mag * 3);
+  state.lastStrokeAt = performance.now();
+  if (state.arousal >= 0.995) triggerClimax();
+}
+
+function onPointer(y) {
+  const g = shaftGeom();
+  const t = clamp((y - g.top) / g.len, 0.05, 0.95);
+  if (state.lastY != null) {
+    const dy = (state.lastY - y) / g.len; // up = positive stroke energy too
+    applyStroke(dy);
+  }
+  state.stroke = t;
+  state.lastY = y;
+}
+
+function pointerPos(e) {
+  const r = cvs.getBoundingClientRect();
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return ((clientY - r.top) / r.height) * H;
+}
+
+cvs.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  cvs.setPointerCapture(e.pointerId);
+  state.pointerDown = true;
+  state.pumping = true;
+  state.lastY = pointerPos(e);
+  onPointer(state.lastY);
+});
+cvs.addEventListener("pointermove", (e) => {
+  if (!state.pointerDown) return;
+  onPointer(pointerPos(e));
+});
+cvs.addEventListener("pointerup", () => {
+  state.pointerDown = false;
+  state.pumping = false;
+  state.lastY = null;
+});
+cvs.addEventListener("pointercancel", () => {
+  state.pointerDown = false;
+  state.pumping = false;
+  state.lastY = null;
+});
+
+const keys = new Set();
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Space") {
+    e.preventDefault();
+    if (!keys.has("Space")) {
+      keys.add("Space");
+      state.pumping = true;
+    }
+  }
+});
+window.addEventListener("keyup", (e) => {
+  if (e.code === "Space") {
+    keys.delete("Space");
+    state.pumping = false;
+  }
+});
+
+autoBtn.addEventListener("click", () => {
+  state.auto = !state.auto;
+  autoBtn.textContent = state.auto ? "Stop auto" : "Auto stroke";
+});
+resetBtn.addEventListener("click", () => {
+  state.arousal = 0;
+  state.climax = false;
+  state.climaxT = 0;
+  state.drip = [];
+  state.shake = 0;
+  state.throb = 0;
+  hint.textContent = "Drag up & down on the shaft · or hold Space / tap rhythmically";
+  hint.classList.remove("hot");
+  flash.classList.remove("on");
+});
+
+function drawBackground(t) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#2c121c");
+  g.addColorStop(0.45, "#1a0c12");
+  g.addColorStop(1, "#0c0608");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // soft vignette glow that pulses with arousal
+  const pulse = 0.15 + state.arousal * 0.35 + Math.sin(t * 0.004) * 0.05;
+  const rg = ctx.createRadialGradient(W / 2, H * 0.55, 40, W / 2, H * 0.5, 260);
+  rg.addColorStop(0, `rgba(255, 90, 120, ${pulse * 0.35})`);
+  rg.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = rg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function roundRect(x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function drawDick(t) {
+  const g = shaftGeom();
+  const a = state.arousal;
+  const throb = 1 + Math.sin(t * 0.012 + a * 8) * (0.02 + a * 0.04) + state.throb * 0.03;
+  const swell = 1 + a * 0.12;
+  const tipY = g.top + 8;
+  const baseY = g.bottom;
+  const shaftTop = tipY + 55;
+  const r = g.rBase * swell * throb;
+
+  ctx.save();
+  if (state.shake > 0) {
+    ctx.translate((Math.random() - 0.5) * 10 * state.shake, (Math.random() - 0.5) * 8 * state.shake);
+  }
+
+  // balls
+  const ballY = baseY + 8;
+  const ballR = 36 + a * 4;
+  ctx.fillStyle = "#d4a078";
+  ctx.beginPath();
+  ctx.ellipse(g.cx - 28, ballY, ballR * 0.95, ballR * 0.85, -0.15, 0, Math.PI * 2);
+  ctx.ellipse(g.cx + 28, ballY, ballR * 0.95, ballR * 0.85, 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(160, 80, 70, 0.25)";
+  ctx.beginPath();
+  ctx.ellipse(g.cx - 28, ballY + 6, ballR * 0.7, ballR * 0.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(g.cx + 28, ballY + 6, ballR * 0.7, ballR * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // shaft
+  const shaftGrad = ctx.createLinearGradient(g.cx - r, 0, g.cx + r, 0);
+  shaftGrad.addColorStop(0, "#c4896a");
+  shaftGrad.addColorStop(0.35, "#e8b89a");
+  shaftGrad.addColorStop(0.65, "#f0c8ae");
+  shaftGrad.addColorStop(1, "#b9785a");
+  ctx.fillStyle = shaftGrad;
+  roundRect(g.cx - r, shaftTop, r * 2, baseY - shaftTop + 10, r * 0.9);
+  ctx.fill();
+
+  // vein
+  ctx.strokeStyle = `rgba(180, 70, 90, ${0.25 + a * 0.35})`;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(g.cx - 8, shaftTop + 20);
+  ctx.bezierCurveTo(g.cx - 18, lerp(shaftTop, baseY, 0.35), g.cx + 10, lerp(shaftTop, baseY, 0.55), g.cx - 4, baseY - 20);
+  ctx.stroke();
+
+  // head
+  const headR = g.rTip * swell * throb;
+  const headGrad = ctx.createRadialGradient(g.cx - 8, tipY + 30, 8, g.cx, tipY + 35, headR + 10);
+  const flush = lerp(0.15, 0.55, a);
+  headGrad.addColorStop(0, `rgb(${232 + flush * 20}, ${160 - flush * 40}, ${150 - flush * 30})`);
+  headGrad.addColorStop(0.55, `rgb(${210}, ${120 - flush * 20}, ${110})`);
+  headGrad.addColorStop(1, "#a85a4a");
+  ctx.fillStyle = headGrad;
+  ctx.beginPath();
+  ctx.ellipse(g.cx, tipY + 38, headR, headR * 0.95, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // glans ridge
+  ctx.strokeStyle = "rgba(140, 60, 60, 0.45)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(g.cx, tipY + 52, headR * 0.92, 10, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // slit
+  ctx.strokeStyle = "rgba(80, 30, 40, 0.7)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(g.cx, tipY + 18);
+  ctx.quadraticCurveTo(g.cx + 2, tipY + 28, g.cx, tipY + 36);
+  ctx.stroke();
+
+  // precum / wet tip when aroused
+  if (a > 0.35 && !state.climax) {
+    const drop = (a - 0.35) / 0.65;
+    ctx.fillStyle = `rgba(245, 230, 200, ${0.35 + drop * 0.45})`;
+    ctx.beginPath();
+    ctx.ellipse(g.cx, tipY + 14, 4 + drop * 3, 5 + drop * 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // hand
+  const handY = lerp(shaftTop + 10, baseY - 30, state.stroke);
+  const handW = r * 2 + 28;
+  const handH = 52;
+  const grip = state.pumping || state.auto ? 1 : 0.85;
+  ctx.fillStyle = "#c99578";
+  roundRect(g.cx - handW / 2, handY - handH / 2, handW, handH, 18);
+  ctx.fill();
+  // fingers
+  ctx.fillStyle = "#b88062";
+  for (let i = 0; i < 4; i++) {
+    const fx = g.cx - handW / 2 + 14 + i * (handW / 4.5);
+    roundRect(fx, handY - handH / 2 - 8 * grip, 16, 22, 6);
+    ctx.fill();
+  }
+  // thumb
+  ctx.fillStyle = "#d4a088";
+  ctx.beginPath();
+  ctx.ellipse(g.cx + handW / 2 - 6, handY + 4, 14, 18, 0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawDrips(dt) {
+  for (let i = state.drip.length - 1; i >= 0; i--) {
+    const d = state.drip[i];
+    d.vy += 18 * dt;
+    d.x += d.vx;
+    d.y += d.vy;
+    d.vx *= 0.99;
+    d.life -= dt;
+    if (d.life <= 0 || d.y > H + 20) {
+      state.drip.splice(i, 1);
+      continue;
+    }
+    const alpha = clamp(d.life / d.max, 0, 1);
+    ctx.fillStyle = `rgba(245, 230, 200, ${alpha})`;
+    ctx.beginPath();
+    ctx.ellipse(d.x, d.y, d.r, d.r * 1.25, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // trail splat on floor-ish
+    if (d.y > H * 0.85) {
+      ctx.fillStyle = `rgba(245, 230, 200, ${alpha * 0.35})`;
+      ctx.beginPath();
+      ctx.ellipse(d.x, H * 0.92, d.r * 2.2, d.r * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function update(dt, t) {
+  state.throb = Math.max(0, state.throb - dt * 1.2);
+  state.shake = Math.max(0, state.shake - dt * 1.8);
+
+  // slow decay if idle (before climax)
+  if (!state.climax && !state.pointerDown && !state.auto && !keys.has("Space")) {
+    const idle = (performance.now() - state.lastStrokeAt) / 1000;
+    if (idle > 0.8) state.arousal = Math.max(0, state.arousal - dt * 0.04);
+  }
+
+  // Space / auto rhythm
+  if (!state.climax && (state.auto || keys.has("Space"))) {
+    const speed = state.auto ? 5.5 : 7.2;
+    state.autoPhase += dt * speed;
+    const target = 0.5 + Math.sin(state.autoPhase) * 0.38;
+    const prev = state.stroke;
+    state.stroke = lerp(state.stroke, target, 0.35);
+    applyStroke(prev - state.stroke);
+  }
+
+  if (state.climax) {
+    state.climaxT += dt;
+    if (state.climaxT < 1.4 && Math.random() < 0.35) {
+      const g = shaftGeom();
+      addDrip(g.cx + (Math.random() - 0.5) * 16, g.top + 18, (Math.random() - 0.5) * 3, -2 - Math.random() * 6, 1);
+    }
+  }
+
+  // hint text
+  if (!state.climax) {
+    if (state.arousal > 0.85) {
+      hint.textContent = "Almost there — keep going";
+      hint.classList.add("hot");
+    } else if (state.arousal > 0.45) {
+      hint.textContent = "Building up… longer strokes work better";
+      hint.classList.remove("hot");
+    }
+  }
+
+  const p = Math.round(state.arousal * 100);
+  bar.style.width = p + "%";
+  pctEl.textContent = p + "%";
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  update(dt, now);
+  drawBackground(now);
+  drawDick(now);
+  drawDrips(dt);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
