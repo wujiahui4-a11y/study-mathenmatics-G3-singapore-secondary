@@ -641,23 +641,31 @@ const girl = makeGirl();
 const boy = makeBoy();
 scene.add(girl); scene.add(boy);
 
+// Contact targets live on the shaft; feet stay parented to ankles (never detach)
 const strokeRig = new THREE.Group();
 boy.userData.gen.add(strokeRig);
+const targetL = new THREE.Object3D();
+const targetR = new THREE.Object3D();
+strokeRig.add(targetL);
+strokeRig.add(targetR);
+
 const footL = girl.userData.legs.L.foot;
 const footR = girl.userData.legs.R.foot;
-girl.userData.legs.L.ankle.remove(footL);
-girl.userData.legs.R.ankle.remove(footR);
-strokeRig.add(footL); strokeRig.add(footR);
-footL.scale.setScalar(1.55); footR.scale.setScalar(1.55);
-// Keep ankles visible — they will be IK'd/stretched to meet each foot heel
+// Ensure feet are ankle children — zero separation by hierarchy
+girl.userData.legs.L.ankle.add(footL);
+girl.userData.legs.R.ankle.add(footR);
+footL.scale.setScalar(1.55);
+footR.scale.setScalar(1.55);
+footL.position.set(0, 0, 0);
+footR.position.set(0, 0, 0);
 
-// Sit close enough that bent legs can reach the shaft
-girl.userData.hips.position.set(0.0, 0.42, 0.55);
-girl.userData.hips.rotation.set(0.2, Math.PI, 0);
-girl.userData.torso.rotation.set(0.4, 0, 0);
-girl.userData.head.rotation.set(-0.2, 0, 0);
-girl.userData.arms.L.shoulder.rotation.set(-0.7, 0.25, -1.0);
-girl.userData.arms.R.shoulder.rotation.set(-0.7, -0.25, 1.0);
+// Sit close so legs can reach the shaft without breaking
+girl.userData.hips.position.set(0.0, 0.48, 0.48);
+girl.userData.hips.rotation.set(0.25, Math.PI, 0);
+girl.userData.torso.rotation.set(0.45, 0, 0);
+girl.userData.head.rotation.set(-0.25, 0, 0);
+girl.userData.arms.L.shoulder.rotation.set(-0.75, 0.25, -1.05);
+girl.userData.arms.R.shoulder.rotation.set(-0.75, -0.25, 1.05);
 
 controls.target.set(0, 0.4, 0.12);
 camera.position.set(1.65, 0.55, 0.35);
@@ -828,105 +836,108 @@ const _heelW = new THREE.Vector3();
 const _hipW = new THREE.Vector3();
 const _ankleW = new THREE.Vector3();
 const _dir = new THREE.Vector3();
+const _quat = new THREE.Quaternion();
+const _quat2 = new THREE.Quaternion();
+const _mat = new THREE.Matrix4();
+const _mat2 = new THREE.Matrix4();
+const _scale = new THREE.Vector3();
 
-/** Aim hip/knee at the foot heel and stretch the calf so ankle meets the foot — no floating gap */
-function connectLegToFoot(leg, foot, sign) {
-  const hip = leg.hip, knee = leg.knee, ankle = leg.ankle;
-  const thighLen = leg.thighLen, calfLen = leg.calfLen;
-  const parent = hip.parent;
-  parent.updateWorldMatrix(true, false);
-  hip.getWorldPosition(_hipW);
-
-  // Heel of the foot (local heel is toward -Z on the foot mesh)
-  _heelW.set(0, 0.0, -0.06 * foot.scale.z);
-  foot.localToWorld(_heelW);
-
-  _dir.subVectors(_heelW, _hipW);
-  let dist = _dir.length();
-  const maxReach = thighLen + calfLen - 0.01;
-  const minReach = Math.abs(thighLen - calfLen) + 0.02;
-
-  // If too far, stretch both segments proportionally so we still reach
-  let stretch = 1;
-  if (dist > maxReach) {
-    stretch = dist / maxReach;
-    dist = maxReach;
-  }
-  dist = Math.max(minReach, dist);
-
-  const tLen = thighLen * stretch;
-  const cLen = calfLen * stretch;
-
-  // Law of cosines in the reach plane
-  const cosKnee = THREE.MathUtils.clamp(
-    (tLen * tLen + cLen * cLen - dist * dist) / (2 * tLen * cLen), -1, 1);
-  const kneeFlex = Math.PI - Math.acos(cosKnee);
-  const cosHip = THREE.MathUtils.clamp(
-    (tLen * tLen + dist * dist - cLen * cLen) / (2 * tLen * dist), -1, 1);
-  const hipOffset = Math.acos(cosHip);
-
-  // Direction to heel in hip-parent local space
-  const localHeel = _heelW.clone();
-  parent.worldToLocal(localHeel);
-  const lv = localHeel.sub(hip.position.clone());
-  const yaw = Math.atan2(lv.x, -lv.z);
-  const planar = Math.sqrt(lv.x * lv.x + lv.z * lv.z);
-  // Girl faces +PI so "down" toward feet is mixed; use vector elevation from -Y
-  const elev = Math.atan2(planar, Math.max(0.001, -lv.y));
-
-  hip.rotation.order = "YXZ";
-  hip.rotation.y = THREE.MathUtils.clamp(yaw, -1.6, 1.6);
-  hip.rotation.x = THREE.MathUtils.clamp(-(elev - hipOffset), -2.8, 0.5);
-  hip.rotation.z = sign * 0.1;
-  knee.rotation.set(kneeFlex, 0, 0);
-
-  // Apply stretch to mesh positions / scales
-  leg.thigh.position.y = -tLen * 0.5;
-  leg.thigh.scale.set(1, stretch, 1);
-  knee.position.y = -tLen;
-  leg.calf.position.y = -cLen * 0.5;
-  leg.calf.scale.set(1, stretch, 1);
-  ankle.position.y = -cLen;
-  ankle.visible = true;
-
-  // Final snap: put ankle exactly on the heel and stretch calf to match
-  hip.updateWorldMatrix(true, true);
-  const heelLocal = _heelW.clone();
-  knee.worldToLocal(heelLocal);
-  ankle.position.copy(heelLocal);
-  const reach = Math.max(0.05, ankle.position.length());
-  leg.calf.scale.set(1, reach / calfLen, 1);
-  leg.calf.position.copy(ankle.position.clone().multiplyScalar(0.5));
-  ankle.visible = true;
-  ankle.rotation.set(-0.15, sign * 0.05, 0);
-}
-
-function orientSoleInward(foot, inwardX) {
+function orientSoleInwardQuat(inwardX, outQuat) {
   const up = new THREE.Vector3(-inwardX, 0, 0);
   const toes = new THREE.Vector3(0, 0, 1);
   const side = new THREE.Vector3().crossVectors(up, toes).normalize();
   toes.copy(new THREE.Vector3().crossVectors(side, up).normalize());
-  foot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, toes));
+  outQuat.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, toes));
 }
 
-/** Toes press the dorsal (back) ridge of the shaft and glide along it */
-function orientToesOnDorsal(foot, sideSign) {
-  // Local +Z (toes) point into the shaft (toward -Y dorsal contact from above),
-  // sole mostly faces outward/up so pads aren't doing the work — toes are.
-  // Dorsal is +Y in gen space; toes approach from +Y pressing toward -Y into ridge.
-  const intoShaft = new THREE.Vector3(0, -1, 0); // press direction
-  const along = new THREE.Vector3(0, 0, 1); // along shaft toward tip
-  // foot local -Y (sole) faces partly away; local +Z (toes) aligns with intoShaft
-  const toes = intoShaft.clone();
-  const up = new THREE.Vector3(sideSign * 0.35, 0.85, 0).normalize(); // slight outward lean
+function orientToesOnDorsalQuat(sideSign, outQuat) {
+  const toes = new THREE.Vector3(0, -1, 0);
+  const up = new THREE.Vector3(sideSign * 0.35, 0.85, 0).normalize();
   const side = new THREE.Vector3().crossVectors(toes, up).normalize();
   up.copy(new THREE.Vector3().crossVectors(side, toes).normalize());
-  // Remap: we want local +Z = toes direction (into shaft), local +Y = up
-  // makeBasis(x, y, z) => local X,Y,Z
-  const xAxis = side;
-  const yAxis = up;
-  const zAxis = toes;
-  foot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis));
+  outQuat.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, toes));
+}
+
+/**
+ * Feet stay CHILDREN of ankles. We IK the leg to the contact target, then
+ * set the foot local transform so its world pose matches the target exactly.
+ * Hierarchy guarantee = zero gap between leg and foot.
+ */
+function poseLegAndFoot(leg, foot, target, sign) {
+  const hip = leg.hip, knee = leg.knee, ankle = leg.ankle;
+  const thighLen = leg.thighLen, calfLen = leg.calfLen;
+  const hipsParent = hip.parent;
+
+  // Desired foot world matrix from shaft target
+  strokeRig.updateWorldMatrix(true, true);
+  target.updateWorldMatrix(true, false);
+  const desiredPos = new THREE.Vector3();
+  const desiredQuat = new THREE.Quaternion();
+  target.matrixWorld.decompose(desiredPos, desiredQuat, _scale);
+
+  // 1) IK ankle toward desired foot position (heel ≈ foot origin)
+  hipsParent.updateWorldMatrix(true, false);
+  hip.getWorldPosition(_hipW);
+  _dir.subVectors(desiredPos, _hipW);
+  let dist = _dir.length();
+  const maxReach = thighLen + calfLen - 0.01;
+  const minReach = Math.abs(thighLen - calfLen) + 0.03;
+  let stretch = 1;
+  if (dist > maxReach) { stretch = dist / maxReach; dist = maxReach; }
+  dist = Math.max(minReach, Math.min(dist, maxReach));
+  const tLen = thighLen * stretch;
+  const cLen = calfLen * stretch;
+
+  const cosKnee = THREE.MathUtils.clamp((tLen*tLen + cLen*cLen - dist*dist) / (2*tLen*cLen), -1, 1);
+  const kneeFlex = Math.PI - Math.acos(cosKnee);
+  const cosHip = THREE.MathUtils.clamp((tLen*tLen + dist*dist - cLen*cLen) / (2*tLen*dist), -1, 1);
+  const hipOffset = Math.acos(cosHip);
+
+  const localTarget = desiredPos.clone();
+  hipsParent.worldToLocal(localTarget);
+  const lv = localTarget.sub(hip.position.clone());
+  const yaw = Math.atan2(lv.x, -lv.z);
+  const planar = Math.sqrt(lv.x * lv.x + lv.z * lv.z);
+  const elev = Math.atan2(planar, Math.max(0.001, -lv.y));
+
+  hip.rotation.order = "YXZ";
+  hip.rotation.y = THREE.MathUtils.clamp(yaw, -1.7, 1.7);
+  hip.rotation.x = THREE.MathUtils.clamp(-(elev - hipOffset), -2.9, 0.6);
+  hip.rotation.z = sign * 0.08;
+  knee.rotation.set(kneeFlex, 0, 0);
+
+  // Stretch thigh/calf along chain
+  leg.thigh.quaternion.identity();
+  leg.thigh.position.set(0, -tLen * 0.5, 0);
+  leg.thigh.scale.set(1, stretch, 1);
+  knee.position.set(0, -tLen, 0);
+  leg.calf.quaternion.identity();
+  leg.calf.position.set(0, -cLen * 0.5, 0);
+  leg.calf.scale.set(1, stretch, 1);
+  ankle.position.set(0, -cLen, 0);
+
+  // Snap ankle onto target position in knee space, stretch calf to fill
+  hip.updateWorldMatrix(true, true);
+  const ankleLocal = desiredPos.clone();
+  knee.worldToLocal(ankleLocal);
+  ankle.position.copy(ankleLocal);
+  const reach = Math.max(0.04, ankle.position.length());
+  const along = ankle.position.clone().normalize();
+  leg.calf.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), along);
+  leg.calf.scale.set(1, reach / calfLen, 1);
+  leg.calf.position.copy(ankle.position).multiplyScalar(0.5);
+
+  // 2) Ankle world rotation: match desired foot rotation (foot local identity first)
+  hip.updateWorldMatrix(true, true);
+  const ankleWorldQuat = new THREE.Quaternion();
+  ankle.getWorldQuaternion(ankleWorldQuat);
+  // We want foot world quat = desiredQuat, with foot still child of ankle.
+  // foot.quaternion_local = inv(ankleWorld) * desiredQuat
+  foot.position.set(0, 0, 0);
+  foot.scale.setScalar(1.55);
+  _quat.copy(ankleWorldQuat).invert().multiply(desiredQuat);
+  foot.quaternion.copy(_quat);
+  ankle.visible = true;
 }
 
 function placeFeet(dt) {
@@ -935,43 +946,34 @@ function placeFeet(dt) {
   const toeMilk = stim.technique === "toeMilk";
 
   if (toeMilk) {
-    // —— Comfort climax technique: toes on the BACK of the dick, slow up/down squeeze ——
-    // Dorsal ridge is +Y in gen space. Toes sit on it and milk along Z.
-    const milk = stim.pos; // 0..1 along shaft
+    const milk = stim.pos;
     const z = THREE.MathUtils.lerp(0.04, 0.195, milk);
-    // gentle alternating stagger so it doesn't feel like a copy-paste sine
     const stagger = 0.035 * Math.sin(stim.milkPhase * 0.7);
     const zL = THREE.MathUtils.clamp(z + stagger, 0.035, 0.2);
     const zR = THREE.MathUtils.clamp(z - stagger * 0.85, 0.035, 0.2);
-
-    // soft rhythmic squeeze (pressure into dorsal ridge)
     const squeezePulse = 0.5 + 0.5 * Math.sin(stim.milkPhase * 1.15);
     const press = r * (0.55 + grip * 0.25 + squeezePulse * 0.2);
-    const dorsalY = r * 0.15 + press; // sit on top/back of shaft
-    const spread = 0.012 + (1 - squeezePulse) * 0.018; // toes pinch together on squeeze
+    const dorsalY = r * 0.15 + press;
+    const spread = 0.012 + (1 - squeezePulse) * 0.018;
 
-    footL.visible = true;
-    footR.visible = true;
-    footL.position.set(-spread, dorsalY, zL);
-    footR.position.set(spread, dorsalY, zR);
-    orientToesOnDorsal(footL, -1);
-    orientToesOnDorsal(footR, +1);
-    // toe curl / knead — comfortable wriggle along the ridge
-    const curl = 0.12 + squeezePulse * 0.18;
-    footL.rotateX(-curl);
-    footR.rotateX(-curl);
-    footL.rotateZ(-0.08 - stim.footAngle * 0.15);
-    footR.rotateZ(0.08 + stim.footAngle * 0.15);
-    // tiny lateral knead
-    footL.position.x -= squeezePulse * 0.004;
-    footR.position.x += squeezePulse * 0.004;
+    targetL.position.set(-spread - squeezePulse * 0.004, dorsalY, zL);
+    targetR.position.set(spread + squeezePulse * 0.004, dorsalY, zR);
+    orientToesOnDorsalQuat(-1, _quat);
+    targetL.quaternion.copy(_quat);
+    targetL.rotateX(-(0.12 + squeezePulse * 0.18));
+    targetL.rotateZ(-0.08 - stim.footAngle * 0.15);
+    orientToesOnDorsalQuat(1, _quat);
+    targetR.quaternion.copy(_quat);
+    targetR.rotateX(-(0.12 + squeezePulse * 0.18));
+    targetR.rotateZ(0.08 + stim.footAngle * 0.15);
 
-    // shaft reacts to dorsal toe pressure (flatten slightly on Y)
     const ySquash = 1 - (0.06 + grip * 0.08 + squeezePulse * 0.05);
     boy.userData.shaft.scale.set(1 + (1 - ySquash) * 0.5, ySquash, 1 + Math.abs(stim.vel) * 0.02);
+
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
   } else {
-    // —— Normal sole sandwich stroke ——
-    const padReach = 0.028 * footL.scale.y;
+    const padReach = 0.028 * 1.55;
     const dig = 0.022 + grip * 0.028 + (stim.overstim ? 0.012 : 0);
     const sep = Math.max(0.01, padReach - dig);
     const stroke = stim.pos;
@@ -981,47 +983,48 @@ function placeFeet(dt) {
     const sepL = Math.max(0.008, sep - squeeze);
     const sepR = stim.bothFeet ? Math.max(0.008, sep - squeeze) : 0.14;
 
-    footL.visible = true;
-    footL.position.set(-sepL, 0, z);
-    orientSoleInward(footL, +1);
-    footL.rotateZ(THREE.MathUtils.clamp(stim.footAngle * 0.25, -0.2, 0.2));
-    footL.rotateX(THREE.MathUtils.clamp(stim.vel * 0.08 + stim.twitch * 0.15, -0.35, 0.35));
+    targetL.position.set(-sepL, 0, z + 0.004 * Math.sin(stim.phase * 2));
+    orientSoleInwardQuat(+1, _quat);
+    targetL.quaternion.copy(_quat);
+    targetL.rotateZ(THREE.MathUtils.clamp(stim.footAngle * 0.25, -0.2, 0.2));
+    targetL.rotateX(THREE.MathUtils.clamp(stim.vel * 0.08 + stim.twitch * 0.15, -0.35, 0.35));
 
     if (stim.bothFeet) {
-      footR.visible = true;
-      footR.position.set(sepR, 0, zR);
-      orientSoleInward(footR, -1);
-      footR.rotateZ(THREE.MathUtils.clamp(-stim.footAngle * 0.25, -0.2, 0.2));
-      footR.rotateX(THREE.MathUtils.clamp(-stim.vel * 0.08 - stim.twitch * 0.15, -0.35, 0.35));
+      targetR.position.set(sepR, 0, zR - 0.004 * Math.sin(stim.phase * 2));
+      orientSoleInwardQuat(-1, _quat);
+      targetR.quaternion.copy(_quat);
+      targetR.rotateZ(THREE.MathUtils.clamp(-stim.footAngle * 0.25, -0.2, 0.2));
+      targetR.rotateX(THREE.MathUtils.clamp(-stim.vel * 0.08 - stim.twitch * 0.15, -0.35, 0.35));
     } else {
-      footR.position.set(0.14, -0.03, 0); footR.quaternion.identity();
-      footR.rotation.set(0.5, 0.4, -0.6);
+      targetR.position.set(0.14, -0.03, 0);
+      targetR.rotation.set(0.5, 0.4, -0.5);
     }
-    footL.position.z += 0.004 * Math.sin(stim.phase * 2);
-    if (stim.bothFeet) footR.position.z -= 0.004 * Math.sin(stim.phase * 2);
+
     if (stim.overstim) {
       const curl = Math.sin(stim.phase * 4) * 0.006;
-      footL.position.x -= curl; footR.position.x += curl;
+      targetL.position.x -= curl;
+      if (stim.bothFeet) targetR.position.x += curl;
     }
+
     const squash = 1 - (0.08 + grip * 0.16 + (stim.overstim ? 0.04 : 0)) * (stim.bothFeet ? 1 : 0.55);
     boy.userData.shaft.scale.set(squash, squash, 1 + Math.abs(stim.vel) * 0.03);
-  }
 
-  strokeRig.updateWorldMatrix(true, true);
-  // Reconnect legs so ankles meet each foot heel (no floating detached feet)
-  connectLegToFoot(girl.userData.legs.L, footL, -1);
-  if (stim.bothFeet || toeMilk) {
-    connectLegToFoot(girl.userData.legs.R, footR, 1);
-  } else {
-    const leg = girl.userData.legs.R;
-    leg.thigh.scale.set(1, 1, 1);
-    leg.calf.scale.set(1, 1, 1);
-    leg.thigh.position.y = -leg.thighLen * 0.5;
-    leg.knee.position.y = -leg.thighLen;
-    leg.calf.position.y = -leg.calfLen * 0.5;
-    leg.ankle.position.y = -leg.calfLen;
-    leg.hip.rotation.set(-0.5, 0.4, 0.55);
-    leg.knee.rotation.set(1.2, 0, 0);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    if (stim.bothFeet) poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+    else {
+      const leg = girl.userData.legs.R;
+      leg.thigh.scale.set(1, 1, 1); leg.calf.scale.set(1, 1, 1);
+      leg.thigh.quaternion.identity(); leg.calf.quaternion.identity();
+      leg.thigh.position.set(0, -leg.thighLen * 0.5, 0);
+      leg.knee.position.set(0, -leg.thighLen, 0);
+      leg.calf.position.set(0, -leg.calfLen * 0.5, 0);
+      leg.ankle.position.set(0, -leg.calfLen, 0);
+      leg.hip.rotation.set(-0.55, 0.45, 0.55);
+      leg.knee.rotation.set(1.25, 0, 0);
+      footR.position.set(0, 0, 0);
+      footR.rotation.set(-Math.PI / 2, 0, 0);
+      footR.scale.setScalar(1.55);
+    }
   }
 
   const react = stim.arousal * 0.08 + stim.twitch * 0.12;
