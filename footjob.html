@@ -549,13 +549,23 @@ function makeGirl() {
   for (const side of [-1, 1]) {
     const hip = new THREE.Group();
     hip.position.set(side * 0.075, -0.02, 0); hips.add(hip);
-    const thigh = limb(0.28, 0.05, 0.038, skinF); thigh.position.y = -0.14; hip.add(thigh);
-    const knee = new THREE.Group(); knee.position.y = -0.28; hip.add(knee);
-    const calf = limb(0.26, 0.036, 0.028, skinF); calf.position.y = -0.13; knee.add(calf);
-    const ankle = new THREE.Group(); ankle.position.y = -0.26; knee.add(ankle);
+    // Longer anime legs so they can reach the shaft contact
+    const thighLen = 0.36, calfLen = 0.34;
+    const thigh = limb(thighLen, 0.05, 0.038, skinF);
+    thigh.position.y = -thighLen * 0.5; hip.add(thigh);
+    const knee = new THREE.Group(); knee.position.y = -thighLen; hip.add(knee);
+    const calf = limb(calfLen, 0.036, 0.028, skinF);
+    calf.position.y = -calfLen * 0.5; knee.add(calf);
+    const ankle = new THREE.Group(); ankle.position.y = -calfLen; knee.add(ankle);
+    // visible ankle ball so the join to the foot reads clearly
+    const ankleBall = mesh(new THREE.SphereGeometry(0.03, 12, 10), skinF);
+    ankle.add(ankleBall);
     const foot = makeFoot(skinF, side);
     foot.rotation.x = -Math.PI / 2; ankle.add(foot);
-    legs[side === -1 ? "L" : "R"] = { hip, knee, ankle, foot };
+    legs[side === -1 ? "L" : "R"] = {
+      hip, knee, ankle, foot, thigh, calf, ankleBall,
+      thighLen, calfLen
+    };
   }
 
   const panty = mesh(new THREE.SphereGeometry(0.105, 20, 14), clothAccent);
@@ -639,14 +649,15 @@ girl.userData.legs.L.ankle.remove(footL);
 girl.userData.legs.R.ankle.remove(footR);
 strokeRig.add(footL); strokeRig.add(footR);
 footL.scale.setScalar(1.55); footR.scale.setScalar(1.55);
-for (const side of ["L", "R"]) girl.userData.legs[side].ankle.visible = false;
+// Keep ankles visible — they will be IK'd/stretched to meet each foot heel
 
-girl.userData.hips.position.set(0.0, 0.38, 0.95);
-girl.userData.hips.rotation.set(0.1, Math.PI, 0);
-girl.userData.torso.rotation.set(0.35, 0, 0);
-girl.userData.head.rotation.set(-0.15, 0, 0);
-girl.userData.arms.L.shoulder.rotation.set(-0.6, 0.2, -0.9);
-girl.userData.arms.R.shoulder.rotation.set(-0.6, -0.2, 0.9);
+// Sit close enough that bent legs can reach the shaft
+girl.userData.hips.position.set(0.0, 0.42, 0.55);
+girl.userData.hips.rotation.set(0.2, Math.PI, 0);
+girl.userData.torso.rotation.set(0.4, 0, 0);
+girl.userData.head.rotation.set(-0.2, 0, 0);
+girl.userData.arms.L.shoulder.rotation.set(-0.7, 0.25, -1.0);
+girl.userData.arms.R.shoulder.rotation.set(-0.7, -0.25, 1.0);
 
 controls.target.set(0, 0.4, 0.12);
 camera.position.set(1.65, 0.55, 0.35);
@@ -813,30 +824,81 @@ function triggerClimax() {
 }
 
 const _footW = new THREE.Vector3();
-const THIGH_LEN = 0.28, CALF_LEN = 0.26;
+const _heelW = new THREE.Vector3();
+const _hipW = new THREE.Vector3();
+const _ankleW = new THREE.Vector3();
+const _dir = new THREE.Vector3();
 
-function solveLegToward(leg, target, sign) {
+/** Aim hip/knee at the foot heel and stretch the calf so ankle meets the foot — no floating gap */
+function connectLegToFoot(leg, foot, sign) {
   const hip = leg.hip, knee = leg.knee, ankle = leg.ankle;
+  const thighLen = leg.thighLen, calfLen = leg.calfLen;
   const parent = hip.parent;
   parent.updateWorldMatrix(true, false);
-  const localTarget = target.clone();
-  parent.worldToLocal(localTarget);
-  const lv = localTarget.sub(hip.position.clone());
-  let dist = THREE.MathUtils.clamp(lv.length(), 0.08, THIGH_LEN + CALF_LEN - 0.02);
+  hip.getWorldPosition(_hipW);
+
+  // Heel of the foot (local heel is toward -Z on the foot mesh)
+  _heelW.set(0, 0.0, -0.06 * foot.scale.z);
+  foot.localToWorld(_heelW);
+
+  _dir.subVectors(_heelW, _hipW);
+  let dist = _dir.length();
+  const maxReach = thighLen + calfLen - 0.01;
+  const minReach = Math.abs(thighLen - calfLen) + 0.02;
+
+  // If too far, stretch both segments proportionally so we still reach
+  let stretch = 1;
+  if (dist > maxReach) {
+    stretch = dist / maxReach;
+    dist = maxReach;
+  }
+  dist = Math.max(minReach, dist);
+
+  const tLen = thighLen * stretch;
+  const cLen = calfLen * stretch;
+
+  // Law of cosines in the reach plane
   const cosKnee = THREE.MathUtils.clamp(
-    (THIGH_LEN * THIGH_LEN + CALF_LEN * CALF_LEN - dist * dist) / (2 * THIGH_LEN * CALF_LEN), -1, 1);
+    (tLen * tLen + cLen * cLen - dist * dist) / (2 * tLen * cLen), -1, 1);
   const kneeFlex = Math.PI - Math.acos(cosKnee);
+  const cosHip = THREE.MathUtils.clamp(
+    (tLen * tLen + dist * dist - cLen * cLen) / (2 * tLen * dist), -1, 1);
+  const hipOffset = Math.acos(cosHip);
+
+  // Direction to heel in hip-parent local space
+  const localHeel = _heelW.clone();
+  parent.worldToLocal(localHeel);
+  const lv = localHeel.sub(hip.position.clone());
   const yaw = Math.atan2(lv.x, -lv.z);
   const planar = Math.sqrt(lv.x * lv.x + lv.z * lv.z);
+  // Girl faces +PI so "down" toward feet is mixed; use vector elevation from -Y
   const elev = Math.atan2(planar, Math.max(0.001, -lv.y));
-  const cosHip = THREE.MathUtils.clamp(
-    (THIGH_LEN * THIGH_LEN + dist * dist - CALF_LEN * CALF_LEN) / (2 * THIGH_LEN * dist), -1, 1);
+
   hip.rotation.order = "YXZ";
-  hip.rotation.y = THREE.MathUtils.clamp(yaw, -1.4, 1.4);
-  hip.rotation.x = THREE.MathUtils.clamp(-(elev - Math.acos(cosHip)), -2.6, 0.4);
-  hip.rotation.z = sign * 0.12;
+  hip.rotation.y = THREE.MathUtils.clamp(yaw, -1.6, 1.6);
+  hip.rotation.x = THREE.MathUtils.clamp(-(elev - hipOffset), -2.8, 0.5);
+  hip.rotation.z = sign * 0.1;
   knee.rotation.set(kneeFlex, 0, 0);
-  ankle.rotation.set(-0.4, sign * 0.1, 0);
+
+  // Apply stretch to mesh positions / scales
+  leg.thigh.position.y = -tLen * 0.5;
+  leg.thigh.scale.set(1, stretch, 1);
+  knee.position.y = -tLen;
+  leg.calf.position.y = -cLen * 0.5;
+  leg.calf.scale.set(1, stretch, 1);
+  ankle.position.y = -cLen;
+  ankle.visible = true;
+
+  // Final snap: put ankle exactly on the heel and stretch calf to match
+  hip.updateWorldMatrix(true, true);
+  const heelLocal = _heelW.clone();
+  knee.worldToLocal(heelLocal);
+  ankle.position.copy(heelLocal);
+  const reach = Math.max(0.05, ankle.position.length());
+  leg.calf.scale.set(1, reach / calfLen, 1);
+  leg.calf.position.copy(ankle.position.clone().multiplyScalar(0.5));
+  ankle.visible = true;
+  ankle.rotation.set(-0.15, sign * 0.05, 0);
 }
 
 function orientSoleInward(foot, inwardX) {
@@ -946,13 +1008,20 @@ function placeFeet(dt) {
   }
 
   strokeRig.updateWorldMatrix(true, true);
-  footL.getWorldPosition(_footW);
-  solveLegToward(girl.userData.legs.L, _footW.clone(), -1);
-  footR.getWorldPosition(_footW);
-  if (stim.bothFeet || toeMilk) solveLegToward(girl.userData.legs.R, _footW.clone(), 1);
-  else {
-    girl.userData.legs.R.hip.rotation.set(-0.5, 0.4, 0.55);
-    girl.userData.legs.R.knee.rotation.set(1.2, 0, 0);
+  // Reconnect legs so ankles meet each foot heel (no floating detached feet)
+  connectLegToFoot(girl.userData.legs.L, footL, -1);
+  if (stim.bothFeet || toeMilk) {
+    connectLegToFoot(girl.userData.legs.R, footR, 1);
+  } else {
+    const leg = girl.userData.legs.R;
+    leg.thigh.scale.set(1, 1, 1);
+    leg.calf.scale.set(1, 1, 1);
+    leg.thigh.position.y = -leg.thighLen * 0.5;
+    leg.knee.position.y = -leg.thighLen;
+    leg.calf.position.y = -leg.calfLen * 0.5;
+    leg.ankle.position.y = -leg.calfLen;
+    leg.hip.rotation.set(-0.5, 0.4, 0.55);
+    leg.knee.rotation.set(1.2, 0, 0);
   }
 
   const react = stim.arousal * 0.08 + stim.twitch * 0.12;
