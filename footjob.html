@@ -1569,9 +1569,9 @@ function triggerClimax() {
       setEmotion("xd");
       showDialogue("Girl", "Sandwich on a backward stroke— as fast as I can!!");
     } else {
-      // sleep / later waves — stay clamped, gentle
-      label = `NIGHT ${n}`;
-      setTechnique("sleepClamp");
+      // sleep / later waves — stay on dream footjob, soft elastic
+      label = `DREAM ${n}`;
+      setTechnique("dreamFJ");
       stim.rollAccel = 1;
       setEmotion("xd");
     }
@@ -1876,18 +1876,59 @@ function placeFeet(dt) {
     boy.userData.shaft.scale.set(1.12, 0.85, 1.08);
     poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
     poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
-  } else if (tech === "sleepClamp") {
-    // Soft overnight clamp — toes stay locked, slow gentle roll, never leaves
-    const t = stim.phase * 0.55;
-    const zz = 0.10 + Math.sin(t) * 0.025;
-    const clamp = r * (0.42 + grip * 0.12);
-    targetL.position.set(-clamp * 0.85, clamp * 0.25, zz);
-    targetR.position.set(clamp * 0.85, clamp * 0.28, zz + 0.008);
-    orientToesOnDorsalQuat(-1, _quat);
-    targetL.quaternion.copy(_quat); targetL.rotateX(-0.55); targetL.rotateZ(-0.12);
-    orientToesOnDorsalQuat(1, _quat);
-    targetR.quaternion.copy(_quat); targetR.rotateX(-0.55); targetR.rotateZ(0.12);
-    boy.userData.shaft.scale.set(1.06, 0.9, 1.02);
+  } else if (tech === "sleepClamp" || tech === "dreamFJ") {
+    // Dreaming sleep footjob — feet never leave; motion follows dream waves
+    const dream = story.dreamPhase || 0;
+    const t = stim.phase;
+    // soft elastic shaft deformation (squash & stretch like rubber)
+    const rub = Math.sin(t * 1.4);
+    const stretch = 1 + rub * 0.18 + Math.sin(t * 2.7) * 0.06;
+    const squash = 1 - Math.abs(rub) * 0.22 - grip * 0.06;
+    const bend = Math.sin(t * 0.9 + dream) * 0.08;
+    boy.userData.shaft.scale.set(
+      (1.05 + Math.abs(bend) * 0.35) * (2 - squash) * 0.55 + squash * 0.5,
+      squash * 0.92,
+      stretch
+    );
+    if (boy.userData.headG) {
+      const tipSquish = 1 + Math.sin(t * 2.1) * 0.12;
+      boy.userData.headG.scale.set(1.05 * tipSquish, 0.9 / tipSquish, 1.05 * tipSquish);
+    }
+    // foot patterns cycle with dream phase (0..4) but always contact
+    const zz = 0.08 + Math.sin(t * (0.8 + dream * 0.15)) * (0.04 + dream * 0.012);
+    const clamp = r * (0.38 + grip * 0.14 + Math.sin(t * 0.6) * 0.04);
+    const lift = clamp * (0.2 + 0.08 * Math.sin(t * 1.1));
+    let xL = -clamp * 0.9, xR = clamp * 0.9;
+    let yL = lift, yR = lift + 0.008;
+    if (dream === 1) {
+      // slow sole press dream
+      yL = r * 0.55 + Math.sin(t) * 0.02; yR = yL + 0.01;
+      xL = -0.02; xR = 0.025;
+    } else if (dream === 2) {
+      // twisting dream toes
+      xL = -clamp * Math.cos(t * 0.5); xR = clamp * Math.cos(t * 0.5);
+    } else if (dream === 3) {
+      // milking glide dream
+      // zz already oscillates more
+    } else if (dream >= 4) {
+      // deeper squeeze dream
+      xL = -clamp * 0.7; xR = clamp * 0.7;
+      yL = clamp * 0.35; yR = clamp * 0.32;
+    }
+    targetL.position.set(xL, yL, zz);
+    targetR.position.set(xR, yR, zz + 0.006 + Math.sin(t * 0.7) * 0.01);
+    if (dream === 1) {
+      orientSoleDownQuat(_quat);
+      targetL.quaternion.copy(_quat); targetL.rotateZ(0.1 + Math.sin(t) * 0.08);
+      targetR.quaternion.copy(_quat); targetR.rotateZ(-0.12);
+    } else {
+      orientToesOnDorsalQuat(-1, _quat);
+      targetL.quaternion.copy(_quat);
+      targetL.rotateX(-0.5 - dream * 0.05); targetL.rotateZ(-0.1 + Math.sin(t) * 0.12);
+      orientToesOnDorsalQuat(1, _quat);
+      targetR.quaternion.copy(_quat);
+      targetR.rotateX(-0.5 - dream * 0.05); targetR.rotateZ(0.1 - Math.sin(t) * 0.12);
+    }
     poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
     poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
   } else if (tech === "backwardSandwich") {
@@ -2065,9 +2106,11 @@ function updateSolver(dt) {
       const accel = stim.rollAccel || 1;
       stim.phase += dt * stim.speed * 2.8 * accel;
       stim.target = 0.5 + Math.sin(stim.phase) * 0.35;
-    } else if (stim.technique === "sleepClamp") {
-      stim.phase += dt * stim.speed * 0.7;
-      stim.target = 0.5 + Math.sin(stim.phase) * 0.12;
+    } else if (stim.technique === "sleepClamp" || stim.technique === "dreamFJ") {
+      // dream-driven tempo — feet keep moving while she sleeps
+      const dream = (typeof story !== "undefined" && story.dreamPhase) || 0;
+      stim.phase += dt * stim.speed * (0.85 + dream * 0.25);
+      stim.target = 0.5 + Math.sin(stim.phase) * (0.18 + dream * 0.06);
     } else if (stim.technique === "backwardSandwich") {
       const accel = stim.rollAccel || 3.5;
       stim.phase += dt * stim.speed * 3.6 * accel;
@@ -2336,19 +2379,42 @@ function poseGirlBeside() {
   girl.userData.arms.R.shoulder.rotation.set(-0.5, -0.1, 0.5);
 }
 
-/** Sleep beside him with legs angled so toes can stay clamped on him */
+/** Sleep beside him — dreaming; feet keep working his soft dick */
 function poseGirlSleepClamp() {
   poseBoyTired();
-  // curl beside him, hips close so feet reach
-  girl.userData.hips.position.set(0.22, 0.46, 0.28);
-  girl.userData.hips.rotation.set(0.55, Math.PI * 0.55, 0.2);
-  girl.userData.torso.rotation.set(0.35, -0.4, 0.05);
-  girl.userData.head.rotation.set(0.15, -0.7, 0.05);
-  story.headYaw = -0.7;
-  girl.userData.arms.L.shoulder.rotation.set(-0.55, 0.15, -0.5);
-  girl.userData.arms.R.shoulder.rotation.set(-0.35, -0.2, 0.7);
-  // soft "sleeping" look
-  setEmotion("xd");
+  girl.userData.hips.position.set(0.18, 0.44, 0.32);
+  girl.userData.hips.rotation.set(0.65, Math.PI * 0.62, 0.15);
+  girl.userData.torso.rotation.set(0.45, -0.35, 0.08);
+  // head tipped like sleeping on the pillow beside him
+  girl.userData.head.rotation.set(0.25, -0.85, 0.12);
+  story.headYaw = -0.85;
+  girl.userData.arms.L.shoulder.rotation.set(-0.7, 0.2, -0.35);
+  girl.userData.arms.R.shoulder.rotation.set(-0.25, -0.15, 0.9);
+  // sleeping >< face
+  if (girl.userData.head.userData.emotion !== "xd") setEmotion("xd");
+}
+
+function setShaftElastic(on) {
+  const shaft = boy.userData.shaft;
+  const headG = boy.userData.headG;
+  if (!shaft?.material) return;
+  if (on) {
+    if (!boy.userData._shaftMatBackup) {
+      boy.userData._shaftMatBackup = {
+        roughness: shaft.material.roughness,
+        clearcoat: shaft.material.clearcoat,
+      };
+    }
+    shaft.material.roughness = 0.35;
+    if ("clearcoat" in shaft.material) shaft.material.clearcoat = 0.45;
+    if (headG?.material) {
+      headG.material.roughness = 0.3;
+      if ("clearcoat" in headG.material) headG.material.clearcoat = 0.5;
+    }
+  } else if (boy.userData._shaftMatBackup) {
+    shaft.material.roughness = boy.userData._shaftMatBackup.roughness;
+    if ("clearcoat" in shaft.material) shaft.material.clearcoat = boy.userData._shaftMatBackup.clearcoat;
+  }
 }
 
 function setPajamas(on) {
@@ -2725,49 +2791,69 @@ const STORY_BEATS = [
   },
   {
     id: "sleep_start",
-    who: "Girl", line: "Lights out… I’ll sleep beside you. Toes stay on— gentle.",
+    who: "Girl", line: "Lights out… I’ll sleep beside you. If I dream… my feet might keep moving…",
     emotion: "love",
     enter() {
       story.phase = "sleep";
       story.poseLock = false;
       story.sleepT = 0;
       story.sleepCums = 0;
+      story.dreamPhase = 0;
+      story.dreamT = 0;
       poseBoyTired();
       poseGirlSleepClamp();
-      setTechnique("sleepClamp");
+      setTechnique("dreamFJ");
+      setShaftElastic(true);
       stim.auto = true;
       stim.allowCum = false;
-      stim.arousal = 0.35;
+      stim.arousal = 0.55;
       stim.neverStop = true;
       stim.rollAccel = 1;
-      ui.speed.value = 0.7;
-      stim.speed = 0.7;
+      ui.speed.value = 1.05;
+      stim.speed = 1.05;
       setEmotion("xd");
-      key.intensity = 0.4;
-      blushLight.intensity = 0.12;
-      camera.position.set(1.25, 0.75, 0.55);
-      controls.target.set(0.1, 0.5, 0.12);
+      key.intensity = 0.35;
+      blushLight.intensity = 0.1;
+      camera.position.set(1.35, 0.72, 0.45);
+      controls.target.set(0.12, 0.48, 0.15);
+    }
+  },
+  {
+    id: "sleep_dream",
+    who: "…", line: "She’s asleep… but her bare feet keep stroking him in her dream.",
+    emotion: "xd",
+    enter() {
+      story.phase = "sleep";
+      story.dreamPhase = 1;
+      poseGirlSleepClamp();
+      setTechnique("dreamFJ");
+      setShaftElastic(true);
+      stim.auto = true;
+      stim.neverStop = true;
+      showDialogue("…", "She’s asleep… but her bare feet keep stroking him in her dream.");
     }
   },
   {
     id: "sleep_loop",
-    who: "Girl", line: "Mm… still holding you. Every time you finish, I won’t let go…",
-    emotion: "love",
+    who: "Girl", line: "Nn… (dreaming) …don’t stop… mm…",
+    emotion: "xd",
     enter() {
       story.phase = "sleep";
       poseGirlSleepClamp();
-      setTechnique("sleepClamp");
-      showDialogue("Girl", "Mm… still holding you. Every time you finish, I won’t let go…");
+      setTechnique("dreamFJ");
+      setShaftElastic(true);
+      showDialogue("Girl", "Nn… (dreaming) …don’t stop… mm…");
     }
   },
   {
     id: "ending",
-    who: "…", line: "Morning light. She’s still curled against him— toes softly locked like nothing happened.",
+    who: "…", line: "Morning light. She’s still curled against him— toes softly locked, his soft dick spent.",
     emotion: "happy",
     enter() {
       story.phase = "end";
       stim.allowCum = false;
       stim.auto = false;
+      setShaftElastic(false);
       key.intensity = 2.0;
       setEmotion("happy");
       flashBurst("Good morning~");
@@ -2991,40 +3077,78 @@ function updateStory(dt) {
 
   if (story.phase === "sleep") {
     story.sleepT = (story.sleepT || 0) + dt;
+    story.dreamT = (story.dreamT || 0) + dt;
     stim.auto = true;
-    // stay on sleepClamp always — never leave the dick
-    if (stim.technique !== "sleepClamp") setTechnique("sleepClamp");
-    poseGirlSleepClamp();
-    // slow soft breathing light
-    const pulse = 0.08 + 0.12 * (0.5 + 0.5 * Math.sin(story.sleepT * 0.55));
-    blushLight.intensity = pulse;
-    key.intensity = 0.28 + pulse * 0.35;
-
-    // slow overnight waves (~22s) — she stays clamped through each one
-    if (story.sleepT > 22 && (story.sleepCums || 0) < 4) {
-      story.sleepT = 0;
-      story.sleepCums = (story.sleepCums || 0) + 1;
-      setTechnique("sleepClamp");
-      stim.speed = 0.65;
-      stim.rollAccel = 1;
-      stim.arousal = 0.995;
-      stim.allowCum = true;
-      setEmotion("xd");
-      showDialogue("Girl", [
-        "Nn… still holding… cum soft for me…",
-        "Don’t pull away… toes stay…",
-        "Another one… I’m not letting go…",
-        "Sleep… and finish again…"
-      ][Math.min(3, story.sleepCums - 1)]);
-      triggerClimax();
-      // gentle light bloom — not overstimulating flash
-      fxEl.classList.add("on");
-      setTimeout(() => { fxEl.classList.remove("on"); fxEl.classList.remove("over"); }, 700);
+    stim.neverStop = true;
+    // dreaming footjob — always in contact, motion follows dream
+    if (stim.technique !== "dreamFJ" && stim.technique !== "sleepClamp") {
+      setTechnique("dreamFJ");
     }
-    if (story.sleepCums >= 4 && story.beatId === "sleep_start") {
+    poseGirlSleepClamp();
+    setShaftElastic(true);
+
+    // advance dream chapters every ~14s (foot pattern changes)
+    if (story.dreamT > 14) {
+      story.dreamT = 0;
+      story.dreamPhase = Math.min(5, (story.dreamPhase || 0) + 1);
+      const dreamLines = [
+        "She’s dreaming… feet slow and soft…",
+        "(dream) Mm… sandwich… don’t pull away…",
+        "(dream) Twisting… soft dick… elastic…",
+        "(dream) Milk… again… again…",
+        "(dream) Deeper squeeze… stay…",
+        "(dream) Nonstop… I’m not waking up…"
+      ];
+      showDialogue(story.dreamPhase >= 2 ? "Girl" : "…", dreamLines[Math.min(5, story.dreamPhase)]);
+      setEmotion("xd");
+      stim.speed = Math.min(1.8, 1.0 + story.dreamPhase * 0.12);
+      ui.speed.value = stim.speed;
+    }
+
+    // soft dream breathing light
+    const pulse = 0.07 + 0.14 * (0.5 + 0.5 * Math.sin(story.sleepT * 0.45));
+    blushLight.intensity = pulse + (stim.climax ? 0.25 : 0);
+    key.intensity = 0.25 + pulse * 0.4;
+
+    // build arousal continuously from dream feet
+    if (!stim.climax) {
+      stim.arousal = Math.min(1, stim.arousal + dt * 0.08);
+    }
+
+    // several non-stop dream cums — feet never leave between them
+    const interval = 11;
+    if (story.sleepT > 3 && (story.sleepCums || 0) < 8) {
+      const since = story.sleepT - (story.lastDreamCumAt || 0);
+      if (since > interval && !stim.allowCum) {
+        story.lastDreamCumAt = story.sleepT;
+        story.sleepCums = (story.sleepCums || 0) + 1;
+        setTechnique("dreamFJ");
+        stim.arousal = 0.998;
+        stim.allowCum = true;
+        setEmotion("xd");
+        showDialogue("Girl", [
+          "Nn… (sleep cum) …",
+          "Ahh… still dreaming… finish…",
+          "Don’t leave… toes stay… cum…",
+          "Again… soft… elastic…",
+          "Mm… another one…",
+          "Nonstop… in my dream…",
+          "Keep going… I’m asleep…",
+          "One more wave…"
+        ][Math.min(7, story.sleepCums - 1)]);
+        triggerClimax();
+        fxEl.classList.add("on");
+        setTimeout(() => { fxEl.classList.remove("on"); fxEl.classList.remove("over"); }, 900);
+      }
+    }
+
+    if (story.sleepCums >= 2 && story.beatId === "sleep_start") {
       applyBeat(story.idx + 1);
     }
-    if (story.sleepCums >= 4 && story.beatId === "sleep_loop") {
+    if (story.sleepCums >= 5 && story.beatId === "sleep_dream") {
+      applyBeat(story.idx + 1);
+    }
+    if (story.sleepCums >= 8 && story.beatId === "sleep_loop") {
       dlgNextHint("click — morning");
     }
   }
