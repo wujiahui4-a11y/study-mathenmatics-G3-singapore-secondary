@@ -308,7 +308,15 @@ const hairDark = new THREE.MeshStandardMaterial({ color: 0xff5fa8, roughness: 0.
 const clothF = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 });
 const clothAccent = new THREE.MeshStandardMaterial({ color: 0xff6ea9, roughness: 0.45 });
 const clothM = new THREE.MeshStandardMaterial({ color: 0x3a3048, roughness: 0.72 });
-const nailMat = new THREE.MeshStandardMaterial({ color: 0xff4d9a, roughness: 0.28, metalness: 0.15 });
+const nailMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff6aab, roughness: 0.22, metalness: 0.12,
+  clearcoat: 0.65, clearcoatRoughness: 0.2,
+  sheen: 0.4, sheenColor: new THREE.Color(0xffc0d8)
+});
+const solePadMat = new THREE.MeshPhysicalMaterial({
+  color: 0xf2a090, roughness: 0.55, clearcoat: 0.12, clearcoatRoughness: 0.6,
+  sheen: 0.35, sheenColor: new THREE.Color(0xffb0a0)
+});
 const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
 const irisMat = new THREE.MeshStandardMaterial({ color: 0x6ec8ff, roughness: 0.2, emissive: 0x224466, emissiveIntensity: 0.15 });
 const pupilMat = new THREE.MeshStandardMaterial({ color: 0x1a1020, roughness: 0.4 });
@@ -434,36 +442,103 @@ function makeAnimeHair() {
   return g;
 }
 
+/** High-quality anime foot — smooth midfoot, arch, heel, articulated toes + glossy nails */
 function makeFoot(mat, side = 1) {
   const g = new THREE.Group();
-  const soleMat = mat.clone();
-  soleMat.color = new THREE.Color(0xf0a090);
-  const sole = mesh(new THREE.BoxGeometry(0.08, 0.028, 0.2), soleMat);
-  sole.position.set(0, -0.002, 0.02);
-  g.add(sole);
-  const pad = mesh(new THREE.BoxGeometry(0.085, 0.016, 0.18), new THREE.MeshPhysicalMaterial({
-    color: 0xe88878, roughness: 0.45, clearcoat: 0.2
-  }));
-  pad.position.set(0, -0.02, 0.025);
-  g.add(pad);
-  const ball = mesh(new THREE.SphereGeometry(0.038, 16, 12), mat);
-  ball.position.set(0, 0.008, 0.09); ball.scale.set(1.15, 0.7, 0.9);
-  g.add(ball);
-  const heel = mesh(new THREE.SphereGeometry(0.032, 14, 12), mat);
-  heel.position.set(0, 0.004, -0.07); heel.scale.set(1.0, 0.85, 0.95);
+  const s = side; // -1 left / +1 right
+
+  // ankle cuff
+  const cuff = mesh(new THREE.SphereGeometry(0.032, 20, 14), mat);
+  cuff.position.set(0, 0.028, -0.055);
+  cuff.scale.set(1.05, 0.85, 1.0);
+  g.add(cuff);
+
+  // heel
+  const heel = mesh(new THREE.SphereGeometry(0.034, 20, 16), mat);
+  heel.position.set(0, 0.006, -0.078);
+  heel.scale.set(1.05, 0.92, 1.12);
   g.add(heel);
-  const toeOffsets = [-0.028, -0.014, 0, 0.014, 0.026];
-  const toeLen = [0.028, 0.034, 0.036, 0.032, 0.024];
-  const toeR = [0.009, 0.01, 0.011, 0.01, 0.008];
-  toeOffsets.forEach((ox, i) => {
-    const toe = mesh(new THREE.CapsuleGeometry(toeR[i], toeLen[i], 4, 8), mat);
-    toe.rotation.x = Math.PI / 2;
-    toe.position.set(ox * side, 0.01, 0.12 + toeLen[i] * 0.35);
-    g.add(toe);
-    const nail = mesh(new THREE.BoxGeometry(toeR[i] * 1.4, 0.004, toeLen[i] * 0.45), nailMat, false);
-    nail.position.set(ox * side, 0.02, 0.13 + toeLen[i] * 0.45);
-    g.add(nail);
+  const heelPad = mesh(new THREE.SphereGeometry(0.028, 16, 12), solePadMat, false);
+  heelPad.position.set(0, -0.016, -0.072);
+  heelPad.scale.set(1.15, 0.45, 1.05);
+  g.add(heelPad);
+
+  // arched midfoot
+  const arch = mesh(new THREE.CapsuleGeometry(0.028, 0.07, 8, 16), mat);
+  arch.rotation.x = Math.PI / 2;
+  arch.position.set(0, 0.012, 0.01);
+  arch.scale.set(1.15, 1.0, 0.85);
+  g.add(arch);
+  const archLift = mesh(new THREE.SphereGeometry(0.03, 14, 10), mat, false);
+  archLift.position.set(0, 0.02, 0.0);
+  archLift.scale.set(0.9, 0.55, 1.4);
+  g.add(archLift);
+
+  // ball of foot
+  const ball = mesh(new THREE.SphereGeometry(0.036, 20, 16), mat);
+  ball.position.set(0, 0.01, 0.085);
+  ball.scale.set(1.35, 0.78, 1.05);
+  g.add(ball);
+
+  // rounded sole pads (no boxy slabs)
+  const sole = mesh(new THREE.SphereGeometry(0.05, 18, 14), solePadMat);
+  sole.position.set(0, -0.014, 0.035);
+  sole.scale.set(1.05, 0.28, 2.05);
+  g.add(sole);
+  const ballPad = mesh(new THREE.SphereGeometry(0.038, 16, 12), solePadMat, false);
+  ballPad.position.set(0, -0.012, 0.09);
+  ballPad.scale.set(1.35, 0.32, 0.95);
+  g.add(ballPad);
+
+  // instep
+  const instep = mesh(new THREE.SphereGeometry(0.04, 16, 12), mat);
+  instep.position.set(0, 0.028, 0.04);
+  instep.scale.set(0.95, 0.45, 1.5);
+  g.add(instep);
+
+  // toes: hallux → pinky (mirrored by side)
+  const toeDefs = [
+    { x: 0.030 * s, len: 0.038, r: 0.0138, nailW: 0.017, nailL: 0.014 },
+    { x: 0.014 * s, len: 0.040, r: 0.0118, nailW: 0.013, nailL: 0.013 },
+    { x: 0.000 * s, len: 0.042, r: 0.0115, nailW: 0.012, nailL: 0.013 },
+    { x:-0.014 * s, len: 0.037, r: 0.0108, nailW: 0.011, nailL: 0.012 },
+    { x:-0.027 * s, len: 0.030, r: 0.0095, nailW: 0.009, nailL: 0.010 },
+  ];
+
+  toeDefs.forEach((t, i) => {
+    const toeRoot = new THREE.Group();
+    toeRoot.position.set(t.x, 0.006, 0.098);
+    toeRoot.rotation.x = -0.08 - i * 0.015;
+    toeRoot.rotation.y = -t.x * 0.8;
+    g.add(toeRoot);
+
+    const prox = mesh(new THREE.CapsuleGeometry(t.r, t.len * 0.45, 6, 10), mat);
+    prox.rotation.x = Math.PI / 2;
+    prox.position.set(0, 0.004, t.len * 0.22);
+    toeRoot.add(prox);
+
+    const knuckle = mesh(new THREE.SphereGeometry(t.r * 1.05, 12, 10), mat);
+    knuckle.position.set(0, 0.006, t.len * 0.42);
+    toeRoot.add(knuckle);
+
+    const tip = mesh(new THREE.CapsuleGeometry(t.r * 0.92, t.len * 0.35, 6, 10), mat);
+    tip.rotation.x = Math.PI / 2 + 0.15;
+    tip.position.set(0, 0.003, t.len * 0.62);
+    toeRoot.add(tip);
+
+    const toePad = mesh(new THREE.SphereGeometry(t.r * 1.1, 10, 8), solePadMat, false);
+    toePad.position.set(0, -0.006, t.len * 0.5);
+    toePad.scale.set(1.1, 0.45, 1.3);
+    toeRoot.add(toePad);
+
+    const nailOval = mesh(new THREE.SphereGeometry(0.01, 12, 8), nailMat, false);
+    nailOval.position.set(0, t.r * 0.9, t.len * 0.72);
+    nailOval.scale.set(t.nailW / 0.02, 0.22, t.nailL / 0.02);
+    nailOval.rotation.x = -0.25;
+    toeRoot.add(nailOval);
   });
+
+  g.userData.soleOffsetY = -0.02;
   return g;
 }
 
@@ -654,15 +729,15 @@ const footR = girl.userData.legs.R.foot;
 // Ensure feet are ankle children — zero separation by hierarchy
 girl.userData.legs.L.ankle.add(footL);
 girl.userData.legs.R.ankle.add(footR);
-footL.scale.setScalar(1.55);
-footR.scale.setScalar(1.55);
+footL.scale.setScalar(1.35);
+footR.scale.setScalar(1.35);
 footL.position.set(0, 0, 0);
 footR.position.set(0, 0, 0);
 
 // Sit close so legs can reach the shaft without breaking
-girl.userData.hips.position.set(0.0, 0.48, 0.48);
-girl.userData.hips.rotation.set(0.25, Math.PI, 0);
-girl.userData.torso.rotation.set(0.45, 0, 0);
+girl.userData.hips.position.set(0.0, 0.52, 0.50);
+girl.userData.hips.rotation.set(0.15, Math.PI, 0);
+girl.userData.torso.rotation.set(0.35, 0, 0);
 girl.userData.head.rotation.set(-0.25, 0, 0);
 girl.userData.arms.L.shoulder.rotation.set(-0.75, 0.25, -1.05);
 girl.userData.arms.R.shoulder.rotation.set(-0.75, -0.25, 1.05);
@@ -957,7 +1032,7 @@ function poseLegAndFoot(leg, foot, target, sign) {
   const ankleWorldQuat = new THREE.Quaternion();
   ankle.getWorldQuaternion(ankleWorldQuat);
   foot.position.set(0, 0, 0);
-  foot.scale.setScalar(1.55);
+  foot.scale.setScalar(1.35);
   foot.quaternion.copy(ankleWorldQuat).invert().multiply(desiredQuat);
   ankle.visible = true;
 }
@@ -995,7 +1070,7 @@ function placeFeet(dt) {
     poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
     poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
   } else {
-    const padReach = 0.028 * 1.55;
+    const padReach = 0.028 * 1.35;
     const dig = 0.022 + grip * 0.028 + (stim.overstim ? 0.012 : 0);
     const sep = Math.max(0.01, padReach - dig);
     const stroke = stim.pos;
@@ -1045,7 +1120,7 @@ function placeFeet(dt) {
       leg.knee.rotation.set(1.25, 0, 0);
       footR.position.set(0, 0, 0);
       footR.rotation.set(-Math.PI / 2, 0, 0);
-      footR.scale.setScalar(1.55);
+      footR.scale.setScalar(1.35);
     }
   }
 
