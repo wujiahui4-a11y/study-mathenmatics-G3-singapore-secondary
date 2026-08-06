@@ -681,20 +681,50 @@ const chalkMat = new THREE.MeshLambertMaterial({ map: chalkTex });
 
 function makeDoor(x, z, rotY, locked = false) {
   const g = new THREE.Group();
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.4, 0.12), doorMat);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.4, 0.12), doorMat);
   mesh.position.y = 1.2;
   g.add(mesh);
   g.position.set(x, 0, z);
   g.rotation.y = rotY;
   scene.add(g);
+  // Thin collider aligned to door plane (yaw 0 => blocks along Z)
+  const alongX = Math.abs(Math.cos(rotY)) > 0.5; // rot 0 or PI: door faces Z, spans X
+  const collider = alongX
+    ? { minx: x - 0.75, maxx: x + 0.75, minz: z - 0.2, maxz: z + 0.2, active: true }
+    : { minx: x - 0.2, maxx: x + 0.2, minz: z - 0.75, maxz: z + 0.75, active: true };
   const door = {
     mesh: g, open: false, locked, anim: 0,
-    baseRot: rotY, x, z,
-    collider: { minx: x - 0.7, maxx: x + 0.7, minz: z - 0.7, maxz: z + 0.7, active: true },
+    baseRot: rotY, x, z, collider,
   };
   colliders.push(door.collider);
   doors.push(door);
   return door;
+}
+
+/** Wall segment on one side of a room with a centered door gap. side: 'n'|'s'|'e'|'w'
+ *  Convention: -Z = south, +Z = north, -X = west, +X = east (matches outer walls).
+ */
+function wallWithDoorGap(cx, cz, size, side, gap = 1.6) {
+  const half = size / 2;
+  const thick = 0.3;
+  const span = (size - gap) / 2;
+  if (side === "s" || side === "n") {
+    const z = side === "s" ? cz - half : cz + half;
+    const leftC = cx - gap / 2 - span / 2;
+    const rightC = cx + gap / 2 + span / 2;
+    wall(leftC, z, span, thick, wallMat);
+    wall(rightC, z, span, thick, wallMat);
+    // Door faces outward: south door faces -Z (rot PI), north door faces +Z (rot 0)
+    const rot = side === "s" ? Math.PI : 0;
+    return makeDoor(cx, z, rot);
+  }
+  const x = side === "e" ? cx + half : cx - half;
+  const downC = cz - gap / 2 - span / 2;
+  const upC = cz + gap / 2 + span / 2;
+  wall(x, downC, thick, span, wallMat);
+  wall(x, upC, thick, span, wallMat);
+  const rot = side === "e" ? Math.PI / 2 : -Math.PI / 2;
+  return makeDoor(x, cz, rot);
 }
 
 function makeNotebook(x, z, color) {
@@ -757,181 +787,120 @@ function lockerRow(x, z, len, axis = "x") {
     if (axis === "z") m.rotation.y = Math.PI / 2;
     scene.add(m);
   }
-  if (axis === "x") addBoxCollider(x, z, len, 0.4);
-  else addBoxCollider(x, z, 0.4, len);
+  if (axis === "x") addBoxCollider(x, z, len, 0.35);
+  else addBoxCollider(x, z, 0.35, len);
 }
 
-function classroom(cx, cz, rot, nbColor) {
-  // room 8x8, door on +z side relative then rotate
-  const size = 8;
-  // walls as four sides with door gap on south
-  // We'll place in world coords with door facing +Z by default then... just place carefully.
+/** Build a rectangular room. doorSide: 'n'|'s'|'e'|'w' faces hallway. */
+function buildRoom(cx, cz, size, doorSide, opts = {}) {
   const half = size / 2;
-  // floor
   floorRect(cx, cz, size, size);
-  // N wall
-  wall(cx, cz - half, size, 0.3, wallMat);
-  // S wall with door gap
-  wall(cx - 2.2, cz + half, size - 3.2, 0.3, wallMat);
-  wall(cx + 2.2, cz + half, size - 3.2, 0.3, wallMat);
-  // E/W
-  wall(cx - half, cz, 0.3, size, wallMat);
-  wall(cx + half, cz, 0.3, size, wallMat);
-  makeDoor(cx, cz + half, 0);
-  // chalkboard
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 1.6), chalkMat);
-  board.position.set(cx, 1.8, cz - half + 0.2);
-  scene.add(board);
-  // desks
-  const deskMat = new THREE.MeshLambertMaterial({ color: 0x8b6914 });
-  for (let r = 0; r < 2; r++) {
-    for (let c = 0; c < 3; c++) {
-      const d = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.7), deskMat);
-      d.position.set(cx - 2 + c * 2, 0.35, cz - 1 + r * 2);
-      scene.add(d);
-      addBoxCollider(d.position.x, d.position.z, 1.1, 0.7);
+  const sides = ["n", "s", "e", "w"];
+  for (const s of sides) {
+    if (s === doorSide) wallWithDoorGap(cx, cz, size, s, opts.gap || 1.6);
+    else if (s === "n") wall(cx, cz + half, size, 0.3, wallMat);
+    else if (s === "s") wall(cx, cz - half, size, 0.3, wallMat);
+    else if (s === "w") wall(cx - half, cz, 0.3, size, wallMat);
+    else if (s === "e") wall(cx + half, cz, 0.3, size, wallMat);
+  }
+  if (opts.chalkboard) {
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.5), chalkMat);
+    const opp = { n: "s", s: "n", e: "w", w: "e" }[doorSide];
+    if (opp === "n") { board.position.set(cx, 1.8, cz + half - 0.2); board.rotation.y = Math.PI; }
+    else if (opp === "s") { board.position.set(cx, 1.8, cz - half + 0.2); }
+    else if (opp === "w") { board.position.set(cx - half + 0.2, 1.8, cz); board.rotation.y = Math.PI / 2; }
+    else { board.position.set(cx + half - 0.2, 1.8, cz); board.rotation.y = -Math.PI / 2; }
+    scene.add(board);
+  }
+  if (opts.desks) {
+    const deskMat = new THREE.MeshLambertMaterial({ color: 0x8b6914 });
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 2; c++) {
+        const d = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.7, 0.65), deskMat);
+        d.position.set(cx - 1.2 + c * 2.4, 0.35, cz - 0.8 + r * 1.8);
+        scene.add(d);
+        addBoxCollider(d.position.x, d.position.z, 1.0, 0.65);
+      }
     }
   }
-  makeNotebook(cx, cz - 0.5, nbColor);
-}
-
-function faculty(cx, cz) {
-  const size = 6;
-  const half = size / 2;
-  floorRect(cx, cz, size, size);
-  wall(cx, cz - half, size, 0.3, wallMat);
-  wall(cx - 1.8, cz + half, size - 2.8, 0.3, wallMat);
-  wall(cx + 1.8, cz + half, size - 2.8, 0.3, wallMat);
-  wall(cx - half, cz, 0.3, size, wallMat);
-  wall(cx + half, cz, 0.3, size, wallMat);
-  makeDoor(cx, cz + half, 0, false);
-  const table = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 0.8, 1),
-    new THREE.MeshLambertMaterial({ color: 0x6a4a2a })
-  );
-  table.position.set(cx, 0.4, cz);
-  scene.add(table);
-  addBoxCollider(cx, cz, 2, 1);
+  if (opts.notebook) makeNotebook(cx, cz, opts.notebook);
+  if (opts.table) {
+    const table = new THREE.Mesh(
+      new THREE.BoxGeometry(2, 0.8, 1),
+      new THREE.MeshLambertMaterial({ color: 0x6a4a2a })
+    );
+    table.position.set(cx, 0.4, cz);
+    scene.add(table);
+    addBoxCollider(cx, cz, 2, 1);
+  }
 }
 
 function buildSchool() {
-  // Outer shell ~ 52 x 40
-  // Coordinate system: center at origin. Hallways form a loop.
+  // Hallway ring + cross. Rooms sit in the pockets without overlapping halls.
+  // South hall z∈[-16,-12], north z∈[12,16], west x∈[-22,-18], east x∈[18,22]
+  // Center cross: x∈[-2,2] and z∈[-2,2] corridors through middle.
 
-  // === MAIN HALLWAY RING ===
-  // Horizontal halls (top & bottom)
   floorRect(0, -14, 44, 4); // south hall
   floorRect(0, 14, 44, 4);  // north hall
-  // Vertical halls
   floorRect(-20, 0, 4, 32); // west
   floorRect(20, 0, 4, 32);  // east
-  // Center cross
-  floorRect(0, 0, 4, 28);
-  floorRect(0, 0, 36, 4);
+  floorRect(0, 0, 4, 28);   // center N-S
+  floorRect(0, 0, 36, 4);   // center E-W
+  floorRect(-20, -14, 4, 4);
+  floorRect(20, -14, 4, 4);
+  floorRect(-20, 14, 4, 4);
+  floorRect(20, 14, 4, 4);
 
-  // Outer walls
-  wall(0, -18, 48, 0.4, wallMat); // south outer
-  wall(0, 18, 48, 0.4, wallMat);  // north outer
+  // Outer walls only — room walls form the interior maze
+  wall(0, -18, 48, 0.4, wallMat);
+  wall(0, 18, 48, 0.4, wallMat);
   wall(-24, 0, 0.4, 36.4, wallMat);
   wall(24, 0, 0.4, 36.4, wallMat);
 
-  // Inner courtyard walls creating hallway corridors
-  // SW block
-  wall(-10, -8, 16, 0.3, wallMat);
-  wall(-10, -8, 0.3, 8, wallMat);
-  // SE
-  wall(10, -8, 16, 0.3, wallMat);
-  wall(10, -8, 0.3, 8, wallMat);
-  // NW
-  wall(-10, 8, 16, 0.3, wallMat);
-  wall(-10, 8, 0.3, 8, wallMat);
-  // NE
-  wall(10, 8, 16, 0.3, wallMat);
-  wall(10, 8, 0.3, 8, wallMat);
+  lockerRow(-10, -15.7, 10, "x");
+  lockerRow(10, -15.7, 10, "x");
+  lockerRow(-10, 15.7, 10, "x");
+  lockerRow(10, 15.7, 10, "x");
 
-  // Lockers along halls
-  lockerRow(-10, -14, 12, "x");
-  lockerRow(10, -14, 12, "x");
-  lockerRow(-10, 14, 12, "x");
-  lockerRow(10, 14, 12, "x");
-  lockerRow(-20, 0, 16, "z");
-  lockerRow(20, 0, 16, "z");
-
-  // Classrooms (7 notebooks) — classic colors
   const colors = ["#3a7bd5", "#d43a3a", "#3ad45a", "#d4c03a", "#9b3ad4", "#3ad4d4", "#d47a3a"];
-  classroom(-10, -11.5, 0, colors[0]); // start-ish
-  classroom(10, -11.5, 0, colors[1]);
-  classroom(-10, 11.5, 0, colors[2]);
-  classroom(10, 11.5, 0, colors[3]);
-  classroom(-16, -4, 0, colors[4]);
-  // Fix classroom walls for side rooms — place custom
-  // Additional rooms on west/east mid
-  {
-    // West mid classroom
-    const cx = -16, cz = 4;
-    floorRect(cx, cz, 8, 8);
-    wall(cx, cz - 4, 8, 0.3, wallMat);
-    wall(cx, cz + 4, 8, 0.3, wallMat);
-    wall(cx - 4, cz, 0.3, 8, wallMat);
-    wall(cx + 4, cz - 2.2, 0.3, 3.6, wallMat);
-    wall(cx + 4, cz + 2.2, 0.3, 3.6, wallMat);
-    makeDoor(cx + 4, cz, Math.PI / 2);
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 1.6), chalkMat);
-    board.position.set(cx - 3.8, 1.8, cz); board.rotation.y = Math.PI / 2;
-    scene.add(board);
-    makeNotebook(cx, cz, colors[5]);
-  }
-  {
-    const cx = 16, cz = 0;
-    floorRect(cx, cz, 8, 8);
-    wall(cx, cz - 4, 8, 0.3, wallMat);
-    wall(cx, cz + 4, 8, 0.3, wallMat);
-    wall(cx + 4, cz, 0.3, 8, wallMat);
-    wall(cx - 4, cz - 2.2, 0.3, 3.6, wallMat);
-    wall(cx - 4, cz + 2.2, 0.3, 3.6, wallMat);
-    makeDoor(cx - 4, cz, -Math.PI / 2);
-    makeNotebook(cx, cz, colors[6]);
+
+  // Classrooms north of south hall (door on south @ z=-12)
+  buildRoom(-10, -9, 6, "s", { chalkboard: true, desks: true, notebook: colors[0] });
+  buildRoom(10, -9, 6, "s", { chalkboard: true, desks: true, notebook: colors[1] });
+  // Classrooms south of north hall (door on north @ z=12)
+  buildRoom(-10, 9, 6, "n", { chalkboard: true, desks: true, notebook: colors[2] });
+  buildRoom(10, 9, 6, "n", { chalkboard: true, desks: true, notebook: colors[3] });
+  // Side classrooms
+  buildRoom(-14.5, -3, 6, "e", { chalkboard: true, desks: true, notebook: colors[4] });
+  buildRoom(-14.5, 3.5, 6, "e", { chalkboard: true, desks: true, notebook: colors[5] });
+  buildRoom(14.5, 0, 6, "w", { chalkboard: true, desks: true, notebook: colors[6] });
+
+  // Also place a clearly visible notebook in the open cafeteria (same total still 7
+  // if we hide one room notebook — keep 7 room notebooks; cafeteria gets a quarter instead)
+  makePickup(0, -8, "quarter");
+
+  // Cafeteria open alcove on south-center (no south wall — open to hall)
+  floorRect(0, -9, 7, 5);
+  wall(-3.5, -9, 0.3, 5, wallMat);
+  wall(3.5, -9, 0.3, 5, wallMat);
+  const tableMat = new THREE.MeshLambertMaterial({ color: 0xb0b0b0 });
+  for (let i = -1; i <= 1; i++) {
+    const t = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.7, 0.8), tableMat);
+    t.position.set(i * 2.2, 0.35, -9);
+    scene.add(t);
+    addBoxCollider(i * 2.2, -9, 1.8, 0.8);
   }
 
-  // Cafeteria (south-center big room)
+  // Principal's office (north center), door faces south into north hall approach
+  buildRoom(0, 10.5, 6, "s", {});
   {
-    const cx = 0, cz = -11.5;
-    // already have some classroom space — make cafeteria east of center south
-  }
-  {
-    const cx = 0, cz = -8;
-    floorRect(cx, cz, 10, 6);
-    // open to hallway mostly
-    wall(-5, cz, 0.3, 6, wallMat);
-    wall(5, cz, 0.3, 6, wallMat);
-    wall(cx, cz - 3, 10, 0.3, wallMat);
-    const tableMat = new THREE.MeshLambertMaterial({ color: 0xb0b0b0 });
-    for (let i = -1; i <= 1; i++) {
-      const t = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.7, 1), tableMat);
-      t.position.set(i * 3, 0.35, cz);
-      scene.add(t);
-      addBoxCollider(i * 3, cz, 2.5, 1);
-    }
-  }
-
-  // Principal's office
-  {
-    const cx = 0, cz = 11;
-    floorRect(cx, cz, 8, 6);
-    wall(cx, cz + 3, 8, 0.3, wallMat);
-    wall(cx - 4, cz, 0.3, 6, wallMat);
-    wall(cx + 4, cz, 0.3, 6, wallMat);
-    wall(cx - 2.2, cz - 3, 3.6, 0.3, wallMat);
-    wall(cx + 2.2, cz - 3, 3.6, 0.3, wallMat);
-    makeDoor(cx, cz - 3, Math.PI);
     const desk = new THREE.Mesh(
       new THREE.BoxGeometry(2.4, 0.9, 1.2),
       new THREE.MeshLambertMaterial({ color: 0x5a3a1a })
     );
-    desk.position.set(cx, 0.45, cz + 0.5);
+    desk.position.set(0, 0.45, 11);
     scene.add(desk);
-    addBoxCollider(cx, cz + 0.5, 2.4, 1.2);
-    // detention poster
+    addBoxCollider(0, 11, 2.4, 1.2);
     const poster = makeCanvas(128, 64, (ctx, w, h) => {
       ctx.fillStyle = "#1a1a4a"; ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = "#fff";
@@ -943,46 +912,30 @@ function buildSchool() {
       new THREE.PlaneGeometry(2, 1),
       new THREE.MeshBasicMaterial({ map: texFrom(poster) })
     );
-    pm.position.set(cx, 2, cz + 2.8);
+    pm.position.set(0, 2, 13.3);
     scene.add(pm);
   }
 
   // Faculty rooms with items
-  faculty(-6, 4);
-  makePickup(-6, 4.5, "bsoda");
-  faculty(6, 4);
-  makePickup(6, 4.5, "zesty");
+  buildRoom(-6, 3.5, 5, "s", { table: true });
+  makePickup(-6, 3.5, "bsoda");
+  buildRoom(6, 3.5, 5, "s", { table: true });
+  makePickup(6, 3.5, "zesty");
+
+  // Gotta Sweep closet
+  buildRoom(8, -3.5, 4, "w", {});
+
+  // Hallway pickups
   makePickup(-18, -14, "quarter");
   makePickup(18, 14, "keys");
   makePickup(0, 0, "bsoda");
   makePickup(-20, 8, "zesty");
 
-  // Gotta Sweep closet
-  {
-    const cx = 8, cz = -4;
-    floorRect(cx, cz, 4, 4);
-    wall(cx, cz - 2, 4, 0.3, wallMat);
-    wall(cx, cz + 2, 4, 0.3, wallMat);
-    wall(cx + 2, cz, 0.3, 4, wallMat);
-    wall(cx - 2, cz - 1.2, 0.3, 1.6, wallMat);
-    wall(cx - 2, cz + 1.2, 0.3, 1.6, wallMat);
-    makeDoor(cx - 2, cz, -Math.PI / 2);
-  }
-
-  // Exits (4) — classic post-notebook escape
+  // Four exits
   makeExit(0, -17.6, 0);
   makeExit(0, 17.6, Math.PI);
   makeExit(-23.6, 0, Math.PI / 2);
   makeExit(23.6, 0, -Math.PI / 2);
-
-  // Starting position marker — open area near first classroom
-  // Fill some missing floor under ring corners
-  floorRect(-20, -14, 4, 4);
-  floorRect(20, -14, 4, 4);
-  floorRect(-20, 14, 4, 4);
-  floorRect(20, 14, 4, 4);
-  floorRect(-10, 0, 16, 4);
-  floorRect(10, 0, 16, 4);
 }
 
 buildSchool();
@@ -1219,37 +1172,43 @@ function activateSpoop() {
 
 // ---------- interactions ----------
 function rayInteract() {
-  const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
-  const reach = 2.2;
+  const reach = 2.6;
   const px = player.x, pz = player.z;
+  let best = null;
+  let bestD = Infinity;
 
-  // notebooks
   for (const nb of notebooks) {
     if (nb.taken) continue;
-    if (dist2(px, pz, nb.x, nb.z) < reach * reach) {
-      const toNb = Math.atan2(-(nb.x - px), -(nb.z - pz));
-      let dang = ((toNb - player.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-      if (Math.abs(dang) < 0.9) return { type: "notebook", nb };
+    const d = dist2(px, pz, nb.x, nb.z);
+    if (d < reach * reach && d < bestD) {
+      bestD = d;
+      best = { type: "notebook", nb };
     }
   }
-  // items
   for (const it of items) {
     if (it.taken) continue;
-    if (dist2(px, pz, it.x, it.z) < reach * reach) {
-      return { type: "item", it };
+    const d = dist2(px, pz, it.x, it.z);
+    if (d < reach * reach && d < bestD) {
+      bestD = d;
+      best = { type: "item", it };
     }
   }
-  // doors
+  // Prefer notebooks/items over doors when both in range
+  if (best) return best;
+
   for (const d of doors) {
-    if (dist2(px, pz, d.x, d.z) < 2.5 * 2.5) {
-      return { type: "door", d };
+    const dist = dist2(px, pz, d.x, d.z);
+    if (dist < 2.8 * 2.8 && dist < bestD) {
+      bestD = dist;
+      best = { type: "door", d };
     }
   }
-  // exits
+  if (best) return best;
+
   if (state.notebooks >= 7) {
     for (const ex of exits) {
       if (ex.triggered) continue;
-      if (dist2(px, pz, ex.x, ex.z) < 3 * 3) return { type: "exit", ex };
+      if (dist2(px, pz, ex.x, ex.z) < 3.2 * 3.2) return { type: "exit", ex };
     }
   }
   return null;
@@ -1279,23 +1238,36 @@ function doInteract() {
   }
 }
 
-function toggleDoor(d) {
+function toggleDoor(d, forceOpen) {
   if (d.locked) {
     const hasKeys = state.inventory.includes("keys");
     if (!hasKeys) { showMsg("It's locked...", 1.5); return; }
-    // consume keys
     const i = state.inventory.indexOf("keys");
     state.inventory[i] = null;
     updateInvUI();
     d.locked = false;
     showMsg("Unlocked!", 1.2);
   }
-  d.open = !d.open;
+  if (forceOpen) {
+    if (d.open) return;
+    d.open = true;
+  } else {
+    d.open = !d.open;
+  }
   d.collider.active = !d.open;
   doorSound();
-  // noise attracts Baldi
   if (state.spoop) {
     state.noiseQueue.push({ x: d.x, z: d.z, pri: 1, t: 0.5 });
+  }
+}
+
+/** Classic-style: doors swing open when you walk up to them. */
+function autoOpenNearbyDoors() {
+  for (const d of doors) {
+    if (d.locked || d.open) continue;
+    if (dist2(player.x, player.z, d.x, d.z) < 1.7 * 1.7) {
+      toggleDoor(d, true);
+    }
   }
 }
 
@@ -1435,7 +1407,7 @@ function startGame() {
   sweep.active = false; sweep.mesh.visible = false;
   sweep.x = 8; sweep.z = -4;
 
-  player.x = -8; player.z = -14; player.yaw = 0; player.pitch = 0;
+  player.x = -10; player.z = -14; player.yaw = 0; player.pitch = 0;
   camera.position.set(player.x, player.y, player.z);
   camera.rotation.set(0, 0, 0);
 
@@ -1838,10 +1810,15 @@ function updatePlayer(dt) {
   camera.rotation.y = player.yaw;
   camera.rotation.x = player.pitch;
 
+  autoOpenNearbyDoors();
+
   // interact hint
   const hit = rayInteract();
   $("interactHint").style.display = hit ? "block" : "none";
-
+  if (hit) {
+    const labels = { notebook: "notebook", item: "item", door: "door", exit: "exit" };
+    $("interactHint").textContent = "Press E / Click — " + (labels[hit.type] || "interact");
+  }
   // running makes noise
   if (player.running && state.spoop && Math.random() < dt * 2) {
     state.noiseQueue.push({ x: player.x, z: player.z, pri: 2, t: 0.4 });
