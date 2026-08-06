@@ -841,7 +841,7 @@
     const OPENROUTER_MODEL = "google/gemini-3.6-flash";
     const OR_KEY_STORAGE = "biliflux_openrouter_key";
     const AUTO_DETECT_STORAGE = "biliflux_auto_detect";
-    const LOCK_CACHE_STORAGE = "biliflux_lock_cache_v1";
+    const LOCK_CACHE_STORAGE = "biliflux_lock_cache_v2_gemini";
     const state = {
       category: CATEGORIES[0],
       videos: [],
@@ -853,7 +853,6 @@
       scanToken: 0,
       autoDetectTimer: null,
       locks: loadLockCache(),
-      coverFeatures: {},
     };
 
     function loadLockCache() {
