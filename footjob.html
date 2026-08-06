@@ -442,103 +442,103 @@ function makeAnimeHair() {
   return g;
 }
 
-/** High-quality anime foot — smooth midfoot, arch, heel, articulated toes + glossy nails */
+/** Slender high-arch foot — petite profile like a ballet/pointe reference */
 function makeFoot(mat, side = 1) {
   const g = new THREE.Group();
-  const s = side; // -1 left / +1 right
+  const s = side;
 
-  // ankle cuff
-  const cuff = mesh(new THREE.SphereGeometry(0.032, 20, 14), mat);
-  cuff.position.set(0, 0.028, -0.055);
-  cuff.scale.set(1.05, 0.85, 1.0);
-  g.add(cuff);
+  // Slim ankle → foot blend (continuous with calf)
+  const ankleBlend = mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.04, 14), mat);
+  ankleBlend.position.set(0, 0.04, -0.05);
+  g.add(ankleBlend);
+  const malleolus = mesh(new THREE.SphereGeometry(0.016, 14, 12), mat);
+  malleolus.position.set(0.014 * s, 0.035, -0.048);
+  malleolus.scale.set(0.7, 1.0, 0.85);
+  g.add(malleolus);
 
-  // heel
-  const heel = mesh(new THREE.SphereGeometry(0.034, 20, 16), mat);
-  heel.position.set(0, 0.006, -0.078);
-  heel.scale.set(1.05, 0.92, 1.12);
+  // Narrow heel (raised look — round, not chunky)
+  const heel = mesh(new THREE.SphereGeometry(0.02, 16, 14), mat);
+  heel.position.set(0, 0.012, -0.072);
+  heel.scale.set(0.95, 1.05, 1.15);
   g.add(heel);
-  const heelPad = mesh(new THREE.SphereGeometry(0.028, 16, 12), solePadMat, false);
-  heelPad.position.set(0, -0.016, -0.072);
-  heelPad.scale.set(1.15, 0.45, 1.05);
-  g.add(heelPad);
+  const heelCap = mesh(new THREE.SphereGeometry(0.015, 12, 10), solePadMat, false);
+  heelCap.position.set(0, -0.002, -0.075);
+  heelCap.scale.set(1.0, 0.55, 1.0);
+  g.add(heelCap);
 
-  // arched midfoot
-  const arch = mesh(new THREE.CapsuleGeometry(0.028, 0.07, 8, 16), mat);
-  arch.rotation.x = Math.PI / 2;
-  arch.position.set(0, 0.012, 0.01);
-  arch.scale.set(1.15, 1.0, 0.85);
-  g.add(arch);
-  const archLift = mesh(new THREE.SphereGeometry(0.03, 14, 10), mat, false);
-  archLift.position.set(0, 0.02, 0.0);
-  archLift.scale.set(0.9, 0.55, 1.4);
-  g.add(archLift);
+  // HIGH ARCH — midfoot curves up off the ground (key of the reference)
+  const archTop = mesh(new THREE.CapsuleGeometry(0.015, 0.055, 6, 12), mat);
+  archTop.rotation.x = Math.PI / 2;
+  archTop.position.set(0, 0.028, -0.01); // lifted
+  archTop.scale.set(0.85, 1.0, 0.75);
+  g.add(archTop);
+  // underside hollow of arch (thin ribbon, not a flat slab)
+  const archCurve = mesh(new THREE.TorusGeometry(0.038, 0.011, 10, 20, Math.PI * 0.9), mat);
+  archCurve.rotation.z = Math.PI / 2;
+  archCurve.rotation.y = Math.PI / 2;
+  archCurve.position.set(0, 0.01, -0.005);
+  archCurve.scale.set(0.55, 1.0, 0.9);
+  g.add(archCurve);
 
-  // ball of foot
-  const ball = mesh(new THREE.SphereGeometry(0.036, 20, 16), mat);
-  ball.position.set(0, 0.01, 0.085);
-  ball.scale.set(1.35, 0.78, 1.05);
-  g.add(ball);
-
-  // rounded sole pads (no boxy slabs)
-  const sole = mesh(new THREE.SphereGeometry(0.05, 18, 14), solePadMat);
-  sole.position.set(0, -0.014, 0.035);
-  sole.scale.set(1.05, 0.28, 2.05);
-  g.add(sole);
-  const ballPad = mesh(new THREE.SphereGeometry(0.038, 16, 12), solePadMat, false);
-  ballPad.position.set(0, -0.012, 0.09);
-  ballPad.scale.set(1.35, 0.32, 0.95);
-  g.add(ballPad);
-
-  // instep
-  const instep = mesh(new THREE.SphereGeometry(0.04, 16, 12), mat);
-  instep.position.set(0, 0.028, 0.04);
-  instep.scale.set(0.95, 0.45, 1.5);
+  // Instep / top of foot — elegant slope heel→toes
+  const instep = mesh(new THREE.CapsuleGeometry(0.014, 0.07, 6, 12), mat);
+  instep.rotation.x = Math.PI / 2 + 0.22; // slopes down toward toes
+  instep.position.set(0, 0.03, 0.02);
+  instep.scale.set(0.9, 1.0, 0.7);
   g.add(instep);
 
-  // toes: hallux → pinky (mirrored by side)
+  // Ball of foot — compact, not a wide pancake
+  const ball = mesh(new THREE.SphereGeometry(0.022, 16, 14), mat);
+  ball.position.set(0, 0.008, 0.078);
+  ball.scale.set(1.15, 0.75, 1.0);
+  g.add(ball);
+  const ballPad = mesh(new THREE.SphereGeometry(0.018, 12, 10), solePadMat, false);
+  ballPad.position.set(0, -0.006, 0.08);
+  ballPad.scale.set(1.25, 0.4, 1.0);
+  g.add(ballPad);
+
+  // Thin sole contact only under heel + ball (NOT a flat full-length brick)
+  // (arch stays open like the photo)
+
+  // Petite toes — short, neat, slightly curled (tip-toe pressure)
   const toeDefs = [
-    { x: 0.030 * s, len: 0.038, r: 0.0138, nailW: 0.017, nailL: 0.014 },
-    { x: 0.014 * s, len: 0.040, r: 0.0118, nailW: 0.013, nailL: 0.013 },
-    { x: 0.000 * s, len: 0.042, r: 0.0115, nailW: 0.012, nailL: 0.013 },
-    { x:-0.014 * s, len: 0.037, r: 0.0108, nailW: 0.011, nailL: 0.012 },
-    { x:-0.027 * s, len: 0.030, r: 0.0095, nailW: 0.009, nailL: 0.010 },
+    { x: 0.018 * s, len: 0.026, r: 0.0088, nailW: 0.011, nailL: 0.009 }, // hallux
+    { x: 0.007 * s, len: 0.028, r: 0.0072, nailW: 0.008, nailL: 0.008 },
+    { x:-0.002 * s, len: 0.027, r: 0.0068, nailW: 0.0075, nailL: 0.008 },
+    { x:-0.010 * s, len: 0.024, r: 0.0062, nailW: 0.0065, nailL: 0.007 },
+    { x:-0.017 * s, len: 0.020, r: 0.0055, nailW: 0.0055, nailL: 0.006 },
   ];
 
   toeDefs.forEach((t, i) => {
     const toeRoot = new THREE.Group();
-    toeRoot.position.set(t.x, 0.006, 0.098);
-    toeRoot.rotation.x = -0.08 - i * 0.015;
-    toeRoot.rotation.y = -t.x * 0.8;
+    toeRoot.position.set(t.x, 0.004, 0.092);
+    // tip-toe flex — toes press down
+    toeRoot.rotation.x = 0.35 + i * 0.04;
+    toeRoot.rotation.y = -t.x * 1.2;
     g.add(toeRoot);
 
-    const prox = mesh(new THREE.CapsuleGeometry(t.r, t.len * 0.45, 6, 10), mat);
-    prox.rotation.x = Math.PI / 2;
-    prox.position.set(0, 0.004, t.len * 0.22);
-    toeRoot.add(prox);
+    const phalanx = mesh(new THREE.CapsuleGeometry(t.r, t.len * 0.55, 5, 8), mat);
+    phalanx.rotation.x = Math.PI / 2;
+    phalanx.position.set(0, 0.002, t.len * 0.28);
+    toeRoot.add(phalanx);
 
-    const knuckle = mesh(new THREE.SphereGeometry(t.r * 1.05, 12, 10), mat);
-    knuckle.position.set(0, 0.006, t.len * 0.42);
-    toeRoot.add(knuckle);
-
-    const tip = mesh(new THREE.CapsuleGeometry(t.r * 0.92, t.len * 0.35, 6, 10), mat);
-    tip.rotation.x = Math.PI / 2 + 0.15;
-    tip.position.set(0, 0.003, t.len * 0.62);
+    const tip = mesh(new THREE.SphereGeometry(t.r * 1.05, 10, 8), mat);
+    tip.position.set(0, 0.0, t.len * 0.58);
     toeRoot.add(tip);
 
-    const toePad = mesh(new THREE.SphereGeometry(t.r * 1.1, 10, 8), solePadMat, false);
-    toePad.position.set(0, -0.006, t.len * 0.5);
-    toePad.scale.set(1.1, 0.45, 1.3);
-    toeRoot.add(toePad);
+    const pad = mesh(new THREE.SphereGeometry(t.r * 1.05, 8, 6), solePadMat, false);
+    pad.position.set(0, -t.r * 0.7, t.len * 0.4);
+    pad.scale.set(1.1, 0.4, 1.2);
+    toeRoot.add(pad);
 
-    const nailOval = mesh(new THREE.SphereGeometry(0.01, 12, 8), nailMat, false);
-    nailOval.position.set(0, t.r * 0.9, t.len * 0.72);
-    nailOval.scale.set(t.nailW / 0.02, 0.22, t.nailL / 0.02);
-    nailOval.rotation.x = -0.25;
-    toeRoot.add(nailOval);
+    const nail = mesh(new THREE.SphereGeometry(0.006, 10, 6), nailMat, false);
+    nail.position.set(0, t.r * 0.75, t.len * 0.55);
+    nail.scale.set(t.nailW / 0.012, 0.2, t.nailL / 0.012);
+    nail.rotation.x = -0.4;
+    toeRoot.add(nail);
   });
 
-  g.userData.soleOffsetY = -0.02;
+  g.userData.soleOffsetY = -0.01;
   return g;
 }
 
@@ -729,8 +729,8 @@ const footR = girl.userData.legs.R.foot;
 // Ensure feet are ankle children — zero separation by hierarchy
 girl.userData.legs.L.ankle.add(footL);
 girl.userData.legs.R.ankle.add(footR);
-footL.scale.setScalar(1.35);
-footR.scale.setScalar(1.35);
+footL.scale.setScalar(1.0);
+footR.scale.setScalar(1.0);
 footL.position.set(0, 0, 0);
 footR.position.set(0, 0, 0);
 
@@ -1032,7 +1032,7 @@ function poseLegAndFoot(leg, foot, target, sign) {
   const ankleWorldQuat = new THREE.Quaternion();
   ankle.getWorldQuaternion(ankleWorldQuat);
   foot.position.set(0, 0, 0);
-  foot.scale.setScalar(1.35);
+  foot.scale.setScalar(1.0);
   foot.quaternion.copy(ankleWorldQuat).invert().multiply(desiredQuat);
   ankle.visible = true;
 }
@@ -1070,7 +1070,7 @@ function placeFeet(dt) {
     poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
     poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
   } else {
-    const padReach = 0.028 * 1.35;
+    const padReach = 0.018 * 1.0;
     const dig = 0.022 + grip * 0.028 + (stim.overstim ? 0.012 : 0);
     const sep = Math.max(0.01, padReach - dig);
     const stroke = stim.pos;
@@ -1120,7 +1120,7 @@ function placeFeet(dt) {
       leg.knee.rotation.set(1.25, 0, 0);
       footR.position.set(0, 0, 0);
       footR.rotation.set(-Math.PI / 2, 0, 0);
-      footR.scale.setScalar(1.35);
+      footR.scale.setScalar(1.0);
     }
   }
 
