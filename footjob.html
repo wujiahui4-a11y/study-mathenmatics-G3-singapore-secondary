@@ -859,64 +859,89 @@ function orientToesOnDorsalQuat(sideSign, outQuat) {
 }
 
 /**
- * Feet stay CHILDREN of ankles. We IK the leg to the contact target, then
- * set the foot local transform so its world pose matches the target exactly.
- * Hierarchy guarantee = zero gap between leg and foot.
+ * Feet stay CHILDREN of ankles. Pole-vector IK bends the knee UP/OUT
+ * (natural seated pose) — not down into the floor.
  */
 function poseLegAndFoot(leg, foot, target, sign) {
   const hip = leg.hip, knee = leg.knee, ankle = leg.ankle;
   const thighLen = leg.thighLen, calfLen = leg.calfLen;
   const hipsParent = hip.parent;
 
-  // Desired foot world matrix from shaft target
   strokeRig.updateWorldMatrix(true, true);
   target.updateWorldMatrix(true, false);
   const desiredPos = new THREE.Vector3();
   const desiredQuat = new THREE.Quaternion();
   target.matrixWorld.decompose(desiredPos, desiredQuat, _scale);
 
-  // 1) IK ankle toward desired foot position (heel ≈ foot origin)
   hipsParent.updateWorldMatrix(true, false);
   hip.getWorldPosition(_hipW);
+
   _dir.subVectors(desiredPos, _hipW);
   let dist = _dir.length();
-  const maxReach = thighLen + calfLen - 0.01;
-  const minReach = Math.abs(thighLen - calfLen) + 0.03;
+  const maxReach = thighLen + calfLen - 0.012;
+  const minReach = Math.abs(thighLen - calfLen) + 0.04;
   let stretch = 1;
   if (dist > maxReach) { stretch = dist / maxReach; dist = maxReach; }
-  dist = Math.max(minReach, Math.min(dist, maxReach));
+  dist = THREE.MathUtils.clamp(dist, minReach, maxReach);
   const tLen = thighLen * stretch;
   const cLen = calfLen * stretch;
 
-  const cosKnee = THREE.MathUtils.clamp((tLen*tLen + cLen*cLen - dist*dist) / (2*tLen*cLen), -1, 1);
-  const kneeFlex = Math.PI - Math.acos(cosKnee);
-  const cosHip = THREE.MathUtils.clamp((tLen*tLen + dist*dist - cLen*cLen) / (2*tLen*dist), -1, 1);
-  const hipOffset = Math.acos(cosHip);
+  // Pole: above + slightly outward so the knee folds UP, not into the bed
+  const pole = new THREE.Vector3(
+    _hipW.x + sign * 0.45,
+    Math.max(_hipW.y, desiredPos.y) + 0.65,
+    (_hipW.z + desiredPos.z) * 0.5
+  );
 
-  const localTarget = desiredPos.clone();
-  hipsParent.worldToLocal(localTarget);
-  const lv = localTarget.sub(hip.position.clone());
-  const yaw = Math.atan2(lv.x, -lv.z);
-  const planar = Math.sqrt(lv.x * lv.x + lv.z * lv.z);
-  const elev = Math.atan2(planar, Math.max(0.001, -lv.y));
+  const axis = _dir.clone().normalize(); // hip → ankle
+  // Project pole into the bend plane and force it upward
+  const hipToPole = pole.clone().sub(_hipW);
+  let bend = new THREE.Vector3().crossVectors(axis, hipToPole).cross(axis);
+  if (bend.lengthSq() < 1e-8) {
+    // fallback: world up projected off axis
+    bend.crossVectors(axis, new THREE.Vector3(0, 1, 0)).cross(axis);
+  }
+  bend.normalize();
+  // If bend aims downward, flip — we always want the knee higher than the hip–ankle line
+  const mid = _hipW.clone().add(desiredPos).multiplyScalar(0.5);
+  const probe = mid.clone().addScaledVector(bend, 0.2);
+  if (probe.y < mid.y) bend.negate();
 
-  hip.rotation.order = "YXZ";
-  hip.rotation.y = THREE.MathUtils.clamp(yaw, -1.7, 1.7);
-  hip.rotation.x = THREE.MathUtils.clamp(-(elev - hipOffset), -2.9, 0.6);
-  hip.rotation.z = sign * 0.08;
-  knee.rotation.set(kneeFlex, 0, 0);
+  const a = (tLen * tLen - cLen * cLen + dist * dist) / (2 * dist);
+  const h = Math.sqrt(Math.max(0.0001, tLen * tLen - a * a));
+  const kneeWorld = _hipW.clone().addScaledVector(axis, a).addScaledVector(bend, h);
 
-  // Stretch thigh/calf along chain
+  // Orient hip so local -Y points at knee
+  const thighDirWorld = kneeWorld.clone().sub(_hipW).normalize();
+  const parentQ = new THREE.Quaternion();
+  hipsParent.getWorldQuaternion(parentQ);
+  const thighDirLocal = thighDirWorld.clone().applyQuaternion(parentQ.clone().invert());
+  hip.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), thighDirLocal);
+
+  // Orient knee so local -Y points at ankle target
+  // First place knee joint at correct bone length along thigh
   leg.thigh.quaternion.identity();
   leg.thigh.position.set(0, -tLen * 0.5, 0);
   leg.thigh.scale.set(1, stretch, 1);
   knee.position.set(0, -tLen, 0);
+  knee.quaternion.identity();
+
+  hip.updateWorldMatrix(true, true);
+  const kneePosNow = new THREE.Vector3();
+  knee.getWorldPosition(kneePosNow);
+  const calfDirWorld = desiredPos.clone().sub(kneePosNow).normalize();
+  const kneeWorldQ = new THREE.Quaternion();
+  knee.getWorldQuaternion(kneeWorldQ);
+  const calfDirLocal = calfDirWorld.clone().applyQuaternion(kneeWorldQ.clone().invert());
+  knee.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), calfDirLocal);
+
   leg.calf.quaternion.identity();
   leg.calf.position.set(0, -cLen * 0.5, 0);
   leg.calf.scale.set(1, stretch, 1);
   ankle.position.set(0, -cLen, 0);
+  ankle.quaternion.identity();
 
-  // Snap ankle onto target position in knee space, stretch calf to fill
+  // Snap ankle onto exact target; stretch calf mesh to bridge knee → ankle
   hip.updateWorldMatrix(true, true);
   const ankleLocal = desiredPos.clone();
   knee.worldToLocal(ankleLocal);
@@ -927,16 +952,13 @@ function poseLegAndFoot(leg, foot, target, sign) {
   leg.calf.scale.set(1, reach / calfLen, 1);
   leg.calf.position.copy(ankle.position).multiplyScalar(0.5);
 
-  // 2) Ankle world rotation: match desired foot rotation (foot local identity first)
+  // Foot local pose matches shaft target exactly (still parented to ankle)
   hip.updateWorldMatrix(true, true);
   const ankleWorldQuat = new THREE.Quaternion();
   ankle.getWorldQuaternion(ankleWorldQuat);
-  // We want foot world quat = desiredQuat, with foot still child of ankle.
-  // foot.quaternion_local = inv(ankleWorld) * desiredQuat
   foot.position.set(0, 0, 0);
   foot.scale.setScalar(1.55);
-  _quat.copy(ankleWorldQuat).invert().multiply(desiredQuat);
-  foot.quaternion.copy(_quat);
+  foot.quaternion.copy(ankleWorldQuat).invert().multiply(desiredQuat);
   ankle.visible = true;
 }
 
