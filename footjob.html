@@ -306,8 +306,14 @@ const hairMat = new THREE.MeshStandardMaterial({
 });
 const hairDark = new THREE.MeshStandardMaterial({ color: 0xe86aa8, roughness: 0.5 });
 const hairHiMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-const clothF = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 });
-const clothAccent = new THREE.MeshStandardMaterial({ color: 0xff6ea9, roughness: 0.45 });
+const clothF = new THREE.MeshPhysicalMaterial({
+  color: 0xfff0f6, roughness: 0.45, clearcoat: 0.15, clearcoatRoughness: 0.55,
+  sheen: 0.5, sheenColor: new THREE.Color(0xffc0d8)
+});
+const clothAccent = new THREE.MeshPhysicalMaterial({
+  color: 0xff6ea9, roughness: 0.4, clearcoat: 0.2, sheen: 0.55, sheenColor: new THREE.Color(0xffa0c8)
+});
+const dressTrim = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
 const clothM = new THREE.MeshStandardMaterial({ color: 0x3a3048, roughness: 0.72 });
 const nailMat = new THREE.MeshPhysicalMaterial({
   color: 0xff6aab, roughness: 0.22, metalness: 0.12,
@@ -722,11 +728,54 @@ function makeGirl() {
     const b = mesh(new THREE.SphereGeometry(0.058, 20, 14), skinF);
     b.position.set(sx * 0.055, 0.14, 0.07); torso.add(b);
   }
-  // cute crop top
-  const top = mesh(new THREE.SphereGeometry(0.135, 20, 14), clothF);
-  top.scale.set(1.05, 0.5, 0.82); top.position.set(0, 0.1, 0); torso.add(top);
-  const ribbon = mesh(new THREE.SphereGeometry(0.03, 10, 8), clothAccent);
-  ribbon.position.set(0, 0.02, 0.1); torso.add(ribbon);
+
+  // === Short dress / shirt — covers torso & hips; bare legs + feet only ===
+  const dress = new THREE.Group();
+  torso.add(dress);
+
+  // Bodice (covers chest / midriff)
+  const bodice = mesh(new THREE.SphereGeometry(0.14, 24, 16), clothF);
+  bodice.scale.set(1.12, 0.95, 0.88);
+  bodice.position.set(0, 0.1, 0.01);
+  dress.add(bodice);
+  // Soft bust shaping under fabric
+  for (const sx of [-1, 1]) {
+    const cup = mesh(new THREE.SphereGeometry(0.065, 16, 12), clothF);
+    cup.position.set(sx * 0.05, 0.13, 0.06);
+    cup.scale.set(1.0, 0.85, 0.75);
+    dress.add(cup);
+  }
+  // Square / sailor collar
+  const collar = mesh(new THREE.TorusGeometry(0.07, 0.018, 8, 24, Math.PI * 1.15), dressTrim);
+  collar.rotation.x = Math.PI / 2 + 0.35;
+  collar.position.set(0, 0.22, 0.02);
+  dress.add(collar);
+  // Neckline fill
+  const neckline = mesh(new THREE.SphereGeometry(0.06, 14, 10), clothF);
+  neckline.scale.set(1.15, 0.35, 0.9);
+  neckline.position.set(0, 0.22, 0.03);
+  dress.add(neckline);
+  // Chest ribbon / bow
+  const bowL = mesh(new THREE.SphereGeometry(0.028, 10, 8), clothAccent);
+  bowL.position.set(-0.025, 0.16, 0.12); bowL.scale.set(1.2, 0.55, 0.4); dress.add(bowL);
+  const bowR = mesh(new THREE.SphereGeometry(0.028, 10, 8), clothAccent);
+  bowR.position.set(0.025, 0.16, 0.12); bowR.scale.set(1.2, 0.55, 0.4); dress.add(bowR);
+  const bowKnot = mesh(new THREE.SphereGeometry(0.016, 10, 8), clothAccent);
+  bowKnot.position.set(0, 0.155, 0.125); dress.add(bowKnot);
+
+  // Waist band
+  const waist = mesh(new THREE.TorusGeometry(0.11, 0.016, 8, 28), clothAccent);
+  waist.rotation.x = Math.PI / 2;
+  waist.position.set(0, -0.02, 0.01);
+  dress.add(waist);
+
+  // Short puff shoulders
+  for (const sx of [-1, 1]) {
+    const sleeve = mesh(new THREE.SphereGeometry(0.05, 14, 12), clothF);
+    sleeve.position.set(sx * 0.14, 0.22, 0.0);
+    sleeve.scale.set(0.85, 0.7, 0.9);
+    dress.add(sleeve);
+  }
 
   const neck = limb(0.055, 0.028, 0.032, skinF, 10);
   neck.position.set(0, 0.3, 0); torso.add(neck);
@@ -743,6 +792,9 @@ function makeGirl() {
     const shoulder = new THREE.Group();
     shoulder.position.set(side * 0.13, 0.24, 0); torso.add(shoulder);
     const upper = limb(0.2, 0.03, 0.026, skinF); upper.position.y = -0.1; shoulder.add(upper);
+    // tiny sleeve cuff over upper arm
+    const cuff = mesh(new THREE.SphereGeometry(0.038, 12, 10), clothF);
+    cuff.position.set(0, -0.02, 0); cuff.scale.set(1.15, 0.55, 1.15); shoulder.add(cuff);
     const elbow = new THREE.Group(); elbow.position.y = -0.2; shoulder.add(elbow);
     const fore = limb(0.18, 0.024, 0.022, skinF); fore.position.y = -0.09; elbow.add(fore);
     const hand = makeHand(skinF, side); hand.position.set(0, -0.18, 0); hand.rotation.x = -1.1; elbow.add(hand);
@@ -754,7 +806,7 @@ function makeGirl() {
   for (const side of [-1, 1]) {
     const hip = new THREE.Group();
     hip.position.set(side * 0.075, -0.02, 0); hips.add(hip);
-    // Longer anime legs so they can reach the shaft contact
+    // Bare legs (no stockings) — longer anime legs for shaft reach
     const thighLen = 0.36, calfLen = 0.34;
     const thigh = limb(thighLen, 0.05, 0.038, skinF);
     thigh.position.y = -thighLen * 0.5; hip.add(thigh);
@@ -762,7 +814,6 @@ function makeGirl() {
     const calf = limb(calfLen, 0.036, 0.028, skinF);
     calf.position.y = -calfLen * 0.5; knee.add(calf);
     const ankle = new THREE.Group(); ankle.position.y = -calfLen; knee.add(ankle);
-    // visible ankle ball so the join to the foot reads clearly
     const ankleBall = mesh(new THREE.SphereGeometry(0.03, 12, 10), skinF);
     ankle.add(ankleBall);
     const foot = makeFoot(skinF, side);
@@ -773,10 +824,33 @@ function makeGirl() {
     };
   }
 
-  const panty = mesh(new THREE.SphereGeometry(0.105, 20, 14), clothAccent);
-  panty.scale.set(1.25, 0.4, 1.0); panty.position.set(0, 0.02, 0.01); hips.add(panty);
+  // Hip-level dress skirt + underskirt (replaces panty crop look)
+  const hipCover = mesh(new THREE.SphereGeometry(0.13, 24, 16), clothF);
+  hipCover.scale.set(1.35, 0.55, 1.15);
+  hipCover.position.set(0, 0.04, 0.01);
+  hips.add(hipCover);
 
-  root.userData = { hips, torso, head, hair, legs, arms };
+  const skirtFlare = mesh(new THREE.CylinderGeometry(0.22, 0.14, 0.18, 32, 1, true), clothF);
+  skirtFlare.position.set(0, -0.06, 0.01);
+  hips.add(skirtFlare);
+  // Solid underskirt so legs don't show through open cylinder
+  const underSkirt = mesh(new THREE.CylinderGeometry(0.2, 0.13, 0.17, 28, 1, false), clothF);
+  underSkirt.position.set(0, -0.055, 0.01);
+  hips.add(underSkirt);
+  // Hem trim
+  const hem = mesh(new THREE.TorusGeometry(0.205, 0.012, 8, 36), dressTrim);
+  hem.rotation.x = Math.PI / 2;
+  hem.position.set(0, -0.145, 0.01);
+  hips.add(hem);
+  // Side pleat accents
+  for (const sx of [-1, 1]) {
+    const pleat = mesh(new THREE.SphereGeometry(0.04, 12, 10), clothAccent);
+    pleat.position.set(sx * 0.12, -0.05, 0.08);
+    pleat.scale.set(0.45, 1.4, 0.35);
+    hips.add(pleat);
+  }
+
+  root.userData = { hips, torso, head, hair, legs, arms, dress };
   return root;
 }
 
