@@ -1641,12 +1641,35 @@ Items:${JSON.stringify(compact)}`;
         }
 
         setAiLog(`AI 精检 ${needAi.length} 个不确定封面…`);
-        const chunkSize = 12;
+        const chunkSize = 10;
         for (let i = 0; i < needAi.length; i += chunkSize) {
           if (token !== state.scanToken) return;
           const chunk = needAi.slice(i, i + chunkSize);
           setAiLog(`AI ${i + 1}-${Math.min(i + chunkSize, needAi.length)} / ${needAi.length}`);
-          const results = await openRouterClassify(chunk);
+          let results = [];
+          try {
+            results = await openRouterClassify(chunk);
+          } catch (chunkErr) {
+            console.warn("chunk failed, split retry", chunkErr);
+            await yieldToMain();
+            try {
+              const mid = Math.ceil(chunk.length / 2);
+              results = (await openRouterClassify(chunk.slice(0, mid))).concat(
+                mid < chunk.length ? await openRouterClassify(chunk.slice(mid)) : []
+              );
+            } catch (retryErr) {
+              for (const item of chunk) {
+                if (!state.locks[item.bvid]) {
+                  state.locks[item.bvid] = { moe_girl: false, reason: "AI parse skip" };
+                }
+              }
+              patchLocksInDom(chunk.map((x) => x.bvid));
+              setAiLog(`AI 批次跳过：${retryErr.message || retryErr}`);
+              $("aiBar").style.width = `${Math.round(28 + ((i + chunk.length) / needAi.length) * 72)}%`;
+              await yieldToMain();
+              continue;
+            }
+          }
           if (token !== state.scanToken) return;
           const touched = [];
           for (const row of results) {
