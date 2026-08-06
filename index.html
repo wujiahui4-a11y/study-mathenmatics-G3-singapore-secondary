@@ -739,7 +739,7 @@
 
     <aside class="ai-panel" id="aiPanel" aria-live="polite">
       <h3>Anime Girl Eraser</h3>
-      <p>AI 扫描封面。判定为萌系（moe）二次元美少女封面时上锁模糊，不直接显示封面人物。</p>
+      <p>Gemini 直接识图检测封面。若封面主体是萌系（moe）二次元美少女，将上锁模糊，不直接显示封面人物。</p>
       <label style="display:grid;gap:0.35rem;margin-bottom:0.75rem;font-size:0.78rem;color:var(--ink-soft)">
         OpenRouter API Key
         <input id="orKeyInput" type="password" placeholder="sk-or-v1-..." autocomplete="off"
@@ -766,7 +766,7 @@
         <button class="btn btn-ghost" type="button" id="aiClearBtn" style="padding:0.65rem 1rem;font-size:0.82rem">清除锁</button>
         <button class="btn btn-ghost" type="button" id="aiCloseBtn" style="padding:0.65rem 1rem;font-size:0.82rem">关闭</button>
       </div>
-      <div class="ai-log" id="aiLog">模型：deepseek/deepseek-v4-flash-0731 · 待命</div>
+      <div class="ai-log" id="aiLog">模型：google/gemini-3.6-flash · 视觉封面检测 · 待命</div>
     </aside>
 
     <section class="hero" id="hero">
@@ -838,7 +838,7 @@
     ];
 
     const REFRESH_MS = 90_000;
-    const OPENROUTER_MODEL = "deepseek/deepseek-v4-flash-0731";
+    const OPENROUTER_MODEL = "google/gemini-3.6-flash";
     const OR_KEY_STORAGE = "biliflux_openrouter_key";
     const AUTO_DETECT_STORAGE = "biliflux_auto_detect";
     const LOCK_CACHE_STORAGE = "biliflux_lock_cache_v1";
@@ -1460,52 +1460,6 @@
       $("eraserBtn").classList.toggle("active", state.eraserOpen || state.autoDetect || state.scanning);
     }
 
-    // Lightweight: only sample covers already painted in the DOM (no re-download / no lag)
-    function sampleCoverFromDom(bvid) {
-      if (state.coverFeatures[bvid]) return state.coverFeatures[bvid];
-      const img = grid.querySelector(`.card[data-bvid="${safeBvidSel(bvid)}"] img`);
-      if (!img || !img.complete || img.naturalWidth < 8) return null;
-      try {
-        const canvas = document.createElement("canvas");
-        const w = 24;
-        const h = 15;
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0, w, h);
-        const data = ctx.getImageData(0, 0, w, h).data;
-        let skin = 0, pastel = 0, pink = 0, n = w * h;
-        for (let i = 0; i < data.length; i += 16) { // stride sample for speed
-          const r = data[i], g = data[i + 1], b = data[i + 2];
-          const max = Math.max(r, g, b), min = Math.min(r, g, b);
-          const sat = max === 0 ? 0 : (max - min) / max;
-          const val = max / 255;
-          if (r > 180 && g > 130 && b > 110 && r > b && r - g < 80) skin += 1;
-          if (sat < 0.45 && val > 0.62) pastel += 1;
-          if (r > 170 && b > 120 && g < 170 && r > g) pink += 1;
-        }
-        const samples = Math.ceil(data.length / 16);
-        const feat = {
-          skin_ratio: +(skin / samples).toFixed(2),
-          pastel_ratio: +(pastel / samples).toFixed(2),
-          pink_ratio: +(pink / samples).toFixed(2),
-        };
-        state.coverFeatures[bvid] = feat;
-        return feat;
-      } catch (_) {
-        return null;
-      }
-    }
-
-    function localQuickGuess(video) {
-      const text = `${video.title} ${video.tname || ""} ${video.desc || ""}`.toLowerCase();
-      const moeHit = /(美少女|萌|老婆|娘|少女|anime|原神|崩坏|鸣潮|碧蓝|公主连结|vtuber|绘|插画|二次元|纸片人|狐妖|女角色|角色pv)/i.test(text);
-      const safeHit = /(实拍|真人|纪录片|动物|猫咪|狗|足球|篮球|新闻|教程|开箱评测|数码|硬件)/i.test(text);
-      if (moeHit && !safeHit) return { moe_girl: true, reason: "local keyword: moe cover likely", local: true };
-      if (safeHit && !moeHit) return { moe_girl: false, reason: "local keyword: safe", local: true };
-      return null;
-    }
-
     function getOpenRouterKey() {
       const input = $("orKeyInput");
       const fromInput = (input && input.value.trim()) || "";
@@ -1530,7 +1484,6 @@
       try {
         return JSON.parse(slice);
       } catch (_) {
-        // Repair common model quirks: trailing commas / single quotes
         slice = slice
           .replace(/,\s*]/g, "]")
           .replace(/,\s*}/g, "}")
@@ -1543,19 +1496,26 @@
       const apiKey = getOpenRouterKey();
       if (!apiKey) throw new Error("请先在面板中填写 OpenRouter API Key");
 
-      const compact = batch.map((v) => ({
-        bvid: v.bvid,
-        title: v.title,
-        tname: v.tname || "",
-        desc: (v.desc || "").slice(0, 60),
-        cover_url: v.pic,
-        px: v.px || null,
-      }));
+      const lines = batch.map((v, i) => `${i}: bvid=${v.bvid}`).join("\n");
+      const content = [
+        {
+          type: "text",
+          text: `Look at each Bilibili video COVER IMAGE below (in order).
+Decide if the MAIN SUBJECT is a moe-style anime girl (萌系二次元美少女 illustration / character portrait).
+True only when an anime/moe girl dominates the cover. False for real people, animals, memes, landscapes, text posters, UI, mecha-only, etc.
 
-      const prompt = `Anime Girl Eraser. For each item decide if COVER is moe-style anime girl (萌系二次元美少女) as main subject.
-Use title/tname/desc/cover_url/px. True only for moe girl covers. False otherwise.
-Return ONLY JSON array: [{"bvid":"...","moe_girl":true/false,"reason":"short"}]
-Items:${JSON.stringify(compact)}`;
+Images:\n${lines}
+
+Return ONLY a JSON array like:
+[{"bvid":"...","moe_girl":true/false,"reason":"short"}]`,
+        },
+      ];
+      for (const v of batch) {
+        content.push({
+          type: "image_url",
+          image_url: { url: httpsPic(v.pic) },
+        });
+      }
 
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -1568,10 +1528,12 @@ Items:${JSON.stringify(compact)}`;
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
           messages: [
-            { role: "system", content: "Output ONLY a JSON array. No markdown. No explanation." },
-            { role: "user", content: prompt },
+            { role: "system", content: "Vision cover classifier. Output ONLY a JSON array. No markdown." },
+            { role: "user", content },
           ],
-          max_tokens: 700,
+          max_tokens: 400,
+          temperature: 0,
+          reasoning: { effort: "low" },
         }),
       });
       if (!res.ok) {
@@ -1588,7 +1550,7 @@ Items:${JSON.stringify(compact)}`;
 
     async function runEraserScan({ silent = false, reason = "manual" } = {}) {
       if (state.scanning) return;
-      const targets = state.videos.filter((v) => v.bvid && !state.locks[v.bvid]);
+      const targets = state.videos.filter((v) => v.bvid && v.pic && !state.locks[v.bvid]);
       if (!targets.length) {
         if (!silent) setAiLog("当前列表封面已全部扫描完毕");
         updateAiStats();
@@ -1607,67 +1569,31 @@ Items:${JSON.stringify(compact)}`;
       $("eraserBtn").classList.add("active");
       $("aiScanBtn").disabled = true;
       if (!silent) toggleAiPanel(true);
-      setAiLog(`快速扫描 ${targets.length} 个封面（${reason}）…`);
-      $("aiBar").style.width = "8%";
+      setAiLog(`Gemini 视觉检测 ${targets.length} 张封面（${reason}）…`);
+      $("aiBar").style.width = "6%";
 
       try {
-        const needAi = [];
-        // Phase 1: instant local guesses + optional DOM pixel sample (non-blocking)
-        for (let i = 0; i < targets.length; i++) {
+        // Vision batches — Gemini sees the actual cover images
+        const chunkSize = 3;
+        for (let i = 0; i < targets.length; i += chunkSize) {
           if (token !== state.scanToken) return;
-          const v = targets[i];
-          const quick = localQuickGuess(v);
-          if (quick) {
-            state.locks[v.bvid] = quick;
-            applyLockToCard(grid.querySelector(`.card[data-bvid="${safeBvidSel(v.bvid)}"]`), quick);
-          } else {
-            needAi.push({
-              ...v,
-              px: sampleCoverFromDom(v.bvid),
-            });
-          }
-          if (i % 6 === 5) {
-            updateAiStats();
-            await yieldToMain();
-          }
-        }
-        persistLockCache();
-        updateAiStats();
-        $("aiBar").style.width = "28%";
-
-        if (!needAi.length) {
-          setAiLog(`扫描完成 · 本地快速判定 ${targets.length} 个，无需调用 AI`);
-          return;
-        }
-
-        setAiLog(`AI 精检 ${needAi.length} 个不确定封面…`);
-        const chunkSize = 10;
-        for (let i = 0; i < needAi.length; i += chunkSize) {
-          if (token !== state.scanToken) return;
-          const chunk = needAi.slice(i, i + chunkSize);
-          setAiLog(`AI ${i + 1}-${Math.min(i + chunkSize, needAi.length)} / ${needAi.length}`);
+          const chunk = targets.slice(i, i + chunkSize);
+          setAiLog(`封面识图 ${i + 1}-${Math.min(i + chunkSize, targets.length)} / ${targets.length}`);
           let results = [];
           try {
             results = await openRouterClassify(chunk);
           } catch (chunkErr) {
-            console.warn("chunk failed, split retry", chunkErr);
+            console.warn("vision chunk failed, retry singles", chunkErr);
             await yieldToMain();
-            try {
-              const mid = Math.ceil(chunk.length / 2);
-              results = (await openRouterClassify(chunk.slice(0, mid))).concat(
-                mid < chunk.length ? await openRouterClassify(chunk.slice(mid)) : []
-              );
-            } catch (retryErr) {
-              for (const item of chunk) {
-                if (!state.locks[item.bvid]) {
-                  state.locks[item.bvid] = { moe_girl: false, reason: "AI parse skip" };
-                }
+            for (const item of chunk) {
+              if (token !== state.scanToken) return;
+              try {
+                const one = await openRouterClassify([item]);
+                results = results.concat(one);
+              } catch (oneErr) {
+                state.locks[item.bvid] = { moe_girl: false, reason: "vision skip" };
               }
-              patchLocksInDom(chunk.map((x) => x.bvid));
-              setAiLog(`AI 批次跳过：${retryErr.message || retryErr}`);
-              $("aiBar").style.width = `${Math.round(28 + ((i + chunk.length) / needAi.length) * 72)}%`;
               await yieldToMain();
-              continue;
             }
           }
           if (token !== state.scanToken) return;
@@ -1682,18 +1608,18 @@ Items:${JSON.stringify(compact)}`;
           }
           for (const item of chunk) {
             if (!state.locks[item.bvid]) {
-              state.locks[item.bvid] = { moe_girl: false, reason: "No AI verdict" };
+              state.locks[item.bvid] = { moe_girl: false, reason: "No vision verdict" };
               touched.push(item.bvid);
             }
           }
           persistLockCache();
           patchLocksInDom(touched);
-          $("aiBar").style.width = `${Math.round(28 + ((i + chunk.length) / needAi.length) * 72)}%`;
+          $("aiBar").style.width = `${Math.round(((i + chunk.length) / targets.length) * 100)}%`;
           await yieldToMain();
         }
 
         const lockedNow = state.videos.filter((v) => state.locks[v.bvid] && state.locks[v.bvid].moe_girl).length;
-        setAiLog(`扫描完成 · 锁定 ${lockedNow} · AI精检 ${needAi.length} · 本地快判 ${targets.length - needAi.length}`);
+        setAiLog(`视觉扫描完成 · 锁定 ${lockedNow} / ${targets.length} · ${OPENROUTER_MODEL}`);
       } catch (err) {
         console.error(err);
         setAiLog(`扫描失败：${err.message || err}`);
