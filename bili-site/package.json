@@ -1,0 +1,20 @@
+{
+  "name": "bili-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Bilibili streaming website that extracts and plays real Bilibili video streams",
+  "scripts": {
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "node server/index.js",
+    "dev:client": "npm --prefix client run dev",
+    "install:all": "npm install && npm --prefix client install",
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "express": "4.19.2"
+  },
+  "devDependencies": {
+    "concurrently": "8.2.2"
+  }
+}
