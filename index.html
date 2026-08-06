@@ -119,6 +119,186 @@
       100% { box-shadow: 0 0 0 0 rgba(251, 114, 153, 0); }
     }
     .nav-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .eraser-btn {
+      appearance: none;
+      border: 1px solid rgba(26, 27, 38, 0.1);
+      background: linear-gradient(135deg, #1a1b26, #2d3148);
+      color: #fff;
+      border-radius: 999px;
+      padding: 0.5rem 0.95rem;
+      font-weight: 700;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      letter-spacing: 0.02em;
+      box-shadow: 0 8px 22px rgba(26, 27, 38, 0.18);
+      transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+      white-space: nowrap;
+    }
+    .eraser-btn:hover { transform: translateY(-1px); }
+    .eraser-btn.active {
+      background: linear-gradient(135deg, #fb7299, #e85a82);
+      box-shadow: 0 10px 28px var(--glow);
+    }
+    .eraser-btn .lock-mini {
+      width: 14px;
+      height: 14px;
+      display: inline-grid;
+      place-items: center;
+    }
+    .eraser-btn .lock-mini svg { width: 14px; height: 14px; display: block; }
+
+    .ai-panel {
+      position: fixed;
+      top: calc(var(--nav-h) + 10px);
+      right: clamp(0.75rem, 3vw, 2rem);
+      z-index: 50;
+      width: min(360px, calc(100vw - 1.5rem));
+      background: rgba(255, 250, 251, 0.94);
+      backdrop-filter: blur(18px);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 24px 60px rgba(26, 27, 38, 0.16);
+      padding: 1rem 1.05rem 1.1rem;
+      display: none;
+      animation: rise 0.35s var(--ease);
+    }
+    .ai-panel.open { display: block; }
+    .ai-panel h3 {
+      font-family: Syne, "Noto Sans SC", sans-serif;
+      font-size: 1.05rem;
+      margin-bottom: 0.35rem;
+      letter-spacing: -0.02em;
+    }
+    .ai-panel p {
+      font-size: 0.82rem;
+      color: var(--ink-soft);
+      line-height: 1.5;
+      margin-bottom: 0.85rem;
+    }
+    .ai-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .ai-stat {
+      flex: 1;
+      min-width: 90px;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 0.55rem 0.65rem;
+    }
+    .ai-stat b {
+      display: block;
+      font-size: 1.1rem;
+      font-family: Syne, sans-serif;
+    }
+    .ai-stat span {
+      font-size: 0.72rem;
+      color: var(--ink-soft);
+    }
+    .ai-progress {
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(26, 27, 38, 0.08);
+      overflow: hidden;
+      margin-bottom: 0.65rem;
+    }
+    .ai-progress > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #1a1b26, var(--pink));
+      transition: width 0.3s var(--ease);
+    }
+    .ai-log {
+      font-size: 0.75rem;
+      color: var(--ink-soft);
+      max-height: 72px;
+      overflow: auto;
+    }
+
+    .cover-lock {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 0.75rem;
+      color: #fff;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(251, 114, 153, 0.35), transparent 45%),
+        linear-gradient(160deg, rgba(22, 24, 36, 0.92), rgba(42, 28, 40, 0.88));
+      backdrop-filter: blur(14px) saturate(0.7);
+    }
+    .cover-lock::before {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border-radius: 12px;
+      border: 1px dashed rgba(255, 255, 255, 0.28);
+      pointer-events: none;
+    }
+    .lock-badge {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 0.35rem;
+      justify-items: center;
+      animation: lockIn 0.45s var(--ease) both;
+    }
+    @keyframes lockIn {
+      from { opacity: 0; transform: scale(0.86) translateY(8px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .lock-ring {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05));
+      border: 1px solid rgba(255,255,255,0.28);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.25);
+      font-size: 1.35rem;
+    }
+    .lock-badge strong {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .lock-badge em {
+      font-style: normal;
+      font-size: 0.68rem;
+      opacity: 0.78;
+      max-width: 16ch;
+      line-height: 1.35;
+    }
+    .thumb.locked img {
+      filter: blur(18px) brightness(0.55) saturate(0.4);
+      transform: scale(1.12);
+    }
+    .card.locked-card .play-hint { display: none; }
+    .scan-dot {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 4;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.2rem 0.45rem;
+      border-radius: 999px;
+      background: rgba(26, 27, 38, 0.72);
+      color: #fff;
+    }
+    .scan-dot.safe { background: rgba(46, 125, 98, 0.85); }
+    .scan-dot.danger { background: rgba(232, 90, 130, 0.92); }
+    .scan-dot.busy { background: rgba(26, 27, 38, 0.75); }
     .search {
       display: flex;
       align-items: center;
@@ -473,9 +653,11 @@
     }
 
     @media (max-width: 640px) {
-      .search { min-width: 0; flex: 1; max-width: 52vw; }
+      .search { min-width: 0; flex: 1; max-width: 42vw; }
+      .eraser-btn { padding: 0.45rem 0.7rem; font-size: 0.7rem; }
       .hero { align-items: center; min-height: 78svh; }
       .player-top h3 { font-size: 0.95rem; }
+      .ai-panel { right: 0.75rem; left: 0.75rem; width: auto; }
     }
   </style>
 </head>
@@ -495,12 +677,40 @@
           </svg>
           <input id="searchInput" type="search" placeholder="BV 号 / 关键词，回车播放或搜索" />
         </label>
+        <button class="eraser-btn" type="button" id="eraserBtn" title="Anime Girl Eraser">
+          <span class="lock-mini" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          Anime Girl Eraser
+        </button>
         <div class="live-pill" title="列表自动刷新">
           <span class="live-dot"></span>
           LIVE
         </div>
       </div>
     </header>
+
+    <aside class="ai-panel" id="aiPanel" aria-live="polite">
+      <h3>Anime Girl Eraser</h3>
+      <p>AI 自动扫描当前列表封面。若判定为萌系（moe）二次元美少女封面，将上锁模糊，无法直接看见封面人物。</p>
+      <label style="display:grid;gap:0.35rem;margin-bottom:0.75rem;font-size:0.78rem;color:var(--ink-soft)">
+        OpenRouter API Key
+        <input id="orKeyInput" type="password" placeholder="sk-or-v1-..." autocomplete="off"
+          style="border:1px solid var(--line);border-radius:12px;padding:0.55rem 0.7rem;background:#fff;color:var(--ink);outline:none" />
+      </label>
+      <div class="ai-row">
+        <div class="ai-stat"><b id="aiScanned">0</b><span>已扫描</span></div>
+        <div class="ai-stat"><b id="aiLocked">0</b><span>已上锁</span></div>
+        <div class="ai-stat"><b id="aiSafe">0</b><span>安全</span></div>
+      </div>
+      <div class="ai-progress"><i id="aiBar"></i></div>
+      <div class="ai-row">
+        <button class="btn btn-primary" type="button" id="aiScanBtn" style="padding:0.65rem 1rem;font-size:0.82rem">开始扫描</button>
+        <button class="btn btn-ghost" type="button" id="aiClearBtn" style="padding:0.65rem 1rem;font-size:0.82rem">清除锁</button>
+        <button class="btn btn-ghost" type="button" id="aiCloseBtn" style="padding:0.65rem 1rem;font-size:0.82rem">关闭</button>
+      </div>
+      <div class="ai-log" id="aiLog">模型：deepseek/deepseek-v4-flash-0731 · 待命</div>
+    </aside>
 
     <section class="hero" id="hero">
       <div class="hero-bg" id="heroBg"></div>
@@ -571,11 +781,18 @@
     ];
 
     const REFRESH_MS = 90_000;
+    const OPENROUTER_MODEL = "deepseek/deepseek-v4-flash-0731";
+    const OR_KEY_STORAGE = "biliflux_openrouter_key";
     const state = {
       category: CATEGORIES[0],
       videos: [],
       timer: null,
       extracting: false,
+      eraserOpen: false,
+      eraserActive: false,
+      scanning: false,
+      locks: {}, // bvid -> { moe_girl, reason }
+      coverFeatures: {},
     };
 
     const $ = (id) => document.getElementById(id);
@@ -854,10 +1071,32 @@
         showStatus(true, "这一分区暂时没有稿件");
         return;
       }
-      grid.innerHTML = state.videos.map((v, i) => `
-        <button class="card" type="button" data-index="${i}" style="animation-delay:${Math.min(i, 12) * 40}ms">
-          <div class="thumb">
+      grid.innerHTML = state.videos.map((v, i) => {
+        const lock = state.locks[v.bvid];
+        const locked = !!(lock && lock.moe_girl);
+        const scanned = !!lock;
+        const badge = !scanned
+          ? ""
+          : locked
+            ? `<span class="scan-dot danger">LOCKED</span>`
+            : `<span class="scan-dot safe">SAFE</span>`;
+        const lockUi = locked
+          ? `<div class="cover-lock" aria-hidden="true">
+              <div class="lock-badge">
+                <div class="lock-ring">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </div>
+                <strong>Cover Locked</strong>
+                <em>${escapeHtml(lock.reason || "Moe anime girl cover erased")}</em>
+              </div>
+            </div>`
+          : "";
+        return `
+        <button class="card${locked ? " locked-card" : ""}" type="button" data-index="${i}" style="animation-delay:${Math.min(i, 12) * 40}ms">
+          <div class="thumb${locked ? " locked" : ""}">
             <img src="${v.pic}" alt="" loading="lazy" referrerpolicy="no-referrer" />
+            ${badge}
+            ${lockUi}
             <div class="play-hint"><span>▶</span></div>
             <div class="thumb-meta">
               <span>${formatCount(v.play)} 播放</span>
@@ -869,8 +1108,14 @@
             <span>${escapeHtml(v.owner)}</span>
             ${v.tname ? `<span>${escapeHtml(v.tname)}</span>` : ""}
           </div>
-        </button>
-      `).join("");
+        </button>`;
+      }).join("");
+
+      if (state.eraserActive && !state.scanning) {
+        // Auto-scan newly loaded covers that are not yet classified
+        const pending = state.videos.filter((v) => v.bvid && !state.locks[v.bvid]);
+        if (pending.length) queueMicrotask(() => runEraserScan({ silent: true }));
+      }
     }
 
     function escapeHtml(str) {
@@ -1050,7 +1295,235 @@
       $("clock").textContent = new Date().toLocaleString();
     }
 
+    function setAiLog(text) {
+      $("aiLog").textContent = text;
+    }
+
+    function updateAiStats() {
+      const vids = state.videos || [];
+      let scanned = 0, locked = 0, safe = 0;
+      for (const v of vids) {
+        const lock = state.locks[v.bvid];
+        if (!lock) continue;
+        scanned += 1;
+        if (lock.moe_girl) locked += 1;
+        else safe += 1;
+      }
+      $("aiScanned").textContent = String(scanned);
+      $("aiLocked").textContent = String(locked);
+      $("aiSafe").textContent = String(safe);
+      const total = Math.max(vids.length, 1);
+      $("aiBar").style.width = `${Math.round((scanned / total) * 100)}%`;
+    }
+
+    function toggleAiPanel(force) {
+      state.eraserOpen = typeof force === "boolean" ? force : !state.eraserOpen;
+      $("aiPanel").classList.toggle("open", state.eraserOpen);
+      $("eraserBtn").classList.toggle("active", state.eraserOpen || state.eraserActive);
+    }
+
+    async function analyzeCoverFeatures(url) {
+      if (!url) return null;
+      if (state.coverFeatures[url]) return state.coverFeatures[url];
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.referrerPolicy = "no-referrer";
+        const loaded = new Promise((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("cover load fail"));
+        });
+        img.src = url;
+        await Promise.race([
+          loaded,
+          new Promise((_, reject) => setTimeout(() => reject(new Error("cover timeout")), 8000)),
+        ]);
+        const canvas = document.createElement("canvas");
+        const w = 48;
+        const h = 30;
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, w, h);
+        const data = ctx.getImageData(0, 0, w, h).data;
+        let skin = 0, pastel = 0, pink = 0, bright = 0, n = w * h;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          const max = Math.max(r, g, b), min = Math.min(r, g, b);
+          const sat = max === 0 ? 0 : (max - min) / max;
+          const val = max / 255;
+          if (val > 0.55) bright += 1;
+          // anime skin-ish / soft flesh tones
+          if (r > 180 && g > 130 && b > 110 && r > b && r - g < 80 && g - b < 60) skin += 1;
+          // pastel / moe palette
+          if (sat < 0.45 && val > 0.62) pastel += 1;
+          // pink / magenta accents common on moe covers
+          if (r > 170 && b > 120 && g < 170 && r > g) pink += 1;
+        }
+        const feat = {
+          skin_ratio: +(skin / n).toFixed(3),
+          pastel_ratio: +(pastel / n).toFixed(3),
+          pink_ratio: +(pink / n).toFixed(3),
+          bright_ratio: +(bright / n).toFixed(3),
+        };
+        state.coverFeatures[url] = feat;
+        return feat;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function getOpenRouterKey() {
+      const input = $("orKeyInput");
+      const fromInput = (input && input.value.trim()) || "";
+      const key = fromInput || localStorage.getItem(OR_KEY_STORAGE) || "";
+      if (key && input && !input.value) input.value = key;
+      return key;
+    }
+
+    function saveOpenRouterKey(key) {
+      if (!key) return;
+      localStorage.setItem(OR_KEY_STORAGE, key);
+      const input = $("orKeyInput");
+      if (input) input.value = key;
+    }
+
+    async function openRouterClassify(batch) {
+      const apiKey = getOpenRouterKey();
+      if (!apiKey) throw new Error("请先在面板中填写 OpenRouter API Key");
+
+      const prompt = `You are Anime Girl Eraser AI.
+Decide for each Bilibili video whether its COVER IMAGE is a moe-style (萌系 / moi) anime girl cover — cute 二次元美少女 illustration or character portrait as the main subject.
+
+Use title, category, description, cover_url AND cover_pixel_features (skin/pastel/pink ratios sampled from the real cover image).
+True ONLY when the cover itself is dominated by a moe anime girl.
+False for real people, animals, memes, landscapes, text posters, game UI, mecha-only, groups without a clear moe girl focus.
+
+Return ONLY a JSON array:
+[{"bvid":"...","moe_girl":true/false,"reason":"short english or chinese"}]
+
+Videos:
+${JSON.stringify(batch)}`;
+
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": location.origin || "http://127.0.0.1:8765",
+          "X-Title": "BiliFlux Anime Girl Eraser",
+        },
+        body: JSON.stringify({
+          model: OPENROUTER_MODEL,
+          messages: [
+            { role: "system", content: "Return only valid JSON array. No markdown fences." },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 900,
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`OpenRouter ${res.status}: ${errText.slice(0, 120)}`);
+      }
+      const data = await res.json();
+      const msg = (data.choices && data.choices[0] && data.choices[0].message) || {};
+      const text = msg.content || msg.reasoning || "";
+      const start = text.indexOf("[");
+      const end = text.lastIndexOf("]");
+      if (start < 0 || end <= start) throw new Error("AI 未返回 JSON 数组");
+      saveOpenRouterKey(apiKey);
+      return JSON.parse(text.slice(start, end + 1));
+    }
+
+    async function runEraserScan({ silent = false } = {}) {
+      if (state.scanning) return;
+      const targets = state.videos.filter((v) => v.bvid && !state.locks[v.bvid]);
+      if (!targets.length) {
+        if (!silent) setAiLog("当前列表封面已全部扫描完毕");
+        updateAiStats();
+        return;
+      }
+
+      state.scanning = true;
+      state.eraserActive = true;
+      $("eraserBtn").classList.add("active");
+      $("aiScanBtn").disabled = true;
+      if (!silent) toggleAiPanel(true);
+      setAiLog(`正在分析 ${targets.length} 张封面像素特征…`);
+
+      try {
+        const enriched = [];
+        for (let i = 0; i < targets.length; i++) {
+          const v = targets[i];
+          const feat = await analyzeCoverFeatures(v.pic);
+          enriched.push({
+            bvid: v.bvid,
+            title: v.title,
+            tname: v.tname || "",
+            desc: (v.desc || "").slice(0, 100),
+            cover_url: v.pic,
+            cover_pixel_features: feat,
+          });
+          $("aiBar").style.width = `${Math.round(((i + 1) / targets.length) * 35)}%`;
+        }
+
+        setAiLog(`调用 ${OPENROUTER_MODEL} 判定萌系封面…`);
+        // Batch in chunks of 8 for reliability
+        const chunkSize = 8;
+        for (let i = 0; i < enriched.length; i += chunkSize) {
+          const chunk = enriched.slice(i, i + chunkSize);
+          setAiLog(`AI 扫描 ${i + 1}-${Math.min(i + chunkSize, enriched.length)} / ${enriched.length}`);
+          const results = await openRouterClassify(chunk);
+          for (const row of results) {
+            if (!row || !row.bvid) continue;
+            state.locks[row.bvid] = {
+              moe_girl: !!row.moe_girl,
+              reason: String(row.reason || (row.moe_girl ? "Moe anime girl cover" : "Safe")),
+            };
+          }
+          // Mark any missing in chunk as safe to avoid infinite rescan
+          for (const item of chunk) {
+            if (!state.locks[item.bvid]) {
+              state.locks[item.bvid] = { moe_girl: false, reason: "No AI verdict" };
+            }
+          }
+          updateAiStats();
+          renderGrid();
+          $("aiBar").style.width = `${Math.round(35 + ((i + chunk.length) / enriched.length) * 65)}%`;
+        }
+        const locked = Object.values(state.locks).filter((x) => x.moe_girl).length;
+        setAiLog(`扫描完成 · 已锁定 ${locked} 个萌系美少女封面`);
+      } catch (err) {
+        console.error(err);
+        setAiLog(`扫描失败：${err.message || err}`);
+      } finally {
+        state.scanning = false;
+        $("aiScanBtn").disabled = false;
+        updateAiStats();
+        renderGrid();
+      }
+    }
+
+    function clearLocks() {
+      state.locks = {};
+      state.eraserActive = false;
+      $("eraserBtn").classList.toggle("active", state.eraserOpen);
+      updateAiStats();
+      $("aiBar").style.width = "0%";
+      setAiLog("已清除全部封面锁 · 待命");
+      renderGrid();
+    }
+
     // Events
+    $("eraserBtn").addEventListener("click", () => {
+      toggleAiPanel();
+      updateAiStats();
+    });
+    $("aiCloseBtn").addEventListener("click", () => toggleAiPanel(false));
+    $("aiScanBtn").addEventListener("click", () => runEraserScan());
+    $("aiClearBtn").addEventListener("click", clearLocks);
+
     tabs.addEventListener("click", (e) => {
       const btn = e.target.closest(".tab");
       if (!btn) return;
@@ -1079,7 +1552,10 @@
       if (e.target === modal) closeModal();
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && modal.classList.contains("open")) closeModal();
+      if (e.key === "Escape") {
+        if (modal.classList.contains("open")) closeModal();
+        else if (state.eraserOpen) toggleAiPanel(false);
+      }
     });
 
     $("refreshBtn").addEventListener("click", () => {
@@ -1129,6 +1605,12 @@
     scheduleRefresh();
     tickClock();
     setInterval(tickClock, 1000);
+    const savedKey = localStorage.getItem(OR_KEY_STORAGE);
+    if (savedKey) $("orKeyInput").value = savedKey;
+    $("orKeyInput").addEventListener("change", () => {
+      const v = $("orKeyInput").value.trim();
+      if (v) localStorage.setItem(OR_KEY_STORAGE, v);
+    });
   </script>
 </body>
 </html>
