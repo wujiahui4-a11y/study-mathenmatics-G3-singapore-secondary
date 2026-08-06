@@ -190,10 +190,24 @@
     color: #ffe066; border-color: #ffe066;
     box-shadow: 0 0 18px rgba(255, 224, 102, .25);
   }
-  body.story-playing #controls { opacity: 0.35; pointer-events: none; }
-  body.story-playing #controls.story-live { opacity: 1; pointer-events: auto; }
+  body.story-playing #controls,
+  body.story-playing #telemetry,
+  body.story-playing #title { display: none !important; }
+  body.story-playing #chromeToggles { opacity: 0.5; }
+  body.story-playing #dialogue { bottom: 24px; }
 
-  /* Dialogue box — bottom, above dock, doesn't cover center */
+  /* Full-screen story fade / time-skip */
+  #storyFade {
+    position: fixed; inset: 0; z-index: 15; pointer-events: none;
+    background: #0a0610; opacity: 0; transition: opacity 0.9s ease;
+    display: grid; place-items: center;
+    font: 800 22px/1.4 "M PLUS Rounded 1c", sans-serif;
+    color: #ffd6ea; letter-spacing: 0.12em; text-align: center;
+  }
+  #storyFade.on { opacity: 1; pointer-events: auto; }
+  #storyFade .sub { display: block; margin-top: 10px; font-size: 13px; font-weight: 400; color: #c49aaf; letter-spacing: 0.08em; }
+
+  /* Dialogue box — bottom, doesn't cover center */
   #dialogue {
     position: absolute; left: 50%; bottom: 78px; transform: translateX(-50%);
     width: min(520px, calc(100vw - 24px));
@@ -287,6 +301,7 @@
 <div id="fx"></div>
 <div id="hearts"></div>
 <div id="burst">OVERSTIM!!</div>
+<div id="storyFade"><span id="fadeTitle">2 hours later…</span><span class="sub" id="fadeSub"></span></div>
 <script>
 // Failsafe: never leave the user stuck on the loader
 window.addEventListener("error", (e) => {
@@ -501,11 +516,12 @@ const EMOTIONS = {
   happy:   { brow: 0.1, eyeOpen: 0.55, sparkle: true, mouth: "smile", blush: 0.45, crescent: true },
   smug:    { brow: -0.2, eyeOpen: 0.7, sparkle: true, mouth: "smirk", blush: 0.35, lookX: -0.06 },
   tease:   { brow: 0.05, eyeOpen: 0.75, sparkle: true, mouth: "tongue", blush: 0.5 },
-  aroused: { brow: 0.2, eyeOpen: 0.95, sparkle: true, mouth: "open", blush: 0.85, heart: true },
-  love:    { brow: 0.15, eyeOpen: 0.8, sparkle: true, mouth: "smile", blush: 0.75, heart: true },
+  aroused: { brow: 0.2, eyeOpen: 1, sparkle: true, mouth: "D", blush: 0.85, xd: true },
+  love:    { brow: 0.15, eyeOpen: 1, sparkle: true, mouth: "D", blush: 0.7, xd: true },
   talk:    { brow: 0, eyeOpen: 1, sparkle: true, mouth: "talk", blush: 0.4 },
   aha:     { brow: 0.25, eyeOpen: 1.1, sparkle: true, mouth: "smile", blush: 0.4 },
-  naughty: { brow: -0.15, eyeOpen: 0.85, sparkle: true, mouth: "smirk", blush: 0.6, heart: true },
+  naughty: { brow: -0.15, eyeOpen: 1, sparkle: true, mouth: "D", blush: 0.65, xd: true },
+  xd:      { brow: 0.1, eyeOpen: 1, sparkle: false, mouth: "D", blush: 0.55, xd: true },
 };
 
 function drawAnimeEye(ctx, cx, cy, flip, emo = EMOTIONS.neutral) {
@@ -525,6 +541,29 @@ function drawAnimeEye(ctx, cx, cy, flip, emo = EMOTIONS.neutral) {
     ctx.lineCap = "round";
     ctx.strokeStyle = "#1a1020";
     ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (emo.xd) {
+    // >< eyes (no hearts)
+    ctx.strokeStyle = "#1a1020";
+    ctx.lineWidth = 8;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-42, -18);
+    ctx.lineTo(-8, 4);
+    ctx.lineTo(-42, 26);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(42, -18);
+    ctx.lineTo(8, 4);
+    ctx.lineTo(42, 26);
+    ctx.stroke();
+    // soft blush dots under
+    ctx.fillStyle = "rgba(255,120,160,0.35)";
+    ctx.beginPath(); ctx.ellipse(-50, 40, 18, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(50, 40, 18, 10, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
     return;
   }
@@ -561,15 +600,7 @@ function drawAnimeEye(ctx, cx, cy, flip, emo = EMOTIONS.neutral) {
 
   // iris
   const ix = lookX * 40, iy = 6 + lookY * 30;
-  if (emo.heart) {
-    ctx.fillStyle = "#ff5a9a";
-    ctx.beginPath();
-    const s = 22;
-    ctx.moveTo(ix, iy + s * 0.35);
-    ctx.bezierCurveTo(ix - s, iy - s * 0.2, ix - s * 0.6, iy - s, ix, iy - s * 0.45);
-    ctx.bezierCurveTo(ix + s * 0.6, iy - s, ix + s, iy - s * 0.2, ix, iy + s * 0.35);
-    ctx.fill();
-  } else {
+  {
     const ig = ctx.createRadialGradient(ix - 4, iy - 4, 4, ix, iy, 38);
     ig.addColorStop(0, "#e8d4ff");
     ig.addColorStop(0.3, "#a78bfa");
@@ -650,6 +681,18 @@ function drawMouth(ctx, w, h, kind = "soft") {
     ctx.ellipse(cx + 4, cy + 10, 8, 6, 0.2, 0, Math.PI * 2);
     ctx.fillStyle = "#ff7a9a";
     ctx.fill();
+  } else if (kind === "D") {
+    // big D mouth (cute >< face)
+    ctx.beginPath();
+    ctx.moveTo(cx - 14, cy - 10);
+    ctx.lineTo(cx - 14, cy + 14);
+    ctx.quadraticCurveTo(cx + 22, cy + 10, cx + 22, cy - 2);
+    ctx.quadraticCurveTo(cx + 22, cy - 14, cx - 14, cy - 10);
+    ctx.closePath();
+    ctx.fillStyle = "#5a2438";
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.stroke();
   } else if (kind === "small") {
     ctx.beginPath();
     ctx.moveTo(cx - 10, cy);
@@ -1339,6 +1382,8 @@ const stim = {
   contactForce: 0, cadence: 0, lastZero: 0,
   droplets: [], hearts: [], manualDrive: false,
   twitch: 0, shake: 0, neverStop: false,
+  allowCum: true, // story mode sets false until scripted climax
+  rollAccel: 1,
 };
 
 const ui = {
@@ -1477,31 +1522,66 @@ function spawnDrop(worldPos, vel) {
 }
 
 function triggerClimax() {
+  // Story mode: only when explicitly allowed
+  if (story?.active && !stim.allowCum) return;
+
   stim.climax = true;
   stim.climaxT = 0;
   stim.climaxCount += 1;
-  // After first cum: NEVER stop — prefer toe-milk unless story is touring techniques
+  stim.allowCum = false; // consume permission
   stim.neverStop = true;
   stim.auto = true;
-  ui.auto.classList.add("active");
-  if (!(story.active && (story.phase === "tour" || story.phase === "play"))) {
-    stim.technique = "toeMilk";
-  }
+  ui.auto?.classList.add("active");
   stim.milkPhase = 0;
   stim.shake = stim.overstim ? 0.25 : 0.4;
   stim.twitch = 0.45;
   fxEl.classList.add("on");
-  if (stim.overstim || stim.neverStop) fxEl.classList.add("over");
-  else setTimeout(() => fxEl.classList.remove("on"), 400);
+  fxEl.classList.add("over");
 
-  const label = stim.climaxCount === 1 ? "CUM — toe milk~" : stim.climaxCount === 2 ? "KEEP GOING~" : `WAVE ${stim.climaxCount}`;
+  const n = stim.climaxCount;
+  let label = `WAVE ${n}`;
+  if (story?.active) {
+    setEmotion("xd");
+    if (n === 1) {
+      label = "CUM — twist~";
+      setTechnique("twist");
+      // after short twist, switch to accelerating toe-clamp roll
+      setTimeout(() => {
+        if (!story.active) return;
+        setTechnique("toeClampRoll");
+        stim.rollAccel = 1.2;
+        setEmotion("naughty");
+        showDialogue("Girl", "Got you— toes clamped. Rolling… faster…");
+      }, 900);
+      setTimeout(() => { if (story.active) stim.rollAccel = 2.2; }, 2200);
+      setTimeout(() => { if (story.active) stim.rollAccel = 3.4; }, 3800);
+    } else if (n === 2) {
+      label = "AGAIN — backward~";
+      setTechnique("backward");
+      setEmotion("xd");
+      showDialogue("Girl", "Second one— backward footjob. Heels first~");
+    } else {
+      label = `NIGHT ${n}`;
+      setTechnique(n % 2 === 0 ? "toeClampRoll" : "toeMilk");
+      stim.rollAccel = 1.5 + n * 0.15;
+      setEmotion("xd");
+    }
+  } else {
+    stim.technique = "toeMilk";
+    label = n === 1 ? "CUM — toe milk~" : n === 2 ? "KEEP GOING~" : `WAVE ${n}`;
+  }
+
   flashBurst(label);
   for (let i = 0; i < 8; i++) setTimeout(spawnHeart, i * 70);
 
   stim.sensitivity = Math.min(5, stim.sensitivity + (stim.overstim ? 0.4 : 0.25));
-  stim.arousal = 0.88; // stay high — no collapse
-  ui.hint.textContent = `Climax #${stim.climaxCount} — toes squeezing the back, slow up·down · no stop`;
-  ui.hint.classList.add("hot");
+  stim.arousal = 0.88;
+  if (ui.hint) {
+    ui.hint.textContent = story?.active
+      ? `Story climax #${n}`
+      : `Climax #${n} — toes squeezing the back · no stop`;
+    ui.hint.classList.add("hot");
+  }
 
   const tip = new THREE.Vector3();
   boy.userData.shaftTip.getWorldPosition(tip);
@@ -1771,6 +1851,37 @@ function placeFeet(dt) {
     boy.userData.shaft.scale.set(1.1, 0.9, 1);
     poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
     poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "toeClampRoll") {
+    // Toes clamped mid-shaft, rolling faster and faster
+    const accel = stim.rollAccel || 1;
+    const roll = Math.sin(stim.phase * (2.5 * accel)) * 0.5 + 0.5;
+    const zz = THREE.MathUtils.lerp(0.06, 0.18, roll);
+    const clamp = r * (0.35 + grip * 0.25);
+    const spin = stim.phase * 1.8 * accel;
+    targetL.position.set(-clamp * Math.cos(spin * 0.3), clamp * 0.4 + Math.sin(spin) * 0.01, zz);
+    targetR.position.set(clamp * Math.cos(spin * 0.3), clamp * 0.4 - Math.sin(spin) * 0.01, zz * 0.98);
+    orientToesOnDorsalQuat(-1, _quat);
+    targetL.quaternion.copy(_quat); targetL.rotateX(-0.75); targetL.rotateZ(-0.25 + Math.sin(spin) * 0.35);
+    orientToesOnDorsalQuat(1, _quat);
+    targetR.quaternion.copy(_quat); targetR.rotateX(-0.75); targetR.rotateZ(0.25 - Math.sin(spin) * 0.35);
+    boy.userData.shaft.scale.set(1.12, 0.85, 1.08);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "backward") {
+    // Backward footjob — heels toward tip, toes toward base, reverse stroke feel
+    const dig = 0.02 + grip * 0.025;
+    const sep = Math.max(0.01, 0.016 - dig);
+    const zBack = THREE.MathUtils.lerp(0.18, 0.04, stroke); // reversed travel
+    targetL.position.set(-sep, r * 0.05, zBack);
+    targetR.position.set(sep, r * 0.05, zBack * 0.96);
+    orientHeelInQuat(-1, _quat);
+    targetL.quaternion.copy(_quat); targetL.rotateX(0.15); targetL.rotateZ(0.2);
+    orientHeelInQuat(1, _quat);
+    targetR.quaternion.copy(_quat); targetR.rotateX(0.15); targetR.rotateZ(-0.2);
+    const squash = 1 - (0.08 + grip * 0.12);
+    boy.userData.shaft.scale.set(squash, squash, 1.04);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
   } else if (tech === "twist") {
     // Alternating sole twist while stroking
     const dig = 0.02 + grip * 0.025;
@@ -1906,6 +2017,14 @@ function updateSolver(dt) {
       const linger = 0.08 * Math.sin(a * 0.5 + 1.2);
       const human = 0.03 * Math.sin(a * 2.3 + 0.4) + 0.02 * Math.sin(a * 0.37);
       stim.target = THREE.MathUtils.clamp(glide + linger + human, 0.08, 0.94);
+    } else if (stim.technique === "toeClampRoll") {
+      const accel = stim.rollAccel || 1;
+      stim.phase += dt * stim.speed * 2.8 * accel;
+      stim.target = 0.5 + Math.sin(stim.phase) * 0.35;
+    } else if (stim.technique === "backward") {
+      stim.phase += dt * stim.speed * 2.4;
+      const s = Math.sin(stim.phase);
+      stim.target = 0.5 + Math.sign(s) * Math.pow(Math.abs(s), 0.7) * 0.4;
     } else if (stim.technique === "tipFlick") {
       stim.phase += dt * stim.speed * 3.4;
       stim.target = 0.85 + Math.sin(stim.phase) * 0.08;
@@ -1954,14 +2073,16 @@ function updateSolver(dt) {
       Math.max(floor, stim.arousal * (1 - dt * 0.12) + work * sweet * 1.9),
       floor, 1
     );
-    if (stim.climaxT > 0.5 && stim.arousal >= 0.97) triggerClimax();
+    if (stim.climaxT > 0.5 && stim.arousal >= 0.97 && (!story.active || stim.allowCum)) triggerClimax();
   } else if (!stim.climax) {
     const bonus = stim.overstim ? 1.45 : 1;
-    stim.arousal = THREE.MathUtils.clamp(stim.arousal + work * sweet * bonus, 0, 1);
+    // Story mode: build arousal but NEVER auto-cum unless story sets allowCum
+    const build = story.active ? (story.phase === "sleep" ? 0.35 : 0.55) : 1;
+    stim.arousal = THREE.MathUtils.clamp(stim.arousal + work * sweet * bonus * build, 0, 1);
     if (!stim.auto && !stim.manualDrive && Math.abs(stim.vel) < 0.05 && !stim.neverStop) {
       stim.arousal = Math.max(0, stim.arousal - dt * 0.03);
     }
-    if (stim.arousal >= 0.995) triggerClimax();
+    if (stim.arousal >= 0.995 && (!story.active || stim.allowCum)) triggerClimax();
   } else {
     // non-neverStop climax (shouldn't happen often) — still keep a short drip then recover
     stim.arousal = Math.max(0.2, stim.arousal - dt * 0.05);
@@ -2144,15 +2265,62 @@ function poseGirlFootjob() {
   girl.userData.arms.R.shoulder.rotation.set(-0.75, -0.25, 1.05);
 }
 
+function poseBoyTired() {
+  boy.position.set(0, 0, 0);
+  boy.userData.hips.position.set(0, 0.38, 0.0);
+  boy.userData.hips.rotation.set(-Math.PI / 2 + 0.02, 0.15, 0);
+  boy.userData.torso.rotation.set(0.05, 0, 0);
+  if (boy.userData.head) boy.userData.head.rotation.set(0.15, 0.2, 0);
+}
+
+function poseGirlBeside() {
+  girl.userData.hips.position.set(0.35, 0.48, 0.1);
+  girl.userData.hips.rotation.set(1.05, Math.PI * 0.35, 0.1);
+  girl.userData.torso.rotation.set(0.1, -0.25, 0);
+  girl.userData.head.rotation.set(0.05, -0.55, 0);
+  story.headYaw = -0.55;
+  girl.userData.arms.L.shoulder.rotation.set(-0.4, 0.2, -0.6);
+  girl.userData.arms.R.shoulder.rotation.set(-0.5, -0.1, 0.5);
+}
+
+function setPajamas(on) {
+  // Soft pajama tint on existing dress meshes
+  const col = on ? 0xb8d4ff : 0xfff0f6;
+  const accent = on ? 0x7a9ad0 : 0xff6ea9;
+  clothF.color.setHex(col);
+  clothAccent.color.setHex(accent);
+  if (girl.userData.dress) {
+    girl.userData.dress.traverse(o => {
+      if (o.isMesh && o.material && o.material.color && o.material !== skinF) {
+        // leave as shared mats
+      }
+    });
+  }
+}
+
+const fadeEl = document.getElementById("storyFade");
+const fadeTitle = document.getElementById("fadeTitle");
+const fadeSub = document.getElementById("fadeSub");
+
+function storyFadeTo(title, sub, after) {
+  fadeTitle.textContent = title;
+  fadeSub.textContent = sub || "";
+  fadeEl.classList.add("on");
+  setTimeout(() => {
+    after?.();
+    setTimeout(() => fadeEl.classList.remove("on"), 700);
+  }, 1100);
+}
+
 function startTechTour(tech, emotion, line) {
   story.phase = "tour";
   story.poseLock = false;
   story.techHold = 0;
+  stim.allowCum = false;
   setTechnique(tech);
   stim.auto = true;
   setEmotion(emotion);
   showDialogue("Girl", line);
-  ui.controls.classList.add("story-live");
   ui.hint.textContent = `Technique: ${tech}`;
   ui.hint.classList.add("hot");
 }
@@ -2251,7 +2419,6 @@ const STORY_BEATS = [
       setTechnique("fabric");
       boy.userData.setClothes("full");
       document.body.classList.add("story-playing");
-      ui.controls.classList.add("story-live");
     }
   },
   {
@@ -2355,27 +2522,139 @@ const STORY_BEATS = [
   },
   {
     id: "tech_milk",
-    who: "Girl", line: "And the special one— toes milking the back. Slow… comfortable… endless.",
+    who: "Girl", line: "And the special one— toes milking the back. Slow… comfortable…",
     emotion: "love",
     tech: "toeMilk",
     enter() {
-      startTechTour("toeMilk", "love", "And the special one— toes milking the back. Slow… comfortable… endless.");
-      stim.neverStop = true;
+      startTechTour("toeMilk", "love", "And the special one— toes milking the back. Slow… comfortable…");
     }
   },
   {
-    id: "finale",
-    who: "Girl", line: "I’ll keep switching… talk to me with your hips. I’m not stopping.",
-    emotion: "happy",
+    id: "first_cum",
+    who: "Girl", line: "Okay… you’ve been good. Cum for me— ><",
+    emotion: "xd",
     enter() {
       story.phase = "play";
-      story.talkIdx = 0;
-      story.talkT = 0;
-      story.techHold = 0;
-      setTechnique("stroke");
-      stim.neverStop = true;
+      story.poseLock = false;
+      setTechnique("twist");
       stim.auto = true;
-      ui.hint.textContent = "Free mix — techniques rotate · she keeps talking";
+      stim.arousal = 0.99;
+      stim.allowCum = true;
+      setEmotion("xd");
+      setTimeout(() => { if (story.active && stim.allowCum) triggerClimax(); }, 400);
+    }
+  },
+  {
+    id: "after_first",
+    who: "Girl", line: "Hehe… toes still clamped. Rolling you empty~",
+    emotion: "naughty",
+    enter() {
+      setTechnique("toeClampRoll");
+      stim.rollAccel = 3.0;
+      stim.allowCum = false;
+      stim.arousal = 0.75;
+      story.techHold = 0;
+      poseGirlFootjob();
+    }
+  },
+  {
+    id: "second_cum",
+    who: "Girl", line: "Round two— backward footjob. Heels leading… cum again.",
+    emotion: "xd",
+    enter() {
+      setTechnique("backward");
+      stim.arousal = 0.99;
+      stim.allowCum = true;
+      setEmotion("xd");
+      setTimeout(() => { if (story.active && stim.allowCum) triggerClimax(); }, 500);
+    }
+  },
+  {
+    id: "timeskip",
+    who: "…", line: "…",
+    emotion: "neutral",
+    enter() {
+      stim.allowCum = false;
+      storyFadeTo("2 hours later…", "He’s exhausted on the bed.", () => {
+        poseBoyTired();
+        poseGirlBeside();
+        setEmotion("shy");
+        showDialogue("…", "He’s tired out on the sheets. She lies beside him and just… watches.");
+      });
+    }
+  },
+  {
+    id: "beside",
+    who: "Girl", line: "You look wrecked… cute. Shower?",
+    emotion: "shy",
+    enter() {
+      poseBoyTired();
+      poseGirlBeside();
+      story.poseLock = true;
+    }
+  },
+  {
+    id: "shower",
+    who: "…", line: "Warm water. Soft towels. She changes into pajamas; he does too.",
+    emotion: "neutral",
+    enter() {
+      storyFadeTo("Shower…", "Pajamas on. Lights low.", () => {
+        setPajamas(true);
+        boy.userData.setClothes("freeplay");
+        boy.userData.shirt.visible = false;
+        boy.userData.shorts.visible = true;
+        poseBoyTired();
+        poseGirlBeside();
+        setEmotion("happy");
+        showDialogue("Girl", "Bedtime. …but my feet aren’t sleepy yet.");
+      });
+    }
+  },
+  {
+    id: "sleep_start",
+    who: "Girl", line: "Lights out… I’ll be gentle. Probably.",
+    emotion: "tease",
+    enter() {
+      story.phase = "sleep";
+      story.poseLock = false;
+      story.sleepT = 0;
+      story.sleepCums = 0;
+      poseBoyTired();
+      poseGirlFootjob();
+      girl.userData.hips.position.set(0.15, 0.5, 0.45);
+      setTechnique("toeMilk");
+      stim.auto = true;
+      stim.allowCum = false;
+      stim.arousal = 0.4;
+      stim.neverStop = true;
+      setEmotion("xd");
+      key.intensity = 0.55;
+      blushLight.intensity = 0.2;
+      camera.position.set(1.1, 0.85, 0.6);
+      controls.target.set(0.05, 0.55, 0.15);
+    }
+  },
+  {
+    id: "sleep_loop",
+    who: "Girl", line: "Sleep footjob… soft… quiet… cum when I say~",
+    emotion: "love",
+    enter() {
+      story.phase = "sleep";
+      poseGirlFootjob();
+      showDialogue("Girl", "Sleep footjob… soft… quiet… cum when I say~");
+    }
+  },
+  {
+    id: "ending",
+    who: "…", line: "Morning light. She’s still curled against him— feet resting like nothing happened.",
+    emotion: "happy",
+    enter() {
+      story.phase = "end";
+      stim.allowCum = false;
+      stim.auto = false;
+      key.intensity = 2.0;
+      setEmotion("happy");
+      flashBurst("Good morning~");
     }
   },
 ];
@@ -2401,6 +2680,8 @@ const TECH_TOUR_IDS = new Set([
   "tech_heel", "tech_single", "tech_cage", "tech_flick", "tech_milk"
 ]);
 
+const STORY_SLEEP_TECHS = ["toeMilk", "toeClampRoll", "archRub", "singleSole", "tipFlick"];
+
 function currentBeat() {
   return STORY_BEATS[story.idx] || null;
 }
@@ -2417,7 +2698,6 @@ function applyBeat(i) {
 
 function storyNext() {
   if (!story.active) return;
-  const beat = currentBeat();
 
   // Gate fabric rub until arousal is high
   if (story.phase === "clothed_rub" && (story.beatId === "fabric" || story.beatId === "fabric2") && stim.arousal < 0.7) {
@@ -2427,13 +2707,9 @@ function storyNext() {
     return;
   }
 
-  if (story.idx >= STORY_BEATS.length - 1) {
-    story.phase = "play";
-    const line = PLAY_LINES[story.talkIdx % PLAY_LINES.length];
-    story.talkIdx++;
-    if (line.tech) setTechnique(line.tech);
-    setEmotion(line.e);
-    showDialogue("Girl", line.t);
+  if (story.beatId === "ending" || story.idx >= STORY_BEATS.length - 1) {
+    showDialogue("…", "Story complete. Press STORY again for freeplay.");
+    setEmotion("happy");
     return;
   }
   applyBeat(story.idx + 1);
@@ -2447,12 +2723,17 @@ function startStory() {
   story.talkIdx = 0;
   story.techHold = 0;
   story.beatId = null;
+  story.sleepT = 0;
+  story.sleepCums = 0;
   stim.arousal = 0; stim.climax = false; stim.climaxCount = 0;
   stim.neverStop = false; stim.technique = "stroke"; stim.sensitivity = 1;
   stim.auto = false; stim.bothFeet = true;
+  stim.allowCum = false;
+  stim.rollAccel = 1;
+  setPajamas(false);
+  key.intensity = 2.0;
   storyBtn.classList.add("active");
   document.body.classList.add("story-playing");
-  ui.controls.classList.remove("story-live");
   applyBeat(0);
 }
 
@@ -2468,14 +2749,18 @@ function endStoryToFreeplay() {
   boy.position.set(0, 0, 0);
   boy.userData.setClothes("freeplay");
   setFootwear(false);
+  setPajamas(false);
   setEmotion("neutral");
   setTechnique("stroke");
   hideDialogue();
+  fadeEl.classList.remove("on");
   poseGirlFootjob();
   poseBoyOnBed();
+  key.intensity = 2.0;
+  stim.allowCum = true;
+  stim.rollAccel = 1;
   storyBtn.classList.remove("active");
   document.body.classList.remove("story-playing");
-  ui.controls.classList.remove("story-live");
   stim.auto = true;
   stim.bothFeet = true;
 }
@@ -2529,25 +2814,58 @@ function updateStory(dt) {
 
   if (story.phase === "tour") {
     story.techHold += dt;
-    // hold each technique ~6s then auto-advance if user doesn't click
     if (story.techHold > 7.5 && story.idx < STORY_BEATS.length - 1) {
       const next = STORY_BEATS[story.idx + 1];
-      if (next && (TECH_TOUR_IDS.has(next.id) || next.id === "finale")) {
+      if (next && (TECH_TOUR_IDS.has(next.id) || next.id === "first_cum")) {
         applyBeat(story.idx + 1);
       }
     }
   }
 
-  if (story.phase === "play") {
-    story.talkT += dt;
+  // After first scripted cum, auto-advance to clamp-roll beat
+  if (story.beatId === "first_cum" && stim.climaxCount >= 1 && stim.climaxT > 4.5) {
+    applyBeat(story.idx + 1);
+  }
+  if (story.beatId === "after_first") {
     story.techHold += dt;
-    if (story.talkT > 5.2) {
-      story.talkT = 0;
-      const line = PLAY_LINES[story.talkIdx % PLAY_LINES.length];
-      story.talkIdx++;
-      if (line.tech) setTechnique(line.tech);
-      setEmotion(line.e);
-      showDialogue("Girl", line.t);
+    if (story.techHold > 5.5) applyBeat(story.idx + 1);
+  }
+  if (story.beatId === "second_cum" && stim.climaxCount >= 2 && stim.climaxT > 3.5) {
+    dlgNextHint("click — 2 hours later…");
+  }
+
+  if (story.phase === "sleep") {
+    story.sleepT = (story.sleepT || 0) + dt;
+    stim.auto = true;
+    const pulse = 0.15 + 0.25 * Math.abs(Math.sin(story.sleepT * 1.2));
+    blushLight.intensity = pulse;
+    key.intensity = 0.35 + pulse * 0.4;
+
+    if (story.sleepT > 8 && (story.sleepCums || 0) < 5) {
+      story.sleepT = 0;
+      story.sleepCums = (story.sleepCums || 0) + 1;
+      const tech = STORY_SLEEP_TECHS[story.sleepCums % STORY_SLEEP_TECHS.length];
+      setTechnique(tech);
+      if (tech === "toeClampRoll") stim.rollAccel = 1.8 + story.sleepCums * 0.3;
+      stim.arousal = 0.995;
+      stim.allowCum = true;
+      setEmotion("xd");
+      showDialogue("Girl", [
+        "Shh… another one…",
+        "Still twitching… good boy~",
+        "Sleep cum… soft…",
+        "Again… toes say so.",
+        "One more before morning…"
+      ][Math.min(4, story.sleepCums - 1)]);
+      triggerClimax();
+      fxEl.classList.add("on"); fxEl.classList.add("over");
+      setTimeout(() => { fxEl.classList.remove("on"); }, 500);
+    }
+    if (story.sleepCums >= 5 && story.beatId === "sleep_start") {
+      applyBeat(story.idx + 1);
+    }
+    if (story.sleepCums >= 5 && story.beatId === "sleep_loop") {
+      dlgNextHint("click — morning");
     }
   }
 }
