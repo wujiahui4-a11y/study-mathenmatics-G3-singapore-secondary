@@ -221,6 +221,53 @@
       max-height: 72px;
       overflow: auto;
     }
+    .ai-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      margin-bottom: 0.65rem;
+      font-size: 0.8rem;
+    }
+    .ai-option span {
+      color: var(--ink-soft);
+      font-size: 0.72rem;
+      display: block;
+      margin-top: 0.15rem;
+    }
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 26px;
+      flex: 0 0 auto;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch i {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #d7dbe7;
+      cursor: pointer;
+      transition: 0.2s var(--ease);
+    }
+    .switch i::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      top: 3px;
+      left: 3px;
+      transition: 0.2s var(--ease);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .switch input:checked + i { background: var(--pink); }
+    .switch input:checked + i::after { transform: translateX(18px); }
 
     .cover-lock {
       position: absolute;
@@ -692,11 +739,21 @@
 
     <aside class="ai-panel" id="aiPanel" aria-live="polite">
       <h3>Anime Girl Eraser</h3>
-      <p>AI 自动扫描当前列表封面。若判定为萌系（moe）二次元美少女封面，将上锁模糊，无法直接看见封面人物。</p>
+      <p>AI 扫描封面。判定为萌系（moe）二次元美少女封面时上锁模糊，不直接显示封面人物。</p>
       <label style="display:grid;gap:0.35rem;margin-bottom:0.75rem;font-size:0.78rem;color:var(--ink-soft)">
         OpenRouter API Key
         <input id="orKeyInput" type="password" placeholder="sk-or-v1-..." autocomplete="off"
           style="border:1px solid var(--line);border-radius:12px;padding:0.55rem 0.7rem;background:#fff;color:var(--ink);outline:none" />
+      </label>
+      <label class="ai-option" for="autoDetectToggle">
+        <div>
+          <b>Auto Detect</b>
+          <span>列表加载后自动扫描新封面（不卡顿）</span>
+        </div>
+        <span class="switch">
+          <input id="autoDetectToggle" type="checkbox" />
+          <i></i>
+        </span>
       </label>
       <div class="ai-row">
         <div class="ai-stat"><b id="aiScanned">0</b><span>已扫描</span></div>
@@ -783,17 +840,48 @@
     const REFRESH_MS = 90_000;
     const OPENROUTER_MODEL = "deepseek/deepseek-v4-flash-0731";
     const OR_KEY_STORAGE = "biliflux_openrouter_key";
+    const AUTO_DETECT_STORAGE = "biliflux_auto_detect";
+    const LOCK_CACHE_STORAGE = "biliflux_lock_cache_v1";
     const state = {
       category: CATEGORIES[0],
       videos: [],
       timer: null,
       extracting: false,
       eraserOpen: false,
-      eraserActive: false,
+      autoDetect: localStorage.getItem(AUTO_DETECT_STORAGE) === "1",
       scanning: false,
-      locks: {}, // bvid -> { moe_girl, reason }
+      scanToken: 0,
+      autoDetectTimer: null,
+      locks: loadLockCache(),
       coverFeatures: {},
     };
+
+    function loadLockCache() {
+      try {
+        return JSON.parse(localStorage.getItem(LOCK_CACHE_STORAGE) || "{}") || {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function persistLockCache() {
+      try {
+        // Keep cache bounded
+        const entries = Object.entries(state.locks);
+        const trimmed = entries.length > 400 ? Object.fromEntries(entries.slice(-400)) : state.locks;
+        localStorage.setItem(LOCK_CACHE_STORAGE, JSON.stringify(trimmed));
+      } catch (_) {
+        /* ignore quota */
+      }
+    }
+
+    function safeBvidSel(bvid) {
+      try {
+        return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(bvid) : String(bvid).replace(/"/g, '\\"');
+      } catch (_) {
+        return String(bvid);
+      }
+    }
 
     const $ = (id) => document.getElementById(id);
     const grid = $("grid");
@@ -1092,9 +1180,9 @@
             </div>`
           : "";
         return `
-        <button class="card${locked ? " locked-card" : ""}" type="button" data-index="${i}" style="animation-delay:${Math.min(i, 12) * 40}ms">
+        <button class="card${locked ? " locked-card" : ""}" type="button" data-index="${i}" data-bvid="${escapeHtml(v.bvid)}" style="animation-delay:${Math.min(i, 12) * 40}ms">
           <div class="thumb${locked ? " locked" : ""}">
-            <img src="${v.pic}" alt="" loading="lazy" referrerpolicy="no-referrer" />
+            <img src="${v.pic}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
             ${badge}
             ${lockUi}
             <div class="play-hint"><span>▶</span></div>
@@ -1111,11 +1199,51 @@
         </button>`;
       }).join("");
 
-      if (state.eraserActive && !state.scanning) {
-        // Auto-scan newly loaded covers that are not yet classified
-        const pending = state.videos.filter((v) => v.bvid && !state.locks[v.bvid]);
-        if (pending.length) queueMicrotask(() => runEraserScan({ silent: true }));
+      updateAiStats();
+      scheduleAutoDetect();
+    }
+
+    function applyLockToCard(card, lock) {
+      if (!card || !lock) return;
+      const thumb = card.querySelector(".thumb");
+      if (!thumb) return;
+      card.classList.toggle("locked-card", !!lock.moe_girl);
+      thumb.classList.toggle("locked", !!lock.moe_girl);
+      thumb.querySelectorAll(".scan-dot, .cover-lock").forEach((el) => el.remove());
+      const badge = document.createElement("span");
+      badge.className = `scan-dot ${lock.moe_girl ? "danger" : "safe"}`;
+      badge.textContent = lock.moe_girl ? "LOCKED" : "SAFE";
+      thumb.appendChild(badge);
+      if (lock.moe_girl) {
+        const overlay = document.createElement("div");
+        overlay.className = "cover-lock";
+        overlay.innerHTML = `<div class="lock-badge">
+          <div class="lock-ring"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <strong>Cover Locked</strong>
+          <em>${escapeHtml(lock.reason || "Moe anime girl cover erased")}</em>
+        </div>`;
+        thumb.appendChild(overlay);
       }
+    }
+
+    function patchLocksInDom(bvids) {
+      const need = bvids ? new Set(bvids) : null;
+      grid.querySelectorAll(".card[data-bvid]").forEach((card) => {
+        const bvid = card.dataset.bvid;
+        if (need && !need.has(bvid)) return;
+        const lock = state.locks[bvid];
+        if (lock) applyLockToCard(card, lock);
+      });
+      updateAiStats();
+    }
+
+    function scheduleAutoDetect() {
+      if (!state.autoDetect) return;
+      if (!getOpenRouterKey()) return;
+      clearTimeout(state.autoDetectTimer);
+      state.autoDetectTimer = setTimeout(() => {
+        runEraserScan({ silent: true, reason: "auto" });
+      }, 600);
     }
 
     function escapeHtml(str) {
@@ -1319,58 +1447,53 @@
     function toggleAiPanel(force) {
       state.eraserOpen = typeof force === "boolean" ? force : !state.eraserOpen;
       $("aiPanel").classList.toggle("open", state.eraserOpen);
-      $("eraserBtn").classList.toggle("active", state.eraserOpen || state.eraserActive);
+      $("eraserBtn").classList.toggle("active", state.eraserOpen || state.autoDetect || state.scanning);
     }
 
-    async function analyzeCoverFeatures(url) {
-      if (!url) return null;
-      if (state.coverFeatures[url]) return state.coverFeatures[url];
+    // Lightweight: only sample covers already painted in the DOM (no re-download / no lag)
+    function sampleCoverFromDom(bvid) {
+      if (state.coverFeatures[bvid]) return state.coverFeatures[bvid];
+      const img = grid.querySelector(`.card[data-bvid="${CSS.escape(bvid)}"] img`);
+      if (!img || !img.complete || img.naturalWidth < 8) return null;
       try {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.referrerPolicy = "no-referrer";
-        const loaded = new Promise((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error("cover load fail"));
-        });
-        img.src = url;
-        await Promise.race([
-          loaded,
-          new Promise((_, reject) => setTimeout(() => reject(new Error("cover timeout")), 8000)),
-        ]);
         const canvas = document.createElement("canvas");
-        const w = 48;
-        const h = 30;
+        const w = 24;
+        const h = 15;
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
         ctx.drawImage(img, 0, 0, w, h);
         const data = ctx.getImageData(0, 0, w, h).data;
-        let skin = 0, pastel = 0, pink = 0, bright = 0, n = w * h;
-        for (let i = 0; i < data.length; i += 4) {
+        let skin = 0, pastel = 0, pink = 0, n = w * h;
+        for (let i = 0; i < data.length; i += 16) { // stride sample for speed
           const r = data[i], g = data[i + 1], b = data[i + 2];
           const max = Math.max(r, g, b), min = Math.min(r, g, b);
           const sat = max === 0 ? 0 : (max - min) / max;
           const val = max / 255;
-          if (val > 0.55) bright += 1;
-          // anime skin-ish / soft flesh tones
-          if (r > 180 && g > 130 && b > 110 && r > b && r - g < 80 && g - b < 60) skin += 1;
-          // pastel / moe palette
+          if (r > 180 && g > 130 && b > 110 && r > b && r - g < 80) skin += 1;
           if (sat < 0.45 && val > 0.62) pastel += 1;
-          // pink / magenta accents common on moe covers
           if (r > 170 && b > 120 && g < 170 && r > g) pink += 1;
         }
+        const samples = Math.ceil(data.length / 16);
         const feat = {
-          skin_ratio: +(skin / n).toFixed(3),
-          pastel_ratio: +(pastel / n).toFixed(3),
-          pink_ratio: +(pink / n).toFixed(3),
-          bright_ratio: +(bright / n).toFixed(3),
+          skin_ratio: +(skin / samples).toFixed(2),
+          pastel_ratio: +(pastel / samples).toFixed(2),
+          pink_ratio: +(pink / samples).toFixed(2),
         };
-        state.coverFeatures[url] = feat;
+        state.coverFeatures[bvid] = feat;
         return feat;
       } catch (_) {
         return null;
       }
+    }
+
+    function localQuickGuess(video) {
+      const text = `${video.title} ${video.tname || ""} ${video.desc || ""}`.toLowerCase();
+      const moeHit = /(美少女|萌|老婆|娘|少女|anime|原神|崩坏|鸣潮|碧蓝|公主连结|vtuber|绘|插画|二次元|纸片人|狐妖|女角色|角色pv)/i.test(text);
+      const safeHit = /(实拍|真人|纪录片|动物|猫咪|狗|足球|篮球|新闻|教程|开箱评测|数码|硬件)/i.test(text);
+      if (moeHit && !safeHit) return { moe_girl: true, reason: "local keyword: moe cover likely", local: true };
+      if (safeHit && !moeHit) return { moe_girl: false, reason: "local keyword: safe", local: true };
+      return null;
     }
 
     function getOpenRouterKey() {
@@ -1392,18 +1515,19 @@
       const apiKey = getOpenRouterKey();
       if (!apiKey) throw new Error("请先在面板中填写 OpenRouter API Key");
 
-      const prompt = `You are Anime Girl Eraser AI.
-Decide for each Bilibili video whether its COVER IMAGE is a moe-style (萌系 / moi) anime girl cover — cute 二次元美少女 illustration or character portrait as the main subject.
+      const compact = batch.map((v) => ({
+        bvid: v.bvid,
+        title: v.title,
+        tname: v.tname || "",
+        desc: (v.desc || "").slice(0, 60),
+        cover_url: v.pic,
+        px: v.px || null,
+      }));
 
-Use title, category, description, cover_url AND cover_pixel_features (skin/pastel/pink ratios sampled from the real cover image).
-True ONLY when the cover itself is dominated by a moe anime girl.
-False for real people, animals, memes, landscapes, text posters, game UI, mecha-only, groups without a clear moe girl focus.
-
-Return ONLY a JSON array:
-[{"bvid":"...","moe_girl":true/false,"reason":"short english or chinese"}]
-
-Videos:
-${JSON.stringify(batch)}`;
+      const prompt = `Anime Girl Eraser. For each item decide if COVER is moe-style anime girl (萌系二次元美少女) as main subject.
+Use title/tname/desc/cover_url/px. True only for moe girl covers. False otherwise.
+Return ONLY JSON array: [{"bvid":"...","moe_girl":true/false,"reason":"short"}]
+Items:${JSON.stringify(compact)}`;
 
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -1416,10 +1540,10 @@ ${JSON.stringify(batch)}`;
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
           messages: [
-            { role: "system", content: "Return only valid JSON array. No markdown fences." },
+            { role: "system", content: "JSON array only. No markdown." },
             { role: "user", content: prompt },
           ],
-          max_tokens: 900,
+          max_tokens: 500,
         }),
       });
       if (!res.ok) {
@@ -1436,7 +1560,7 @@ ${JSON.stringify(batch)}`;
       return JSON.parse(text.slice(start, end + 1));
     }
 
-    async function runEraserScan({ silent = false } = {}) {
+    async function runEraserScan({ silent = false, reason = "manual" } = {}) {
       if (state.scanning) return;
       const targets = state.videos.filter((v) => v.bvid && !state.locks[v.bvid]);
       if (!targets.length) {
@@ -1444,75 +1568,121 @@ ${JSON.stringify(batch)}`;
         updateAiStats();
         return;
       }
+      if (!getOpenRouterKey()) {
+        if (!silent) {
+          toggleAiPanel(true);
+          setAiLog("请先填写 OpenRouter API Key，再开启 Auto Detect / 扫描");
+        }
+        return;
+      }
 
+      const token = ++state.scanToken;
       state.scanning = true;
-      state.eraserActive = true;
       $("eraserBtn").classList.add("active");
       $("aiScanBtn").disabled = true;
       if (!silent) toggleAiPanel(true);
-      setAiLog(`正在分析 ${targets.length} 张封面像素特征…`);
+      setAiLog(`快速扫描 ${targets.length} 个封面（${reason}）…`);
+      $("aiBar").style.width = "8%";
 
       try {
-        const enriched = [];
+        const needAi = [];
+        // Phase 1: instant local guesses + optional DOM pixel sample (non-blocking)
         for (let i = 0; i < targets.length; i++) {
+          if (token !== state.scanToken) return;
           const v = targets[i];
-          const feat = await analyzeCoverFeatures(v.pic);
-          enriched.push({
-            bvid: v.bvid,
-            title: v.title,
-            tname: v.tname || "",
-            desc: (v.desc || "").slice(0, 100),
-            cover_url: v.pic,
-            cover_pixel_features: feat,
-          });
-          $("aiBar").style.width = `${Math.round(((i + 1) / targets.length) * 35)}%`;
+          const quick = localQuickGuess(v);
+          if (quick) {
+            state.locks[v.bvid] = quick;
+            applyLockToCard(grid.querySelector(`.card[data-bvid="${CSS.escape(v.bvid)}"]`), quick);
+          } else {
+            needAi.push({
+              ...v,
+              px: sampleCoverFromDom(v.bvid),
+            });
+          }
+          if (i % 6 === 5) {
+            updateAiStats();
+            await yieldToMain();
+          }
+        }
+        persistLockCache();
+        updateAiStats();
+        $("aiBar").style.width = "28%";
+
+        if (!needAi.length) {
+          setAiLog(`扫描完成 · 本地快速判定 ${targets.length} 个，无需调用 AI`);
+          return;
         }
 
-        setAiLog(`调用 ${OPENROUTER_MODEL} 判定萌系封面…`);
-        // Batch in chunks of 8 for reliability
-        const chunkSize = 8;
-        for (let i = 0; i < enriched.length; i += chunkSize) {
-          const chunk = enriched.slice(i, i + chunkSize);
-          setAiLog(`AI 扫描 ${i + 1}-${Math.min(i + chunkSize, enriched.length)} / ${enriched.length}`);
+        setAiLog(`AI 精检 ${needAi.length} 个不确定封面…`);
+        const chunkSize = 12;
+        for (let i = 0; i < needAi.length; i += chunkSize) {
+          if (token !== state.scanToken) return;
+          const chunk = needAi.slice(i, i + chunkSize);
+          setAiLog(`AI ${i + 1}-${Math.min(i + chunkSize, needAi.length)} / ${needAi.length}`);
           const results = await openRouterClassify(chunk);
+          if (token !== state.scanToken) return;
+          const touched = [];
           for (const row of results) {
             if (!row || !row.bvid) continue;
             state.locks[row.bvid] = {
               moe_girl: !!row.moe_girl,
               reason: String(row.reason || (row.moe_girl ? "Moe anime girl cover" : "Safe")),
             };
+            touched.push(row.bvid);
           }
-          // Mark any missing in chunk as safe to avoid infinite rescan
           for (const item of chunk) {
             if (!state.locks[item.bvid]) {
               state.locks[item.bvid] = { moe_girl: false, reason: "No AI verdict" };
+              touched.push(item.bvid);
             }
           }
-          updateAiStats();
-          renderGrid();
-          $("aiBar").style.width = `${Math.round(35 + ((i + chunk.length) / enriched.length) * 65)}%`;
+          persistLockCache();
+          patchLocksInDom(touched);
+          $("aiBar").style.width = `${Math.round(28 + ((i + chunk.length) / needAi.length) * 72)}%`;
+          await yieldToMain();
         }
-        const locked = Object.values(state.locks).filter((x) => x.moe_girl).length;
-        setAiLog(`扫描完成 · 已锁定 ${locked} 个萌系美少女封面`);
+
+        const lockedNow = state.videos.filter((v) => state.locks[v.bvid] && state.locks[v.bvid].moe_girl).length;
+        setAiLog(`扫描完成 · 锁定 ${lockedNow} · AI精检 ${needAi.length} · 本地快判 ${targets.length - needAi.length}`);
       } catch (err) {
         console.error(err);
         setAiLog(`扫描失败：${err.message || err}`);
       } finally {
-        state.scanning = false;
-        $("aiScanBtn").disabled = false;
-        updateAiStats();
-        renderGrid();
+        if (token === state.scanToken) {
+          state.scanning = false;
+          $("aiScanBtn").disabled = false;
+          updateAiStats();
+          $("eraserBtn").classList.toggle("active", state.eraserOpen || state.autoDetect);
+        }
       }
     }
 
     function clearLocks() {
+      state.scanToken += 1;
+      state.scanning = false;
       state.locks = {};
-      state.eraserActive = false;
-      $("eraserBtn").classList.toggle("active", state.eraserOpen);
+      persistLockCache();
+      $("aiScanBtn").disabled = false;
+      $("eraserBtn").classList.toggle("active", state.eraserOpen || state.autoDetect);
       updateAiStats();
       $("aiBar").style.width = "0%";
       setAiLog("已清除全部封面锁 · 待命");
       renderGrid();
+    }
+
+    function setAutoDetect(on) {
+      state.autoDetect = !!on;
+      localStorage.setItem(AUTO_DETECT_STORAGE, on ? "1" : "0");
+      const toggle = $("autoDetectToggle");
+      if (toggle) toggle.checked = state.autoDetect;
+      $("eraserBtn").classList.toggle("active", state.eraserOpen || state.autoDetect || state.scanning);
+      if (state.autoDetect) {
+        setAiLog("Auto Detect 已开启 · 列表更新后自动扫描");
+        scheduleAutoDetect();
+      } else {
+        setAiLog("Auto Detect 已关闭");
+      }
     }
 
     // Events
@@ -1521,8 +1691,10 @@ ${JSON.stringify(batch)}`;
       updateAiStats();
     });
     $("aiCloseBtn").addEventListener("click", () => toggleAiPanel(false));
-    $("aiScanBtn").addEventListener("click", () => runEraserScan());
+    $("aiScanBtn").addEventListener("click", () => runEraserScan({ reason: "manual" }));
     $("aiClearBtn").addEventListener("click", clearLocks);
+    $("autoDetectToggle").checked = state.autoDetect;
+    $("autoDetectToggle").addEventListener("change", (e) => setAutoDetect(e.target.checked));
 
     tabs.addEventListener("click", (e) => {
       const btn = e.target.closest(".tab");
@@ -1611,6 +1783,10 @@ ${JSON.stringify(batch)}`;
       const v = $("orKeyInput").value.trim();
       if (v) localStorage.setItem(OR_KEY_STORAGE, v);
     });
+    if (state.autoDetect) {
+      $("eraserBtn").classList.add("active");
+      setAiLog("Auto Detect 已开启 · 等待列表后自动扫描");
+    }
   </script>
 </body>
 </html>
