@@ -823,7 +823,15 @@ function buildRoom(cx, cz, size, doorSide, opts = {}) {
       }
     }
   }
-  if (opts.notebook) makeNotebook(cx, cz, opts.notebook);
+  if (opts.notebook) {
+    // Place notebook near the door so it's easy to spot/reach
+    let nx = cx, nz = cz;
+    if (doorSide === "s") nz = cz - half + 1.2;
+    else if (doorSide === "n") nz = cz + half - 1.2;
+    else if (doorSide === "e") nx = cx + half - 1.2;
+    else if (doorSide === "w") nx = cx - half + 1.2;
+    makeNotebook(nx, nz, opts.notebook);
+  }
   if (opts.table) {
     const table = new THREE.Mesh(
       new THREE.BoxGeometry(2, 0.8, 1),
@@ -1172,7 +1180,7 @@ function activateSpoop() {
 
 // ---------- interactions ----------
 function rayInteract() {
-  const reach = 2.6;
+  const reach = 3.5;
   const px = player.x, pz = player.z;
   let best = null;
   let bestD = Infinity;
@@ -1193,12 +1201,11 @@ function rayInteract() {
       best = { type: "item", it };
     }
   }
-  // Prefer notebooks/items over doors when both in range
   if (best) return best;
 
   for (const d of doors) {
     const dist = dist2(px, pz, d.x, d.z);
-    if (dist < 2.8 * 2.8 && dist < bestD) {
+    if (dist < 3.0 * 3.0 && dist < bestD) {
       bestD = dist;
       best = { type: "door", d };
     }
@@ -1219,9 +1226,7 @@ function doInteract() {
   const hit = rayInteract();
   if (!hit) return;
   if (hit.type === "notebook") {
-    hit.nb.taken = true;
-    hit.nb.mesh.visible = false;
-    openPad();
+    collectNotebook(hit.nb);
   } else if (hit.type === "item") {
     const empty = state.inventory.findIndex((x) => !x);
     if (empty < 0) { showMsg("Inventory full!", 1.5); return; }
@@ -1235,6 +1240,38 @@ function doInteract() {
     toggleDoor(hit.d);
   } else if (hit.type === "exit") {
     triggerExit(hit.ex);
+  }
+}
+
+function collectNotebook(nb) {
+  if (!nb || nb.taken) return;
+  nb.taken = true;
+  nb.mesh.visible = false;
+  openPad();
+}
+
+/** Walk-into pickup like many remakes — more reliable than click alone. */
+function autoCollectNearby() {
+  for (const nb of notebooks) {
+    if (nb.taken) continue;
+    if (dist2(player.x, player.z, nb.x, nb.z) < 1.35 * 1.35) {
+      collectNotebook(nb);
+      return;
+    }
+  }
+  for (const it of items) {
+    if (it.taken) continue;
+    if (dist2(player.x, player.z, it.x, it.z) < 1.2 * 1.2) {
+      const empty = state.inventory.findIndex((x) => !x);
+      if (empty < 0) return;
+      it.taken = true;
+      it.mesh.visible = false;
+      state.inventory[empty] = it.kind;
+      updateInvUI();
+      showMsg("Got " + it.kind.toUpperCase() + "!", 1.5);
+      beep(400, 0.08, "square", 0.07);
+      return;
+    }
   }
 }
 
@@ -1811,6 +1848,7 @@ function updatePlayer(dt) {
   camera.rotation.x = player.pitch;
 
   autoOpenNearbyDoors();
+  autoCollectNearby();
 
   // interact hint
   const hit = rayInteract();
