@@ -1,0 +1,3267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Anime Footjob — Overstimulate</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root {
+    --bg: #1a1020;
+    --panel: rgba(28, 14, 32, 0.55);
+    --line: rgba(255, 140, 190, 0.22);
+    --text: #ffeaf2;
+    --muted: #c49aaf;
+    --accent: #ff8ec8;
+    --hot: #ff4d8d;
+    --over: #ffe066;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: "M PLUS Rounded 1c", system-ui, sans-serif;
+    touch-action: none;
+  }
+  canvas#view { display: block; width: 100%; height: 100%; }
+  #ui {
+    position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    /* keep center clear — chrome only hugs edges */
+  }
+  .chip, .dock, .stats {
+    pointer-events: auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(20, 0, 16, .35);
+  }
+  /* minimal title — no long blurb */
+  #title {
+    position: absolute; left: 12px; top: 12px;
+    padding: 7px 12px;
+    max-width: min(240px, 55vw);
+  }
+  #title h1 {
+    font-size: 12px; font-weight: 800; letter-spacing: 0.05em;
+    background: linear-gradient(90deg, #ff9ad5, #ffd6ea, #ffe08a);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* compact stats — top right, narrow */
+  #telemetry {
+    position: absolute; right: 12px; top: 12px;
+    width: 148px;
+    padding: 8px 10px;
+    font-family: "IBM Plex Mono", monospace; font-size: 10px;
+    transition: opacity .2s, transform .2s;
+  }
+  #telemetry.hidden { opacity: 0; pointer-events: none; transform: translateY(-6px); }
+  #telemetry .h {
+    color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 4px; font-size: 9px; font-family: "M PLUS Rounded 1c", sans-serif;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .row { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; color: var(--muted); }
+  .row b { color: var(--text); font-weight: 500; }
+
+  /* slim bottom dock — doesn't cover the action */
+  #controls {
+    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+    width: min(420px, calc(100vw - 16px));
+    padding: 8px 10px 9px;
+  }
+  .dock-top {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .meters {
+    flex: 1; min-width: 0;
+    display: grid; gap: 4px;
+  }
+  .meter-label {
+    display: flex; justify-content: space-between;
+    font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted); line-height: 1;
+  }
+  .meter {
+    height: 6px; border-radius: 999px;
+    background: rgba(255,255,255,.08); overflow: hidden;
+  }
+  .meter > i {
+    display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, #ff9ad5, #ff4d8d 55%, #ffe066);
+  }
+  .meter.sense > i {
+    background: linear-gradient(90deg, #ffe066, #ff4d8d, #ff9ad5);
+  }
+  .dock-actions {
+    display: flex; flex-shrink: 0; gap: 4px;
+  }
+  button, .icon-btn {
+    appearance: none; border: 1px solid var(--line);
+    background: rgba(255,255,255,.06); color: var(--text);
+    border-radius: 999px; padding: 6px 10px;
+    font: 700 11px/1 "M PLUS Rounded 1c", sans-serif;
+    letter-spacing: 0.03em; cursor: pointer; pointer-events: auto;
+  }
+  .icon-btn {
+    width: 28px; height: 28px; padding: 0;
+    display: grid; place-items: center; font-size: 13px;
+    border-radius: 8px;
+  }
+  button:hover, .icon-btn:hover { background: rgba(255,255,255,.12); }
+  button.active { border-color: var(--accent); color: var(--accent); }
+  button#overstim.active {
+    border-color: var(--over); color: var(--over);
+    background: rgba(255, 224, 102, .12);
+    animation: pulse 0.9s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(255,224,102,.15); }
+    50% { box-shadow: 0 0 16px rgba(255,77,141,.4); }
+  }
+  .btns {
+    display: flex; flex-wrap: wrap; gap: 5px;
+    margin-top: 7px;
+  }
+  .btns button { flex: 1 1 auto; min-width: 0; padding: 7px 8px; font-size: 11px; }
+
+  /* sliders live in a drawer — closed by default so view stays open */
+  #more {
+    display: none;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  #controls.open #more { display: block; }
+  #controls.open #toggleMore { color: var(--accent); border-color: var(--accent); }
+  .sliders {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 6px 10px;
+  }
+  .sliders label {
+    display: grid; gap: 2px; font-size: 9px; color: var(--muted);
+    letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 16px; }
+
+  #hint {
+    margin-top: 6px; text-align: center;
+    font-size: 10px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #hint.hot { color: var(--hot); font-weight: 700; }
+
+  /* corner toggles — top-right under title row, away from the action */
+  #chromeToggles {
+    position: absolute; right: 12px; top: 12px;
+    display: flex; gap: 4px; pointer-events: auto;
+    z-index: 6;
+  }
+  #telemetry { top: 48px; } /* sit below toggles when shown */
+  body.ui-hidden #title,
+  body.ui-hidden #telemetry,
+  body.ui-hidden #controls,
+  body.ui-hidden #storyBtn { opacity: 0; pointer-events: none; }
+  body.ui-hidden #chromeToggles #toggleStats { opacity: 0.35; }
+
+  /* Story button — right side, mid */
+  #storyBtn {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    pointer-events: auto;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 0.18em;
+    padding: 14px 10px;
+    font: 800 13px/1 "M PLUS Rounded 1c", sans-serif;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--accent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    cursor: pointer;
+    box-shadow: 0 8px 28px rgba(20, 0, 16, .35);
+  }
+  #storyBtn:hover { background: rgba(255,255,255,.1); color: #ffe066; }
+  #storyBtn.active {
+    color: #ffe066; border-color: #ffe066;
+    box-shadow: 0 0 18px rgba(255, 224, 102, .25);
+  }
+  body.story-playing #controls,
+  body.story-playing #telemetry,
+  body.story-playing #title { display: none !important; }
+  body.story-playing #chromeToggles { opacity: 0.5; }
+  body.story-playing #dialogue { bottom: 24px; }
+
+  /* Full-screen story fade / time-skip */
+  #storyFade {
+    position: fixed; inset: 0; z-index: 15; pointer-events: none;
+    background: #0a0610; opacity: 0; transition: opacity 0.9s ease;
+    display: grid; place-items: center;
+    font: 800 22px/1.4 "M PLUS Rounded 1c", sans-serif;
+    color: #ffd6ea; letter-spacing: 0.12em; text-align: center;
+  }
+  #storyFade.on { opacity: 1; pointer-events: auto; }
+  #storyFade .sub { display: block; margin-top: 10px; font-size: 13px; font-weight: 400; color: #c49aaf; letter-spacing: 0.08em; }
+
+  /* Dialogue box — bottom, doesn't cover center */
+  #dialogue {
+    position: absolute; left: 50%; bottom: 78px; transform: translateX(-50%);
+    width: min(520px, calc(100vw - 24px));
+    pointer-events: auto;
+    display: none;
+    padding: 10px 14px 12px;
+    background: rgba(20, 10, 24, 0.78);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 32px rgba(0,0,0,.4);
+  }
+  #dialogue.show { display: block; }
+  #dialogue .who {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 4px; font-weight: 800;
+  }
+  #dialogue .who.boy { color: #9ec8ff; }
+  #dialogue .who.narr { color: var(--muted); }
+  #dialogue .line {
+    font-size: 14px; line-height: 1.45; min-height: 1.45em;
+    color: var(--text);
+  }
+  #dialogue .next {
+    margin-top: 8px; font-size: 10px; color: var(--muted);
+    text-align: right; letter-spacing: 0.06em;
+  }
+  body.ui-hidden #dialogue { opacity: 0; pointer-events: none; }
+
+  #fx {
+    position: fixed; inset: 0; pointer-events: none; z-index: 4;
+    opacity: 0; transition: opacity .15s;
+    background:
+      radial-gradient(circle at 50% 55%, rgba(255,120,180,.28), transparent 55%),
+      radial-gradient(circle at 50% 50%, rgba(255,230,120,.15), transparent 40%);
+  }
+  #fx.on { opacity: 1; }
+  #fx.over {
+    opacity: 1;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(255,80,140,.35), transparent 50%),
+      radial-gradient(circle at 30% 40%, rgba(255,220,100,.18), transparent 35%),
+      radial-gradient(circle at 70% 60%, rgba(255,150,220,.22), transparent 40%);
+  }
+  #burst {
+    position: fixed; left: 50%; top: 18%; transform: translate(-50%,-50%) scale(.8);
+    pointer-events: none; z-index: 6; opacity: 0;
+    font: 800 32px/1 "M PLUS Rounded 1c", sans-serif;
+    letter-spacing: 0.08em; color: #ffe066;
+    text-shadow: 0 0 16px rgba(255,80,140,.7), 0 3px 0 #ff4d8d;
+    transition: opacity .2s, transform .2s;
+  }
+  #burst.show { opacity: 1; transform: translate(-50%,-50%) scale(1.05); }
+  #hearts {
+    position: fixed; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;
+  }
+  .heart {
+    position: absolute; font-size: 16px; opacity: 0.9;
+    animation: floatHeart 1.4s ease-out forwards;
+  }
+  @keyframes floatHeart {
+    0% { transform: translateY(0) scale(.6); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: translateY(-120px) scale(1.2); opacity: 0; }
+  }
+  #load {
+    position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+    background: #1a1020; font-size: 14px; color: var(--muted); letter-spacing: 0.08em;
+  }
+  #load.hide { opacity: 0; pointer-events: none; transition: opacity .4s; }
+  @media (max-width: 700px) {
+    #telemetry { display: none !important; }
+    #chromeToggles #toggleStats { display: none; }
+    .sliders { grid-template-columns: 1fr; }
+    #burst { font-size: 22px; top: 14%; }
+    #controls { bottom: 8px; width: calc(100vw - 12px); }
+    #hint { display: none; }
+    #storyBtn {
+      top: auto; bottom: 72px; transform: none;
+      writing-mode: horizontal-tb;
+      letter-spacing: 0.1em;
+      padding: 8px 12px;
+    }
+    #dialogue { bottom: 110px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div id="load">Loading anime footjob…</div>
+<canvas id="view"></canvas>
+<div id="fx"></div>
+<div id="hearts"></div>
+<div id="burst">OVERSTIM!!</div>
+<div id="storyFade"><span id="fadeTitle">2 hours later…</span><span class="sub" id="fadeSub"></span></div>
+<script>
+// Failsafe: never leave the user stuck on the loader
+window.addEventListener("error", (e) => {
+  const el = document.getElementById("load");
+  if (el) el.textContent = "Load error — " + (e.message || "check console");
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const el = document.getElementById("load");
+  const reason = e.reason?.message || String(e.reason || "import failed");
+  if (el) el.textContent = "Load error — " + reason;
+});
+setTimeout(() => {
+  const el = document.getElementById("load");
+  if (el && !el.classList.contains("hide")) {
+    el.textContent = "Still loading… if this persists, allow cdn.jsdelivr.net";
+  }
+}, 8000);
+</script>
+<div id="ui">
+  <div class="chip" id="title">
+    <h1>Anime Footjob ★</h1>
+  </div>
+  <div class="stats hidden" id="telemetry">
+    <div class="h"><span>Status</span></div>
+    <div class="row"><span>stroke</span><b id="tPos">0.00</b></div>
+    <div class="row"><span>vel</span><b id="tVel">0.00</b></div>
+    <div class="row"><span>force</span><b id="tForce">0.0 N</b></div>
+    <div class="row"><span>Hz</span><b id="tCad">0.0</b></div>
+    <div class="row"><span>sens</span><b id="tSense">1.0×</b></div>
+    <div class="row"><span>×</span><b id="tClimax">0</b></div>
+  </div>
+  <div class="dock" id="controls">
+    <div class="dock-top">
+      <div class="meters">
+        <div class="meter-label"><span>Arousal</span><span id="pct">0%</span></div>
+        <div class="meter"><i id="bar"></i></div>
+        <div class="meter-label"><span>Sens</span><span id="sensePct">100%</span></div>
+        <div class="meter sense"><i id="senseBar"></i></div>
+      </div>
+      <div class="dock-actions">
+        <button type="button" class="icon-btn" id="toggleMore" title="More controls">⚙</button>
+      </div>
+    </div>
+    <div class="btns">
+      <button type="button" id="overstim">Overstim</button>
+      <button type="button" id="auto" class="active">Auto</button>
+      <button type="button" id="both" class="active">Both</button>
+      <button type="button" id="reset">Reset</button>
+    </div>
+    <div id="more">
+      <div class="sliders">
+        <label>Speed<input id="speed" type="range" min="0.4" max="3.2" step="0.05" value="1.35"></label>
+        <label>Grip<input id="grip" type="range" min="0.2" max="1.5" step="0.05" value="1.2"></label>
+        <label>Angle<input id="angle" type="range" min="-35" max="35" step="1" value="10"></label>
+        <label>Orbit<input id="orbit" type="range" min="0" max="1" step="0.01" value="0.08"></label>
+      </div>
+      <div id="hint">Toes milk after cum · Shift+drag · H hides UI</div>
+    </div>
+  </div>
+  <div id="chromeToggles">
+    <button type="button" class="icon-btn" id="toggleStats" title="Toggle stats">▤</button>
+    <button type="button" class="icon-btn" id="toggleUi" title="Hide UI (H)">⛶</button>
+  </div>
+  <button type="button" id="storyBtn" title="Play story mode">STORY</button>
+  <div id="dialogue" class="chip">
+    <div class="who" id="dlgWho">Girl</div>
+    <div class="line" id="dlgLine">…</div>
+    <div class="next" id="dlgNext">click / space — next</div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const canvas = document.getElementById("view");
+const fxEl = document.getElementById("fx");
+const burstEl = document.getElementById("burst");
+const heartsEl = document.getElementById("hearts");
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1020);
+scene.fog = new THREE.Fog(0x1a1020, 5.5, 14);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.05, 50);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 1.1;
+controls.maxDistance = 5.5;
+controls.maxPolarAngle = Math.PI * 0.49;
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+scene.add(new THREE.HemisphereLight(0xffd6ea, 0x2a1520, 0.7));
+const key = new THREE.DirectionalLight(0xfff0f5, 2.0);
+key.position.set(2.6, 5.0, 2.0);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 0.5; key.shadow.camera.far = 16;
+key.shadow.camera.left = -3; key.shadow.camera.right = 3;
+key.shadow.camera.top = 3; key.shadow.camera.bottom = -3;
+key.shadow.bias = -0.0002;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xaaccff, 0.7);
+rim.position.set(-3, 2, -2);
+scene.add(rim);
+const blushLight = new THREE.PointLight(0xff66aa, 0.45, 7);
+blushLight.position.set(0.2, 1.0, 0.8);
+scene.add(blushLight);
+
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(5, 64),
+  new THREE.MeshStandardMaterial({ color: 0x201018, roughness: 0.92 })
+);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+const sheet = new THREE.Mesh(
+  new THREE.PlaneGeometry(2.4, 1.6, 32, 20),
+  new THREE.MeshStandardMaterial({ color: 0xffd6ea, roughness: 0.82, side: THREE.DoubleSide })
+);
+sheet.rotation.x = -Math.PI / 2; sheet.position.set(0, 0.01, 0.1); sheet.receiveShadow = true;
+{
+  const pos = sheet.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i);
+    pos.setZ(i, Math.sin(x * 4.2) * 0.01 + Math.cos(y * 5.1) * 0.008);
+  }
+  sheet.geometry.computeVertexNormals();
+}
+scene.add(sheet);
+
+/* ---------- anime materials ---------- */
+const skinF = new THREE.MeshPhysicalMaterial({
+  color: 0xffe8e0, roughness: 0.55, metalness: 0,
+  clearcoat: 0.08, clearcoatRoughness: 0.7,
+  sheen: 0.25, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xffd0d8)
+});
+const skinM = new THREE.MeshPhysicalMaterial({
+  color: 0xe0b090, roughness: 0.52, metalness: 0,
+  clearcoat: 0.1, sheen: 0.2, sheenColor: new THREE.Color(0xe8b090)
+});
+const hairMat = new THREE.MeshStandardMaterial({
+  color: 0xffb6d9, roughness: 0.55, metalness: 0.0
+});
+const hairDark = new THREE.MeshStandardMaterial({ color: 0xe86aa8, roughness: 0.5 });
+const hairHiMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const clothF = new THREE.MeshPhysicalMaterial({
+  color: 0xfff0f6, roughness: 0.45, clearcoat: 0.15, clearcoatRoughness: 0.55,
+  sheen: 0.5, sheenColor: new THREE.Color(0xffc0d8)
+});
+const clothAccent = new THREE.MeshPhysicalMaterial({
+  color: 0xff6ea9, roughness: 0.4, clearcoat: 0.2, sheen: 0.55, sheenColor: new THREE.Color(0xffa0c8)
+});
+const dressTrim = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+const clothM = new THREE.MeshStandardMaterial({ color: 0x3a3048, roughness: 0.72 });
+const boyShirtMat = new THREE.MeshStandardMaterial({ color: 0x6a90c8, roughness: 0.55 });
+const boyTrouserMat = new THREE.MeshStandardMaterial({ color: 0x2a3148, roughness: 0.65 });
+const boyUnderMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.55 });
+const sockMat = new THREE.MeshStandardMaterial({ color: 0xfff5f8, roughness: 0.7 });
+const shoeMat = new THREE.MeshStandardMaterial({ color: 0xff8ec8, roughness: 0.45 });
+const nailMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff6aab, roughness: 0.22, metalness: 0.12,
+  clearcoat: 0.65, clearcoatRoughness: 0.2,
+  sheen: 0.4, sheenColor: new THREE.Color(0xffc0d8)
+});
+const solePadMat = new THREE.MeshPhysicalMaterial({
+  color: 0xf2a090, roughness: 0.55, clearcoat: 0.12, clearcoatRoughness: 0.6,
+  sheen: 0.35, sheenColor: new THREE.Color(0xffb0a0)
+});
+const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
+const irisMat = new THREE.MeshStandardMaterial({ color: 0x6ec8ff, roughness: 0.2, emissive: 0x224466, emissiveIntensity: 0.15 });
+const pupilMat = new THREE.MeshStandardMaterial({ color: 0x1a1020, roughness: 0.4 });
+const blushMat = new THREE.MeshStandardMaterial({
+  color: 0xff7aa8, transparent: true, opacity: 0.45, roughness: 0.8, depthSide: THREE.DoubleSide
+});
+
+function mesh(geo, mat, cast = true, receive = true) {
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = cast; m.receiveShadow = receive;
+  return m;
+}
+function limb(len, r0, r1, mat, segs = 12) {
+  return mesh(new THREE.CylinderGeometry(r1, r0, len, segs), mat);
+}
+
+/* ---------- anime girl head / emotions (2D eyes + mouth) ---------- */
+const EMOTIONS = {
+  neutral: { brow: 0, eyeOpen: 1, sparkle: true, mouth: "soft", blush: 0.35 },
+  huh:     { brow: 0.35, eyeOpen: 1.25, sparkle: true, mouth: "o", blush: 0.25, lookY: -0.02 },
+  shy:     { brow: 0.15, eyeOpen: 0.85, sparkle: false, mouth: "small", blush: 0.7, lookX: 0.12 },
+  focus:   { brow: -0.1, eyeOpen: 0.9, sparkle: false, mouth: "line", blush: 0.2 },
+  happy:   { brow: 0.1, eyeOpen: 0.55, sparkle: true, mouth: "smile", blush: 0.45, crescent: true },
+  smug:    { brow: -0.2, eyeOpen: 0.7, sparkle: true, mouth: "smirk", blush: 0.35, lookX: -0.06 },
+  tease:   { brow: 0.05, eyeOpen: 0.75, sparkle: true, mouth: "tongue", blush: 0.5 },
+  aroused: { brow: 0.2, eyeOpen: 1, sparkle: true, mouth: "D", blush: 0.85, xd: true },
+  love:    { brow: 0.15, eyeOpen: 1, sparkle: true, mouth: "D", blush: 0.7, xd: true },
+  talk:    { brow: 0, eyeOpen: 1, sparkle: true, mouth: "talk", blush: 0.4 },
+  aha:     { brow: 0.25, eyeOpen: 1.1, sparkle: true, mouth: "smile", blush: 0.4 },
+  naughty: { brow: -0.15, eyeOpen: 1, sparkle: true, mouth: "D", blush: 0.65, xd: true },
+  xd:      { brow: 0.1, eyeOpen: 1, sparkle: false, mouth: "D", blush: 0.55, xd: true },
+};
+
+function drawAnimeEye(ctx, cx, cy, flip, emo = EMOTIONS.neutral) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (flip) ctx.scale(-1, 1);
+  const lookX = (emo.lookX || 0) * (flip ? -1 : 1);
+  const lookY = emo.lookY || 0;
+  const open = emo.eyeOpen ?? 1;
+
+  if (emo.crescent) {
+    // happy closed-ish crescent eyes
+    ctx.beginPath();
+    ctx.moveTo(-48, 4);
+    ctx.quadraticCurveTo(0, -28 * open, 48, 4);
+    ctx.lineWidth = 7;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#1a1020";
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (emo.xd) {
+    // >< eyes (no hearts)
+    ctx.strokeStyle = "#1a1020";
+    ctx.lineWidth = 8;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-42, -18);
+    ctx.lineTo(-8, 4);
+    ctx.lineTo(-42, 26);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(42, -18);
+    ctx.lineTo(8, 4);
+    ctx.lineTo(42, 26);
+    ctx.stroke();
+    // soft blush dots under
+    ctx.fillStyle = "rgba(255,120,160,0.35)";
+    ctx.beginPath(); ctx.ellipse(-50, 40, 18, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(50, 40, 18, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  const h = 40 * open;
+  // sclera
+  ctx.beginPath();
+  ctx.moveTo(-52, -4);
+  ctx.bezierCurveTo(-40, -18 - h * 0.9, 42, -18 - h * 0.9, 52, -6);
+  ctx.bezierCurveTo(44, h * 1.1, -40, h * 1.15, -52, -4);
+  ctx.closePath();
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "#1a1020";
+  ctx.stroke();
+
+  // upper lash
+  ctx.beginPath();
+  ctx.moveTo(-54, -6);
+  ctx.bezierCurveTo(-38, -22 - h, 44, -22 - h, 56, -8);
+  ctx.bezierCurveTo(40, -10 - h * 0.35, -36, -8 - h * 0.3, -54, -6);
+  ctx.closePath();
+  ctx.fillStyle = "#1a1020";
+  ctx.fill();
+
+  // wing lash
+  ctx.beginPath();
+  ctx.moveTo(48, -12);
+  ctx.quadraticCurveTo(72, -18, 82, -4);
+  ctx.quadraticCurveTo(68, -10, 52, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // iris
+  const ix = lookX * 40, iy = 6 + lookY * 30;
+  {
+    const ig = ctx.createRadialGradient(ix - 4, iy - 4, 4, ix, iy, 38);
+    ig.addColorStop(0, "#e8d4ff");
+    ig.addColorStop(0.3, "#a78bfa");
+    ig.addColorStop(0.7, "#6d28d9");
+    ig.addColorStop(1, "#2e1065");
+    ctx.beginPath();
+    ctx.ellipse(ix, iy, 34, 36 * Math.min(1, open), 0, 0, Math.PI * 2);
+    ctx.fillStyle = ig;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#1a1020";
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(ix, iy + 4, 12, 16 * Math.min(1, open), 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#0f0618";
+    ctx.fill();
+  }
+
+  if (emo.sparkle !== false) {
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(ix - 12, iy - 12, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ix + 12, iy + 12, 5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // brow
+  const browY = -52 - (emo.brow || 0) * 20;
+  ctx.beginPath();
+  ctx.moveTo(-40, browY + 8);
+  ctx.quadraticCurveTo(0, browY - 10 + (emo.brow || 0) * 25, 42, browY + 2);
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#1a1020";
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawMouth(ctx, w, h, kind = "soft") {
+  ctx.clearRect(0, 0, w, h);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const cx = w / 2, cy = h / 2;
+  ctx.strokeStyle = "#2a1520";
+  ctx.fillStyle = "#2a1520";
+  if (kind === "o") {
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 2, 10, 12, 0, 0, Math.PI * 2);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.fillStyle = "#4a2030";
+    ctx.fill();
+  } else if (kind === "smile") {
+    ctx.beginPath();
+    ctx.moveTo(cx - 22, cy - 2);
+    ctx.quadraticCurveTo(cx, cy + 18, cx + 22, cy - 2);
+    ctx.lineWidth = 5;
+    ctx.stroke();
+  } else if (kind === "smirk") {
+    ctx.beginPath();
+    ctx.moveTo(cx - 16, cy + 2);
+    ctx.quadraticCurveTo(cx + 4, cy + 14, cx + 24, cy - 6);
+    ctx.lineWidth = 5;
+    ctx.stroke();
+  } else if (kind === "open" || kind === "talk") {
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 2, 14, kind === "talk" ? 10 : 13, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#5a2438";
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  } else if (kind === "tongue") {
+    ctx.beginPath();
+    ctx.moveTo(cx - 18, cy - 2);
+    ctx.quadraticCurveTo(cx, cy + 10, cx + 18, cy - 2);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(cx + 4, cy + 10, 8, 6, 0.2, 0, Math.PI * 2);
+    ctx.fillStyle = "#ff7a9a";
+    ctx.fill();
+  } else if (kind === "D") {
+    // big D mouth (cute >< face)
+    ctx.beginPath();
+    ctx.moveTo(cx - 14, cy - 10);
+    ctx.lineTo(cx - 14, cy + 14);
+    ctx.quadraticCurveTo(cx + 22, cy + 10, cx + 22, cy - 2);
+    ctx.quadraticCurveTo(cx + 22, cy - 14, cx - 14, cy - 10);
+    ctx.closePath();
+    ctx.fillStyle = "#5a2438";
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  } else if (kind === "small") {
+    ctx.beginPath();
+    ctx.moveTo(cx - 10, cy);
+    ctx.quadraticCurveTo(cx, cy + 6, cx + 10, cy);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  } else if (kind === "line") {
+    ctx.beginPath();
+    ctx.moveTo(cx - 12, cy);
+    ctx.lineTo(cx + 12, cy);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(cx - 18, cy);
+    ctx.quadraticCurveTo(cx, cy + 10, cx + 18, cy);
+    ctx.lineWidth = 5;
+    ctx.stroke();
+  }
+}
+
+function makeAnimeHead() {
+  const g = new THREE.Group();
+
+  const head = mesh(new THREE.SphereGeometry(0.118, 32, 24), skinF);
+  head.scale.set(0.92, 1.08, 0.88);
+  g.add(head);
+  const chin = mesh(new THREE.SphereGeometry(0.055, 20, 14), skinF);
+  chin.position.set(0, -0.095, 0.015);
+  chin.scale.set(0.75, 0.7, 0.7);
+  g.add(chin);
+  const jaw = mesh(new THREE.SphereGeometry(0.07, 20, 14), skinF);
+  jaw.position.set(0, -0.07, 0.01);
+  jaw.scale.set(0.88, 0.55, 0.8);
+  g.add(jaw);
+
+  const eyes = [];
+  const eyeCanvases = [];
+  for (const sx of [-1, 1]) {
+    const c = document.createElement("canvas");
+    c.width = 256; c.height = 256;
+    eyeCanvases.push({ c, ctx: c.getContext("2d"), flip: sx < 0, sx });
+    const eyeTex = new THREE.CanvasTexture(c);
+    eyeTex.colorSpace = THREE.SRGBColorSpace;
+    eyeTex.needsUpdate = true;
+    const eyeMat = new THREE.MeshBasicMaterial({
+      map: eyeTex, transparent: true, depthTest: false, depthWrite: false,
+      side: THREE.FrontSide, alphaTest: 0.05
+    });
+    const eye = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.095), eyeMat);
+    eye.position.set(sx * 0.042, 0.028, 0.125);
+    eye.rotation.y = sx * -0.35;
+    eye.rotation.x = -0.08;
+    eye.renderOrder = 10;
+    g.add(eye);
+    eyes.push(eye);
+  }
+  g.userData.eyes = eyes;
+  g.userData.eyeCanvases = eyeCanvases;
+
+  g.userData.blush = [];
+  for (const sx of [-1, 1]) {
+    const bl = new THREE.Mesh(
+      new THREE.CircleGeometry(0.03, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0xff7aa8, transparent: true, opacity: 0.35,
+        depthTest: false, depthWrite: false, side: THREE.DoubleSide
+      })
+    );
+    bl.position.set(sx * 0.06, -0.01, 0.12);
+    bl.renderOrder = 9;
+    g.add(bl);
+    g.userData.blush.push(bl);
+  }
+
+  const mouthC = document.createElement("canvas");
+  mouthC.width = 128; mouthC.height = 64;
+  const mouthCtx = mouthC.getContext("2d");
+  drawMouth(mouthCtx, 128, 64, "soft");
+  const mouthTex = new THREE.CanvasTexture(mouthC);
+  mouthTex.colorSpace = THREE.SRGBColorSpace;
+  const mouth = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.045, 0.025),
+    new THREE.MeshBasicMaterial({
+      map: mouthTex, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide
+    })
+  );
+  mouth.position.set(0, -0.04, 0.122);
+  mouth.renderOrder = 10;
+  g.add(mouth);
+  g.userData.mouth = mouth;
+  g.userData.mouthCanvas = { c: mouthC, ctx: mouthCtx, tex: mouthTex };
+
+  g.userData.emotion = "neutral";
+  g.userData.setEmotion = (name) => {
+    const emo = EMOTIONS[name] || EMOTIONS.neutral;
+    g.userData.emotion = name;
+    eyeCanvases.forEach((ec, i) => {
+      ec.ctx.clearRect(0, 0, 256, 256);
+      drawAnimeEye(ec.ctx, 128, 128, ec.flip, emo);
+      eyes[i].material.map.needsUpdate = true;
+    });
+    drawMouth(mouthCtx, 128, 64, emo.mouth || "soft");
+    mouthTex.needsUpdate = true;
+    g.userData.blush.forEach(b => { b.material.opacity = emo.blush ?? 0.35; });
+  };
+  g.userData.setEmotion("neutral");
+
+  return g;
+}
+
+function makeAnimeHair() {
+  const g = new THREE.Group();
+
+  // chin-length bob scalp — sits above/behind face, not over eyes
+  const scalp = mesh(new THREE.SphereGeometry(0.128, 28, 20), hairMat);
+  scalp.position.set(0, 0.025, -0.015);
+  scalp.scale.set(1.02, 0.92, 1.0);
+  g.add(scalp);
+
+  // back bob volume
+  const bobBack = mesh(new THREE.SphereGeometry(0.11, 20, 14), hairDark);
+  bobBack.position.set(0, -0.02, -0.06);
+  bobBack.scale.set(1.05, 0.85, 0.7);
+  g.add(bobBack);
+
+  // side bob flaps — pulled back so cheeks/eyes stay open
+  for (const sx of [-1, 1]) {
+    const side = mesh(new THREE.SphereGeometry(0.07, 16, 12), hairMat);
+    side.position.set(sx * 0.105, -0.03, -0.02);
+    side.scale.set(0.55, 1.15, 0.65);
+    g.add(side);
+    const tip = mesh(new THREE.SphereGeometry(0.04, 12, 10), hairDark);
+    tip.position.set(sx * 0.11, -0.09, 0.0);
+    tip.scale.set(0.7, 1.0, 0.7);
+    g.add(tip);
+  }
+
+  // Short fringe ABOVE the eyes only (clear pupil window)
+  const bangLayout = [
+    { x: 0, y: 0.1, z: 0.09, sx: 0.4, sy: 0.4, sz: 0.28, rx: 0.15 },
+    { x: -0.045, y: 0.095, z: 0.085, sx: 0.35, sy: 0.45, sz: 0.26, rx: 0.18 },
+    { x: 0.045, y: 0.095, z: 0.085, sx: 0.35, sy: 0.45, sz: 0.26, rx: 0.18 },
+    { x: -0.08, y: 0.09, z: 0.07, sx: 0.32, sy: 0.55, sz: 0.26, rx: 0.2 },
+    { x: 0.08, y: 0.09, z: 0.07, sx: 0.32, sy: 0.55, sz: 0.26, rx: 0.2 },
+  ];
+  bangLayout.forEach(b => {
+    const bang = mesh(new THREE.SphereGeometry(0.05, 12, 10), hairMat);
+    bang.position.set(b.x, b.y, b.z);
+    bang.scale.set(b.sx, b.sy, b.sz);
+    bang.rotation.x = b.rx;
+    g.add(bang);
+  });
+
+  // flat anime hair highlight streaks
+  for (const sx of [-0.04, 0.02, 0.05]) {
+    const hi = mesh(new THREE.PlaneGeometry(0.035, 0.012), hairHiMat, false);
+    hi.position.set(sx, 0.115, 0.05);
+    hi.rotation.x = -1.1;
+    hi.rotation.z = sx * 2;
+    g.add(hi);
+  }
+
+  return g;
+}
+
+/** Slender high-arch foot — petite profile like a ballet/pointe reference */
+function makeFoot(mat, side = 1) {
+  const g = new THREE.Group();
+  const s = side;
+
+  // Slim ankle → foot blend (continuous with calf)
+  const ankleBlend = mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.04, 14), mat);
+  ankleBlend.position.set(0, 0.04, -0.05);
+  g.add(ankleBlend);
+  const malleolus = mesh(new THREE.SphereGeometry(0.016, 14, 12), mat);
+  malleolus.position.set(0.014 * s, 0.035, -0.048);
+  malleolus.scale.set(0.7, 1.0, 0.85);
+  g.add(malleolus);
+
+  // Narrow heel (raised look — round, not chunky)
+  const heel = mesh(new THREE.SphereGeometry(0.02, 16, 14), mat);
+  heel.position.set(0, 0.012, -0.072);
+  heel.scale.set(0.95, 1.05, 1.15);
+  g.add(heel);
+  const heelCap = mesh(new THREE.SphereGeometry(0.015, 12, 10), solePadMat, false);
+  heelCap.position.set(0, -0.002, -0.075);
+  heelCap.scale.set(1.0, 0.55, 1.0);
+  g.add(heelCap);
+
+  // HIGH ARCH — midfoot curves up off the ground (key of the reference)
+  const archTop = mesh(new THREE.CapsuleGeometry(0.015, 0.055, 6, 12), mat);
+  archTop.rotation.x = Math.PI / 2;
+  archTop.position.set(0, 0.028, -0.01); // lifted
+  archTop.scale.set(0.85, 1.0, 0.75);
+  g.add(archTop);
+  // underside hollow of arch (thin ribbon, not a flat slab)
+  const archCurve = mesh(new THREE.TorusGeometry(0.038, 0.011, 10, 20, Math.PI * 0.9), mat);
+  archCurve.rotation.z = Math.PI / 2;
+  archCurve.rotation.y = Math.PI / 2;
+  archCurve.position.set(0, 0.01, -0.005);
+  archCurve.scale.set(0.55, 1.0, 0.9);
+  g.add(archCurve);
+
+  // Instep / top of foot — elegant slope heel→toes
+  const instep = mesh(new THREE.CapsuleGeometry(0.014, 0.07, 6, 12), mat);
+  instep.rotation.x = Math.PI / 2 + 0.22; // slopes down toward toes
+  instep.position.set(0, 0.03, 0.02);
+  instep.scale.set(0.9, 1.0, 0.7);
+  g.add(instep);
+
+  // Ball of foot — compact, not a wide pancake
+  const ball = mesh(new THREE.SphereGeometry(0.022, 16, 14), mat);
+  ball.position.set(0, 0.008, 0.078);
+  ball.scale.set(1.15, 0.75, 1.0);
+  g.add(ball);
+  const ballPad = mesh(new THREE.SphereGeometry(0.018, 12, 10), solePadMat, false);
+  ballPad.position.set(0, -0.006, 0.08);
+  ballPad.scale.set(1.25, 0.4, 1.0);
+  g.add(ballPad);
+
+  // Thin sole contact only under heel + ball (NOT a flat full-length brick)
+  // (arch stays open like the photo)
+
+  // Petite toes — short, neat, slightly curled (tip-toe pressure)
+  const toeDefs = [
+    { x: 0.018 * s, len: 0.026, r: 0.0088, nailW: 0.011, nailL: 0.009 }, // hallux
+    { x: 0.007 * s, len: 0.028, r: 0.0072, nailW: 0.008, nailL: 0.008 },
+    { x:-0.002 * s, len: 0.027, r: 0.0068, nailW: 0.0075, nailL: 0.008 },
+    { x:-0.010 * s, len: 0.024, r: 0.0062, nailW: 0.0065, nailL: 0.007 },
+    { x:-0.017 * s, len: 0.020, r: 0.0055, nailW: 0.0055, nailL: 0.006 },
+  ];
+
+  toeDefs.forEach((t, i) => {
+    const toeRoot = new THREE.Group();
+    toeRoot.position.set(t.x, 0.004, 0.092);
+    // tip-toe flex — toes press down
+    toeRoot.rotation.x = 0.35 + i * 0.04;
+    toeRoot.rotation.y = -t.x * 1.2;
+    g.add(toeRoot);
+
+    const phalanx = mesh(new THREE.CapsuleGeometry(t.r, t.len * 0.55, 5, 8), mat);
+    phalanx.rotation.x = Math.PI / 2;
+    phalanx.position.set(0, 0.002, t.len * 0.28);
+    toeRoot.add(phalanx);
+
+    const tip = mesh(new THREE.SphereGeometry(t.r * 1.05, 10, 8), mat);
+    tip.position.set(0, 0.0, t.len * 0.58);
+    toeRoot.add(tip);
+
+    const pad = mesh(new THREE.SphereGeometry(t.r * 1.05, 8, 6), solePadMat, false);
+    pad.position.set(0, -t.r * 0.7, t.len * 0.4);
+    pad.scale.set(1.1, 0.4, 1.2);
+    toeRoot.add(pad);
+
+    const nail = mesh(new THREE.SphereGeometry(0.006, 10, 6), nailMat, false);
+    nail.position.set(0, t.r * 0.75, t.len * 0.55);
+    nail.scale.set(t.nailW / 0.012, 0.2, t.nailL / 0.012);
+    nail.rotation.x = -0.4;
+    toeRoot.add(nail);
+  });
+
+  g.userData.soleOffsetY = -0.01;
+
+  // Socks + shoes (toggleable for story → barefoot)
+  const footwear = new THREE.Group();
+  footwear.name = "footwear";
+  const sock = mesh(new THREE.SphereGeometry(0.045, 14, 10), sockMat);
+  sock.position.set(0, 0.012, 0.02);
+  sock.scale.set(1.05, 0.7, 1.55);
+  footwear.add(sock);
+  const sockCuff = mesh(new THREE.TorusGeometry(0.028, 0.008, 8, 16), sockMat);
+  sockCuff.rotation.x = Math.PI / 2;
+  sockCuff.position.set(0, 0.045, -0.04);
+  footwear.add(sockCuff);
+  const shoe = mesh(new THREE.SphereGeometry(0.048, 14, 10), shoeMat);
+  shoe.position.set(0, 0.002, 0.03);
+  shoe.scale.set(1.15, 0.55, 1.7);
+  footwear.add(shoe);
+  const shoeToe = mesh(new THREE.SphereGeometry(0.03, 12, 8), shoeMat);
+  shoeToe.position.set(0, 0.0, 0.1);
+  shoeToe.scale.set(1.2, 0.55, 1.0);
+  footwear.add(shoeToe);
+  footwear.visible = false; // freeplay starts barefoot
+  g.add(footwear);
+  g.userData.footwear = footwear;
+
+  return g;
+}
+
+function makeHand(mat, side = 1) {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.BoxGeometry(0.055, 0.02, 0.08), mat));
+  for (let i = 0; i < 4; i++) {
+    const f = mesh(new THREE.CapsuleGeometry(0.007, 0.045, 4, 6), mat);
+    f.position.set((-0.02 + i * 0.013) * side, 0.005, 0.055);
+    f.rotation.x = Math.PI / 2;
+    g.add(f);
+  }
+  const thumb = mesh(new THREE.CapsuleGeometry(0.008, 0.03, 4, 6), mat);
+  thumb.position.set(0.035 * side, 0, 0.01);
+  thumb.rotation.z = side * 0.8; thumb.rotation.x = 0.5;
+  g.add(thumb);
+  return g;
+}
+
+function makeHeadBoy() {
+  const g = new THREE.Group();
+  const head = mesh(new THREE.SphereGeometry(0.112, 28, 20), skinM);
+  head.scale.set(1, 1.05, 0.95); g.add(head);
+  const jaw = mesh(new THREE.SphereGeometry(0.075, 20, 14), skinM);
+  jaw.position.set(0, -0.07, 0.01); jaw.scale.set(1, 0.7, 0.9); g.add(jaw);
+  for (const sx of [-1, 1]) {
+    const eye = mesh(new THREE.SphereGeometry(0.016, 12, 10), eyeWhiteMat, false);
+    eye.position.set(sx * 0.03, 0.01, 0.095); g.add(eye);
+    const ir = mesh(new THREE.SphereGeometry(0.008, 10, 8), new THREE.MeshStandardMaterial({ color: 0x4a5a3a }), false);
+    ir.position.set(sx * 0.03, 0.01, 0.108); g.add(ir);
+  }
+  const hair = mesh(new THREE.SphereGeometry(0.1, 16, 12), new THREE.MeshStandardMaterial({ color: 0x2a2030, roughness: 0.55 }));
+  hair.position.set(0, 0.05, -0.01); hair.scale.set(1.05, 0.7, 1.1); g.add(hair);
+  return g;
+}
+
+function makeGirl() {
+  const root = new THREE.Group();
+  const hips = new THREE.Group();
+  hips.position.set(0, 0.5, 0.75);
+  root.add(hips);
+
+  const pelvis = mesh(new THREE.SphereGeometry(0.115, 24, 16), skinF);
+  pelvis.scale.set(1.3, 0.8, 1.0); hips.add(pelvis);
+
+  const torso = new THREE.Group();
+  torso.position.set(0, 0.15, 0); hips.add(torso);
+  const chest = mesh(new THREE.SphereGeometry(0.125, 24, 16), skinF);
+  chest.scale.set(1.1, 1.15, 0.8); chest.position.y = 0.12; torso.add(chest);
+  for (const sx of [-1, 1]) {
+    const b = mesh(new THREE.SphereGeometry(0.058, 20, 14), skinF);
+    b.position.set(sx * 0.055, 0.14, 0.07); torso.add(b);
+  }
+
+  // === Short dress / shirt — covers torso & hips; bare legs + feet only ===
+  const dress = new THREE.Group();
+  torso.add(dress);
+
+  // Bodice (covers chest / midriff)
+  const bodice = mesh(new THREE.SphereGeometry(0.14, 24, 16), clothF);
+  bodice.scale.set(1.12, 0.95, 0.88);
+  bodice.position.set(0, 0.1, 0.01);
+  dress.add(bodice);
+  // Soft bust shaping under fabric
+  for (const sx of [-1, 1]) {
+    const cup = mesh(new THREE.SphereGeometry(0.065, 16, 12), clothF);
+    cup.position.set(sx * 0.05, 0.13, 0.06);
+    cup.scale.set(1.0, 0.85, 0.75);
+    dress.add(cup);
+  }
+  // Square / sailor collar
+  const collar = mesh(new THREE.TorusGeometry(0.07, 0.018, 8, 24, Math.PI * 1.15), dressTrim);
+  collar.rotation.x = Math.PI / 2 + 0.35;
+  collar.position.set(0, 0.22, 0.02);
+  dress.add(collar);
+  // Neckline fill
+  const neckline = mesh(new THREE.SphereGeometry(0.06, 14, 10), clothF);
+  neckline.scale.set(1.15, 0.35, 0.9);
+  neckline.position.set(0, 0.22, 0.03);
+  dress.add(neckline);
+  // Chest ribbon / bow
+  const bowL = mesh(new THREE.SphereGeometry(0.028, 10, 8), clothAccent);
+  bowL.position.set(-0.025, 0.16, 0.12); bowL.scale.set(1.2, 0.55, 0.4); dress.add(bowL);
+  const bowR = mesh(new THREE.SphereGeometry(0.028, 10, 8), clothAccent);
+  bowR.position.set(0.025, 0.16, 0.12); bowR.scale.set(1.2, 0.55, 0.4); dress.add(bowR);
+  const bowKnot = mesh(new THREE.SphereGeometry(0.016, 10, 8), clothAccent);
+  bowKnot.position.set(0, 0.155, 0.125); dress.add(bowKnot);
+
+  // Waist band
+  const waist = mesh(new THREE.TorusGeometry(0.11, 0.016, 8, 28), clothAccent);
+  waist.rotation.x = Math.PI / 2;
+  waist.position.set(0, -0.02, 0.01);
+  dress.add(waist);
+
+  // Short puff shoulders
+  for (const sx of [-1, 1]) {
+    const sleeve = mesh(new THREE.SphereGeometry(0.05, 14, 12), clothF);
+    sleeve.position.set(sx * 0.14, 0.22, 0.0);
+    sleeve.scale.set(0.85, 0.7, 0.9);
+    dress.add(sleeve);
+  }
+
+  const neck = limb(0.055, 0.028, 0.032, skinF, 10);
+  neck.position.set(0, 0.3, 0); torso.add(neck);
+
+  const head = makeAnimeHead();
+  head.position.set(0, 0.4, 0.01); head.scale.setScalar(1.08);
+  torso.add(head);
+  const hair = makeAnimeHair();
+  hair.position.copy(head.position); hair.scale.setScalar(1.08);
+  torso.add(hair);
+
+  const arms = {};
+  for (const side of [-1, 1]) {
+    const shoulder = new THREE.Group();
+    shoulder.position.set(side * 0.13, 0.24, 0); torso.add(shoulder);
+    const upper = limb(0.2, 0.03, 0.026, skinF); upper.position.y = -0.1; shoulder.add(upper);
+    // tiny sleeve cuff over upper arm
+    const cuff = mesh(new THREE.SphereGeometry(0.038, 12, 10), clothF);
+    cuff.position.set(0, -0.02, 0); cuff.scale.set(1.15, 0.55, 1.15); shoulder.add(cuff);
+    const elbow = new THREE.Group(); elbow.position.y = -0.2; shoulder.add(elbow);
+    const fore = limb(0.18, 0.024, 0.022, skinF); fore.position.y = -0.09; elbow.add(fore);
+    const hand = makeHand(skinF, side); hand.position.set(0, -0.18, 0); hand.rotation.x = -1.1; elbow.add(hand);
+    shoulder.rotation.z = side * 0.55; shoulder.rotation.x = -0.4; elbow.rotation.x = -0.9;
+    arms[side === -1 ? "L" : "R"] = { shoulder, elbow, hand };
+  }
+
+  const legs = {};
+  for (const side of [-1, 1]) {
+    const hip = new THREE.Group();
+    hip.position.set(side * 0.075, -0.02, 0); hips.add(hip);
+    // Bare legs (no stockings) — longer anime legs for shaft reach
+    const thighLen = 0.36, calfLen = 0.34;
+    const thigh = limb(thighLen, 0.05, 0.038, skinF);
+    thigh.position.y = -thighLen * 0.5; hip.add(thigh);
+    const knee = new THREE.Group(); knee.position.y = -thighLen; hip.add(knee);
+    const calf = limb(calfLen, 0.036, 0.028, skinF);
+    calf.position.y = -calfLen * 0.5; knee.add(calf);
+    const ankle = new THREE.Group(); ankle.position.y = -calfLen; knee.add(ankle);
+    const ankleBall = mesh(new THREE.SphereGeometry(0.03, 12, 10), skinF);
+    ankle.add(ankleBall);
+    const foot = makeFoot(skinF, side);
+    foot.rotation.x = -Math.PI / 2; ankle.add(foot);
+    legs[side === -1 ? "L" : "R"] = {
+      hip, knee, ankle, foot, thigh, calf, ankleBall,
+      thighLen, calfLen
+    };
+  }
+
+  // Hip-level dress skirt + underskirt (replaces panty crop look)
+  const hipCover = mesh(new THREE.SphereGeometry(0.13, 24, 16), clothF);
+  hipCover.scale.set(1.35, 0.55, 1.15);
+  hipCover.position.set(0, 0.04, 0.01);
+  hips.add(hipCover);
+
+  const skirtFlare = mesh(new THREE.CylinderGeometry(0.22, 0.14, 0.18, 32, 1, true), clothF);
+  skirtFlare.position.set(0, -0.06, 0.01);
+  hips.add(skirtFlare);
+  // Solid underskirt so legs don't show through open cylinder
+  const underSkirt = mesh(new THREE.CylinderGeometry(0.2, 0.13, 0.17, 28, 1, false), clothF);
+  underSkirt.position.set(0, -0.055, 0.01);
+  hips.add(underSkirt);
+  // Hem trim
+  const hem = mesh(new THREE.TorusGeometry(0.205, 0.012, 8, 36), dressTrim);
+  hem.rotation.x = Math.PI / 2;
+  hem.position.set(0, -0.145, 0.01);
+  hips.add(hem);
+  // Side pleat accents
+  for (const sx of [-1, 1]) {
+    const pleat = mesh(new THREE.SphereGeometry(0.04, 12, 10), clothAccent);
+    pleat.position.set(sx * 0.12, -0.05, 0.08);
+    pleat.scale.set(0.45, 1.4, 0.35);
+    hips.add(pleat);
+  }
+
+  root.userData = { hips, torso, head, hair, legs, arms, dress };
+  return root;
+}
+
+function makeBoy() {
+  const root = new THREE.Group();
+  const hips = new THREE.Group();
+  hips.position.set(0, 0.2, 0.05);
+  hips.rotation.x = -Math.PI / 2 + 0.05;
+  root.add(hips);
+
+  const pelvis = mesh(new THREE.SphereGeometry(0.13, 24, 16), skinM);
+  pelvis.scale.set(1.2, 0.8, 1.05); hips.add(pelvis);
+
+  const torso = new THREE.Group(); torso.position.set(0, 0.18, 0); hips.add(torso);
+  const chest = mesh(new THREE.CapsuleGeometry(0.12, 0.22, 8, 16), skinM);
+  chest.position.y = 0.12; torso.add(chest);
+
+  const neck = limb(0.055, 0.035, 0.04, skinM, 10);
+  neck.position.set(0, 0.32, 0); torso.add(neck);
+  const head = makeHeadBoy();
+  head.position.set(0, 0.42, 0.02); head.rotation.x = 0.25; torso.add(head);
+
+  for (const side of [-1, 1]) {
+    const shoulder = new THREE.Group();
+    shoulder.position.set(side * 0.15, 0.22, 0); torso.add(shoulder);
+    const upper = limb(0.24, 0.04, 0.035, skinM); upper.position.y = -0.12; shoulder.add(upper);
+    const elbow = new THREE.Group(); elbow.position.y = -0.24; shoulder.add(elbow);
+    const fore = limb(0.22, 0.032, 0.028, skinM); fore.position.y = -0.11; elbow.add(fore);
+    const hand = makeHand(skinM, side); hand.position.y = -0.22; elbow.add(hand);
+    shoulder.rotation.z = side * 1.1; shoulder.rotation.x = -0.3; elbow.rotation.x = -0.4;
+  }
+
+  const legParts = [];
+  for (const side of [-1, 1]) {
+    const hip = new THREE.Group();
+    hip.position.set(side * 0.09, -0.04, 0); hips.add(hip);
+    const thigh = limb(0.3, 0.058, 0.045, skinM); thigh.position.y = -0.15; hip.add(thigh);
+    const knee = new THREE.Group(); knee.position.y = -0.3; hip.add(knee);
+    const calf = limb(0.28, 0.042, 0.032, skinM); calf.position.y = -0.14; knee.add(calf);
+    const ankle = new THREE.Group(); ankle.position.y = -0.28; knee.add(ankle);
+    const foot = makeFoot(skinM, side); foot.rotation.x = -Math.PI / 2; ankle.add(foot);
+    hip.rotation.z = side * 0.55; hip.rotation.x = -0.35; knee.rotation.x = 0.85;
+    legParts.push({ hip, knee, thigh, calf });
+  }
+
+  // --- Full clothes (story) ---
+  const shirt = new THREE.Group();
+  const shirtBody = mesh(new THREE.CapsuleGeometry(0.14, 0.28, 8, 16), boyShirtMat);
+  shirtBody.position.set(0, 0.12, 0);
+  shirt.add(shirtBody);
+  const collar = mesh(new THREE.TorusGeometry(0.06, 0.012, 8, 20), boyShirtMat);
+  collar.rotation.x = Math.PI / 2; collar.position.set(0, 0.28, 0.02); shirt.add(collar);
+  for (const sx of [-1, 1]) {
+    const sl = mesh(new THREE.SphereGeometry(0.055, 12, 10), boyShirtMat);
+    sl.position.set(sx * 0.15, 0.2, 0); sl.scale.set(0.9, 0.7, 0.9); shirt.add(sl);
+  }
+  torso.add(shirt);
+
+  const trousers = new THREE.Group();
+  const trouserWaist = mesh(new THREE.SphereGeometry(0.145, 20, 14), boyTrouserMat);
+  trouserWaist.scale.set(1.15, 0.55, 1.05); trouserWaist.position.set(0, -0.01, 0);
+  trousers.add(trouserWaist);
+  for (const sx of [-1, 1]) {
+    const leg = mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.42, 14), boyTrouserMat);
+    leg.position.set(sx * 0.08, -0.22, 0.02);
+    trousers.add(leg);
+  }
+  // crotch cover / bulge under trousers
+  const crotchCover = mesh(new THREE.SphereGeometry(0.07, 14, 12), boyTrouserMat);
+  crotchCover.position.set(0, 0.0, 0.1); crotchCover.scale.set(1.1, 0.7, 1.3);
+  trousers.add(crotchCover);
+  hips.add(trousers);
+
+  const underwear = new THREE.Group();
+  const brief = mesh(new THREE.SphereGeometry(0.1, 16, 12), boyUnderMat);
+  brief.scale.set(1.2, 0.45, 1.05); brief.position.set(0, 0.0, 0.02);
+  underwear.add(brief);
+  const bulge = mesh(new THREE.SphereGeometry(0.055, 14, 12), boyUnderMat);
+  bulge.position.set(0, 0.01, 0.11); bulge.scale.set(1.0, 0.75, 1.4);
+  underwear.add(bulge);
+  underwear.visible = false;
+  hips.add(underwear);
+
+  const shorts = mesh(new THREE.TorusGeometry(0.14, 0.035, 10, 24), clothM);
+  shorts.rotation.x = Math.PI / 2; shorts.position.set(0, -0.02, -0.05); hips.add(shorts);
+  shorts.visible = false; // freeplay can keep shorts off; gen exposed by default
+
+  const gen = new THREE.Group(); gen.position.set(0, 0.02, 0.12); hips.add(gen);
+  const SHAFT_R = 0.038;
+  const shaft = mesh(new THREE.CapsuleGeometry(SHAFT_R, 0.15, 8, 20), skinM);
+  shaft.rotation.x = Math.PI / 2; shaft.position.z = 0.09; gen.add(shaft);
+  const headG = mesh(new THREE.SphereGeometry(0.04, 24, 16), new THREE.MeshPhysicalMaterial({
+    color: 0xd09080, roughness: 0.38, clearcoat: 0.28, sheen: 0.35, sheenColor: new THREE.Color(0xffa0a0)
+  }));
+  headG.position.z = 0.195; headG.scale.set(1.05, 0.95, 1.1); gen.add(headG);
+  for (const sx of [-1, 1]) {
+    const ball = mesh(new THREE.SphereGeometry(0.032, 14, 12), skinM);
+    ball.position.set(sx * 0.03, -0.028, 0.015); gen.add(ball);
+  }
+  const shaftBase = new THREE.Object3D(); shaftBase.position.set(0, 0, 0.015); gen.add(shaftBase);
+  const shaftTip = new THREE.Object3D(); shaftTip.position.set(0, 0, 0.205); gen.add(shaftTip);
+
+  // Default freeplay: casual shorts, gen visible
+  shirt.visible = false;
+  trousers.visible = false;
+  underwear.visible = false;
+  gen.visible = true;
+  shorts.visible = true;
+
+  root.userData = {
+    hips, torso, head, gen, shaft, headG, shaftBase, shaftTip, SHAFT_R,
+    shirt, trousers, underwear, shorts, crotchCover, bulge,
+    setClothes(state) {
+      // state: "full" | "underwear" | "nude" | "freeplay"
+      if (state === "full") {
+        shirt.visible = true; trousers.visible = true; underwear.visible = false;
+        gen.visible = false; shorts.visible = false;
+      } else if (state === "underwear") {
+        shirt.visible = true; trousers.visible = false; underwear.visible = true;
+        gen.visible = false; shorts.visible = false;
+        // protruding bulge
+        bulge.scale.set(1.15, 0.9, 1.7);
+      } else if (state === "nude") {
+        shirt.visible = true; trousers.visible = false; underwear.visible = false;
+        gen.visible = true; shorts.visible = false;
+      } else {
+        shirt.visible = false; trousers.visible = false; underwear.visible = false;
+        gen.visible = true; shorts.visible = true;
+      }
+    }
+  };
+  return root;
+}
+
+const girl = makeGirl();
+const boy = makeBoy();
+scene.add(girl); scene.add(boy);
+
+/* ---------- bedroom set (after materials exist) ---------- */
+const bedroom = new THREE.Group();
+bedroom.visible = false;
+scene.add(bedroom);
+{
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x3a2440, roughness: 0.9 });
+  const wallMat2 = new THREE.MeshStandardMaterial({ color: 0x2e1a36, roughness: 0.92 });
+  const back = mesh(new THREE.PlaneGeometry(4.2, 2.4), wallMat, false, true);
+  back.position.set(0, 1.2, -1.35); bedroom.add(back);
+  const side = mesh(new THREE.PlaneGeometry(3.2, 2.4), wallMat2, false, true);
+  side.rotation.y = Math.PI / 2; side.position.set(-1.8, 1.2, 0.1); bedroom.add(side);
+  const win = mesh(new THREE.PlaneGeometry(0.9, 0.7), new THREE.MeshBasicMaterial({ color: 0xffc8e8 }), false, false);
+  win.position.set(0.6, 1.45, -1.34); bedroom.add(win);
+  for (const x of [0.1, 1.1]) {
+    const curtain = mesh(new THREE.PlaneGeometry(0.25, 0.85), clothAccent, false, false);
+    curtain.position.set(x, 1.4, -1.33); bedroom.add(curtain);
+  }
+  const frame = mesh(new THREE.BoxGeometry(1.7, 0.18, 2.2), new THREE.MeshStandardMaterial({ color: 0x6a4058, roughness: 0.7 }));
+  frame.position.set(0, 0.18, 0.05); bedroom.add(frame);
+  const mattress = mesh(new THREE.BoxGeometry(1.55, 0.14, 2.0), new THREE.MeshStandardMaterial({ color: 0xffe0ee, roughness: 0.85 }));
+  mattress.position.set(0, 0.32, 0.05); bedroom.add(mattress);
+  const headboard = mesh(new THREE.BoxGeometry(1.7, 0.7, 0.1), new THREE.MeshStandardMaterial({ color: 0x5a3550, roughness: 0.65 }));
+  headboard.position.set(0, 0.65, -0.95); bedroom.add(headboard);
+  for (const sx of [-1, 1]) {
+    const pillow = mesh(new THREE.SphereGeometry(0.18, 16, 12), new THREE.MeshStandardMaterial({ color: 0xfff5fa, roughness: 0.8 }));
+    pillow.scale.set(1.4, 0.45, 1.0);
+    pillow.position.set(sx * 0.28, 0.48, -0.55);
+    bedroom.add(pillow);
+  }
+  const desk = mesh(new THREE.BoxGeometry(0.7, 0.06, 0.4), new THREE.MeshStandardMaterial({ color: 0x8a6048, roughness: 0.6 }));
+  desk.position.set(-1.1, 0.55, 0.7); bedroom.add(desk);
+  for (const sx of [-1, 1]) {
+    for (const z of [0.12, -0.12]) {
+      const leg = mesh(new THREE.BoxGeometry(0.05, 0.5, 0.05), new THREE.MeshStandardMaterial({ color: 0x6a4838, roughness: 0.7 }));
+      leg.position.set(-1.1 + sx * 0.28, 0.28, 0.7 + z); bedroom.add(leg);
+    }
+  }
+  const book = mesh(new THREE.BoxGeometry(0.22, 0.03, 0.28), boyShirtMat);
+  book.position.set(-1.05, 0.6, 0.7); bedroom.add(book);
+  const lamp = mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.2, 12), new THREE.MeshStandardMaterial({ color: 0xf0e0c0, roughness: 0.4 }));
+  lamp.position.set(-0.85, 0.68, 0.55); bedroom.add(lamp);
+  const lampLight = new THREE.PointLight(0xffd0a0, 0.55, 4);
+  lampLight.position.set(-0.85, 0.85, 0.55); bedroom.add(lampLight);
+}
+
+// Contact targets live on the shaft; feet stay parented to ankles (never detach)
+const strokeRig = new THREE.Group();
+boy.userData.gen.add(strokeRig);
+const targetL = new THREE.Object3D();
+const targetR = new THREE.Object3D();
+strokeRig.add(targetL);
+strokeRig.add(targetR);
+
+const footL = girl.userData.legs.L.foot;
+const footR = girl.userData.legs.R.foot;
+// Ensure feet are ankle children — zero separation by hierarchy
+girl.userData.legs.L.ankle.add(footL);
+girl.userData.legs.R.ankle.add(footR);
+footL.scale.setScalar(1.0);
+footR.scale.setScalar(1.0);
+footL.position.set(0, 0, 0);
+footR.position.set(0, 0, 0);
+
+// Sit close; face camera enough that 2D eyes read clearly
+girl.userData.hips.position.set(0.0, 0.52, 0.50);
+girl.userData.hips.rotation.set(0.12, Math.PI * 0.82, 0); // slight 3/4 toward +X cam
+girl.userData.torso.rotation.set(0.28, 0, 0);
+girl.userData.head.rotation.set(-0.05, -0.15, 0);
+girl.userData.arms.L.shoulder.rotation.set(-0.75, 0.25, -1.05);
+girl.userData.arms.R.shoulder.rotation.set(-0.75, -0.25, 1.05);
+
+controls.target.set(0.02, 0.88, 0.35);
+camera.position.set(1.35, 1.05, -0.15);
+controls.update();
+
+/* ---------- stim / overstim state ---------- */
+const stim = {
+  pos: 0.55, vel: 0, target: 0.55,
+  auto: true, bothFeet: true, overstim: false,
+  phase: 0, milkPhase: 0, speed: 1.35, grip: 1.2,
+  footAngle: 10 * Math.PI / 180,
+  arousal: 0, sensitivity: 1,
+  climax: false, climaxT: 0, climaxCount: 0,
+  // "stroke" = normal sole sandwich; "toeMilk" = toes on dorsal ridge after cum
+  technique: "stroke",
+  contactForce: 0, cadence: 0, lastZero: 0,
+  droplets: [], hearts: [], manualDrive: false,
+  twitch: 0, shake: 0, neverStop: false,
+  allowCum: true, // story mode sets false until scripted climax
+  rollAccel: 1,
+};
+
+const ui = {
+  bar: document.getElementById("bar"),
+  pct: document.getElementById("pct"),
+  senseBar: document.getElementById("senseBar"),
+  sensePct: document.getElementById("sensePct"),
+  hint: document.getElementById("hint"),
+  tPos: document.getElementById("tPos"),
+  tVel: document.getElementById("tVel"),
+  tForce: document.getElementById("tForce"),
+  tCad: document.getElementById("tCad"),
+  tSense: document.getElementById("tSense"),
+  tClimax: document.getElementById("tClimax"),
+  auto: document.getElementById("auto"),
+  both: document.getElementById("both"),
+  overstim: document.getElementById("overstim"),
+  reset: document.getElementById("reset"),
+  speed: document.getElementById("speed"),
+  grip: document.getElementById("grip"),
+  angle: document.getElementById("angle"),
+  orbit: document.getElementById("orbit"),
+  controls: document.getElementById("controls"),
+  telemetry: document.getElementById("telemetry"),
+  toggleMore: document.getElementById("toggleMore"),
+  toggleStats: document.getElementById("toggleStats"),
+  toggleUi: document.getElementById("toggleUi"),
+};
+
+function spawnHeart() {
+  const el = document.createElement("div");
+  el.className = "heart";
+  el.textContent = Math.random() > 0.5 ? "♥" : "♡";
+  el.style.left = (40 + Math.random() * 20) + "%";
+  el.style.top = (48 + Math.random() * 20) + "%";
+  el.style.color = Math.random() > 0.5 ? "#ff6aad" : "#ffe066";
+  heartsEl.appendChild(el);
+  setTimeout(() => el.remove(), 1400);
+}
+
+function flashBurst(text) {
+  burstEl.textContent = text;
+  burstEl.classList.add("show");
+  setTimeout(() => burstEl.classList.remove("show"), 700);
+}
+
+ui.toggleMore.onclick = (e) => {
+  e.stopPropagation();
+  ui.controls.classList.toggle("open");
+};
+ui.toggleStats.onclick = (e) => {
+  e.stopPropagation();
+  ui.telemetry.classList.toggle("hidden");
+};
+ui.toggleUi.onclick = (e) => {
+  e.stopPropagation();
+  document.body.classList.toggle("ui-hidden");
+  ui.toggleUi.title = document.body.classList.contains("ui-hidden") ? "Show UI (H)" : "Hide UI (H)";
+};
+window.addEventListener("keydown", (e) => {
+  if (e.key === "h" || e.key === "H") {
+    if (e.target.matches?.("input,textarea")) return;
+    document.body.classList.toggle("ui-hidden");
+  }
+});
+
+ui.auto.onclick = () => {
+  stim.auto = !stim.auto;
+  ui.auto.classList.toggle("active", stim.auto);
+};
+ui.both.onclick = () => {
+  stim.bothFeet = !stim.bothFeet;
+  ui.both.classList.toggle("active", stim.bothFeet);
+  ui.both.textContent = stim.bothFeet ? "Both" : "One";
+};
+ui.overstim.onclick = () => {
+  stim.overstim = !stim.overstim;
+  ui.overstim.classList.toggle("active", stim.overstim);
+  document.body.classList.toggle("over", stim.overstim);
+  if (stim.overstim) {
+    stim.auto = true;
+    ui.auto.classList.add("active");
+    ui.speed.value = Math.max(+ui.speed.value, 1.8);
+    stim.speed = +ui.speed.value;
+    ui.grip.value = Math.max(+ui.grip.value, 1.2);
+    stim.grip = +ui.grip.value;
+    ui.hint.textContent = "OVERSTIM ON — smooth milking through climax, sensitivity keeps rising";
+    ui.hint.classList.add("hot");
+    flashBurst("OVERSTIM~~");
+    fxEl.classList.add("over");
+  } else {
+    ui.hint.textContent = "Overstim off";
+    ui.hint.classList.remove("hot");
+    fxEl.classList.remove("over");
+  }
+};
+ui.reset.onclick = () => {
+  stim.arousal = 0; stim.sensitivity = 1;
+  stim.climax = false; stim.climaxT = 0; stim.climaxCount = 0;
+  stim.pos = 0.55; stim.vel = 0; stim.twitch = 0; stim.shake = 0;
+  stim.technique = "stroke"; stim.neverStop = false; stim.milkPhase = 0;
+  stim.droplets.forEach(d => scene.remove(d.mesh));
+  stim.droplets = [];
+  ui.hint.textContent = "Reset — cooled down";
+  ui.hint.classList.remove("hot");
+  fxEl.classList.remove("on");
+  if (!stim.overstim) fxEl.classList.remove("over");
+};
+ui.speed.oninput = () => { stim.speed = +ui.speed.value; };
+ui.grip.oninput = () => { stim.grip = +ui.grip.value; };
+ui.angle.oninput = () => { stim.footAngle = (+ui.angle.value) * Math.PI / 180; };
+
+let dragY = null;
+canvas.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return;
+  if (stim.auto && !e.shiftKey) return;
+  stim.manualDrive = true; dragY = e.clientY; controls.enabled = false;
+});
+window.addEventListener("pointermove", (e) => {
+  if (!stim.manualDrive || dragY == null) return;
+  const dy = (dragY - e.clientY) / innerHeight;
+  dragY = e.clientY;
+  stim.target = THREE.MathUtils.clamp(stim.target + dy * 2.8, 0.05, 0.95);
+});
+window.addEventListener("pointerup", () => {
+  stim.manualDrive = false; dragY = null; controls.enabled = true;
+});
+
+const dropMat = new THREE.MeshPhysicalMaterial({
+  color: 0xfff0d8, roughness: 0.12, transmission: 0.4, thickness: 0.2, transparent: true, opacity: 0.85
+});
+function spawnDrop(worldPos, vel) {
+  const m = mesh(new THREE.SphereGeometry(0.008 + Math.random() * 0.012, 10, 8), dropMat, false, false);
+  m.position.copy(worldPos); scene.add(m);
+  stim.droplets.push({ mesh: m, v: vel.clone(), life: 1.2 + Math.random() * 0.9 });
+}
+
+function triggerClimax() {
+  // Story mode: only when explicitly allowed
+  if (story?.active && !stim.allowCum) return;
+
+  stim.climax = true;
+  stim.climaxT = 0;
+  stim.climaxCount += 1;
+  stim.allowCum = false; // consume permission
+  stim.neverStop = true;
+  stim.auto = true;
+  ui.auto?.classList.add("active");
+  stim.milkPhase = 0;
+  stim.shake = stim.overstim ? 0.25 : 0.4;
+  stim.twitch = 0.45;
+  fxEl.classList.add("on");
+  fxEl.classList.add("over");
+
+  const n = stim.climaxCount;
+  let label = `WAVE ${n}`;
+  if (story?.active) {
+    setEmotion("xd");
+    if (story.phase === "sleep") {
+      // Dream cum: twist his dick hard, then race into a fast footjob
+      label = `DREAM ${story.sleepCums || n}`;
+      if (story._dreamBurstTimer) clearTimeout(story._dreamBurstTimer);
+      setTechnique("twist");
+      stim.bothFeet = true;
+      stim.rollAccel = 3.6;
+      ui.speed.value = 2.9;
+      stim.speed = 2.9;
+      stim.grip = Math.max(stim.grip, 1.35);
+      if (ui.grip) ui.grip.value = stim.grip;
+      story.dreamBurst = 4.6; // twist → fast FJ window
+      story.dreamBurstStage = 0;
+      showDialogue("Girl", "(dream) Twisting your dick… then I’ll go fast…");
+      story._dreamBurstTimer = setTimeout(() => {
+        if (!story?.active || story.phase !== "sleep") return;
+        setTechnique("stroke");
+        stim.bothFeet = true;
+        stim.rollAccel = 4.8;
+        ui.speed.value = 3.2;
+        stim.speed = 3.2;
+        stim.grip = Math.max(stim.grip, 1.45);
+        if (ui.grip) ui.grip.value = stim.grip;
+        story.dreamBurstStage = 1;
+        // keep burst timer from the climax moment — extend a bit for the fast phase
+        story.dreamBurst = Math.max(story.dreamBurst, 3.2);
+        showDialogue("Girl", "(dream) Fast footjob… don’t stop cumming…");
+        setEmotion("naughty");
+      }, 850);
+    } else if (n === 1) {
+      label = "CUM — twist~";
+      setTechnique("twist");
+      setTimeout(() => {
+        if (!story.active) return;
+        setTechnique("toeClampRoll");
+        stim.rollAccel = 1.4;
+        setEmotion("naughty");
+        showDialogue("Girl", "Got you— toes clamped. Now I’ll switch… faster…");
+      }, 800);
+    } else if (n === 2) {
+      label = "AGAIN~";
+      // stay in whatever frenzy tech — keep contact, bump speed
+      stim.rollAccel = Math.max(stim.rollAccel || 1, 2.6);
+      ui.speed.value = Math.min(3.2, Math.max(+ui.speed.value, 2.4));
+      stim.speed = +ui.speed.value;
+      setEmotion("xd");
+      showDialogue("Girl", "Second already? Feet won’t stop— keep going~");
+    } else if (n === 3) {
+      label = "THIRD — backward sandwich!!";
+      setTechnique("backwardSandwich");
+      stim.rollAccel = 4.2;
+      ui.speed.value = 3.2;
+      stim.speed = 3.2;
+      setEmotion("xd");
+      showDialogue("Girl", "Sandwich on a backward stroke— as fast as I can!!");
+    }
+  } else {
+    stim.technique = "toeMilk";
+    label = n === 1 ? "CUM — toe milk~" : n === 2 ? "KEEP GOING~" : `WAVE ${n}`;
+  }
+
+  flashBurst(label);
+  for (let i = 0; i < 8; i++) setTimeout(spawnHeart, i * 70);
+
+  stim.sensitivity = Math.min(5, stim.sensitivity + (stim.overstim ? 0.4 : 0.25));
+  stim.arousal = 0.88;
+  if (ui.hint) {
+    ui.hint.textContent = story?.active
+      ? `Story climax #${n}`
+      : `Climax #${n} — toes squeezing the back · no stop`;
+    ui.hint.classList.add("hot");
+  }
+
+  const tip = new THREE.Vector3();
+  boy.userData.shaftTip.getWorldPosition(tip);
+  for (let i = 0; i < (stim.overstim ? 40 : 28); i++) {
+    spawnDrop(
+      tip.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.03, Math.random() * 0.02, (Math.random() - 0.5) * 0.03)),
+      new THREE.Vector3((Math.random() - 0.5) * 0.4, 0.5 + Math.random() * 0.9, 0.12 + Math.random() * 0.45)
+    );
+  }
+}
+
+const _footW = new THREE.Vector3();
+const _heelW = new THREE.Vector3();
+const _hipW = new THREE.Vector3();
+const _ankleW = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _quat = new THREE.Quaternion();
+const _quat2 = new THREE.Quaternion();
+const _mat = new THREE.Matrix4();
+const _mat2 = new THREE.Matrix4();
+const _scale = new THREE.Vector3();
+
+function orientSoleInwardQuat(inwardX, outQuat) {
+  const up = new THREE.Vector3(-inwardX, 0, 0);
+  const toes = new THREE.Vector3(0, 0, 1);
+  const side = new THREE.Vector3().crossVectors(up, toes).normalize();
+  toes.copy(new THREE.Vector3().crossVectors(side, up).normalize());
+  outQuat.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, toes));
+}
+
+function orientToesOnDorsalQuat(sideSign, outQuat) {
+  const toes = new THREE.Vector3(0, -1, 0);
+  const up = new THREE.Vector3(sideSign * 0.35, 0.85, 0).normalize();
+  const side = new THREE.Vector3().crossVectors(toes, up).normalize();
+  up.copy(new THREE.Vector3().crossVectors(side, toes).normalize());
+  outQuat.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, toes));
+}
+
+function orientSoleDownQuat(outQuat) {
+  // sole presses downward onto shaft (foot top faces up)
+  const up = new THREE.Vector3(0, 1, 0);
+  const toes = new THREE.Vector3(0, 0, 1);
+  const side = new THREE.Vector3().crossVectors(up, toes).normalize();
+  toes.copy(new THREE.Vector3().crossVectors(side, up).normalize());
+  outQuat.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, toes));
+}
+
+function orientHeelInQuat(sideSign, outQuat) {
+  const up = new THREE.Vector3(-sideSign, 0.15, 0).normalize();
+  const toes = new THREE.Vector3(0, 0.2, -1).normalize();
+  const side = new THREE.Vector3().crossVectors(up, toes).normalize();
+  toes.copy(new THREE.Vector3().crossVectors(side, up).normalize());
+  outQuat.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, toes));
+}
+
+/**
+ * Feet stay CHILDREN of ankles. Pole-vector IK bends the knee UP/OUT
+ * (natural seated pose) — not down into the floor.
+ */
+function poseLegAndFoot(leg, foot, target, sign) {
+  const hip = leg.hip, knee = leg.knee, ankle = leg.ankle;
+  const thighLen = leg.thighLen, calfLen = leg.calfLen;
+  const hipsParent = hip.parent;
+
+  strokeRig.updateWorldMatrix(true, true);
+  target.updateWorldMatrix(true, false);
+  const desiredPos = new THREE.Vector3();
+  const desiredQuat = new THREE.Quaternion();
+  target.matrixWorld.decompose(desiredPos, desiredQuat, _scale);
+
+  hipsParent.updateWorldMatrix(true, false);
+  hip.getWorldPosition(_hipW);
+
+  _dir.subVectors(desiredPos, _hipW);
+  let dist = _dir.length();
+  const maxReach = thighLen + calfLen - 0.012;
+  const minReach = Math.abs(thighLen - calfLen) + 0.04;
+  let stretch = 1;
+  if (dist > maxReach) { stretch = dist / maxReach; dist = maxReach; }
+  dist = THREE.MathUtils.clamp(dist, minReach, maxReach);
+  const tLen = thighLen * stretch;
+  const cLen = calfLen * stretch;
+
+  // Pole: above + slightly outward so the knee folds UP, not into the bed
+  const pole = new THREE.Vector3(
+    _hipW.x + sign * 0.45,
+    Math.max(_hipW.y, desiredPos.y) + 0.65,
+    (_hipW.z + desiredPos.z) * 0.5
+  );
+
+  const axis = _dir.clone().normalize(); // hip → ankle
+  // Project pole into the bend plane and force it upward
+  const hipToPole = pole.clone().sub(_hipW);
+  let bend = new THREE.Vector3().crossVectors(axis, hipToPole).cross(axis);
+  if (bend.lengthSq() < 1e-8) {
+    // fallback: world up projected off axis
+    bend.crossVectors(axis, new THREE.Vector3(0, 1, 0)).cross(axis);
+  }
+  bend.normalize();
+  // If bend aims downward, flip — we always want the knee higher than the hip–ankle line
+  const mid = _hipW.clone().add(desiredPos).multiplyScalar(0.5);
+  const probe = mid.clone().addScaledVector(bend, 0.2);
+  if (probe.y < mid.y) bend.negate();
+
+  const a = (tLen * tLen - cLen * cLen + dist * dist) / (2 * dist);
+  const h = Math.sqrt(Math.max(0.0001, tLen * tLen - a * a));
+  const kneeWorld = _hipW.clone().addScaledVector(axis, a).addScaledVector(bend, h);
+
+  // Orient hip so local -Y points at knee
+  const thighDirWorld = kneeWorld.clone().sub(_hipW).normalize();
+  const parentQ = new THREE.Quaternion();
+  hipsParent.getWorldQuaternion(parentQ);
+  const thighDirLocal = thighDirWorld.clone().applyQuaternion(parentQ.clone().invert());
+  hip.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), thighDirLocal);
+
+  // Orient knee so local -Y points at ankle target
+  // First place knee joint at correct bone length along thigh
+  leg.thigh.quaternion.identity();
+  leg.thigh.position.set(0, -tLen * 0.5, 0);
+  leg.thigh.scale.set(1, stretch, 1);
+  knee.position.set(0, -tLen, 0);
+  knee.quaternion.identity();
+
+  hip.updateWorldMatrix(true, true);
+  const kneePosNow = new THREE.Vector3();
+  knee.getWorldPosition(kneePosNow);
+  const calfDirWorld = desiredPos.clone().sub(kneePosNow).normalize();
+  const kneeWorldQ = new THREE.Quaternion();
+  knee.getWorldQuaternion(kneeWorldQ);
+  const calfDirLocal = calfDirWorld.clone().applyQuaternion(kneeWorldQ.clone().invert());
+  knee.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), calfDirLocal);
+
+  leg.calf.quaternion.identity();
+  leg.calf.position.set(0, -cLen * 0.5, 0);
+  leg.calf.scale.set(1, stretch, 1);
+  ankle.position.set(0, -cLen, 0);
+  ankle.quaternion.identity();
+
+  // Snap ankle onto exact target; stretch calf mesh to bridge knee → ankle
+  hip.updateWorldMatrix(true, true);
+  const ankleLocal = desiredPos.clone();
+  knee.worldToLocal(ankleLocal);
+  ankle.position.copy(ankleLocal);
+  const reach = Math.max(0.04, ankle.position.length());
+  const along = ankle.position.clone().normalize();
+  leg.calf.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), along);
+  leg.calf.scale.set(1, reach / calfLen, 1);
+  leg.calf.position.copy(ankle.position).multiplyScalar(0.5);
+
+  // Foot local pose matches shaft target exactly (still parented to ankle)
+  hip.updateWorldMatrix(true, true);
+  const ankleWorldQuat = new THREE.Quaternion();
+  ankle.getWorldQuaternion(ankleWorldQuat);
+  foot.position.set(0, 0, 0);
+  foot.scale.setScalar(1.0);
+  foot.quaternion.copy(ankleWorldQuat).invert().multiply(desiredQuat);
+  ankle.visible = true;
+}
+
+function restFoot(leg, foot, sideSign) {
+  leg.thigh.scale.set(1, 1, 1); leg.calf.scale.set(1, 1, 1);
+  leg.thigh.quaternion.identity(); leg.calf.quaternion.identity();
+  leg.thigh.position.set(0, -leg.thighLen * 0.5, 0);
+  leg.knee.position.set(0, -leg.thighLen, 0);
+  leg.calf.position.set(0, -leg.calfLen * 0.5, 0);
+  leg.ankle.position.set(0, -leg.calfLen, 0);
+  leg.hip.rotation.set(-0.55, sideSign * 0.45, sideSign * 0.55);
+  leg.knee.rotation.set(1.25, 0, 0);
+  foot.position.set(0, 0, 0);
+  foot.rotation.set(-Math.PI / 2, 0, 0);
+  foot.scale.setScalar(1.0);
+}
+
+function setTechnique(name) {
+  stim.technique = name;
+  stim.milkPhase = 0;
+  stim.phase = 0;
+  if (name === "singleSole") stim.bothFeet = false;
+  else if (name !== "tipFlick") stim.bothFeet = true;
+  ui.both?.classList.toggle("active", stim.bothFeet);
+  if (ui.both) ui.both.textContent = stim.bothFeet ? "Both" : "One";
+}
+
+function placeFeet(dt) {
+  const r = boy.userData.SHAFT_R;
+  const grip = stim.grip;
+  const tech = stim.technique || "stroke";
+  const soft = tech === "fabric";
+  const stroke = stim.pos;
+  const z = THREE.MathUtils.lerp(0.03, 0.2, stroke);
+  // clear leftover dream-twist wring unless twist is active
+  if (tech !== "twist" && boy.userData.shaft) boy.userData.shaft.rotation.z *= 0.7;
+
+  if (tech === "toeMilk") {
+    const milk = stim.pos;
+    const zz = THREE.MathUtils.lerp(0.04, 0.195, milk);
+    const stagger = 0.035 * Math.sin(stim.milkPhase * 0.7);
+    const zL = THREE.MathUtils.clamp(zz + stagger, 0.035, 0.2);
+    const zR = THREE.MathUtils.clamp(zz - stagger * 0.85, 0.035, 0.2);
+    const squeezePulse = 0.5 + 0.5 * Math.sin(stim.milkPhase * 1.15);
+    const press = r * (0.55 + grip * 0.25 + squeezePulse * 0.2);
+    const dorsalY = r * 0.15 + press;
+    const spread = 0.012 + (1 - squeezePulse) * 0.018;
+    targetL.position.set(-spread - squeezePulse * 0.004, dorsalY, zL);
+    targetR.position.set(spread + squeezePulse * 0.004, dorsalY, zR);
+    orientToesOnDorsalQuat(-1, _quat);
+    targetL.quaternion.copy(_quat);
+    targetL.rotateX(-(0.12 + squeezePulse * 0.18));
+    targetL.rotateZ(-0.08 - stim.footAngle * 0.15);
+    orientToesOnDorsalQuat(1, _quat);
+    targetR.quaternion.copy(_quat);
+    targetR.rotateX(-(0.12 + squeezePulse * 0.18));
+    targetR.rotateZ(0.08 + stim.footAngle * 0.15);
+    const ySquash = 1 - (0.06 + grip * 0.08 + squeezePulse * 0.05);
+    boy.userData.shaft.scale.set(1 + (1 - ySquash) * 0.5, ySquash, 1 + Math.abs(stim.vel) * 0.02);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "archRub") {
+    // High arches cupping from top-sides, gliding
+    const archY = r * 0.55 + grip * 0.02;
+    const sep = r * 0.35 + 0.01;
+    targetL.position.set(-sep, archY, z);
+    targetR.position.set(sep, archY, z * 0.92);
+    orientSoleInwardQuat(1, _quat);
+    targetL.quaternion.copy(_quat);
+    targetL.rotateX(-0.55); targetL.rotateZ(0.35);
+    orientSoleInwardQuat(-1, _quat);
+    targetR.quaternion.copy(_quat);
+    targetR.rotateX(-0.55); targetR.rotateZ(-0.35);
+    boy.userData.shaft.scale.set(1 - grip * 0.06, 1 - grip * 0.1, 1.02);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "solePress") {
+    // Both soles stacked / pressing down the length
+    const pressY = r * 0.7 + grip * 0.03;
+    const wobble = Math.sin(stim.phase * 2) * 0.01;
+    targetL.position.set(-0.015 + wobble, pressY, z);
+    targetR.position.set(0.02 - wobble, pressY + 0.012, z * 0.9);
+    orientSoleDownQuat(_quat);
+    targetL.quaternion.copy(_quat); targetL.rotateZ(0.15);
+    targetR.quaternion.copy(_quat); targetR.rotateZ(-0.2); targetR.rotateX(0.1);
+    const sq = 1 - (0.1 + grip * 0.12);
+    boy.userData.shaft.scale.set(1.08, sq, 1.05);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "toeCage") {
+    // Toes wrap near the tip like a cage
+    const tipZ = THREE.MathUtils.lerp(0.14, 0.2, stroke);
+    const pulse = 0.5 + 0.5 * Math.sin(stim.phase * 3);
+    const cage = r * (0.4 + grip * 0.2 + pulse * 0.15);
+    targetL.position.set(-cage, cage * 0.35, tipZ);
+    targetR.position.set(cage, cage * 0.35, tipZ - 0.01);
+    orientToesOnDorsalQuat(-1, _quat);
+    targetL.quaternion.copy(_quat); targetL.rotateX(-0.6); targetL.rotateY(0.4);
+    orientToesOnDorsalQuat(1, _quat);
+    targetR.quaternion.copy(_quat); targetR.rotateX(-0.6); targetR.rotateY(-0.4);
+    boy.userData.shaft.scale.set(1.05, 0.92, 1.08);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "heelGrind") {
+    // Heels / balls grinding the base
+    const baseZ = THREE.MathUtils.lerp(0.02, 0.08, stroke);
+    targetL.position.set(-r * 0.5, r * 0.2, baseZ);
+    targetR.position.set(r * 0.5, r * 0.25, baseZ + 0.01);
+    orientHeelInQuat(-1, _quat);
+    targetL.quaternion.copy(_quat); targetL.rotateX(0.4);
+    orientHeelInQuat(1, _quat);
+    targetR.quaternion.copy(_quat); targetR.rotateX(0.35);
+    boy.userData.shaft.scale.set(1.1, 0.9, 1);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "toeClampRoll") {
+    // Toes clamped mid-shaft, rolling faster and faster
+    const accel = stim.rollAccel || 1;
+    const roll = Math.sin(stim.phase * (2.5 * accel)) * 0.5 + 0.5;
+    const zz = THREE.MathUtils.lerp(0.06, 0.18, roll);
+    const clamp = r * (0.35 + grip * 0.25);
+    const spin = stim.phase * 1.8 * accel;
+    targetL.position.set(-clamp * Math.cos(spin * 0.3), clamp * 0.4 + Math.sin(spin) * 0.01, zz);
+    targetR.position.set(clamp * Math.cos(spin * 0.3), clamp * 0.4 - Math.sin(spin) * 0.01, zz * 0.98);
+    orientToesOnDorsalQuat(-1, _quat);
+    targetL.quaternion.copy(_quat); targetL.rotateX(-0.75); targetL.rotateZ(-0.25 + Math.sin(spin) * 0.35);
+    orientToesOnDorsalQuat(1, _quat);
+    targetR.quaternion.copy(_quat); targetR.rotateX(-0.75); targetR.rotateZ(0.25 - Math.sin(spin) * 0.35);
+    boy.userData.shaft.scale.set(1.12, 0.85, 1.08);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "sleepClamp" || tech === "dreamFJ") {
+    // Dreaming sleep footjob — feet never leave; motion follows dream waves
+    const dream = story.dreamPhase || 0;
+    const t = stim.phase;
+    // soft elastic shaft deformation (squash & stretch like rubber)
+    const rub = Math.sin(t * 1.4);
+    const stretch = 1 + rub * 0.18 + Math.sin(t * 2.7) * 0.06;
+    const squash = 1 - Math.abs(rub) * 0.22 - grip * 0.06;
+    const bend = Math.sin(t * 0.9 + dream) * 0.08;
+    boy.userData.shaft.scale.set(
+      (1.05 + Math.abs(bend) * 0.35) * (2 - squash) * 0.55 + squash * 0.5,
+      squash * 0.92,
+      stretch
+    );
+    if (boy.userData.headG) {
+      const tipSquish = 1 + Math.sin(t * 2.1) * 0.12;
+      boy.userData.headG.scale.set(1.05 * tipSquish, 0.9 / tipSquish, 1.05 * tipSquish);
+    }
+    // foot patterns cycle with dream phase (0..4) but always contact
+    const zz = 0.08 + Math.sin(t * (0.8 + dream * 0.15)) * (0.04 + dream * 0.012);
+    const clamp = r * (0.38 + grip * 0.14 + Math.sin(t * 0.6) * 0.04);
+    const lift = clamp * (0.2 + 0.08 * Math.sin(t * 1.1));
+    let xL = -clamp * 0.9, xR = clamp * 0.9;
+    let yL = lift, yR = lift + 0.008;
+    if (dream === 1) {
+      // slow sole press dream
+      yL = r * 0.55 + Math.sin(t) * 0.02; yR = yL + 0.01;
+      xL = -0.02; xR = 0.025;
+    } else if (dream === 2) {
+      // twisting dream toes
+      xL = -clamp * Math.cos(t * 0.5); xR = clamp * Math.cos(t * 0.5);
+    } else if (dream === 3) {
+      // milking glide dream
+      // zz already oscillates more
+    } else if (dream >= 4) {
+      // deeper squeeze dream
+      xL = -clamp * 0.7; xR = clamp * 0.7;
+      yL = clamp * 0.35; yR = clamp * 0.32;
+    }
+    targetL.position.set(xL, yL, zz);
+    targetR.position.set(xR, yR, zz + 0.006 + Math.sin(t * 0.7) * 0.01);
+    if (dream === 1) {
+      orientSoleDownQuat(_quat);
+      targetL.quaternion.copy(_quat); targetL.rotateZ(0.1 + Math.sin(t) * 0.08);
+      targetR.quaternion.copy(_quat); targetR.rotateZ(-0.12);
+    } else {
+      orientToesOnDorsalQuat(-1, _quat);
+      targetL.quaternion.copy(_quat);
+      targetL.rotateX(-0.5 - dream * 0.05); targetL.rotateZ(-0.1 + Math.sin(t) * 0.12);
+      orientToesOnDorsalQuat(1, _quat);
+      targetR.quaternion.copy(_quat);
+      targetR.rotateX(-0.5 - dream * 0.05); targetR.rotateZ(0.1 - Math.sin(t) * 0.12);
+    }
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "backwardSandwich") {
+    // Backward stroke + sole sandwich cover, max speed
+    const accel = stim.rollAccel || 3.5;
+    const dig = 0.028 + grip * 0.03;
+    const sep = Math.max(0.006, 0.014 - dig);
+    const zBack = THREE.MathUtils.lerp(0.19, 0.035, stroke);
+    const twist = Math.sin(stim.phase * 3.2 * accel) * 0.25;
+    targetL.position.set(-sep, r * 0.02, zBack);
+    targetR.position.set(sep, r * 0.02, zBack * 0.97);
+    // soles inward (sandwich) but heels lead toward tip (backward)
+    orientSoleInwardQuat(1, _quat);
+    targetL.quaternion.copy(_quat);
+    targetL.rotateX(0.35); targetL.rotateZ(0.15 + twist); targetL.rotateY(0.4);
+    orientSoleInwardQuat(-1, _quat);
+    targetR.quaternion.copy(_quat);
+    targetR.rotateX(0.35); targetR.rotateZ(-0.15 - twist); targetR.rotateY(-0.4);
+    const squash = 1 - (0.12 + grip * 0.14);
+    boy.userData.shaft.scale.set(squash, squash, 1.06);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "backward") {
+    // Backward footjob — heels toward tip, toes toward base
+    const dig = 0.02 + grip * 0.025;
+    const sep = Math.max(0.01, 0.016 - dig);
+    const zBack = THREE.MathUtils.lerp(0.18, 0.04, stroke);
+    const accel = stim.rollAccel || 1;
+    targetL.position.set(-sep, r * 0.05, zBack);
+    targetR.position.set(sep, r * 0.05, zBack * 0.96);
+    orientHeelInQuat(-1, _quat);
+    targetL.quaternion.copy(_quat); targetL.rotateX(0.15); targetL.rotateZ(0.2);
+    orientHeelInQuat(1, _quat);
+    targetR.quaternion.copy(_quat); targetR.rotateX(0.15); targetR.rotateZ(-0.2);
+    const squash = 1 - (0.08 + grip * 0.12);
+    boy.userData.shaft.scale.set(squash, squash, 1.04);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "twist") {
+    // Alternating sole twist while stroking — dream cum twists his dick harder
+    const dreamTwist = !!(story?.phase === "sleep" && story.dreamBurst > 0);
+    const dig = 0.02 + grip * 0.025 + (dreamTwist ? 0.012 : 0);
+    const sep = Math.max(0.008, 0.018 - dig);
+    const twistRate = dreamTwist ? 3.8 : 2.2;
+    const twistAmp = dreamTwist ? 0.95 : 0.45;
+    const twist = Math.sin(stim.phase * twistRate) * twistAmp;
+    const zTwist = dreamTwist
+      ? THREE.MathUtils.lerp(0.05, 0.19, 0.5 + 0.5 * Math.sin(stim.phase * 1.6))
+      : z;
+    targetL.position.set(-sep, dreamTwist ? r * 0.05 : 0, zTwist);
+    targetR.position.set(sep, dreamTwist ? r * 0.05 : 0, zTwist * 0.95);
+    orientSoleInwardQuat(1, _quat);
+    targetL.quaternion.copy(_quat); targetL.rotateZ(twist); targetL.rotateX(stim.vel * 0.1 + (dreamTwist ? twist * 0.2 : 0));
+    orientSoleInwardQuat(-1, _quat);
+    targetR.quaternion.copy(_quat); targetR.rotateZ(-twist); targetR.rotateX(-stim.vel * 0.1 - (dreamTwist ? twist * 0.2 : 0));
+    const squash = 1 - (0.07 + grip * 0.14 + (dreamTwist ? 0.08 : 0));
+    // visibly wring / twist the shaft
+    boy.userData.shaft.rotation.z = twist * (dreamTwist ? 0.7 : 0.15);
+    boy.userData.shaft.scale.set(
+      squash * (1 + Math.abs(twist) * (dreamTwist ? 0.22 : 0.05)),
+      squash * (1 - Math.abs(twist) * (dreamTwist ? 0.12 : 0.02)),
+      1.03 + Math.abs(twist) * (dreamTwist ? 0.18 : 0.04)
+    );
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "tipFlick") {
+    // Light toe flicks at the tip; other foot rests
+    const flick = Math.sin(stim.phase * 5) * 0.02;
+    targetL.position.set(-0.01, r * 0.4 + flick, 0.185);
+    orientToesOnDorsalQuat(-1, _quat);
+    targetL.quaternion.copy(_quat);
+    targetL.rotateX(-0.9 + flick * 8);
+    boy.userData.shaft.scale.set(1.02, 0.96, 1.06);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    restFoot(girl.userData.legs.R, footR, 1);
+  } else if (tech === "singleSole") {
+    // One sole full stroke; other foot teases low
+    const dig = 0.02 + grip * 0.03;
+    const sep = Math.max(0.008, 0.016 - dig);
+    targetL.position.set(-sep, 0, z);
+    orientSoleInwardQuat(1, _quat);
+    targetL.quaternion.copy(_quat);
+    targetL.rotateZ(stim.footAngle * 0.2);
+    targetL.rotateX(stim.vel * 0.1);
+    targetR.position.set(0.06, -0.02, 0.04 + Math.sin(stim.phase) * 0.02);
+    orientSoleInwardQuat(-1, _quat);
+    targetR.quaternion.copy(_quat);
+    targetR.rotateX(0.5);
+    const squash = 1 - (0.06 + grip * 0.1);
+    boy.userData.shaft.scale.set(squash, squash, 1.02);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else {
+    // stroke / fabric — sole sandwich
+    const padReach = 0.018;
+    const dig = (soft ? 0.012 : 0.022) + grip * (soft ? 0.015 : 0.028) + (stim.overstim ? 0.012 : 0);
+    const sep = Math.max(0.01, padReach - dig);
+    const zR = THREE.MathUtils.lerp(0.03, 0.2, THREE.MathUtils.clamp(stroke - (stim.bothFeet ? 0.08 : 0), 0, 1));
+    const squeeze = Math.min(0.2, Math.abs(stim.vel) * 0.05 + stim.twitch * 0.02);
+    const sepL = Math.max(0.008, sep - squeeze);
+    const sepR = stim.bothFeet ? Math.max(0.008, sep - squeeze) : 0.14;
+    // fabric: feet a bit higher (on trousers bulge)
+    const yOff = soft ? r * 0.35 : 0;
+
+    targetL.position.set(-sepL, yOff, z + 0.004 * Math.sin(stim.phase * 2));
+    orientSoleInwardQuat(+1, _quat);
+    targetL.quaternion.copy(_quat);
+    targetL.rotateZ(THREE.MathUtils.clamp(stim.footAngle * 0.25, -0.2, 0.2));
+    targetL.rotateX(THREE.MathUtils.clamp(stim.vel * 0.08 + stim.twitch * 0.15, -0.35, 0.35));
+
+    if (stim.bothFeet) {
+      targetR.position.set(sepR, yOff, zR - 0.004 * Math.sin(stim.phase * 2));
+      orientSoleInwardQuat(-1, _quat);
+      targetR.quaternion.copy(_quat);
+      targetR.rotateZ(THREE.MathUtils.clamp(-stim.footAngle * 0.25, -0.2, 0.2));
+      targetR.rotateX(THREE.MathUtils.clamp(-stim.vel * 0.08 - stim.twitch * 0.15, -0.35, 0.35));
+    } else {
+      targetR.position.set(0.14, -0.03, 0);
+      targetR.rotation.set(0.5, 0.4, -0.5);
+    }
+
+    if (stim.overstim) {
+      const curl = Math.sin(stim.phase * 4) * 0.006;
+      targetL.position.x -= curl;
+      if (stim.bothFeet) targetR.position.x += curl;
+    }
+
+    const squash = soft
+      ? 1 - (0.03 + grip * 0.04)
+      : 1 - (0.08 + grip * 0.16 + (stim.overstim ? 0.04 : 0)) * (stim.bothFeet ? 1 : 0.55);
+    boy.userData.shaft.scale.set(squash, squash, 1 + Math.abs(stim.vel) * 0.03);
+
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    if (stim.bothFeet) poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+    else restFoot(girl.userData.legs.R, footR, 1);
+  }
+
+  const react = stim.arousal * 0.08 + stim.twitch * 0.12;
+  const headBase = story.active ? story.headYaw : -0.18;
+  if (!(story.active && story.poseLock)) {
+    girl.userData.torso.rotation.x = 0.32 + Math.sin(stim.phase) * 0.05 + react;
+    girl.userData.head.rotation.y = headBase + Math.sin(performance.now() * 0.0012) * 0.08;
+    girl.userData.head.rotation.x = -0.05 + stim.arousal * 0.12 + (tech === "toeMilk" ? 0.08 : 0);
+    girl.userData.head.rotation.z = Math.sin(stim.phase * 1.5) * 0.04 * stim.arousal;
+  }
+  if (!story.active || story.phase === "play" || story.phase === "clothed_rub" || story.phase === "tour") {
+    const base = EMOTIONS[girl.userData.head.userData.emotion]?.blush ?? 0.35;
+    const blushOp = Math.max(base, 0.35 + stim.arousal * 0.5);
+    girl.userData.head.userData.blush?.forEach(b => { b.material.opacity = blushOp; });
+  }
+  if (girl.userData.head.userData.mouth) {
+    const m = girl.userData.head.userData.mouth;
+    m.scale.set(1 + stim.arousal * 0.15, 1 + stim.twitch * 0.25, 1);
+  }
+  girl.userData.hair.rotation.z = Math.sin(performance.now() * 0.002) * 0.04;
+
+  const swell = 1 + stim.arousal * 0.14 + (stim.climax ? 0.08 : 0) + stim.sensitivity * 0.015;
+  if (boy.userData.gen.visible && stim.technique !== "dreamFJ" && stim.technique !== "sleepClamp") {
+    boy.userData.headG.scale.set(1.05 * swell, 0.95 * swell, 1.1 * swell);
+  }
+  const hipTwitch = Math.sin(stim.phase * 2) * 0.01 * stim.arousal + stim.twitch * Math.sin(performance.now() * 0.035) * 0.015;
+  if (!(story.active && story.poseLock)) {
+    boy.userData.hips.rotation.x = -Math.PI / 2 + 0.05 + hipTwitch;
+  }
+  blushLight.intensity = 0.35 + stim.arousal * 0.55;
+}
+
+function updateSolver(dt) {
+  stim.speed = +ui.speed.value;
+  stim.grip = +ui.grip.value;
+  stim.twitch = Math.max(0, stim.twitch - dt * 0.4);
+  stim.shake = Math.max(0, stim.shake - dt * 1.2);
+
+  const toeMilk = stim.technique === "toeMilk";
+  const softTech = stim.technique === "fabric" || stim.technique === "tipFlick" || stim.technique === "archRub";
+  const mustContinue = stim.auto && !stim.manualDrive; // climax never blocks
+
+  if (mustContinue) {
+    if (toeMilk) {
+      stim.milkPhase += dt * (0.55 + stim.speed * 0.45) * (stim.overstim ? 1.05 : 0.85);
+      const a = stim.milkPhase;
+      const glide = 0.5 + 0.42 * Math.sin(a);
+      const linger = 0.08 * Math.sin(a * 0.5 + 1.2);
+      const human = 0.03 * Math.sin(a * 2.3 + 0.4) + 0.02 * Math.sin(a * 0.37);
+      stim.target = THREE.MathUtils.clamp(glide + linger + human, 0.08, 0.94);
+    } else if (stim.technique === "toeClampRoll") {
+      const accel = stim.rollAccel || 1;
+      stim.phase += dt * stim.speed * 2.8 * accel;
+      stim.target = 0.5 + Math.sin(stim.phase) * 0.35;
+    } else if (stim.technique === "sleepClamp" || stim.technique === "dreamFJ") {
+      // dream-driven tempo — feet keep moving while she sleeps
+      const dream = (typeof story !== "undefined" && story.dreamPhase) || 0;
+      stim.phase += dt * stim.speed * (0.85 + dream * 0.25);
+      stim.target = 0.5 + Math.sin(stim.phase) * (0.18 + dream * 0.06);
+    } else if (stim.technique === "backwardSandwich") {
+      const accel = stim.rollAccel || 3.5;
+      stim.phase += dt * stim.speed * 3.6 * accel;
+      const s = Math.sin(stim.phase);
+      stim.target = 0.5 + Math.sign(s) * Math.pow(Math.abs(s), 0.55) * 0.45;
+    } else if (stim.technique === "backward") {
+      const accel = stim.rollAccel || 1;
+      stim.phase += dt * stim.speed * 2.4 * accel;
+      const s = Math.sin(stim.phase);
+      stim.target = 0.5 + Math.sign(s) * Math.pow(Math.abs(s), 0.7) * 0.4;
+    } else if (stim.technique === "twist") {
+      // dream cum twist wrings faster
+      const dreamTwist = !!(typeof story !== "undefined" && story.phase === "sleep" && story.dreamBurst > 0);
+      const accel = dreamTwist ? (stim.rollAccel || 3.2) : 1;
+      stim.phase += dt * stim.speed * 2.8 * accel;
+      const s = Math.sin(stim.phase);
+      stim.target = 0.5 + Math.sign(s) * Math.pow(Math.abs(s), 0.65) * (dreamTwist ? 0.42 : 0.35);
+    } else if (stim.technique === "tipFlick") {
+      stim.phase += dt * stim.speed * 3.4;
+      stim.target = 0.85 + Math.sin(stim.phase) * 0.08;
+    } else if (stim.technique === "heelGrind") {
+      stim.phase += dt * stim.speed * 2.0;
+      stim.target = 0.25 + Math.sin(stim.phase) * 0.2;
+    } else if (stim.technique === "toeCage") {
+      stim.phase += dt * stim.speed * 2.2;
+      stim.target = 0.75 + Math.sin(stim.phase) * 0.15;
+    } else {
+      // stroke / fabric — dream post-cum footjob races
+      const dreamFast = !!(typeof story !== "undefined" && story.phase === "sleep" && story.dreamBurst > 0 && story.dreamBurstStage === 1);
+      const race = dreamFast ? (1.35 + (stim.rollAccel || 1) * 0.18) : 1;
+      stim.phase += dt * stim.speed * (softTech ? 2.0 : 2.6) * (stim.overstim ? 1.2 : 1) * race;
+      const s = Math.sin(stim.phase);
+      const amp = stim.overstim ? 0.42 : (softTech ? 0.3 : (dreamFast ? 0.44 : 0.38));
+      const shaped = Math.sign(s) * Math.pow(Math.abs(s), stim.overstim || dreamFast ? 0.5 : 0.75);
+      stim.target = 0.5 + shaped * amp;
+    }
+  }
+
+  // Extra-soft spring for toe milk / soft techs
+  const k = toeMilk ? 18 : (softTech ? 28 : (stim.overstim ? 52 : 48));
+  const c = 2 * Math.sqrt(k) * (toeMilk ? 1.15 : (softTech ? 1.05 : 0.9));
+  const acc = (stim.target - stim.pos) * k - stim.vel * c;
+  stim.vel += acc * dt;
+  const prev = stim.pos;
+  stim.pos = THREE.MathUtils.clamp(stim.pos + stim.vel * dt, 0.05, 0.95);
+
+  stim.contactForce = stim.grip * (10 + Math.abs(stim.vel) * (toeMilk ? 28 : 40)) * (toeMilk ? 1.1 : 1);
+
+  if (prev < 0.5 && stim.pos >= 0.5) {
+    const now = performance.now() / 1000;
+    if (stim.lastZero > 0) stim.cadence = 1 / Math.max(0.05, now - stim.lastZero);
+    stim.lastZero = now;
+  }
+
+  const work = stim.contactForce * Math.abs(stim.vel) * dt * 0.0045 * stim.sensitivity;
+  const sweet = toeMilk
+    ? 1.1 - Math.abs(stim.pos - 0.65) * 0.35
+    : softTech
+      ? 1.05 - Math.abs(stim.pos - 0.5) * 0.25
+      : 1 - Math.abs(stim.pos - 0.55) * 0.4;
+
+  // Always build while moving — climax never freezes progress
+  const floor = stim.neverStop ? (0.75 + Math.min(0.12, (stim.climaxCount - 1) * 0.02)) : 0;
+  if (stim.climax && stim.neverStop) {
+    stim.arousal = THREE.MathUtils.clamp(
+      Math.max(floor, stim.arousal * (1 - dt * 0.12) + work * sweet * 1.9),
+      floor, 1
+    );
+    if (stim.climaxT > 0.5 && stim.arousal >= 0.97 && (!story.active || stim.allowCum)) triggerClimax();
+  } else if (!stim.climax) {
+    const bonus = stim.overstim ? 1.45 : 1;
+    // Story mode: build arousal but NEVER auto-cum unless story sets allowCum
+    const build = story.active ? (story.phase === "sleep" ? 0.35 : 0.55) : 1;
+    stim.arousal = THREE.MathUtils.clamp(stim.arousal + work * sweet * bonus * build, 0, 1);
+    if (!stim.auto && !stim.manualDrive && Math.abs(stim.vel) < 0.05 && !stim.neverStop) {
+      stim.arousal = Math.max(0, stim.arousal - dt * 0.03);
+    }
+    if (stim.arousal >= 0.995 && (!story.active || stim.allowCum)) triggerClimax();
+  } else {
+    // non-neverStop climax (shouldn't happen often) — still keep a short drip then recover
+    stim.arousal = Math.max(0.2, stim.arousal - dt * 0.05);
+  }
+
+  if (stim.climax) {
+    stim.climaxT += dt;
+    const dripChance = toeMilk ? 0.35 : 0.4;
+    if (stim.climaxT < 4.0 && Math.random() < dripChance) {
+      const tip = new THREE.Vector3();
+      boy.userData.shaftTip.getWorldPosition(tip);
+      spawnDrop(tip, new THREE.Vector3((Math.random() - 0.5) * 0.18, 0.2 + Math.random() * 0.45, 0.1 + Math.random() * 0.25));
+    }
+    // Clear climax flag so next wave can fire, but NEVER stop technique / auto
+    if (stim.neverStop && stim.climaxT > 1.0 && stim.arousal < 0.96) {
+      stim.climax = false;
+      stim.twitch = Math.max(stim.twitch, 0.35);
+      ui.hint.textContent = `Toes on the back · milking · ${stim.sensitivity.toFixed(1)}× · no stop`;
+    } else if (!stim.neverStop && stim.climaxT > 2.5) {
+      // legacy path — still force neverStop behavior now
+      stim.neverStop = true;
+      stim.technique = "toeMilk";
+      stim.climax = false;
+      stim.arousal = Math.max(stim.arousal, 0.8);
+    }
+    if (toeMilk && Math.random() < 0.04) spawnHeart();
+  }
+
+  if ((stim.overstim || stim.neverStop) && (stim.auto || stim.manualDrive) && Math.abs(stim.vel) > 0.02) {
+    stim.sensitivity = Math.min(5, stim.sensitivity + dt * 0.1);
+    if (Math.random() < 0.02) spawnHeart();
+  }
+
+  for (let i = stim.droplets.length - 1; i >= 0; i--) {
+    const d = stim.droplets[i];
+    d.v.y -= 3.2 * dt;
+    d.mesh.position.addScaledVector(d.v, dt);
+    d.life -= dt;
+    d.mesh.material.opacity = Math.max(0, d.life);
+    if (d.mesh.position.y < 0.02) {
+      d.mesh.position.y = 0.02; d.v.y *= -0.2; d.v.x *= 0.7; d.v.z *= 0.7;
+    }
+    if (d.life <= 0) { scene.remove(d.mesh); stim.droplets.splice(i, 1); }
+  }
+
+  if (!(story.active && story.poseLock)) placeFeet(dt);
+  updateStory(dt);
+
+  const p = Math.round(stim.arousal * 100);
+  ui.bar.style.width = p + "%";
+  ui.pct.textContent = p + "%";
+  const sPct = Math.round((stim.sensitivity / 5) * 100);
+  ui.senseBar.style.width = sPct + "%";
+  ui.sensePct.textContent = Math.round(stim.sensitivity * 100) + "%";
+  ui.tPos.textContent = stim.pos.toFixed(2);
+  ui.tVel.textContent = (stim.vel * 0.15).toFixed(2) + " m/s";
+  ui.tForce.textContent = stim.contactForce.toFixed(1) + " N";
+  ui.tCad.textContent = stim.cadence.toFixed(2) + " Hz";
+  ui.tSense.textContent = stim.sensitivity.toFixed(1) + "×";
+  ui.tClimax.textContent = String(stim.climaxCount);
+
+  if (toeMilk) {
+    ui.hint.textContent = stim.climax
+      ? `Toe-squeeze climax #${stim.climaxCount} — dorsal milk, no stop`
+      : `Toe milk on the back · slow up·down squeeze · ${stim.sensitivity.toFixed(1)}×`;
+    ui.hint.classList.add("hot");
+  } else if (stim.arousal > 0.8) {
+    ui.hint.textContent = stim.overstim ? "Edge… then toes take over" : "Almost — keep going";
+    ui.hint.classList.add("hot");
+  }
+}
+
+let orbitT = 0;
+function updateCamera(dt) {
+  if (stim.shake > 0.05) {
+    const soft = stim.overstim ? 0.012 : 0.03;
+    camera.position.x += (Math.random() - 0.5) * soft * stim.shake;
+    camera.position.y += (Math.random() - 0.5) * soft * 0.7 * stim.shake;
+  }
+  const amt = +ui.orbit.value;
+  if (amt <= 0.001 || stim.manualDrive) return;
+  orbitT += dt * 0.15 * amt;
+  const r = camera.position.distanceTo(controls.target);
+  camera.position.x = THREE.MathUtils.lerp(camera.position.x, Math.cos(orbitT) * r * 0.45 + 1.1, dt * 0.3 * amt);
+  camera.position.z = THREE.MathUtils.lerp(camera.position.z, Math.sin(orbitT) * r * 0.35 - 0.2, dt * 0.3 * amt);
+}
+
+window.addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ========== STORY MODE ========== */
+const dlgEl = document.getElementById("dialogue");
+const dlgWho = document.getElementById("dlgWho");
+const dlgLine = document.getElementById("dlgLine");
+const storyBtn = document.getElementById("storyBtn");
+
+const story = {
+  active: false,
+  idx: 0,
+  phase: "cutscene", // cutscene | clothed_rub | undress | tour | play
+  talkT: 0,
+  talkIdx: 0,
+  poseLock: false,
+  headYaw: -0.18,
+  techHold: 0,
+  beatId: null,
+  dreamBurst: 0,
+  dreamBurstStage: 0,
+  dreamPhase: 0,
+  dreamT: 0,
+  sleepT: 0,
+  sleepCums: 0,
+  lastDreamCumAt: 0,
+  _dreamBurstTimer: 0,
+};
+
+function setFootwear(on) {
+  for (const side of ["L", "R"]) {
+    const fw = girl.userData.legs[side].foot.userData.footwear;
+    if (fw) fw.visible = !!on;
+  }
+}
+
+function setEmotion(name) {
+  girl.userData.head.userData.setEmotion?.(name);
+}
+
+function showDialogue(who, line) {
+  dlgEl.classList.add("show");
+  dlgWho.textContent = who;
+  dlgWho.className = "who " + (who === "Boy" ? "boy" : who === "…" ? "narr" : "");
+  dlgLine.textContent = line;
+  const n = document.getElementById("dlgNext");
+  if (n) n.textContent = "click / space — next";
+}
+
+function hideDialogue() {
+  dlgEl.classList.remove("show");
+}
+
+function poseGirlLying() {
+  girl.userData.hips.position.set(0.0, 0.48, 0.15);
+  girl.userData.hips.rotation.set(1.15, Math.PI * 0.5, 0);
+  girl.userData.torso.rotation.set(0.15, 0, 0);
+  girl.userData.head.rotation.set(0.1, 0.6, 0);
+  story.headYaw = 0.6;
+  girl.userData.arms.L.shoulder.rotation.set(-0.3, 0.2, -0.8);
+  girl.userData.arms.R.shoulder.rotation.set(-0.3, -0.2, 0.8);
+  for (const side of ["L", "R"]) {
+    const leg = girl.userData.legs[side];
+    leg.hip.rotation.set(-0.2, 0, side === "L" ? 0.15 : -0.15);
+    leg.knee.rotation.set(0.4, 0, 0);
+  }
+}
+
+function poseGirlSitHomework() {
+  girl.userData.hips.position.set(-0.85, 0.42, 0.55);
+  girl.userData.hips.rotation.set(0.1, Math.PI * 0.15, 0);
+  girl.userData.torso.rotation.set(0.25, 0, 0);
+  girl.userData.head.rotation.set(-0.15, -0.2, 0);
+  story.headYaw = -0.2;
+  girl.userData.arms.L.shoulder.rotation.set(-0.9, 0.1, -0.3);
+  girl.userData.arms.R.shoulder.rotation.set(-1.0, -0.1, 0.35);
+}
+
+function poseBoyStanding(x = -0.4, z = 1.1) {
+  boy.position.set(x, 0, z);
+  boy.userData.hips.position.set(0, 0.95, 0);
+  boy.userData.hips.rotation.set(0, Math.PI, 0);
+}
+
+function poseBoyOnBed() {
+  boy.position.set(0, 0, 0);
+  boy.userData.hips.position.set(0, 0.42, 0.05);
+  boy.userData.hips.rotation.set(-Math.PI / 2 + 0.05, 0, 0);
+}
+
+function poseGirlFootjob() {
+  girl.userData.hips.position.set(0.0, 0.52, 0.50);
+  girl.userData.hips.rotation.set(0.12, Math.PI * 0.82, 0);
+  girl.userData.torso.rotation.set(0.28, 0, 0);
+  girl.userData.head.rotation.set(-0.05, -0.15, 0);
+  story.headYaw = -0.15;
+  girl.userData.arms.L.shoulder.rotation.set(-0.75, 0.25, -1.05);
+  girl.userData.arms.R.shoulder.rotation.set(-0.75, -0.25, 1.05);
+}
+
+function poseBoyTired() {
+  boy.position.set(0, 0, 0);
+  boy.userData.hips.position.set(0, 0.38, 0.0);
+  boy.userData.hips.rotation.set(-Math.PI / 2 + 0.02, 0.15, 0);
+  boy.userData.torso.rotation.set(0.05, 0, 0);
+  if (boy.userData.head) boy.userData.head.rotation.set(0.15, 0.2, 0);
+}
+
+function poseGirlBeside() {
+  girl.userData.hips.position.set(0.35, 0.48, 0.1);
+  girl.userData.hips.rotation.set(1.05, Math.PI * 0.35, 0.1);
+  girl.userData.torso.rotation.set(0.1, -0.25, 0);
+  girl.userData.head.rotation.set(0.05, -0.55, 0);
+  story.headYaw = -0.55;
+  girl.userData.arms.L.shoulder.rotation.set(-0.4, 0.2, -0.6);
+  girl.userData.arms.R.shoulder.rotation.set(-0.5, -0.1, 0.5);
+}
+
+/** Sleep beside him — dreaming; feet keep working his soft dick */
+function poseGirlSleepClamp() {
+  poseBoyTired();
+  girl.userData.hips.position.set(0.18, 0.44, 0.32);
+  girl.userData.hips.rotation.set(0.65, Math.PI * 0.62, 0.15);
+  girl.userData.torso.rotation.set(0.45, -0.35, 0.08);
+  // head tipped like sleeping on the pillow beside him
+  girl.userData.head.rotation.set(0.25, -0.85, 0.12);
+  story.headYaw = -0.85;
+  girl.userData.arms.L.shoulder.rotation.set(-0.7, 0.2, -0.35);
+  girl.userData.arms.R.shoulder.rotation.set(-0.25, -0.15, 0.9);
+  // sleeping >< face
+  if (girl.userData.head.userData.emotion !== "xd") setEmotion("xd");
+}
+
+function setShaftElastic(on) {
+  const shaft = boy.userData.shaft;
+  const headG = boy.userData.headG;
+  if (!shaft?.material) return;
+  if (on) {
+    if (!boy.userData._shaftMatBackup) {
+      boy.userData._shaftMatBackup = {
+        roughness: shaft.material.roughness,
+        clearcoat: shaft.material.clearcoat,
+      };
+    }
+    shaft.material.roughness = 0.35;
+    if ("clearcoat" in shaft.material) shaft.material.clearcoat = 0.45;
+    if (headG?.material) {
+      headG.material.roughness = 0.3;
+      if ("clearcoat" in headG.material) headG.material.clearcoat = 0.5;
+    }
+  } else if (boy.userData._shaftMatBackup) {
+    shaft.material.roughness = boy.userData._shaftMatBackup.roughness;
+    if ("clearcoat" in shaft.material) shaft.material.clearcoat = boy.userData._shaftMatBackup.clearcoat;
+  }
+}
+
+function setPajamas(on) {
+  // Soft pajama tint on existing dress meshes
+  const col = on ? 0xb8d4ff : 0xfff0f6;
+  const accent = on ? 0x7a9ad0 : 0xff6ea9;
+  clothF.color.setHex(col);
+  clothAccent.color.setHex(accent);
+  if (girl.userData.dress) {
+    girl.userData.dress.traverse(o => {
+      if (o.isMesh && o.material && o.material.color && o.material !== skinF) {
+        // leave as shared mats
+      }
+    });
+  }
+}
+
+const fadeEl = document.getElementById("storyFade");
+const fadeTitle = document.getElementById("fadeTitle");
+const fadeSub = document.getElementById("fadeSub");
+
+function storyFadeTo(title, sub, after) {
+  fadeTitle.textContent = title;
+  fadeSub.textContent = sub || "";
+  fadeEl.classList.add("on");
+  setTimeout(() => {
+    after?.();
+    setTimeout(() => fadeEl.classList.remove("on"), 700);
+  }, 1100);
+}
+
+function startTechTour(tech, emotion, line) {
+  story.phase = "tour";
+  story.poseLock = false;
+  story.techHold = 0;
+  stim.allowCum = false;
+  setTechnique(tech);
+  stim.auto = true;
+  setEmotion(emotion);
+  showDialogue("Girl", line);
+  ui.hint.textContent = `Technique: ${tech}`;
+  ui.hint.classList.add("hot");
+}
+
+const STORY_BEATS = [
+  {
+    id: "intro",
+    who: "…", line: "Afternoon light fills her bedroom. She’s still in her school shirt-dress, shoes on, scrolling on the bed.",
+    emotion: "neutral",
+    enter() {
+      bedroom.visible = true; sheet.visible = false;
+      setFootwear(true);
+      boy.userData.setClothes("full");
+      boy.visible = false;
+      poseGirlLying();
+      story.poseLock = true;
+      story.phase = "cutscene";
+      camera.position.set(1.6, 1.1, 1.2);
+      controls.target.set(0.1, 0.7, 0.1);
+    }
+  },
+  {
+    id: "knock",
+    who: "…", line: "Knock— the door opens. He steps in, fully dressed, notebook in hand.",
+    emotion: "neutral",
+    enter() {
+      boy.visible = true;
+      poseBoyStanding(-0.55, 1.35);
+      camera.position.set(1.4, 1.15, 1.5);
+    }
+  },
+  {
+    id: "huh",
+    who: "Girl", line: "Huh…? You scared me.",
+    emotion: "huh",
+    enter() {
+      story.headYaw = -0.55;
+      girl.userData.head.rotation.y = -0.55;
+      girl.userData.head.rotation.x = 0.05;
+    }
+  },
+  {
+    id: "ask",
+    who: "Boy", line: "Sorry— can you help me with homework? I’m stuck on the last page.",
+    emotion: "huh",
+    enter() {}
+  },
+  {
+    id: "desk",
+    who: "Girl", line: "Homework…? Fine. Sit. Don’t make a mess.",
+    emotion: "shy",
+    enter() {
+      poseGirlSitHomework();
+      poseBoyStanding(-0.55, 0.95);
+      camera.position.set(0.4, 1.2, 1.8);
+      controls.target.set(-0.7, 0.7, 0.6);
+    }
+  },
+  {
+    id: "study",
+    who: "…", line: "Pens scratch. Pages turn. She leans in, focused… then the last problem clicks.",
+    emotion: "focus",
+    enter() {}
+  },
+  {
+    id: "done",
+    who: "Girl", line: "There. Done. You’re welcome~",
+    emotion: "aha",
+    enter() {}
+  },
+  {
+    id: "bed",
+    who: "Girl", line: "Reward time. On the bed. Now.",
+    emotion: "smug",
+    enter() {
+      poseBoyOnBed();
+      poseGirlFootjob();
+      camera.position.set(1.35, 1.05, -0.15);
+      controls.target.set(0.02, 0.88, 0.35);
+    }
+  },
+  {
+    id: "bare",
+    who: "Girl", line: "I’m keeping the dress… but these shoes and socks are coming off.",
+    emotion: "tease",
+    enter() { setFootwear(false); }
+  },
+  {
+    id: "fabric",
+    who: "Girl", line: "Bare feet on your trousers first. Soft soles… just get comfortable.",
+    emotion: "shy",
+    enter() {
+      story.phase = "clothed_rub";
+      story.poseLock = false;
+      stim.auto = true; stim.arousal = 0.08;
+      setTechnique("fabric");
+      boy.userData.setClothes("full");
+      document.body.classList.add("story-playing");
+    }
+  },
+  {
+    id: "fabric2",
+    who: "Girl", line: "You’re twitching through the fabric… almost max. Don’t you dare finish yet.",
+    emotion: "tease",
+    enter() {}
+  },
+  {
+    id: "pants",
+    who: "Girl", line: "Trousers— off. Toes hooked in the waistband… there.",
+    emotion: "naughty",
+    enter() {
+      boy.userData.setClothes("underwear");
+      story.phase = "undress";
+      setTechnique("solePress");
+    }
+  },
+  {
+    id: "bulge",
+    who: "Girl", line: "Mmm… underwear’s sticking out. I’ll roll that bulge with my soles~",
+    emotion: "aroused",
+    enter() {
+      boy.userData.bulge.scale.set(1.35, 1.05, 2.0);
+      setTechnique("solePress");
+    }
+  },
+  {
+    id: "undies",
+    who: "Girl", line: "Toes under the band… and— got it. Only you now.",
+    emotion: "happy",
+    enter() {
+      boy.userData.setClothes("nude");
+      stim.arousal = Math.max(stim.arousal, 0.5);
+      setTechnique("stroke");
+    }
+  },
+  {
+    id: "tour_intro",
+    who: "Girl", line: "Hehe… cute. I’ll show you every kind of footjob I know. Watch my feet.",
+    emotion: "love",
+    enter() {
+      startTechTour("stroke", "love", "First: sole sandwich. Soft, warm, squeezing you from both sides~");
+    }
+  },
+  {
+    id: "tech_stroke",
+    who: "Girl", line: "Up… down… feel my soles hug you? This is the basic stroke.",
+    emotion: "happy",
+    tech: "stroke",
+    enter() { startTechTour("stroke", "happy", "Up… down… feel my soles hug you? This is the basic stroke."); }
+  },
+  {
+    id: "tech_twist",
+    who: "Girl", line: "Now a twist— left and right soles turning against each other.",
+    emotion: "tease",
+    tech: "twist",
+    enter() { startTechTour("twist", "tease", "Now a twist— left and right soles turning against each other."); }
+  },
+  {
+    id: "tech_arch",
+    who: "Girl", line: "High arches… cupping you from above. Soft pressure.",
+    emotion: "aroused",
+    tech: "archRub",
+    enter() { startTechTour("archRub", "aroused", "High arches… cupping you from above. Soft pressure."); }
+  },
+  {
+    id: "tech_press",
+    who: "Girl", line: "Both soles stacked— pressing you into the bed.",
+    emotion: "smug",
+    tech: "solePress",
+    enter() { startTechTour("solePress", "smug", "Both soles stacked— pressing you into the bed."); }
+  },
+  {
+    id: "tech_heel",
+    who: "Girl", line: "Heels grinding the base… naughty, right?",
+    emotion: "naughty",
+    tech: "heelGrind",
+    enter() { startTechTour("heelGrind", "naughty", "Heels grinding the base… naughty, right?"); }
+  },
+  {
+    id: "tech_single",
+    who: "Girl", line: "One foot stroking… the other teasing lower. Focus.",
+    emotion: "focus",
+    tech: "singleSole",
+    enter() { startTechTour("singleSole", "focus", "One foot stroking… the other teasing lower. Focus."); }
+  },
+  {
+    id: "tech_cage",
+    who: "Girl", line: "Toe cage around the tip— don’t squirm~",
+    emotion: "tease",
+    tech: "toeCage",
+    enter() { startTechTour("toeCage", "tease", "Toe cage around the tip— don’t squirm~"); }
+  },
+  {
+    id: "tech_flick",
+    who: "Girl", line: "Light toe flicks… ticklish? Or too much?",
+    emotion: "aha",
+    tech: "tipFlick",
+    enter() { startTechTour("tipFlick", "aha", "Light toe flicks… ticklish? Or too much?"); }
+  },
+  {
+    id: "tech_milk",
+    who: "Girl", line: "And the special one— toes milking the back. Slow… comfortable…",
+    emotion: "love",
+    tech: "toeMilk",
+    enter() {
+      startTechTour("toeMilk", "love", "And the special one— toes milking the back. Slow… comfortable…");
+    }
+  },
+  {
+    id: "first_cum",
+    who: "Girl", line: "Okay… you’ve been good. Cum for me— ><",
+    emotion: "xd",
+    enter() {
+      story.phase = "play";
+      story.poseLock = false;
+      setTechnique("twist");
+      stim.auto = true;
+      stim.arousal = 0.99;
+      stim.allowCum = true;
+      setEmotion("xd");
+      setTimeout(() => { if (story.active && stim.allowCum) triggerClimax(); }, 400);
+    }
+  },
+  {
+    id: "frenzy",
+    who: "Girl", line: "Still hard… I’ll use everything— and faster each time.",
+    emotion: "naughty",
+    enter() {
+      story.phase = "frenzy";
+      story.poseLock = false;
+      story.techHold = 0;
+      story.frenzyIdx = 0;
+      stim.allowCum = false;
+      stim.arousal = 0.7;
+      stim.auto = true;
+      poseGirlFootjob();
+      setTechnique("stroke");
+      stim.rollAccel = 1.3;
+      ui.speed.value = 1.6;
+      stim.speed = 1.6;
+    }
+  },
+  {
+    id: "second_cum",
+    who: "Girl", line: "Don’t you dare rest— second one, now~",
+    emotion: "xd",
+    enter() {
+      story.phase = "frenzy";
+      stim.arousal = 0.99;
+      stim.allowCum = true;
+      stim.rollAccel = Math.max(stim.rollAccel || 1, 2.8);
+      ui.speed.value = Math.min(3.2, Math.max(+ui.speed.value, 2.5));
+      stim.speed = +ui.speed.value;
+      setEmotion("xd");
+      setTimeout(() => { if (story.active && stim.allowCum) triggerClimax(); }, 350);
+    }
+  },
+  {
+    id: "frenzy2",
+    who: "Girl", line: "Still not done. More techniques— even faster!!",
+    emotion: "tease",
+    enter() {
+      story.phase = "frenzy";
+      story.techHold = 0;
+      story.frenzyIdx = 0;
+      stim.allowCum = false;
+      stim.arousal = 0.72;
+      stim.auto = true;
+      stim.rollAccel = 3.2;
+      ui.speed.value = 2.8;
+      stim.speed = 2.8;
+      setTechnique("toeClampRoll");
+      poseGirlFootjob();
+    }
+  },
+  {
+    id: "third_cum",
+    who: "Girl", line: "Third!! Backward sandwich— soles covering you, as fast as possible!!",
+    emotion: "xd",
+    enter() {
+      story.phase = "play";
+      setTechnique("backwardSandwich");
+      stim.rollAccel = 4.5;
+      ui.speed.value = 3.2;
+      stim.speed = 3.2;
+      stim.arousal = 0.99;
+      stim.allowCum = true;
+      setEmotion("xd");
+      poseGirlFootjob();
+      setTimeout(() => { if (story.active && stim.allowCum) triggerClimax(); }, 400);
+    }
+  },
+  {
+    id: "timeskip",
+    who: "…", line: "…",
+    emotion: "neutral",
+    enter() {
+      stim.allowCum = false;
+      stim.rollAccel = 1;
+      storyFadeTo("2 hours later…", "He’s exhausted on the bed.", () => {
+        poseBoyTired();
+        poseGirlBeside();
+        setEmotion("shy");
+        showDialogue("…", "He’s tired out on the sheets. She lies beside him and just… watches.");
+      });
+    }
+  },
+  {
+    id: "beside",
+    who: "Girl", line: "You look wrecked… cute. Shower?",
+    emotion: "shy",
+    enter() {
+      poseBoyTired();
+      poseGirlBeside();
+      story.poseLock = true;
+    }
+  },
+  {
+    id: "shower",
+    who: "…", line: "Warm water. Soft towels. She changes into pajamas; he does too.",
+    emotion: "neutral",
+    enter() {
+      storyFadeTo("Shower…", "Pajamas on. Lights low.", () => {
+        setPajamas(true);
+        boy.userData.setClothes("freeplay");
+        boy.userData.shirt.visible = false;
+        boy.userData.shorts.visible = true;
+        poseBoyTired();
+        poseGirlBeside();
+        setEmotion("happy");
+        showDialogue("Girl", "Bedtime. …I’ll stay clamped. Softly.");
+      });
+    }
+  },
+  {
+    id: "sleep_start",
+    who: "Girl", line: "Lights out… I’ll sleep beside you. If I dream… my feet might keep moving…",
+    emotion: "love",
+    enter() {
+      story.phase = "sleep";
+      story.poseLock = false;
+      story.sleepT = 0;
+      story.sleepCums = 0;
+      story.dreamPhase = 0;
+      story.dreamT = 0;
+      story.dreamBurst = 0;
+      story.dreamBurstStage = 0;
+      story.lastDreamCumAt = 0;
+      if (story._dreamBurstTimer) { clearTimeout(story._dreamBurstTimer); story._dreamBurstTimer = 0; }
+      poseBoyTired();
+      poseGirlSleepClamp();
+      setTechnique("dreamFJ");
+      setShaftElastic(true);
+      stim.auto = true;
+      stim.allowCum = false;
+      stim.arousal = 0.55;
+      stim.neverStop = true;
+      stim.rollAccel = 1;
+      ui.speed.value = 1.05;
+      stim.speed = 1.05;
+      setEmotion("xd");
+      key.intensity = 0.35;
+      blushLight.intensity = 0.1;
+      camera.position.set(1.35, 0.72, 0.45);
+      controls.target.set(0.12, 0.48, 0.15);
+    }
+  },
+  {
+    id: "sleep_dream",
+    who: "…", line: "She’s asleep… but her bare feet keep stroking him in her dream.",
+    emotion: "xd",
+    enter() {
+      story.phase = "sleep";
+      story.dreamPhase = 1;
+      poseGirlSleepClamp();
+      setTechnique("dreamFJ");
+      setShaftElastic(true);
+      stim.auto = true;
+      stim.neverStop = true;
+      showDialogue("…", "She’s asleep… but her bare feet keep stroking him in her dream.");
+    }
+  },
+  {
+    id: "sleep_loop",
+    who: "Girl", line: "Nn… (dreaming) …don’t stop… mm…",
+    emotion: "xd",
+    enter() {
+      story.phase = "sleep";
+      poseGirlSleepClamp();
+      setTechnique("dreamFJ");
+      setShaftElastic(true);
+      showDialogue("Girl", "Nn… (dreaming) …don’t stop… mm…");
+    }
+  },
+  {
+    id: "ending",
+    who: "…", line: "Morning light. She’s still curled against him— toes softly locked, his soft dick spent.",
+    emotion: "happy",
+    enter() {
+      story.phase = "end";
+      stim.allowCum = false;
+      stim.auto = false;
+      setShaftElastic(false);
+      key.intensity = 2.0;
+      setEmotion("happy");
+      flashBurst("Good morning~");
+    }
+  },
+];
+
+const FRENZY_TECHS = [
+  { tech: "stroke", line: "Sole sandwich— pick up the pace~", e: "happy", spd: 1.7, acc: 1.4 },
+  { tech: "twist", line: "Twist harder… faster!", e: "tease", spd: 2.0, acc: 1.8 },
+  { tech: "archRub", line: "Arches grinding— don’t slack!", e: "aroused", spd: 2.2, acc: 2.0 },
+  { tech: "solePress", line: "Press!! Stack and pump!", e: "smug", spd: 2.4, acc: 2.3 },
+  { tech: "toeCage", line: "Toe cage— squeeze the tip!", e: "naughty", spd: 2.6, acc: 2.6 },
+  { tech: "toeClampRoll", line: "Clamp-roll— even faster!!", e: "xd", spd: 2.9, acc: 3.2 },
+  { tech: "heelGrind", line: "Heels!! Base!! Go!!", e: "tease", spd: 3.0, acc: 3.4 },
+  { tech: "singleSole", line: "One sole racing— other teasing!", e: "focus", spd: 3.1, acc: 3.6 },
+];
+
+const PLAY_LINES = [
+  { e: "happy", t: "Does that feel good? Tell me with your hips~", tech: null },
+  { e: "tease", t: "Soft soles… squeeze… I’ll change it up again.", tech: "twist" },
+  { e: "smug", t: "You’re leaking already? Greedy.", tech: null },
+  { e: "aroused", t: "Ahh… arches next. Feel that curve?", tech: "archRub" },
+  { e: "love", t: "I’ve got you. Just let go when you’re ready.", tech: null },
+  { e: "naughty", t: "Heels on the base— deep and dirty.", tech: "heelGrind" },
+  { e: "talk", t: "Homework was boring. This is way better.", tech: null },
+  { e: "happy", t: "One foot… then both… then toes. Keep up~", tech: "singleSole" },
+  { e: "tease", t: "Toe cage— trapped. Cute.", tech: "toeCage" },
+  { e: "aha", t: "Flick… flick… sensitive tip?", tech: "tipFlick" },
+  { e: "love", t: "Back to milking… slow and endless.", tech: "toeMilk" },
+  { e: "smug", t: "Sandwich again. Classic for a reason.", tech: "stroke" },
+  { e: "aroused", t: "Press… press… melt under my soles.", tech: "solePress" },
+];
+
+const TECH_TOUR_IDS = new Set([
+  "tour_intro", "tech_stroke", "tech_twist", "tech_arch", "tech_press",
+  "tech_heel", "tech_single", "tech_cage", "tech_flick", "tech_milk"
+]);
+
+const STORY_SLEEP_TECHS = ["sleepClamp"]; // never leave the clamp overnight
+
+function currentBeat() {
+  return STORY_BEATS[story.idx] || null;
+}
+
+function applyBeat(i) {
+  const b = STORY_BEATS[i];
+  if (!b) return;
+  story.idx = i;
+  story.beatId = b.id;
+  setEmotion(b.emotion);
+  showDialogue(b.who, b.line);
+  b.enter?.();
+}
+
+function storyNext() {
+  if (!story.active) return;
+
+  // Gate fabric rub until arousal is high
+  if (story.phase === "clothed_rub" && (story.beatId === "fabric" || story.beatId === "fabric2") && stim.arousal < 0.7) {
+    showDialogue("Girl", "Not yet… keep rubbing through the fabric. Almost max~");
+    setEmotion("tease");
+    dlgNextHint("wait for arousal · or keep stroking");
+    return;
+  }
+
+  if (story.beatId === "ending" || story.idx >= STORY_BEATS.length - 1) {
+    showDialogue("…", "Story complete. Press STORY again for freeplay.");
+    setEmotion("happy");
+    return;
+  }
+  applyBeat(story.idx + 1);
+}
+
+function startStory() {
+  story.active = true;
+  story.idx = 0;
+  story.phase = "cutscene";
+  story.poseLock = true;
+  story.talkIdx = 0;
+  story.techHold = 0;
+  story.beatId = null;
+  story.sleepT = 0;
+  story.sleepCums = 0;
+  story.dreamBurst = 0;
+  story.dreamBurstStage = 0;
+  story.dreamPhase = 0;
+  story.dreamT = 0;
+  story.lastDreamCumAt = 0;
+  if (story._dreamBurstTimer) { clearTimeout(story._dreamBurstTimer); story._dreamBurstTimer = 0; }
+  stim.arousal = 0; stim.climax = false; stim.climaxCount = 0;
+  stim.neverStop = false; stim.technique = "stroke"; stim.sensitivity = 1;
+  stim.auto = false; stim.bothFeet = true;
+  stim.allowCum = false;
+  stim.rollAccel = 1;
+  setPajamas(false);
+  key.intensity = 2.0;
+  storyBtn.classList.add("active");
+  document.body.classList.add("story-playing");
+  applyBeat(0);
+}
+
+function endStoryToFreeplay() {
+  story.active = false;
+  story.phase = "cutscene";
+  story.poseLock = false;
+  story.beatId = null;
+  story.headYaw = -0.18;
+  story.dreamBurst = 0;
+  story.dreamBurstStage = 0;
+  if (story._dreamBurstTimer) { clearTimeout(story._dreamBurstTimer); story._dreamBurstTimer = 0; }
+  if (boy.userData.shaft) boy.userData.shaft.rotation.z = 0;
+  bedroom.visible = false;
+  sheet.visible = true;
+  boy.visible = true;
+  boy.position.set(0, 0, 0);
+  boy.userData.setClothes("freeplay");
+  setFootwear(false);
+  setPajamas(false);
+  setEmotion("neutral");
+  setTechnique("stroke");
+  hideDialogue();
+  fadeEl.classList.remove("on");
+  poseGirlFootjob();
+  poseBoyOnBed();
+  setShaftElastic(false);
+  key.intensity = 2.0;
+  stim.allowCum = true;
+  stim.rollAccel = 1;
+  storyBtn.classList.remove("active");
+  document.body.classList.remove("story-playing");
+  stim.auto = true;
+  stim.bothFeet = true;
+}
+
+storyBtn.onclick = (e) => {
+  e.stopPropagation();
+  if (story.active) {
+    endStoryToFreeplay();
+    ui.hint.textContent = "Story ended — freeplay";
+  } else {
+    startStory();
+  }
+};
+
+dlgEl.onclick = (e) => { e.stopPropagation(); storyNext(); };
+window.addEventListener("keydown", (e) => {
+  if (!story.active) return;
+  if (e.code === "Space" || e.code === "Enter") {
+    e.preventDefault();
+    storyNext();
+  }
+});
+
+function dlgNextHint(t) {
+  const n = document.getElementById("dlgNext");
+  if (n) n.textContent = t;
+}
+
+function updateStory(dt) {
+  if (!story.active) return;
+  if (story.poseLock) {
+    girl.userData.head.rotation.y = THREE.MathUtils.lerp(
+      girl.userData.head.rotation.y, story.headYaw, Math.min(1, dt * 3)
+    );
+  }
+
+  if (story.phase === "clothed_rub") {
+    stim.auto = true;
+    // gentle fabric arousal boost so the scene doesn't stall
+    if (Math.abs(stim.vel) > 0.02) {
+      stim.arousal = Math.min(0.95, stim.arousal + dt * 0.04);
+    }
+    if (stim.arousal >= 0.7 && story.beatId === "fabric") {
+      dlgNextHint("ready — click to continue");
+    }
+    // auto-advance once max-ish
+    if (stim.arousal >= 0.85 && story.beatId === "fabric") {
+      applyBeat(story.idx + 1);
+    }
+  }
+
+  if (story.phase === "tour") {
+    story.techHold += dt;
+    if (story.techHold > 7.5 && story.idx < STORY_BEATS.length - 1) {
+      const next = STORY_BEATS[story.idx + 1];
+      if (next && (TECH_TOUR_IDS.has(next.id) || next.id === "first_cum")) {
+        applyBeat(story.idx + 1);
+      }
+    }
+  }
+
+  // After first scripted cum → frenzy of techniques
+  if (story.beatId === "first_cum" && stim.climaxCount >= 1 && stim.climaxT > 3.2) {
+    applyBeat(story.idx + 1);
+  }
+
+  if (story.phase === "frenzy") {
+    story.techHold += dt;
+    // rotate techniques every ~2.4s, each faster than the last
+    if (story.techHold > 2.4) {
+      story.techHold = 0;
+      story.frenzyIdx = (story.frenzyIdx || 0) + 1;
+      const step = FRENZY_TECHS[Math.min(story.frenzyIdx, FRENZY_TECHS.length - 1)];
+      // keep looping last few at rising speed
+      const loop = FRENZY_TECHS[story.frenzyIdx % FRENZY_TECHS.length];
+      const use = story.frenzyIdx < FRENZY_TECHS.length ? step : loop;
+      const boost = 1 + Math.floor(story.frenzyIdx / FRENZY_TECHS.length) * 0.35;
+      setTechnique(use.tech);
+      stim.rollAccel = use.acc * boost;
+      ui.speed.value = Math.min(3.2, use.spd * boost);
+      stim.speed = +ui.speed.value;
+      setEmotion(use.e);
+      showDialogue("Girl", use.line);
+    }
+    // after enough frenzy, auto second cum once
+    if (story.beatId === "frenzy" && story.frenzyIdx >= 5 && stim.climaxCount < 2) {
+      applyBeat(story.idx + 1); // second_cum
+    }
+    // after second, continue frenzy2 then third
+    if (story.beatId === "second_cum" && stim.climaxCount >= 2 && stim.climaxT > 2.8) {
+      applyBeat(story.idx + 1); // frenzy2
+    }
+    if (story.beatId === "frenzy2" && story.frenzyIdx >= 4 && stim.climaxCount < 3) {
+      applyBeat(story.idx + 1); // third_cum
+    }
+  }
+
+  if (story.beatId === "third_cum" && stim.climaxCount >= 3 && stim.climaxT > 4.0) {
+    dlgNextHint("click — 2 hours later…");
+  }
+
+  if (story.phase === "sleep") {
+    story.sleepT = (story.sleepT || 0) + dt;
+    story.dreamT = (story.dreamT || 0) + dt;
+    stim.auto = true;
+    stim.neverStop = true;
+    poseGirlSleepClamp();
+    setShaftElastic(true);
+
+    // After each dream cum: twist → fast footjob, then ease back to dream stroke
+    if (story.dreamBurst > 0) {
+      story.dreamBurst -= dt;
+      // keep contact; don't override twist/stroke mid-burst
+      if (story.dreamBurstStage === 0 && stim.technique !== "twist") {
+        setTechnique("twist");
+        stim.bothFeet = true;
+      } else if (story.dreamBurstStage === 1 && stim.technique !== "stroke") {
+        setTechnique("stroke");
+        stim.bothFeet = true;
+      }
+      if (story.dreamBurst <= 0) {
+        story.dreamBurst = 0;
+        story.dreamBurstStage = 0;
+        if (boy.userData.shaft) boy.userData.shaft.rotation.z = 0;
+        setTechnique("dreamFJ");
+        stim.speed = Math.min(1.6, 1.0 + (story.dreamPhase || 0) * 0.1);
+        ui.speed.value = stim.speed;
+        stim.rollAccel = 1;
+        showDialogue("Girl", "(still dreaming… feet soft again… but still on him)");
+        setEmotion("xd");
+      }
+    } else {
+      // dreaming footjob — always in contact
+      if (stim.technique !== "dreamFJ" && stim.technique !== "sleepClamp") {
+        setTechnique("dreamFJ");
+      }
+    }
+
+    // advance dream chapters every ~14s (foot pattern changes)
+    if (story.dreamBurst <= 0 && story.dreamT > 14) {
+      story.dreamT = 0;
+      story.dreamPhase = Math.min(5, (story.dreamPhase || 0) + 1);
+      const dreamLines = [
+        "She’s dreaming… feet slow and soft…",
+        "(dream) Mm… sandwich… don’t pull away…",
+        "(dream) Twisting… soft dick… elastic…",
+        "(dream) Milk… again… again…",
+        "(dream) Deeper squeeze… stay…",
+        "(dream) Nonstop… I’m not waking up…"
+      ];
+      showDialogue(story.dreamPhase >= 2 ? "Girl" : "…", dreamLines[Math.min(5, story.dreamPhase)]);
+      setEmotion("xd");
+      stim.speed = Math.min(1.8, 1.0 + story.dreamPhase * 0.12);
+      ui.speed.value = stim.speed;
+    }
+
+    // soft dream breathing light
+    const pulse = 0.07 + 0.14 * (0.5 + 0.5 * Math.sin(story.sleepT * 0.45));
+    const burstGlow = story.dreamBurst > 0 ? 0.35 : 0;
+    blushLight.intensity = pulse + (stim.climax ? 0.25 : 0) + burstGlow;
+    key.intensity = 0.25 + pulse * 0.4 + burstGlow * 0.5;
+
+    // build arousal continuously from dream feet
+    if (!stim.climax) {
+      stim.arousal = Math.min(1, stim.arousal + dt * (story.dreamBurst > 0 ? 0.14 : 0.08));
+    }
+
+    // several non-stop dream cums — on each: twist then fast FJ
+    const interval = 11;
+    if (story.dreamBurst <= 0 && story.sleepT > 3 && (story.sleepCums || 0) < 8) {
+      const since = story.sleepT - (story.lastDreamCumAt || 0);
+      if (since > interval && !stim.allowCum) {
+        story.lastDreamCumAt = story.sleepT;
+        story.sleepCums = (story.sleepCums || 0) + 1;
+        stim.arousal = 0.998;
+        stim.allowCum = true;
+        setEmotion("xd");
+        showDialogue("Girl", [
+          "Nn… (dream) twist… cum…",
+          "Ahh… twisting… then faster…",
+          "Don’t leave… twist… fast footjob…",
+          "Again… twist his soft dick…",
+          "Mm… cum… feet speed up…",
+          "Nonstop… twist… pump…",
+          "Keep going… still asleep…",
+          "One more… twist and race…"
+        ][Math.min(7, story.sleepCums - 1)]);
+        triggerClimax();
+        fxEl.classList.add("on");
+        setTimeout(() => { fxEl.classList.remove("on"); fxEl.classList.remove("over"); }, 900);
+      }
+    }
+
+    if (story.sleepCums >= 2 && story.beatId === "sleep_start") {
+      applyBeat(story.idx + 1);
+    }
+    if (story.sleepCums >= 5 && story.beatId === "sleep_dream") {
+      applyBeat(story.idx + 1);
+    }
+    if (story.sleepCums >= 8 && story.beatId === "sleep_loop") {
+      dlgNextHint("click — morning");
+    }
+  }
+}
+
+document.getElementById("load").classList.add("hide");
+setTimeout(() => document.getElementById("load")?.remove(), 450);
+
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(0.033, clock.getDelta());
+  updateSolver(dt);
+  updateCamera(dt);
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
