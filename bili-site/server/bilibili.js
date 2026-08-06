@@ -122,6 +122,13 @@ async function getPopular(pn = 1, ps = 20) {
   return (json.data.list || []).map(normalizeVideo);
 }
 
+// Category ranking (a "catalog" of top videos per Bilibili zone/rid).
+async function getRanking(rid = 0) {
+  const url = `https://api.bilibili.com/x/web-interface/ranking/v2?rid=${rid}&type=all`;
+  const json = await fetchJson(url);
+  return (json.data.list || []).map(normalizeVideo);
+}
+
 async function search(keyword, page = 1) {
   const query = await signedQuery({
     search_type: "video",
@@ -225,6 +232,7 @@ module.exports = {
   REFERER,
   baseHeaders,
   getPopular,
+  getRanking,
   search,
   getVideoInfo,
   getPlayUrl,

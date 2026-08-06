@@ -24,6 +24,10 @@ export function fetchFeed(pn: number, ps = 24): Promise<{ list: Video[]; pn: num
   return get(`/api/feed?pn=${pn}&ps=${ps}`);
 }
 
+export function fetchCategory(rid: number): Promise<{ list: Video[]; rid: number }> {
+  return get(`/api/category?rid=${rid}`);
+}
+
 export function searchVideos(q: string, page = 1): Promise<{ list: Video[]; page: number }> {
   return get(`/api/search?q=${encodeURIComponent(q)}&page=${page}`);
 }

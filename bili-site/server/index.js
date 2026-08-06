@@ -39,6 +39,13 @@ app.get("/api/feed", asyncHandler(async (req, res) => {
   res.json({ list, pn, ps });
 }));
 
+app.get("/api/category", asyncHandler(async (req, res) => {
+  const rid = Math.max(0, parseInt(req.query.rid, 10) || 0);
+  const list = rid === 0 ? await bili.getPopular(1, 30) : await bili.getRanking(rid);
+  res.set("Cache-Control", "no-store");
+  res.json({ list, rid });
+}));
+
 app.get("/api/search", asyncHandler(async (req, res) => {
   const keyword = String(req.query.q || "").trim();
   if (!keyword) return res.json({ list: [] });

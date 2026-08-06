@@ -41,4 +41,11 @@ body {
   .text-shadow {
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }

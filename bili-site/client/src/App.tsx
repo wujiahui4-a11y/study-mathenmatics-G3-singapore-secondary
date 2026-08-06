@@ -1,11 +1,13 @@
 import { useState, useEffect, FormEvent } from "react";
 import { Outlet, useNavigate, useSearchParams, Link } from "react-router-dom";
-import { Search, Tv, Flame, Github } from "lucide-react";
+import { Search, Tv, Github } from "lucide-react";
+import { CATEGORIES } from "./categories";
 
 export default function App() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
+  const activeCat = params.get("q") ? -1 : Number(params.get("cat") ?? 0);
 
   useEffect(() => {
     setQuery(params.get("q") ?? "");
@@ -61,14 +63,27 @@ export default function App() {
             <span>Source: Bilibili</span>
           </a>
         </div>
-        <nav className="mx-auto max-w-[1600px] px-4 sm:px-6 pb-2 flex items-center gap-2 text-sm">
-          <Link
-            to="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bili-pink/15 text-bili-pink font-medium"
-          >
-            <Flame className="w-4 h-4" /> Trending now
-          </Link>
-          <span className="text-xs text-bili-muted">Live feed pulled directly from Bilibili</span>
+        <nav className="mx-auto max-w-[1600px] px-4 sm:px-6 pb-2.5">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {CATEGORIES.map((c) => {
+              const active = c.rid === activeCat;
+              const Icon = c.icon;
+              return (
+                <Link
+                  key={c.rid}
+                  to={c.rid === 0 ? "/" : `/?cat=${c.rid}`}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
+                    active
+                      ? "bg-bili-pink text-white shadow-glow"
+                      : "bg-bili-card text-gray-300 hover:text-white hover:bg-bili-line"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {c.label}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
       </header>
 

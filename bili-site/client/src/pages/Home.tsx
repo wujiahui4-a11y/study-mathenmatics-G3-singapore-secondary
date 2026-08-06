@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { RefreshCw, AlertTriangle, Search as SearchIcon } from "lucide-react";
 import VideoCard, { VideoCardSkeleton } from "../components/VideoCard";
-import { fetchFeed, searchVideos } from "../api";
+import { fetchFeed, searchVideos, fetchCategory } from "../api";
+import { categoryByRid } from "../categories";
 import type { Video } from "../types";
 
 const GRID =
@@ -11,9 +12,10 @@ const GRID =
 export default function Home() {
   const [params] = useSearchParams();
   const query = params.get("q")?.trim() ?? "";
+  const rid = query ? -1 : Number(params.get("cat") ?? 0);
+  const paginated = !query && rid === 0; // trending feed + search page; category is single-shot
 
   const [videos, setVideos] = useState<Video[]>([]);
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,10 +28,16 @@ export default function Home() {
       setLoading(true);
       setError(null);
       try {
-        const data = query
-          ? await searchVideos(query, pageToLoad)
-          : await fetchFeed(pageToLoad);
-        const incoming = data.list.filter((v) => {
+        let list: Video[];
+        if (query) {
+          list = (await searchVideos(query, pageToLoad)).list;
+        } else if (rid === 0) {
+          list = (await fetchFeed(pageToLoad)).list;
+        } else {
+          list = (await fetchCategory(rid)).list;
+          setDone(true);
+        }
+        const incoming = list.filter((v) => {
           if (seen.current.has(v.bvid)) return false;
           seen.current.add(v.bvid);
           return true;
@@ -43,72 +51,67 @@ export default function Home() {
         setRefreshing(false);
       }
     },
-    [query]
+    [query, rid]
   );
 
-  // Reset + initial load whenever the query changes.
+  // Reset + initial load whenever the query/category changes.
   useEffect(() => {
     seen.current = new Set();
     setVideos([]);
-    setPage(1);
     setDone(false);
     load(1, true);
-  }, [query, load]);
+  }, [query, rid, load]);
 
-  // Infinite scroll.
+  // Infinite scroll (only for paginated views).
   useEffect(() => {
-    if (done || loading) return;
+    if (!paginated || done || loading) return;
     const el = sentinel.current;
     if (!el) return;
+    let page = 1;
     const obs = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          setPage((p) => {
-            const next = p + 1;
-            load(next);
-            return next;
-          });
+          page += 1;
+          load(page);
         }
       },
       { rootMargin: "600px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [done, loading, load]);
+  }, [paginated, done, loading, load]);
 
   function refresh() {
     setRefreshing(true);
     seen.current = new Set();
     setVideos([]);
-    setPage(1);
     setDone(false);
     load(1, true);
   }
+
+  const cat = categoryByRid(rid < 0 ? 0 : rid);
+  const heading = query
+    ? `Results for “${query}”`
+    : rid === 0
+    ? "Popular right now"
+    : `${cat.label} · catalog`;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-xl font-bold flex items-center gap-2">
-          {query ? (
-            <>
-              <SearchIcon className="w-5 h-5 text-bili-pink" />
-              Results for “{query}”
-            </>
-          ) : (
-            "Popular right now"
-          )}
+          {query ? <SearchIcon className="w-5 h-5 text-bili-pink" /> : <cat.icon className="w-5 h-5 text-bili-pink" />}
+          {heading}
         </h1>
-        {!query && (
-          <button
-            onClick={refresh}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-bili-card border border-bili-line
-                       text-sm font-medium hover:border-bili-pink hover:text-bili-pink transition disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
-        )}
+        <button
+          onClick={refresh}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-bili-card border border-bili-line
+                     text-sm font-medium hover:border-bili-pink hover:text-bili-pink transition disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
       </div>
 
       {error && (
