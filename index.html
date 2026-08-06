@@ -883,6 +883,16 @@
       }
     }
 
+    function yieldToMain() {
+      return new Promise((resolve) => {
+        if (typeof requestIdleCallback === "function") {
+          requestIdleCallback(() => resolve(), { timeout: 40 });
+        } else {
+          setTimeout(resolve, 0);
+        }
+      });
+    }
+
     const $ = (id) => document.getElementById(id);
     const grid = $("grid");
     const statusEl = $("status");
@@ -1453,7 +1463,7 @@
     // Lightweight: only sample covers already painted in the DOM (no re-download / no lag)
     function sampleCoverFromDom(bvid) {
       if (state.coverFeatures[bvid]) return state.coverFeatures[bvid];
-      const img = grid.querySelector(`.card[data-bvid="${CSS.escape(bvid)}"] img`);
+      const img = grid.querySelector(`.card[data-bvid="${safeBvidSel(bvid)}"] img`);
       if (!img || !img.complete || img.naturalWidth < 8) return null;
       try {
         const canvas = document.createElement("canvas");
@@ -1511,6 +1521,24 @@
       if (input) input.value = key;
     }
 
+    function parseAiJsonArray(text) {
+      const raw = String(text || "");
+      const start = raw.indexOf("[");
+      const end = raw.lastIndexOf("]");
+      if (start < 0 || end <= start) throw new Error("AI 未返回 JSON 数组");
+      let slice = raw.slice(start, end + 1);
+      try {
+        return JSON.parse(slice);
+      } catch (_) {
+        // Repair common model quirks: trailing commas / single quotes
+        slice = slice
+          .replace(/,\s*]/g, "]")
+          .replace(/,\s*}/g, "}")
+          .replace(/'/g, '"');
+        return JSON.parse(slice);
+      }
+    }
+
     async function openRouterClassify(batch) {
       const apiKey = getOpenRouterKey();
       if (!apiKey) throw new Error("请先在面板中填写 OpenRouter API Key");
@@ -1540,10 +1568,10 @@ Items:${JSON.stringify(compact)}`;
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
           messages: [
-            { role: "system", content: "JSON array only. No markdown." },
+            { role: "system", content: "Output ONLY a JSON array. No markdown. No explanation." },
             { role: "user", content: prompt },
           ],
-          max_tokens: 500,
+          max_tokens: 700,
         }),
       });
       if (!res.ok) {
@@ -1552,12 +1580,10 @@ Items:${JSON.stringify(compact)}`;
       }
       const data = await res.json();
       const msg = (data.choices && data.choices[0] && data.choices[0].message) || {};
-      const text = msg.content || msg.reasoning || "";
-      const start = text.indexOf("[");
-      const end = text.lastIndexOf("]");
-      if (start < 0 || end <= start) throw new Error("AI 未返回 JSON 数组");
+      const text = [msg.content, msg.reasoning].filter(Boolean).join("\n");
+      const parsed = parseAiJsonArray(text);
       saveOpenRouterKey(apiKey);
-      return JSON.parse(text.slice(start, end + 1));
+      return parsed;
     }
 
     async function runEraserScan({ silent = false, reason = "manual" } = {}) {
@@ -1593,7 +1619,7 @@ Items:${JSON.stringify(compact)}`;
           const quick = localQuickGuess(v);
           if (quick) {
             state.locks[v.bvid] = quick;
-            applyLockToCard(grid.querySelector(`.card[data-bvid="${CSS.escape(v.bvid)}"]`), quick);
+            applyLockToCard(grid.querySelector(`.card[data-bvid="${safeBvidSel(v.bvid)}"]`), quick);
           } else {
             needAi.push({
               ...v,
