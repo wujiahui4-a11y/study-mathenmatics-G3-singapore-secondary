@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BiliFlux — 实时哔哩视频流</title>
+  <meta name="description" content="实时抓取 Bilibili 热门视频并提取直链播放" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --pink: #fb7299;
+      --pink-deep: #e85a82;
+      --ink: #1a1b26;
+      --ink-soft: #3d4055;
+      --mist: #f6f3f7;
+      --paper: #fffafb;
+      --line: rgba(26, 27, 38, 0.08);
+      --sky: #7ec8e3;
+      --glow: rgba(251, 114, 153, 0.35);
+      --radius: 18px;
+      --nav-h: 72px;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Noto Sans SC", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 12% -10%, rgba(251, 114, 153, 0.22), transparent 55%),
+        radial-gradient(900px 500px at 92% 8%, rgba(126, 200, 227, 0.28), transparent 50%),
+        linear-gradient(180deg, #fff5f8 0%, var(--mist) 42%, #eef6fa 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    img { display: block; max-width: 100%; }
+    button, input { font: inherit; }
+    a { color: inherit; text-decoration: none; }
+
+    .noise {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .shell { position: relative; z-index: 1; }
+
+    /* ——— Nav ——— */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      height: var(--nav-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0 clamp(1rem, 4vw, 3rem);
+      backdrop-filter: blur(16px) saturate(1.2);
+      background: rgba(255, 250, 251, 0.72);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      font-family: Syne, "Noto Sans SC", sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      font-size: 1.35rem;
+    }
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--pink), #ff9ebb 45%, var(--sky));
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 0.85rem;
+      box-shadow: 0 8px 24px var(--glow);
+      animation: bob 3.2s var(--ease) infinite;
+    }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(251, 114, 153, 0.12);
+      color: var(--pink-deep);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--pink);
+      box-shadow: 0 0 0 0 var(--glow);
+      animation: pulse 1.6s ease-out infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(251, 114, 153, 0.55); }
+      70% { box-shadow: 0 0 0 10px rgba(251, 114, 153, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(251, 114, 153, 0); }
+    }
+    .nav-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .search {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.45rem 0.9rem;
+      min-width: min(280px, 42vw);
+      box-shadow: 0 6px 20px rgba(26, 27, 38, 0.04);
+    }
+    .search input {
+      border: 0;
+      outline: 0;
+      width: 100%;
+      background: transparent;
+      color: var(--ink);
+    }
+    .search input::placeholder { color: #9aa0b4; }
+
+    /* ——— Hero ——— */
+    .hero {
+      position: relative;
+      min-height: calc(100svh - var(--nav-h));
+      display: grid;
+      align-items: end;
+      padding: clamp(2rem, 6vw, 5rem) clamp(1rem, 4vw, 3rem) clamp(2.5rem, 5vw, 4rem);
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 245, 248, 0.15) 0%, rgba(246, 243, 247, 0.92) 78%, var(--mist) 100%),
+        var(--hero-image, linear-gradient(135deg, #ffd6e4, #cfeef8));
+      background-size: cover;
+      background-position: center;
+      filter: saturate(1.05);
+      transform: scale(1.04);
+      animation: ken 22s ease-in-out infinite alternate;
+    }
+    @keyframes ken {
+      from { transform: scale(1.04) translate(0, 0); }
+      to { transform: scale(1.1) translate(-1.5%, 1%); }
+    }
+    .hero-content {
+      position: relative;
+      max-width: 780px;
+      animation: rise 0.9s var(--ease) both;
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(28px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .hero-brand {
+      font-family: Syne, "Noto Sans SC", sans-serif;
+      font-weight: 800;
+      font-size: clamp(3.4rem, 12vw, 7.5rem);
+      line-height: 0.92;
+      letter-spacing: -0.05em;
+      color: var(--ink);
+      text-shadow: 0 12px 40px rgba(255, 255, 255, 0.55);
+      margin-bottom: 1.1rem;
+    }
+    .hero-brand span {
+      background: linear-gradient(120deg, var(--pink-deep), #ff8fb0 40%, #5eb8d6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hero p {
+      font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+      color: var(--ink-soft);
+      max-width: 34ch;
+      line-height: 1.55;
+      margin-bottom: 1.6rem;
+    }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .btn {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 0.85rem 1.35rem;
+      font-weight: 700;
+      transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), background 0.2s;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+      color: white;
+      box-shadow: 0 12px 30px var(--glow);
+    }
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    /* ——— Feed ——— */
+    .feed {
+      padding: 0 clamp(1rem, 4vw, 3rem) 4rem;
+    }
+    .feed-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .feed-head h2 {
+      font-family: Syne, "Noto Sans SC", sans-serif;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      letter-spacing: -0.03em;
+    }
+    .feed-meta {
+      color: var(--ink-soft);
+      font-size: 0.92rem;
+    }
+    .tabs {
+      display: flex;
+      gap: 0.45rem;
+      overflow-x: auto;
+      padding-bottom: 0.35rem;
+      margin-bottom: 1.4rem;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.7);
+      color: var(--ink-soft);
+      border-radius: 999px;
+      padding: 0.55rem 1rem;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: 0.2s var(--ease);
+    }
+    .tab:hover { border-color: rgba(251, 114, 153, 0.4); color: var(--ink); }
+    .tab.active {
+      background: var(--ink);
+      color: white;
+      border-color: var(--ink);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1.25rem 1rem;
+    }
+    .card {
+      cursor: pointer;
+      border: 0;
+      background: transparent;
+      text-align: left;
+      color: inherit;
+      animation: rise 0.7s var(--ease) both;
+    }
+    .thumb {
+      position: relative;
+      aspect-ratio: 16 / 10;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #e8e4ea;
+      margin-bottom: 0.7rem;
+    }
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.55s var(--ease);
+    }
+    .card:hover .thumb img { transform: scale(1.06); }
+    .thumb-meta {
+      position: absolute;
+      inset: auto 0 0 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 1.6rem 0.65rem 0.55rem;
+      background: linear-gradient(transparent, rgba(10, 12, 20, 0.72));
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .play-hint {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(26, 27, 38, 0.0);
+      transition: 0.3s var(--ease);
+    }
+    .play-hint span {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--pink-deep);
+      font-size: 1.1rem;
+      opacity: 0;
+      transform: scale(0.85);
+      transition: 0.3s var(--ease);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+    }
+    .card:hover .play-hint { background: rgba(26, 27, 38, 0.18); }
+    .card:hover .play-hint span { opacity: 1; transform: scale(1); }
+    .card-title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 0.35rem;
+    }
+    .card-sub {
+      font-size: 0.8rem;
+      color: var(--ink-soft);
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      padding: 3rem 1rem;
+      text-align: center;
+      color: var(--ink-soft);
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 3px solid rgba(251, 114, 153, 0.2);
+      border-top-color: var(--pink);
+      margin: 0 auto 1rem;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ——— Player modal ——— */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      place-items: center;
+      padding: 1rem;
+      background: rgba(16, 18, 28, 0.62);
+      backdrop-filter: blur(10px);
+    }
+    .modal.open { display: grid; animation: fade 0.25s ease; }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    .player-shell {
+      width: min(1040px, 100%);
+      background: var(--paper);
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
+      animation: rise 0.4s var(--ease);
+    }
+    .player-top {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.1rem 0.75rem;
+    }
+    .player-top h3 {
+      font-size: 1.05rem;
+      line-height: 1.4;
+      max-width: 80%;
+    }
+    .icon-btn {
+      border: 0;
+      background: rgba(26, 27, 38, 0.06);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+    .stage {
+      position: relative;
+      background: #0d0f16;
+      aspect-ratio: 16 / 9;
+    }
+    .stage video, .stage iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #000;
+    }
+    .extract-bar {
+      display: grid;
+      gap: 0.55rem;
+      padding: 0.9rem 1.1rem 1.15rem;
+      border-top: 1px solid var(--line);
+      background: white;
+    }
+    .extract-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .extract-row code {
+      flex: 1;
+      font-size: 0.72rem;
+      background: var(--mist);
+      border-radius: 10px;
+      padding: 0.55rem 0.7rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ink-soft);
+    }
+    .chip {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--pink-deep);
+      background: rgba(251, 114, 153, 0.12);
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+    }
+    .player-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      font-size: 0.8rem;
+      color: var(--ink-soft);
+      padding: 0 1.1rem 1rem;
+    }
+
+    .footer {
+      padding: 2rem clamp(1rem, 4vw, 3rem) 2.5rem;
+      color: var(--ink-soft);
+      font-size: 0.85rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.75rem;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    @media (max-width: 640px) {
+      .search { display: none; }
+      .hero { align-items: center; min-height: 78svh; }
+      .player-top h3 { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="shell">
+    <header class="nav">
+      <div class="brand">
+        <div class="brand-mark">BF</div>
+        <span>BiliFlux</span>
+      </div>
+      <div class="nav-actions">
+        <label class="search" aria-label="搜索 BV 号或关键词">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="#9aa0b4" stroke-width="2"/>
+            <path d="M20 20l-3.5-3.5" stroke="#9aa0b4" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input id="searchInput" type="search" placeholder="BV 号 / 关键词，回车播放或搜索" />
+        </label>
+        <div class="live-pill" title="列表自动刷新">
+          <span class="live-dot"></span>
+          LIVE
+        </div>
+      </div>
+    </header>
+
+    <section class="hero" id="hero">
+      <div class="hero-bg" id="heroBg"></div>
+      <div class="hero-content">
+        <h1 class="hero-brand">Bili<span>Flux</span></h1>
+        <p>实时抓取哔哩哔哩热门稿件，提取可播放直链，在本地播放器中观看——不是跳转站内页。</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#feed">进入实时流</a>
+          <button class="btn btn-ghost" type="button" id="refreshBtn">立即刷新</button>
+        </div>
+      </div>
+    </section>
+
+    <main class="feed" id="feed">
+      <div class="feed-head">
+        <div>
+          <h2>实时视频流</h2>
+          <p class="feed-meta" id="feedMeta">正在连接 Bilibili API…</p>
+        </div>
+      </div>
+      <div class="tabs" id="tabs" role="tablist"></div>
+      <div id="grid" class="grid"></div>
+      <div id="status" class="status" hidden></div>
+    </main>
+
+    <footer class="footer">
+      <span>BiliFlux · HTML-only · 直链提取自 Bilibili playurl</span>
+      <span id="clock"></span>
+    </footer>
+  </div>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
+    <div class="player-shell">
+      <div class="player-top">
+        <h3 id="playerTitle">加载中…</h3>
+        <button class="icon-btn" type="button" id="closeBtn" aria-label="关闭">×</button>
+      </div>
+      <div class="stage" id="stage">
+        <video id="video" controls playsinline crossorigin="anonymous"></video>
+      </div>
+      <div class="player-stats" id="playerStats"></div>
+      <div class="extract-bar">
+        <div class="extract-row">
+          <span class="chip">EXTRACTED</span>
+          <code id="streamUrl">等待提取直链…</code>
+          <button class="btn btn-ghost" type="button" id="copyBtn" style="padding:0.45rem 0.9rem;font-size:0.8rem">复制</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CATEGORIES = [
+      { id: "popular", label: "热门", type: "popular" },
+      { id: "0", label: "全站榜", type: "rank", rid: 0 },
+      { id: "1", label: "动画", type: "rank", rid: 1 },
+      { id: "3", label: "音乐", type: "rank", rid: 3 },
+      { id: "4", label: "游戏", type: "rank", rid: 4 },
+      { id: "5", label: "娱乐", type: "rank", rid: 5 },
+      { id: "36", label: "科技", type: "rank", rid: 36 },
+      { id: "119", label: "鬼畜", type: "rank", rid: 119 },
+      { id: "129", label: "舞蹈", type: "rank", rid: 129 },
+      { id: "155", label: "时尚", type: "rank", rid: 155 },
+      { id: "160", label: "生活", type: "rank", rid: 160 },
+      { id: "181", label: "影视", type: "rank", rid: 181 },
+      { id: "211", label: "美食", type: "rank", rid: 211 },
+      { id: "217", label: "动物", type: "rank", rid: 217 },
+    ];
+
+    const REFRESH_MS = 90_000;
+    const state = {
+      category: CATEGORIES[0],
+      videos: [],
+      timer: null,
+      extracting: false,
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const grid = $("grid");
+    const statusEl = $("status");
+    const feedMeta = $("feedMeta");
+    const tabs = $("tabs");
+    const modal = $("modal");
+    const videoEl = $("video");
+    const stage = $("stage");
+    const streamUrlEl = $("streamUrl");
+    const playerTitle = $("playerTitle");
+    const playerStats = $("playerStats");
+
+    function httpsPic(url = "") {
+      return String(url).replace(/^http:\/\//i, "https://");
+    }
+
+    function formatCount(n) {
+      n = Number(n) || 0;
+      if (n >= 1e8) return (n / 1e8).toFixed(1) + "亿";
+      if (n >= 1e4) return (n / 1e4).toFixed(1) + "万";
+      return String(n);
+    }
+
+    function formatDuration(sec) {
+      sec = Number(sec) || 0;
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      if (h) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      return `${m}:${String(s).padStart(2, "0")}`;
+    }
+
+    function parseJsonBlob(text) {
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start < 0 || end < start) throw new Error("代理返回中未找到 JSON");
+      return JSON.parse(text.slice(start, end + 1));
+    }
+
+    async function proxyFetch(apiPath) {
+      const absolute = `https://api.bilibili.com${apiPath}`;
+      const attempts = [
+        async () => {
+          const res = await fetch(`https://r.jina.ai/http://api.bilibili.com${apiPath}`, {
+            headers: { Accept: "text/plain", "X-Return-Format": "text" },
+          });
+          if (!res.ok) throw new Error(`jina ${res.status}`);
+          return parseJsonBlob(await res.text());
+        },
+        async () => {
+          const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(absolute)}`);
+          if (!res.ok) throw new Error(`allorigins ${res.status}`);
+          return JSON.parse(await res.text());
+        },
+        async () => {
+          const res = await fetch(`https://corsproxy.org/?${encodeURIComponent(absolute)}`);
+          if (!res.ok) throw new Error(`corsproxy ${res.status}`);
+          const text = await res.text();
+          return parseJsonBlob(text);
+        },
+      ];
+
+      let lastErr;
+      for (const run of attempts) {
+        try {
+          const data = await run();
+          if (data && typeof data === "object") return data;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error("所有代理均失败");
+    }
+
+    function normalizeItem(raw) {
+      const stat = raw.stat || {};
+      return {
+        aid: raw.aid,
+        bvid: raw.bvid,
+        cid: raw.cid,
+        title: raw.title || "未命名稿件",
+        pic: httpsPic(raw.pic),
+        owner: (raw.owner && raw.owner.name) || raw.author || "UP主",
+        duration: raw.duration || 0,
+        play: stat.view ?? raw.play ?? 0,
+        danmaku: stat.danmaku ?? raw.video_review ?? 0,
+        pubdate: raw.pubdate || raw.ctime || 0,
+        tname: raw.tname || "",
+        desc: raw.desc || "",
+      };
+    }
+
+    async function loadFeed() {
+      const cat = state.category;
+      showStatus(true, "正在实时抓取 Bilibili 列表…");
+      grid.innerHTML = "";
+
+      try {
+        let path;
+        if (cat.type === "popular") {
+          path = "/x/web-interface/popular?ps=30&pn=1";
+        } else if (cat.type === "search") {
+          path = `/x/web-interface/search/type?search_type=video&keyword=${encodeURIComponent(cat.keyword)}&page=1`;
+        } else {
+          path = `/x/web-interface/ranking/v2?rid=${cat.rid}&type=all`;
+        }
+
+        const json = await proxyFetch(path);
+        if (json.code !== 0) throw new Error(json.message || `API code ${json.code}`);
+
+        let list = [];
+        if (cat.type === "popular") list = (json.data && json.data.list) || [];
+        else if (cat.type === "search") list = (json.data && json.data.result) || [];
+        else list = (json.data && json.data.list) || [];
+
+        state.videos = list.map(normalizeItem).filter((v) => v.bvid);
+        renderGrid();
+        const now = new Date();
+        feedMeta.textContent = `${cat.label} · 已提取 ${state.videos.length} 条 · 更新于 ${now.toLocaleTimeString()}`;
+        showStatus(false);
+
+        if (state.videos[0]) {
+          $("heroBg").style.setProperty("--hero-image", `url("${state.videos[0].pic}")`);
+        }
+      } catch (err) {
+        console.error(err);
+        showStatus(true, `抓取失败：${err.message || err}<br/><small>可点击「立即刷新」重试</small>`);
+        feedMeta.textContent = "连接中断，等待重试";
+      }
+    }
+
+    function showStatus(on, html = "") {
+      statusEl.hidden = !on;
+      if (on) {
+        statusEl.innerHTML = `<div class="spinner"></div><div>${html}</div>`;
+      }
+    }
+
+    function renderGrid() {
+      if (!state.videos.length) {
+        showStatus(true, "这一分区暂时没有稿件");
+        return;
+      }
+      grid.innerHTML = state.videos.map((v, i) => `
+        <button class="card" type="button" data-index="${i}" style="animation-delay:${Math.min(i, 12) * 40}ms">
+          <div class="thumb">
+            <img src="${v.pic}" alt="" loading="lazy" referrerpolicy="no-referrer" />
+            <div class="play-hint"><span>▶</span></div>
+            <div class="thumb-meta">
+              <span>${formatCount(v.play)} 播放</span>
+              <span>${formatDuration(v.duration)}</span>
+            </div>
+          </div>
+          <div class="card-title">${escapeHtml(v.title)}</div>
+          <div class="card-sub">
+            <span>${escapeHtml(v.owner)}</span>
+            ${v.tname ? `<span>${escapeHtml(v.tname)}</span>` : ""}
+          </div>
+        </button>
+      `).join("");
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function ensureCid(video) {
+      if (video.cid) return video.cid;
+      const json = await proxyFetch(`/x/web-interface/view?bvid=${video.bvid}`);
+      if (json.code !== 0) throw new Error(json.message || "获取稿件信息失败");
+      video.cid = json.data.cid;
+      video.aid = json.data.aid;
+      if (json.data.owner) video.owner = json.data.owner.name;
+      if (json.data.pic) video.pic = httpsPic(json.data.pic);
+      return video.cid;
+    }
+
+    async function extractPlayUrl(video) {
+      const cid = await ensureCid(video);
+      const qualities = [80, 64, 32, 16];
+      let lastErr;
+      for (const qn of qualities) {
+        try {
+          const path = `/x/player/playurl?bvid=${video.bvid}&cid=${cid}&qn=${qn}&fnval=1&platform=html5&high_quality=1&fourk=1`;
+          const json = await proxyFetch(path);
+          if (json.code !== 0) throw new Error(json.message || `playurl ${json.code}`);
+          const durl = json.data && json.data.durl && json.data.durl[0];
+          if (!durl || !durl.url) throw new Error("无直链");
+          const candidates = [durl.url, ...(durl.backup_url || [])].map((u) =>
+            u.replace(/^http:\/\//i, "https://")
+          );
+          return {
+            url: candidates[0],
+            backups: candidates.slice(1),
+            quality: json.data.quality || qn,
+            timelength: json.data.timelength,
+          };
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error("直链提取失败");
+    }
+
+    function clearStageExtras() {
+      const iframe = stage.querySelector("iframe");
+      if (iframe) iframe.remove();
+      videoEl.style.display = "block";
+      videoEl.removeAttribute("src");
+      videoEl.load();
+    }
+
+    async function playVideo(video) {
+      if (state.extracting) return;
+      state.extracting = true;
+      modal.classList.add("open");
+      document.body.style.overflow = "hidden";
+      playerTitle.textContent = video.title;
+      playerStats.innerHTML = `
+        <span>UP：${escapeHtml(video.owner)}</span>
+        <span>${formatCount(video.play)} 播放</span>
+        <span>${formatCount(video.danmaku)} 弹幕</span>
+        <span>${video.bvid}</span>
+      `;
+      streamUrlEl.textContent = "正在提取 playurl 直链…";
+      clearStageExtras();
+
+      try {
+        const stream = await extractPlayUrl(video);
+        streamUrlEl.textContent = stream.url;
+        streamUrlEl.title = stream.url;
+        playerStats.innerHTML += `<span>清晰度 qn=${stream.quality}</span><span class="chip">直链已提取</span>`;
+
+        const tryUrls = [stream.url, ...stream.backups];
+        let played = false;
+        for (const url of tryUrls) {
+          try {
+            await attemptVideoPlay(url);
+            streamUrlEl.textContent = url;
+            played = true;
+            break;
+          } catch (_) {
+            /* try next */
+          }
+        }
+
+        if (!played) {
+          // CDN referer 拦截时，用官方 HTML5 播放器承接已解析的 bvid（仍非跳转站内页）
+          videoEl.style.display = "none";
+          const iframe = document.createElement("iframe");
+          iframe.allow = "fullscreen; encrypted-media";
+          iframe.allowFullscreen = true;
+          iframe.src = `https://player.bilibili.com/player.html?bvid=${video.bvid}&page=1&high_quality=1&danmaku=0&as_wide=1`;
+          stage.appendChild(iframe);
+          streamUrlEl.textContent = `${stream.url} （CDN 防盗链，已回退嵌入播放器）`;
+        }
+      } catch (err) {
+        streamUrlEl.textContent = `提取失败：${err.message || err}`;
+        videoEl.style.display = "none";
+        const iframe = document.createElement("iframe");
+        iframe.allow = "fullscreen";
+        iframe.allowFullscreen = true;
+        iframe.src = `https://player.bilibili.com/player.html?bvid=${video.bvid}&page=1&high_quality=1&danmaku=0`;
+        stage.appendChild(iframe);
+      } finally {
+        state.extracting = false;
+      }
+    }
+
+    function attemptVideoPlay(url) {
+      return new Promise((resolve, reject) => {
+        const onReady = () => {
+          cleanup();
+          videoEl.play().catch(() => {});
+          resolve();
+        };
+        const onErr = () => {
+          cleanup();
+          reject(new Error("video error"));
+        };
+        const cleanup = () => {
+          videoEl.removeEventListener("loadeddata", onReady);
+          videoEl.removeEventListener("error", onErr);
+        };
+        videoEl.addEventListener("loadeddata", onReady, { once: true });
+        videoEl.addEventListener("error", onErr, { once: true });
+        videoEl.src = url;
+        videoEl.load();
+        setTimeout(() => {
+          if (videoEl.readyState < 2) {
+            cleanup();
+            reject(new Error("timeout"));
+          }
+        }, 12000);
+      });
+    }
+
+    function closeModal() {
+      modal.classList.remove("open");
+      document.body.style.overflow = "";
+      clearStageExtras();
+      streamUrlEl.textContent = "等待提取直链…";
+    }
+
+    function renderTabs() {
+      tabs.innerHTML = CATEGORIES.map((c) => `
+        <button class="tab${c === state.category ? " active" : ""}" type="button" data-id="${c.id}" role="tab">
+          ${c.label}
+        </button>
+      `).join("");
+    }
+
+    function scheduleRefresh() {
+      clearInterval(state.timer);
+      state.timer = setInterval(() => loadFeed(), REFRESH_MS);
+    }
+
+    function tickClock() {
+      $("clock").textContent = new Date().toLocaleString();
+    }
+
+    // Events
+    tabs.addEventListener("click", (e) => {
+      const btn = e.target.closest(".tab");
+      if (!btn) return;
+      const cat = CATEGORIES.find((c) => c.id === btn.dataset.id);
+      if (!cat) return;
+      state.category = cat;
+      renderTabs();
+      loadFeed();
+      scheduleRefresh();
+    });
+
+    grid.addEventListener("click", (e) => {
+      const card = e.target.closest(".card");
+      if (!card) return;
+      const video = state.videos[Number(card.dataset.index)];
+      if (video) playVideo(video);
+    });
+
+    $("closeBtn").addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal.classList.contains("open")) closeModal();
+    });
+
+    $("refreshBtn").addEventListener("click", () => {
+      loadFeed();
+      scheduleRefresh();
+    });
+
+    $("copyBtn").addEventListener("click", async () => {
+      const text = streamUrlEl.textContent;
+      if (!text || text.includes("等待") || text.includes("正在")) return;
+      try {
+        await navigator.clipboard.writeText(text.replace(/\s+（.*）$/, ""));
+        $("copyBtn").textContent = "已复制";
+        setTimeout(() => ($("copyBtn").textContent = "复制"), 1200);
+      } catch (_) {
+        $("copyBtn").textContent = "失败";
+        setTimeout(() => ($("copyBtn").textContent = "复制"), 1200);
+      }
+    });
+
+    $("searchInput").addEventListener("keydown", async (e) => {
+      if (e.key !== "Enter") return;
+      const q = e.target.value.trim();
+      if (!q) return;
+      const bv = q.match(/BV[\w]+/i);
+      if (bv) {
+        playVideo({
+          bvid: bv[0],
+          title: bv[0],
+          owner: "搜索",
+          play: 0,
+          danmaku: 0,
+          pic: "",
+        });
+        return;
+      }
+      state.category = { id: "search", label: `搜索：${q}`, type: "search", keyword: q };
+      renderTabs();
+      loadFeed();
+    });
+
+    // Boot
+    renderTabs();
+    loadFeed();
+    scheduleRefresh();
+    tickClock();
+    setInterval(tickClock, 1000);
+  </script>
+</body>
+</html>
