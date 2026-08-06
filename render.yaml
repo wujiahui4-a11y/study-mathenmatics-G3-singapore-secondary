@@ -1,0 +1,14 @@
+# One-click deploy for the BiliStream website (bili-site/).
+# On https://render.com : New + -> Blueprint -> pick this repo. Render reads this
+# file, builds the client, and runs the Node server on a free web service.
+services:
+  - type: web
+    name: bilistream
+    runtime: node
+    rootDir: bili-site
+    plan: free
+    buildCommand: npm run install:all && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

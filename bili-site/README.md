@@ -40,6 +40,23 @@ npm run install:all
 npm run dev
 ```
 
+## Host it without a command line (phone-friendly)
+
+You don't need to run any commands to get a public URL you can open on your
+phone. Deploy it to a free host straight from a browser:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/wujiahui4-a11y/study-mathenmatics-G3-singapore-secondary)
+
+Steps (all doable on a phone):
+
+1. Merge this branch into `main` (GitHub's mobile site → the PR → "Merge").
+2. Tap the **Deploy to Render** button above and sign in with GitHub.
+3. Render reads [`render.yaml`](../render.yaml), builds the client, and starts
+   the server. When it finishes you get a permanent `https://…onrender.com` URL.
+
+The server listens on `process.env.PORT`, so it also works as-is on Railway,
+Fly.io, or any Docker host (`bili-site/Dockerfile` is included).
+
 ## API
 
 | Endpoint | Description |
