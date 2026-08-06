@@ -206,7 +206,7 @@ setTimeout(() => {
       <button type="button" id="both" class="active">Both feet</button>
       <button type="button" id="reset">Reset</button>
     </div>
-    <div id="hint">Tap Overstimulate for ruthless post-climax teasing · Shift+drag to stroke</div>
+    <div id="hint">After cum: toes milk the back of the shaft — never stops · Shift+drag to stroke</div>
   </div>
 </div>
 
@@ -656,13 +656,15 @@ controls.update();
 const stim = {
   pos: 0.55, vel: 0, target: 0.55,
   auto: true, bothFeet: true, overstim: false,
-  phase: 0, speed: 1.35, grip: 1.2,
+  phase: 0, milkPhase: 0, speed: 1.35, grip: 1.2,
   footAngle: 10 * Math.PI / 180,
   arousal: 0, sensitivity: 1,
   climax: false, climaxT: 0, climaxCount: 0,
+  // "stroke" = normal sole sandwich; "toeMilk" = toes on dorsal ridge after cum
+  technique: "stroke",
   contactForce: 0, cadence: 0, lastZero: 0,
   droplets: [], hearts: [], manualDrive: false,
-  twitch: 0, shake: 0,
+  twitch: 0, shake: 0, neverStop: false,
 };
 
 const ui = {
@@ -720,13 +722,13 @@ ui.overstim.onclick = () => {
   if (stim.overstim) {
     stim.auto = true;
     ui.auto.classList.add("active");
-    ui.speed.value = Math.max(+ui.speed.value, 2.2);
+    ui.speed.value = Math.max(+ui.speed.value, 1.8);
     stim.speed = +ui.speed.value;
-    ui.grip.value = Math.max(+ui.grip.value, 1.25);
+    ui.grip.value = Math.max(+ui.grip.value, 1.2);
     stim.grip = +ui.grip.value;
-    ui.hint.textContent = "OVERSTIM ON — no mercy after climax, sensitivity keeps climbing";
+    ui.hint.textContent = "OVERSTIM ON — smooth milking through climax, sensitivity keeps rising";
     ui.hint.classList.add("hot");
-    flashBurst("OVERSTIM!!");
+    flashBurst("OVERSTIM~~");
     fxEl.classList.add("over");
   } else {
     ui.hint.textContent = "Overstim off";
@@ -738,6 +740,7 @@ ui.reset.onclick = () => {
   stim.arousal = 0; stim.sensitivity = 1;
   stim.climax = false; stim.climaxT = 0; stim.climaxCount = 0;
   stim.pos = 0.55; stim.vel = 0; stim.twitch = 0; stim.shake = 0;
+  stim.technique = "stroke"; stim.neverStop = false; stim.milkPhase = 0;
   stim.droplets.forEach(d => scene.remove(d.mesh));
   stim.droplets = [];
   ui.hint.textContent = "Reset — cooled down";
@@ -778,36 +781,33 @@ function triggerClimax() {
   stim.climax = true;
   stim.climaxT = 0;
   stim.climaxCount += 1;
-  // softer shake in overstim — comfortable, not jarring
-  stim.shake = stim.overstim ? 0.35 : 1;
-  stim.twitch = stim.overstim ? 0.55 : 1;
+  // After first cum: NEVER stop — switch to comfortable toe-milk on the back of the shaft
+  stim.neverStop = true;
+  stim.auto = true;
+  ui.auto.classList.add("active");
+  stim.technique = "toeMilk";
+  stim.milkPhase = 0;
+  stim.shake = stim.overstim ? 0.25 : 0.4;
+  stim.twitch = 0.45;
   fxEl.classList.add("on");
-  if (stim.overstim) fxEl.classList.add("over");
-  else setTimeout(() => fxEl.classList.remove("on"), 350);
+  if (stim.overstim || stim.neverStop) fxEl.classList.add("over");
+  else setTimeout(() => fxEl.classList.remove("on"), 400);
 
-  const label = stim.overstim
-    ? (stim.climaxCount === 1 ? "CUM… keep going" : stim.climaxCount === 2 ? "AGAIN~" : `WAVE ${stim.climaxCount}`)
-    : "♥";
+  const label = stim.climaxCount === 1 ? "CUM — toe milk~" : stim.climaxCount === 2 ? "KEEP GOING~" : `WAVE ${stim.climaxCount}`;
   flashBurst(label);
-  for (let i = 0; i < (stim.overstim ? 8 : 5); i++) setTimeout(spawnHeart, i * 70);
+  for (let i = 0; i < 8; i++) setTimeout(spawnHeart, i * 70);
 
-  if (stim.overstim) {
-    stim.sensitivity = Math.min(5, stim.sensitivity + 0.35);
-    // stay high — never dump arousal to zero
-    stim.arousal = 0.82;
-    ui.hint.textContent = `Climax #${stim.climaxCount} · milking through it · ${stim.sensitivity.toFixed(1)}× sensitive`;
-  } else {
-    ui.hint.textContent = "Peak — climax";
-  }
+  stim.sensitivity = Math.min(5, stim.sensitivity + (stim.overstim ? 0.4 : 0.25));
+  stim.arousal = 0.88; // stay high — no collapse
+  ui.hint.textContent = `Climax #${stim.climaxCount} — toes squeezing the back, slow up·down · no stop`;
   ui.hint.classList.add("hot");
 
   const tip = new THREE.Vector3();
   boy.userData.shaftTip.getWorldPosition(tip);
-  const n = stim.overstim ? 42 : 22;
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < (stim.overstim ? 40 : 28); i++) {
     spawnDrop(
       tip.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.03, Math.random() * 0.02, (Math.random() - 0.5) * 0.03)),
-      new THREE.Vector3((Math.random() - 0.5) * 0.45, 0.55 + Math.random() * 1.0, 0.15 + Math.random() * 0.5)
+      new THREE.Vector3((Math.random() - 0.5) * 0.4, 0.5 + Math.random() * 0.9, 0.12 + Math.random() * 0.45)
     );
   }
 }
@@ -847,115 +847,173 @@ function orientSoleInward(foot, inwardX) {
   foot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, toes));
 }
 
+/** Toes press the dorsal (back) ridge of the shaft and glide along it */
+function orientToesOnDorsal(foot, sideSign) {
+  // Local +Z (toes) point into the shaft (toward -Y dorsal contact from above),
+  // sole mostly faces outward/up so pads aren't doing the work — toes are.
+  // Dorsal is +Y in gen space; toes approach from +Y pressing toward -Y into ridge.
+  const intoShaft = new THREE.Vector3(0, -1, 0); // press direction
+  const along = new THREE.Vector3(0, 0, 1); // along shaft toward tip
+  // foot local -Y (sole) faces partly away; local +Z (toes) aligns with intoShaft
+  const toes = intoShaft.clone();
+  const up = new THREE.Vector3(sideSign * 0.35, 0.85, 0).normalize(); // slight outward lean
+  const side = new THREE.Vector3().crossVectors(toes, up).normalize();
+  up.copy(new THREE.Vector3().crossVectors(side, toes).normalize());
+  // Remap: we want local +Z = toes direction (into shaft), local +Y = up
+  // makeBasis(x, y, z) => local X,Y,Z
+  const xAxis = side;
+  const yAxis = up;
+  const zAxis = toes;
+  foot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis));
+}
+
 function placeFeet(dt) {
   const r = boy.userData.SHAFT_R;
   const grip = stim.grip;
-  const padReach = 0.028 * footL.scale.y;
-  const dig = 0.022 + grip * 0.028 + (stim.overstim ? 0.012 : 0);
-  const sep = Math.max(0.01, padReach - dig);
-  const stroke = stim.pos;
-  const z = THREE.MathUtils.lerp(0.03, 0.2, stroke);
-  const zR = THREE.MathUtils.lerp(0.03, 0.2, THREE.MathUtils.clamp(stroke - (stim.bothFeet ? 0.08 : 0), 0, 1));
-  const squeeze = Math.min(0.2, Math.abs(stim.vel) * 0.05 + stim.twitch * 0.02);
-  const sepL = Math.max(0.008, sep - squeeze);
-  const sepR = stim.bothFeet ? Math.max(0.008, sep - squeeze) : 0.14;
+  const toeMilk = stim.technique === "toeMilk";
 
-  footL.visible = true;
-  footL.position.set(-sepL, 0, z);
-  orientSoleInward(footL, +1);
-  footL.rotateZ(THREE.MathUtils.clamp(stim.footAngle * 0.25, -0.2, 0.2));
-  footL.rotateX(THREE.MathUtils.clamp(stim.vel * 0.08 + stim.twitch * 0.15, -0.35, 0.35));
+  if (toeMilk) {
+    // —— Comfort climax technique: toes on the BACK of the dick, slow up/down squeeze ——
+    // Dorsal ridge is +Y in gen space. Toes sit on it and milk along Z.
+    const milk = stim.pos; // 0..1 along shaft
+    const z = THREE.MathUtils.lerp(0.04, 0.195, milk);
+    // gentle alternating stagger so it doesn't feel like a copy-paste sine
+    const stagger = 0.035 * Math.sin(stim.milkPhase * 0.7);
+    const zL = THREE.MathUtils.clamp(z + stagger, 0.035, 0.2);
+    const zR = THREE.MathUtils.clamp(z - stagger * 0.85, 0.035, 0.2);
 
-  if (stim.bothFeet) {
+    // soft rhythmic squeeze (pressure into dorsal ridge)
+    const squeezePulse = 0.5 + 0.5 * Math.sin(stim.milkPhase * 1.15);
+    const press = r * (0.55 + grip * 0.25 + squeezePulse * 0.2);
+    const dorsalY = r * 0.15 + press; // sit on top/back of shaft
+    const spread = 0.012 + (1 - squeezePulse) * 0.018; // toes pinch together on squeeze
+
+    footL.visible = true;
     footR.visible = true;
-    footR.position.set(sepR, 0, zR);
-    orientSoleInward(footR, -1);
-    footR.rotateZ(THREE.MathUtils.clamp(-stim.footAngle * 0.25, -0.2, 0.2));
-    footR.rotateX(THREE.MathUtils.clamp(-stim.vel * 0.08 - stim.twitch * 0.15, -0.35, 0.35));
+    footL.position.set(-spread, dorsalY, zL);
+    footR.position.set(spread, dorsalY, zR);
+    orientToesOnDorsal(footL, -1);
+    orientToesOnDorsal(footR, +1);
+    // toe curl / knead — comfortable wriggle along the ridge
+    const curl = 0.12 + squeezePulse * 0.18;
+    footL.rotateX(-curl);
+    footR.rotateX(-curl);
+    footL.rotateZ(-0.08 - stim.footAngle * 0.15);
+    footR.rotateZ(0.08 + stim.footAngle * 0.15);
+    // tiny lateral knead
+    footL.position.x -= squeezePulse * 0.004;
+    footR.position.x += squeezePulse * 0.004;
+
+    // shaft reacts to dorsal toe pressure (flatten slightly on Y)
+    const ySquash = 1 - (0.06 + grip * 0.08 + squeezePulse * 0.05);
+    boy.userData.shaft.scale.set(1 + (1 - ySquash) * 0.5, ySquash, 1 + Math.abs(stim.vel) * 0.02);
   } else {
-    footR.position.set(0.14, -0.03, 0); footR.quaternion.identity();
-    footR.rotation.set(0.5, 0.4, -0.6);
+    // —— Normal sole sandwich stroke ——
+    const padReach = 0.028 * footL.scale.y;
+    const dig = 0.022 + grip * 0.028 + (stim.overstim ? 0.012 : 0);
+    const sep = Math.max(0.01, padReach - dig);
+    const stroke = stim.pos;
+    const z = THREE.MathUtils.lerp(0.03, 0.2, stroke);
+    const zR = THREE.MathUtils.lerp(0.03, 0.2, THREE.MathUtils.clamp(stroke - (stim.bothFeet ? 0.08 : 0), 0, 1));
+    const squeeze = Math.min(0.2, Math.abs(stim.vel) * 0.05 + stim.twitch * 0.02);
+    const sepL = Math.max(0.008, sep - squeeze);
+    const sepR = stim.bothFeet ? Math.max(0.008, sep - squeeze) : 0.14;
+
+    footL.visible = true;
+    footL.position.set(-sepL, 0, z);
+    orientSoleInward(footL, +1);
+    footL.rotateZ(THREE.MathUtils.clamp(stim.footAngle * 0.25, -0.2, 0.2));
+    footL.rotateX(THREE.MathUtils.clamp(stim.vel * 0.08 + stim.twitch * 0.15, -0.35, 0.35));
+
+    if (stim.bothFeet) {
+      footR.visible = true;
+      footR.position.set(sepR, 0, zR);
+      orientSoleInward(footR, -1);
+      footR.rotateZ(THREE.MathUtils.clamp(-stim.footAngle * 0.25, -0.2, 0.2));
+      footR.rotateX(THREE.MathUtils.clamp(-stim.vel * 0.08 - stim.twitch * 0.15, -0.35, 0.35));
+    } else {
+      footR.position.set(0.14, -0.03, 0); footR.quaternion.identity();
+      footR.rotation.set(0.5, 0.4, -0.6);
+    }
+    footL.position.z += 0.004 * Math.sin(stim.phase * 2);
+    if (stim.bothFeet) footR.position.z -= 0.004 * Math.sin(stim.phase * 2);
+    if (stim.overstim) {
+      const curl = Math.sin(stim.phase * 4) * 0.006;
+      footL.position.x -= curl; footR.position.x += curl;
+    }
+    const squash = 1 - (0.08 + grip * 0.16 + (stim.overstim ? 0.04 : 0)) * (stim.bothFeet ? 1 : 0.55);
+    boy.userData.shaft.scale.set(squash, squash, 1 + Math.abs(stim.vel) * 0.03);
   }
-
-  footL.position.z += 0.004 * Math.sin(stim.phase * 2);
-  if (stim.bothFeet) footR.position.z -= 0.004 * Math.sin(stim.phase * 2);
-
-  // overstim toe-curl knead
-  if (stim.overstim) {
-    const curl = Math.sin(stim.phase * 4) * 0.006;
-    footL.position.x -= curl; footR.position.x += curl;
-  }
-
-  const squash = 1 - (0.08 + grip * 0.16 + (stim.overstim ? 0.04 : 0)) * (stim.bothFeet ? 1 : 0.55);
-  boy.userData.shaft.scale.set(squash, squash, 1 + Math.abs(stim.vel) * 0.03);
 
   strokeRig.updateWorldMatrix(true, true);
   footL.getWorldPosition(_footW);
   solveLegToward(girl.userData.legs.L, _footW.clone(), -1);
   footR.getWorldPosition(_footW);
-  if (stim.bothFeet) solveLegToward(girl.userData.legs.R, _footW.clone(), 1);
+  if (stim.bothFeet || toeMilk) solveLegToward(girl.userData.legs.R, _footW.clone(), 1);
   else {
     girl.userData.legs.R.hip.rotation.set(-0.5, 0.4, 0.55);
     girl.userData.legs.R.knee.rotation.set(1.2, 0, 0);
   }
 
-  // anime girl reactions
   const react = stim.arousal * 0.08 + stim.twitch * 0.12;
   girl.userData.torso.rotation.x = 0.32 + Math.sin(stim.phase) * 0.05 + react;
   girl.userData.head.rotation.y = Math.sin(performance.now() * 0.0012) * 0.08;
-  girl.userData.head.rotation.x = -0.12 + stim.arousal * 0.15 + (stim.overstim ? 0.08 : 0);
+  girl.userData.head.rotation.x = -0.12 + stim.arousal * 0.15 + (toeMilk ? 0.1 : 0);
   girl.userData.head.rotation.z = Math.sin(stim.phase * 1.5) * 0.04 * stim.arousal;
-  // blush intensity
-  const blushOp = 0.25 + stim.arousal * 0.45 + (stim.overstim ? 0.15 : 0);
+  const blushOp = 0.25 + stim.arousal * 0.45 + (toeMilk ? 0.2 : 0);
   girl.userData.head.userData.blush?.forEach(b => { b.material.opacity = blushOp; });
   if (girl.userData.head.userData.mouth) {
     girl.userData.head.userData.mouth.scale.y = 0.28 + stim.arousal * 0.35 + stim.twitch * 0.2;
   }
-  // ahoge / hair sway
   girl.userData.hair.rotation.z = Math.sin(performance.now() * 0.002) * 0.04;
 
-  const swell = 1 + stim.arousal * 0.14 + (stim.climax ? 0.08 : 0) + (stim.overstim ? stim.sensitivity * 0.02 : 0);
+  const swell = 1 + stim.arousal * 0.14 + (stim.climax ? 0.08 : 0) + stim.sensitivity * 0.015;
   boy.userData.headG.scale.set(1.05 * swell, 0.95 * swell, 1.1 * swell);
-  const hipTwitch = Math.sin(stim.phase * 2) * 0.012 * stim.arousal + stim.twitch * Math.sin(performance.now() * 0.04) * 0.02;
+  const hipTwitch = Math.sin(stim.phase * 2) * 0.01 * stim.arousal + stim.twitch * Math.sin(performance.now() * 0.035) * 0.015;
   boy.userData.hips.rotation.x = -Math.PI / 2 + 0.05 + hipTwitch;
-
-  blushLight.intensity = 0.35 + stim.arousal * 0.55 + (stim.overstim ? 0.3 : 0);
+  blushLight.intensity = 0.35 + stim.arousal * 0.55 + (toeMilk ? 0.35 : 0);
 }
 
 function updateSolver(dt) {
   stim.speed = +ui.speed.value;
   stim.grip = +ui.grip.value;
-  stim.twitch = Math.max(0, stim.twitch - dt * (stim.overstim ? 0.35 : 0.65));
-  stim.shake = Math.max(0, stim.shake - dt * (stim.overstim ? 1.1 : 1.6));
+  stim.twitch = Math.max(0, stim.twitch - dt * 0.4);
+  stim.shake = Math.max(0, stim.shake - dt * 1.2);
 
-  // Overstim never pauses the stroke — climax becomes a soft milk wave
-  const inOverClimax = stim.overstim && stim.climax;
-  const speedMul = stim.overstim
-    ? (inOverClimax ? 0.85 + stim.sensitivity * 0.08 : 1.25 + stim.sensitivity * 0.12)
-    : 1;
-  const continueStroke = stim.auto && !stim.manualDrive && (!stim.climax || stim.overstim);
+  const toeMilk = stim.technique === "toeMilk";
+  const mustContinue = stim.auto && !stim.manualDrive; // climax never blocks
 
-  if (continueStroke) {
-    // During climax: slower, fuller milking strokes (comfortable overstim)
-    const phaseRate = stim.speed * 2.6 * speedMul * (inOverClimax ? 0.72 : 1);
-    stim.phase += dt * phaseRate;
-    const s = Math.sin(stim.phase);
-    const amp = inOverClimax ? 0.46 : (stim.overstim ? 0.42 : 0.38);
-    const shaped = Math.sign(s) * Math.pow(Math.abs(s), inOverClimax ? 0.9 : (stim.overstim ? 0.55 : 0.75));
-    // bias toward tip during climax milking
-    const bias = inOverClimax ? 0.08 : 0;
-    stim.target = 0.5 + bias + shaped * amp;
+  if (mustContinue) {
+    if (toeMilk) {
+      // Distinct from normal stroke: slow comfortable dorsal milking curve
+      // Use a raised-cosine + secondary harmonic so it doesn't feel like the same loop
+      stim.milkPhase += dt * (0.55 + stim.speed * 0.45) * (stim.overstim ? 1.05 : 0.85);
+      const a = stim.milkPhase;
+      // slow glide base
+      const glide = 0.5 + 0.42 * Math.sin(a);
+      // soft "squeeze pause" near the tip — linger comfortably
+      const linger = 0.08 * Math.sin(a * 0.5 + 1.2);
+      // tiny irregularity so it never looks robotic-repeated
+      const human = 0.03 * Math.sin(a * 2.3 + 0.4) + 0.02 * Math.sin(a * 0.37);
+      stim.target = THREE.MathUtils.clamp(glide + linger + human, 0.08, 0.94);
+    } else {
+      stim.phase += dt * stim.speed * 2.6 * (stim.overstim ? 1.2 : 1);
+      const s = Math.sin(stim.phase);
+      const amp = stim.overstim ? 0.42 : 0.38;
+      const shaped = Math.sign(s) * Math.pow(Math.abs(s), stim.overstim ? 0.55 : 0.75);
+      stim.target = 0.5 + shaped * amp;
+    }
   }
 
-  // Softer spring during climax = smooth continuous glide
-  const k = inOverClimax ? 28 : (stim.overstim ? 52 : 48);
-  const c = 2 * Math.sqrt(k) * (inOverClimax ? 1.05 : 0.9);
+  // Extra-soft spring for toe milk = buttery comfortable feel
+  const k = toeMilk ? 18 : (stim.overstim ? 52 : 48);
+  const c = 2 * Math.sqrt(k) * (toeMilk ? 1.15 : 0.9);
   const acc = (stim.target - stim.pos) * k - stim.vel * c;
   stim.vel += acc * dt;
   const prev = stim.pos;
   stim.pos = THREE.MathUtils.clamp(stim.pos + stim.vel * dt, 0.05, 0.95);
 
-  stim.contactForce = stim.grip * (12 + Math.abs(stim.vel) * 40) * (stim.overstim ? 1.25 : 1);
+  stim.contactForce = stim.grip * (10 + Math.abs(stim.vel) * (toeMilk ? 28 : 40)) * (toeMilk ? 1.1 : 1);
 
   if (prev < 0.5 && stim.pos >= 0.5) {
     const now = performance.now() / 1000;
@@ -963,62 +1021,57 @@ function updateSolver(dt) {
     stim.lastZero = now;
   }
 
-  // Arousal — overstim keeps building through climax with no dead zone
   const work = stim.contactForce * Math.abs(stim.vel) * dt * 0.0045 * stim.sensitivity;
-  const sweet = 1 - Math.abs(stim.pos - 0.55) * 0.4;
+  const sweet = toeMilk
+    ? 1.1 - Math.abs(stim.pos - 0.65) * 0.35  // tip-biased for toe milk
+    : 1 - Math.abs(stim.pos - 0.55) * 0.4;
 
-  if (!stim.climax) {
-    const overBonus = stim.overstim ? 1.45 : 1;
-    stim.arousal = THREE.MathUtils.clamp(stim.arousal + work * sweet * overBonus, 0, 1);
-    if (!stim.auto && !stim.manualDrive && Math.abs(stim.vel) < 0.05 && !stim.overstim) {
+  // Always build while moving — climax never freezes progress
+  const floor = stim.neverStop ? (0.75 + Math.min(0.12, (stim.climaxCount - 1) * 0.02)) : 0;
+  if (stim.climax && stim.neverStop) {
+    stim.arousal = THREE.MathUtils.clamp(
+      Math.max(floor, stim.arousal * (1 - dt * 0.12) + work * sweet * 1.9),
+      floor, 1
+    );
+    if (stim.climaxT > 0.5 && stim.arousal >= 0.97) triggerClimax();
+  } else if (!stim.climax) {
+    const bonus = stim.overstim ? 1.45 : 1;
+    stim.arousal = THREE.MathUtils.clamp(stim.arousal + work * sweet * bonus, 0, 1);
+    if (!stim.auto && !stim.manualDrive && Math.abs(stim.vel) < 0.05 && !stim.neverStop) {
       stim.arousal = Math.max(0, stim.arousal - dt * 0.03);
     }
     if (stim.arousal >= 0.995) triggerClimax();
-  } else if (stim.overstim) {
-    // Continuous milking: arousal gently breathes but stays elevated
-    const milk = work * sweet * 1.8;
-    // soft floor so it never collapses mid-climax
-    const floor = 0.72 + Math.min(0.15, (stim.climaxCount - 1) * 0.03);
-    stim.arousal = THREE.MathUtils.clamp(
-      Math.max(floor, stim.arousal * (1 - dt * 0.15) + milk),
-      floor,
-      1
-    );
-    // next wave as soon as topped off again (short refractory)
-    if (stim.climaxT > 0.55 && stim.arousal >= 0.98) triggerClimax();
+  } else {
+    // non-neverStop climax (shouldn't happen often) — still keep a short drip then recover
+    stim.arousal = Math.max(0.2, stim.arousal - dt * 0.05);
   }
 
   if (stim.climax) {
     stim.climaxT += dt;
-    const burstWindow = stim.overstim ? 3.5 : 1.5;
-    // steady comfortable drip during overstim climax, not a violent burst only
-    const dripChance = stim.overstim ? (stim.climaxT < burstWindow ? 0.45 : 0.12) : 0.4;
-    if (stim.climaxT < burstWindow && Math.random() < dripChance) {
+    const dripChance = toeMilk ? 0.35 : 0.4;
+    if (stim.climaxT < 4.0 && Math.random() < dripChance) {
       const tip = new THREE.Vector3();
       boy.userData.shaftTip.getWorldPosition(tip);
-      spawnDrop(tip, new THREE.Vector3((Math.random() - 0.5) * 0.2, 0.25 + Math.random() * 0.5, 0.1 + Math.random() * 0.3));
+      spawnDrop(tip, new THREE.Vector3((Math.random() - 0.5) * 0.18, 0.2 + Math.random() * 0.45, 0.1 + Math.random() * 0.25));
     }
-
-    if (!stim.overstim && stim.climaxT > 2.5) {
+    // Clear climax flag so next wave can fire, but NEVER stop technique / auto
+    if (stim.neverStop && stim.climaxT > 1.0 && stim.arousal < 0.96) {
       stim.climax = false;
-      stim.arousal = 0.15;
-      fxEl.classList.remove("on");
-    } else if (stim.overstim) {
-      // never leave climax-lock that blocks stroking; clear flag after short wave
-      // so the next peak can fire, while arousal stays high
-      if (stim.climaxT > 1.1 && stim.arousal < 0.97) {
-        stim.climax = false; // ready for next wave, still hypersensitive
-        stim.twitch = Math.max(stim.twitch, 0.4);
-        ui.hint.textContent = `Riding the afterglow · ${stim.sensitivity.toFixed(1)}× · don't stop`;
-      }
-      if (Math.random() < 0.03) spawnHeart();
+      stim.twitch = Math.max(stim.twitch, 0.35);
+      ui.hint.textContent = `Toes on the back · milking · ${stim.sensitivity.toFixed(1)}× · no stop`;
+    } else if (!stim.neverStop && stim.climaxT > 2.5) {
+      // legacy path — still force neverStop behavior now
+      stim.neverStop = true;
+      stim.technique = "toeMilk";
+      stim.climax = false;
+      stim.arousal = Math.max(stim.arousal, 0.8);
     }
+    if (toeMilk && Math.random() < 0.04) spawnHeart();
   }
 
-  // Overstim: sensitivity keeps climbing while feet move
-  if (stim.overstim && (stim.auto || stim.manualDrive) && Math.abs(stim.vel) > 0.03) {
+  if ((stim.overstim || stim.neverStop) && (stim.auto || stim.manualDrive) && Math.abs(stim.vel) > 0.02) {
     stim.sensitivity = Math.min(5, stim.sensitivity + dt * 0.1);
-    if (Math.random() < 0.025) spawnHeart();
+    if (Math.random() < 0.02) spawnHeart();
   }
 
   for (let i = stim.droplets.length - 1; i >= 0; i--) {
@@ -1048,11 +1101,13 @@ function updateSolver(dt) {
   ui.tSense.textContent = stim.sensitivity.toFixed(1) + "×";
   ui.tClimax.textContent = String(stim.climaxCount);
 
-  if (stim.overstim && stim.climax) {
-    ui.hint.textContent = `Milking climax #${stim.climaxCount} — smooth & continuous`;
+  if (toeMilk) {
+    ui.hint.textContent = stim.climax
+      ? `Toe-squeeze climax #${stim.climaxCount} — dorsal milk, no stop`
+      : `Toe milk on the back · slow up·down squeeze · ${stim.sensitivity.toFixed(1)}×`;
     ui.hint.classList.add("hot");
-  } else if (!stim.climax && stim.arousal > 0.8) {
-    ui.hint.textContent = stim.overstim ? "Edge… then milk him through it" : "Almost — keep going";
+  } else if (stim.arousal > 0.8) {
+    ui.hint.textContent = stim.overstim ? "Edge… then toes take over" : "Almost — keep going";
     ui.hint.classList.add("hot");
   }
 }
@@ -1060,8 +1115,9 @@ function updateSolver(dt) {
 let orbitT = 0;
 function updateCamera(dt) {
   if (stim.shake > 0.05) {
-    camera.position.x += (Math.random() - 0.5) * 0.03 * stim.shake;
-    camera.position.y += (Math.random() - 0.5) * 0.02 * stim.shake;
+    const soft = stim.overstim ? 0.012 : 0.03;
+    camera.position.x += (Math.random() - 0.5) * soft * stim.shake;
+    camera.position.y += (Math.random() - 0.5) * soft * 0.7 * stim.shake;
   }
   const amt = +ui.orbit.value;
   if (amt <= 0.001 || stim.manualDrive) return;
