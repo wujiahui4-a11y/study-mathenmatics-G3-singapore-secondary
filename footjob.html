@@ -1542,7 +1542,36 @@ function triggerClimax() {
   let label = `WAVE ${n}`;
   if (story?.active) {
     setEmotion("xd");
-    if (n === 1) {
+    if (story.phase === "sleep") {
+      // Dream cum: twist his dick hard, then race into a fast footjob
+      label = `DREAM ${story.sleepCums || n}`;
+      if (story._dreamBurstTimer) clearTimeout(story._dreamBurstTimer);
+      setTechnique("twist");
+      stim.bothFeet = true;
+      stim.rollAccel = 3.6;
+      ui.speed.value = 2.9;
+      stim.speed = 2.9;
+      stim.grip = Math.max(stim.grip, 1.35);
+      if (ui.grip) ui.grip.value = stim.grip;
+      story.dreamBurst = 4.6; // twist → fast FJ window
+      story.dreamBurstStage = 0;
+      showDialogue("Girl", "(dream) Twisting your dick… then I’ll go fast…");
+      story._dreamBurstTimer = setTimeout(() => {
+        if (!story?.active || story.phase !== "sleep") return;
+        setTechnique("stroke");
+        stim.bothFeet = true;
+        stim.rollAccel = 4.8;
+        ui.speed.value = 3.2;
+        stim.speed = 3.2;
+        stim.grip = Math.max(stim.grip, 1.45);
+        if (ui.grip) ui.grip.value = stim.grip;
+        story.dreamBurstStage = 1;
+        // keep burst timer from the climax moment — extend a bit for the fast phase
+        story.dreamBurst = Math.max(story.dreamBurst, 3.2);
+        showDialogue("Girl", "(dream) Fast footjob… don’t stop cumming…");
+        setEmotion("naughty");
+      }, 850);
+    } else if (n === 1) {
       label = "CUM — twist~";
       setTechnique("twist");
       setTimeout(() => {
@@ -1568,29 +1597,6 @@ function triggerClimax() {
       stim.speed = 3.2;
       setEmotion("xd");
       showDialogue("Girl", "Sandwich on a backward stroke— as fast as I can!!");
-    } else {
-      // dream sleep cum — twist his dick, then footjob fast (never leave)
-      label = `DREAM ${n}`;
-      setTechnique("twist");
-      stim.rollAccel = 2.8;
-      ui.speed.value = 2.6;
-      stim.speed = 2.6;
-      setEmotion("xd");
-      if (typeof story !== "undefined") {
-        story.dreamBurst = 3.8; // seconds of post-cum twist→fast FJ
-        story.dreamBurstStage = 0;
-      }
-      showDialogue("Girl", "(dream) Twisting… then faster… don’t wake me…");
-      setTimeout(() => {
-        if (!story?.active || story.phase !== "sleep") return;
-        setTechnique("stroke"); // fast sole sandwich footjob
-        stim.rollAccel = 3.5;
-        ui.speed.value = 3.1;
-        stim.speed = 3.1;
-        story.dreamBurstStage = 1;
-        showDialogue("Girl", "(dream) Fast… keep cumming… feet won’t stop…");
-        setEmotion("naughty");
-      }, 900);
     }
   } else {
     stim.technique = "toeMilk";
@@ -1798,6 +1804,8 @@ function placeFeet(dt) {
   const soft = tech === "fabric";
   const stroke = stim.pos;
   const z = THREE.MathUtils.lerp(0.03, 0.2, stroke);
+  // clear leftover dream-twist wring unless twist is active
+  if (tech !== "twist" && boy.userData.shaft) boy.userData.shaft.rotation.z *= 0.7;
 
   if (tech === "toeMilk") {
     const milk = stim.pos;
@@ -1985,18 +1993,30 @@ function placeFeet(dt) {
     poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
     poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
   } else if (tech === "twist") {
-    // Alternating sole twist while stroking
-    const dig = 0.02 + grip * 0.025;
-    const sep = Math.max(0.01, 0.018 - dig);
-    const twist = Math.sin(stim.phase * 2.2) * 0.45;
-    targetL.position.set(-sep, 0, z);
-    targetR.position.set(sep, 0, z * 0.95);
+    // Alternating sole twist while stroking — dream cum twists his dick harder
+    const dreamTwist = !!(story?.phase === "sleep" && story.dreamBurst > 0);
+    const dig = 0.02 + grip * 0.025 + (dreamTwist ? 0.012 : 0);
+    const sep = Math.max(0.008, 0.018 - dig);
+    const twistRate = dreamTwist ? 3.8 : 2.2;
+    const twistAmp = dreamTwist ? 0.95 : 0.45;
+    const twist = Math.sin(stim.phase * twistRate) * twistAmp;
+    const zTwist = dreamTwist
+      ? THREE.MathUtils.lerp(0.05, 0.19, 0.5 + 0.5 * Math.sin(stim.phase * 1.6))
+      : z;
+    targetL.position.set(-sep, dreamTwist ? r * 0.05 : 0, zTwist);
+    targetR.position.set(sep, dreamTwist ? r * 0.05 : 0, zTwist * 0.95);
     orientSoleInwardQuat(1, _quat);
-    targetL.quaternion.copy(_quat); targetL.rotateZ(twist); targetL.rotateX(stim.vel * 0.1);
+    targetL.quaternion.copy(_quat); targetL.rotateZ(twist); targetL.rotateX(stim.vel * 0.1 + (dreamTwist ? twist * 0.2 : 0));
     orientSoleInwardQuat(-1, _quat);
-    targetR.quaternion.copy(_quat); targetR.rotateZ(-twist); targetR.rotateX(-stim.vel * 0.1);
-    const squash = 1 - (0.07 + grip * 0.14);
-    boy.userData.shaft.scale.set(squash, squash, 1.03);
+    targetR.quaternion.copy(_quat); targetR.rotateZ(-twist); targetR.rotateX(-stim.vel * 0.1 - (dreamTwist ? twist * 0.2 : 0));
+    const squash = 1 - (0.07 + grip * 0.14 + (dreamTwist ? 0.08 : 0));
+    // visibly wring / twist the shaft
+    boy.userData.shaft.rotation.z = twist * (dreamTwist ? 0.7 : 0.15);
+    boy.userData.shaft.scale.set(
+      squash * (1 + Math.abs(twist) * (dreamTwist ? 0.22 : 0.05)),
+      squash * (1 - Math.abs(twist) * (dreamTwist ? 0.12 : 0.02)),
+      1.03 + Math.abs(twist) * (dreamTwist ? 0.18 : 0.04)
+    );
     poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
     poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
   } else if (tech === "tipFlick") {
@@ -2138,6 +2158,13 @@ function updateSolver(dt) {
       stim.phase += dt * stim.speed * 2.4 * accel;
       const s = Math.sin(stim.phase);
       stim.target = 0.5 + Math.sign(s) * Math.pow(Math.abs(s), 0.7) * 0.4;
+    } else if (stim.technique === "twist") {
+      // dream cum twist wrings faster
+      const dreamTwist = !!(typeof story !== "undefined" && story.phase === "sleep" && story.dreamBurst > 0);
+      const accel = dreamTwist ? (stim.rollAccel || 3.2) : 1;
+      stim.phase += dt * stim.speed * 2.8 * accel;
+      const s = Math.sin(stim.phase);
+      stim.target = 0.5 + Math.sign(s) * Math.pow(Math.abs(s), 0.65) * (dreamTwist ? 0.42 : 0.35);
     } else if (stim.technique === "tipFlick") {
       stim.phase += dt * stim.speed * 3.4;
       stim.target = 0.85 + Math.sin(stim.phase) * 0.08;
@@ -2148,10 +2175,13 @@ function updateSolver(dt) {
       stim.phase += dt * stim.speed * 2.2;
       stim.target = 0.75 + Math.sin(stim.phase) * 0.15;
     } else {
-      stim.phase += dt * stim.speed * (softTech ? 2.0 : 2.6) * (stim.overstim ? 1.2 : 1);
+      // stroke / fabric — dream post-cum footjob races
+      const dreamFast = !!(typeof story !== "undefined" && story.phase === "sleep" && story.dreamBurst > 0 && story.dreamBurstStage === 1);
+      const race = dreamFast ? (1.35 + (stim.rollAccel || 1) * 0.18) : 1;
+      stim.phase += dt * stim.speed * (softTech ? 2.0 : 2.6) * (stim.overstim ? 1.2 : 1) * race;
       const s = Math.sin(stim.phase);
-      const amp = stim.overstim ? 0.42 : (softTech ? 0.3 : 0.38);
-      const shaped = Math.sign(s) * Math.pow(Math.abs(s), stim.overstim ? 0.55 : 0.75);
+      const amp = stim.overstim ? 0.42 : (softTech ? 0.3 : (dreamFast ? 0.44 : 0.38));
+      const shaped = Math.sign(s) * Math.pow(Math.abs(s), stim.overstim || dreamFast ? 0.5 : 0.75);
       stim.target = 0.5 + shaped * amp;
     }
   }
@@ -2305,6 +2335,14 @@ const story = {
   headYaw: -0.18,
   techHold: 0,
   beatId: null,
+  dreamBurst: 0,
+  dreamBurstStage: 0,
+  dreamPhase: 0,
+  dreamT: 0,
+  sleepT: 0,
+  sleepCums: 0,
+  lastDreamCumAt: 0,
+  _dreamBurstTimer: 0,
 };
 
 function setFootwear(on) {
@@ -2817,6 +2855,10 @@ const STORY_BEATS = [
       story.sleepCums = 0;
       story.dreamPhase = 0;
       story.dreamT = 0;
+      story.dreamBurst = 0;
+      story.dreamBurstStage = 0;
+      story.lastDreamCumAt = 0;
+      if (story._dreamBurstTimer) { clearTimeout(story._dreamBurstTimer); story._dreamBurstTimer = 0; }
       poseBoyTired();
       poseGirlSleepClamp();
       setTechnique("dreamFJ");
@@ -2955,6 +2997,12 @@ function startStory() {
   story.beatId = null;
   story.sleepT = 0;
   story.sleepCums = 0;
+  story.dreamBurst = 0;
+  story.dreamBurstStage = 0;
+  story.dreamPhase = 0;
+  story.dreamT = 0;
+  story.lastDreamCumAt = 0;
+  if (story._dreamBurstTimer) { clearTimeout(story._dreamBurstTimer); story._dreamBurstTimer = 0; }
   stim.arousal = 0; stim.climax = false; stim.climaxCount = 0;
   stim.neverStop = false; stim.technique = "stroke"; stim.sensitivity = 1;
   stim.auto = false; stim.bothFeet = true;
@@ -2973,6 +3021,10 @@ function endStoryToFreeplay() {
   story.poseLock = false;
   story.beatId = null;
   story.headYaw = -0.18;
+  story.dreamBurst = 0;
+  story.dreamBurstStage = 0;
+  if (story._dreamBurstTimer) { clearTimeout(story._dreamBurstTimer); story._dreamBurstTimer = 0; }
+  if (boy.userData.shaft) boy.userData.shaft.rotation.z = 0;
   bedroom.visible = false;
   sheet.visible = true;
   boy.visible = true;
@@ -3098,15 +3150,40 @@ function updateStory(dt) {
     story.dreamT = (story.dreamT || 0) + dt;
     stim.auto = true;
     stim.neverStop = true;
-    // dreaming footjob — always in contact, motion follows dream
-    if (stim.technique !== "dreamFJ" && stim.technique !== "sleepClamp") {
-      setTechnique("dreamFJ");
-    }
     poseGirlSleepClamp();
     setShaftElastic(true);
 
+    // After each dream cum: twist → fast footjob, then ease back to dream stroke
+    if (story.dreamBurst > 0) {
+      story.dreamBurst -= dt;
+      // keep contact; don't override twist/stroke mid-burst
+      if (story.dreamBurstStage === 0 && stim.technique !== "twist") {
+        setTechnique("twist");
+        stim.bothFeet = true;
+      } else if (story.dreamBurstStage === 1 && stim.technique !== "stroke") {
+        setTechnique("stroke");
+        stim.bothFeet = true;
+      }
+      if (story.dreamBurst <= 0) {
+        story.dreamBurst = 0;
+        story.dreamBurstStage = 0;
+        if (boy.userData.shaft) boy.userData.shaft.rotation.z = 0;
+        setTechnique("dreamFJ");
+        stim.speed = Math.min(1.6, 1.0 + (story.dreamPhase || 0) * 0.1);
+        ui.speed.value = stim.speed;
+        stim.rollAccel = 1;
+        showDialogue("Girl", "(still dreaming… feet soft again… but still on him)");
+        setEmotion("xd");
+      }
+    } else {
+      // dreaming footjob — always in contact
+      if (stim.technique !== "dreamFJ" && stim.technique !== "sleepClamp") {
+        setTechnique("dreamFJ");
+      }
+    }
+
     // advance dream chapters every ~14s (foot pattern changes)
-    if (story.dreamT > 14) {
+    if (story.dreamBurst <= 0 && story.dreamT > 14) {
       story.dreamT = 0;
       story.dreamPhase = Math.min(5, (story.dreamPhase || 0) + 1);
       const dreamLines = [
@@ -3125,34 +3202,34 @@ function updateStory(dt) {
 
     // soft dream breathing light
     const pulse = 0.07 + 0.14 * (0.5 + 0.5 * Math.sin(story.sleepT * 0.45));
-    blushLight.intensity = pulse + (stim.climax ? 0.25 : 0);
-    key.intensity = 0.25 + pulse * 0.4;
+    const burstGlow = story.dreamBurst > 0 ? 0.35 : 0;
+    blushLight.intensity = pulse + (stim.climax ? 0.25 : 0) + burstGlow;
+    key.intensity = 0.25 + pulse * 0.4 + burstGlow * 0.5;
 
     // build arousal continuously from dream feet
     if (!stim.climax) {
-      stim.arousal = Math.min(1, stim.arousal + dt * 0.08);
+      stim.arousal = Math.min(1, stim.arousal + dt * (story.dreamBurst > 0 ? 0.14 : 0.08));
     }
 
-    // several non-stop dream cums — feet never leave between them
+    // several non-stop dream cums — on each: twist then fast FJ
     const interval = 11;
-    if (story.sleepT > 3 && (story.sleepCums || 0) < 8) {
+    if (story.dreamBurst <= 0 && story.sleepT > 3 && (story.sleepCums || 0) < 8) {
       const since = story.sleepT - (story.lastDreamCumAt || 0);
       if (since > interval && !stim.allowCum) {
         story.lastDreamCumAt = story.sleepT;
         story.sleepCums = (story.sleepCums || 0) + 1;
-        setTechnique("dreamFJ");
         stim.arousal = 0.998;
         stim.allowCum = true;
         setEmotion("xd");
         showDialogue("Girl", [
-          "Nn… (sleep cum) …",
-          "Ahh… still dreaming… finish…",
-          "Don’t leave… toes stay… cum…",
-          "Again… soft… elastic…",
-          "Mm… another one…",
-          "Nonstop… in my dream…",
-          "Keep going… I’m asleep…",
-          "One more wave…"
+          "Nn… (dream) twist… cum…",
+          "Ahh… twisting… then faster…",
+          "Don’t leave… twist… fast footjob…",
+          "Again… twist his soft dick…",
+          "Mm… cum… feet speed up…",
+          "Nonstop… twist… pump…",
+          "Keep going… still asleep…",
+          "One more… twist and race…"
         ][Math.min(7, story.sleepCums - 1)]);
         triggerClimax();
         fxEl.classList.add("on");
