@@ -163,8 +163,65 @@
   #telemetry { top: 48px; } /* sit below toggles when shown */
   body.ui-hidden #title,
   body.ui-hidden #telemetry,
-  body.ui-hidden #controls { opacity: 0; pointer-events: none; }
+  body.ui-hidden #controls,
+  body.ui-hidden #storyBtn { opacity: 0; pointer-events: none; }
   body.ui-hidden #chromeToggles #toggleStats { opacity: 0.35; }
+
+  /* Story button — right side, mid */
+  #storyBtn {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    pointer-events: auto;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 0.18em;
+    padding: 14px 10px;
+    font: 800 13px/1 "M PLUS Rounded 1c", sans-serif;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--accent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    cursor: pointer;
+    box-shadow: 0 8px 28px rgba(20, 0, 16, .35);
+  }
+  #storyBtn:hover { background: rgba(255,255,255,.1); color: #ffe066; }
+  #storyBtn.active {
+    color: #ffe066; border-color: #ffe066;
+    box-shadow: 0 0 18px rgba(255, 224, 102, .25);
+  }
+  body.story-playing #controls { opacity: 0.35; pointer-events: none; }
+  body.story-playing #controls.story-live { opacity: 1; pointer-events: auto; }
+
+  /* Dialogue box — bottom, above dock, doesn't cover center */
+  #dialogue {
+    position: absolute; left: 50%; bottom: 78px; transform: translateX(-50%);
+    width: min(520px, calc(100vw - 24px));
+    pointer-events: auto;
+    display: none;
+    padding: 10px 14px 12px;
+    background: rgba(20, 10, 24, 0.78);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 32px rgba(0,0,0,.4);
+  }
+  #dialogue.show { display: block; }
+  #dialogue .who {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 4px; font-weight: 800;
+  }
+  #dialogue .who.boy { color: #9ec8ff; }
+  #dialogue .who.narr { color: var(--muted); }
+  #dialogue .line {
+    font-size: 14px; line-height: 1.45; min-height: 1.45em;
+    color: var(--text);
+  }
+  #dialogue .next {
+    margin-top: 8px; font-size: 10px; color: var(--muted);
+    text-align: right; letter-spacing: 0.06em;
+  }
+  body.ui-hidden #dialogue { opacity: 0; pointer-events: none; }
 
   #fx {
     position: fixed; inset: 0; pointer-events: none; z-index: 4;
@@ -214,6 +271,13 @@
     #burst { font-size: 22px; top: 14%; }
     #controls { bottom: 8px; width: calc(100vw - 12px); }
     #hint { display: none; }
+    #storyBtn {
+      top: auto; bottom: 72px; transform: none;
+      writing-mode: horizontal-tb;
+      letter-spacing: 0.1em;
+      padding: 8px 12px;
+    }
+    #dialogue { bottom: 110px; font-size: 13px; }
   }
 </style>
 </head>
@@ -285,6 +349,12 @@ setTimeout(() => {
   <div id="chromeToggles">
     <button type="button" class="icon-btn" id="toggleStats" title="Toggle stats">▤</button>
     <button type="button" class="icon-btn" id="toggleUi" title="Hide UI (H)">⛶</button>
+  </div>
+  <button type="button" id="storyBtn" title="Play story mode">STORY</button>
+  <div id="dialogue" class="chip">
+    <div class="who" id="dlgWho">Girl</div>
+    <div class="line" id="dlgLine">…</div>
+    <div class="next" id="dlgNext">click / space — next</div>
   </div>
 </div>
 
@@ -392,6 +462,11 @@ const clothAccent = new THREE.MeshPhysicalMaterial({
 });
 const dressTrim = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
 const clothM = new THREE.MeshStandardMaterial({ color: 0x3a3048, roughness: 0.72 });
+const boyShirtMat = new THREE.MeshStandardMaterial({ color: 0x6a90c8, roughness: 0.55 });
+const boyTrouserMat = new THREE.MeshStandardMaterial({ color: 0x2a3148, roughness: 0.65 });
+const boyUnderMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.55 });
+const sockMat = new THREE.MeshStandardMaterial({ color: 0xfff5f8, roughness: 0.7 });
+const shoeMat = new THREE.MeshStandardMaterial({ color: 0xff8ec8, roughness: 0.45 });
 const nailMat = new THREE.MeshPhysicalMaterial({
   color: 0xff6aab, roughness: 0.22, metalness: 0.12,
   clearcoat: 0.65, clearcoatRoughness: 0.2,
@@ -417,17 +492,49 @@ function limb(len, r0, r1, mat, segs = 12) {
   return mesh(new THREE.CylinderGeometry(r1, r0, len, segs), mat);
 }
 
-/* ---------- anime girl head / hair (2D eyes on planes) ---------- */
-function drawAnimeEye(ctx, cx, cy, flip) {
+/* ---------- anime girl head / emotions (2D eyes + mouth) ---------- */
+const EMOTIONS = {
+  neutral: { brow: 0, eyeOpen: 1, sparkle: true, mouth: "soft", blush: 0.35 },
+  huh:     { brow: 0.35, eyeOpen: 1.25, sparkle: true, mouth: "o", blush: 0.25, lookY: -0.02 },
+  shy:     { brow: 0.15, eyeOpen: 0.85, sparkle: false, mouth: "small", blush: 0.7, lookX: 0.12 },
+  focus:   { brow: -0.1, eyeOpen: 0.9, sparkle: false, mouth: "line", blush: 0.2 },
+  happy:   { brow: 0.1, eyeOpen: 0.55, sparkle: true, mouth: "smile", blush: 0.45, crescent: true },
+  smug:    { brow: -0.2, eyeOpen: 0.7, sparkle: true, mouth: "smirk", blush: 0.35, lookX: -0.06 },
+  tease:   { brow: 0.05, eyeOpen: 0.75, sparkle: true, mouth: "tongue", blush: 0.5 },
+  aroused: { brow: 0.2, eyeOpen: 0.95, sparkle: true, mouth: "open", blush: 0.85, heart: true },
+  love:    { brow: 0.15, eyeOpen: 0.8, sparkle: true, mouth: "smile", blush: 0.75, heart: true },
+  talk:    { brow: 0, eyeOpen: 1, sparkle: true, mouth: "talk", blush: 0.4 },
+  aha:     { brow: 0.25, eyeOpen: 1.1, sparkle: true, mouth: "smile", blush: 0.4 },
+  naughty: { brow: -0.15, eyeOpen: 0.85, sparkle: true, mouth: "smirk", blush: 0.6, heart: true },
+};
+
+function drawAnimeEye(ctx, cx, cy, flip, emo = EMOTIONS.neutral) {
   ctx.save();
   ctx.translate(cx, cy);
   if (flip) ctx.scale(-1, 1);
+  const lookX = (emo.lookX || 0) * (flip ? -1 : 1);
+  const lookY = emo.lookY || 0;
+  const open = emo.eyeOpen ?? 1;
 
-  // sclera — large tall anime eye
+  if (emo.crescent) {
+    // happy closed-ish crescent eyes
+    ctx.beginPath();
+    ctx.moveTo(-48, 4);
+    ctx.quadraticCurveTo(0, -28 * open, 48, 4);
+    ctx.lineWidth = 7;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#1a1020";
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  const h = 40 * open;
+  // sclera
   ctx.beginPath();
   ctx.moveTo(-52, -4);
-  ctx.bezierCurveTo(-40, -58, 42, -58, 52, -6);
-  ctx.bezierCurveTo(44, 52, -40, 56, -52, -4);
+  ctx.bezierCurveTo(-40, -18 - h * 0.9, 42, -18 - h * 0.9, 52, -6);
+  ctx.bezierCurveTo(44, h * 1.1, -40, h * 1.15, -52, -4);
   ctx.closePath();
   ctx.fillStyle = "#ffffff";
   ctx.fill();
@@ -435,16 +542,16 @@ function drawAnimeEye(ctx, cx, cy, flip) {
   ctx.strokeStyle = "#1a1020";
   ctx.stroke();
 
-  // thick upper lash lid
+  // upper lash
   ctx.beginPath();
   ctx.moveTo(-54, -6);
-  ctx.bezierCurveTo(-38, -62, 44, -62, 56, -8);
-  ctx.bezierCurveTo(40, -28, -36, -26, -54, -6);
+  ctx.bezierCurveTo(-38, -22 - h, 44, -22 - h, 56, -8);
+  ctx.bezierCurveTo(40, -10 - h * 0.35, -36, -8 - h * 0.3, -54, -6);
   ctx.closePath();
   ctx.fillStyle = "#1a1020";
   ctx.fill();
 
-  // outer wing lash
+  // wing lash
   ctx.beginPath();
   ctx.moveTo(48, -12);
   ctx.quadraticCurveTo(72, -18, 82, -4);
@@ -453,50 +560,123 @@ function drawAnimeEye(ctx, cx, cy, flip) {
   ctx.fill();
 
   // iris
-  const ig = ctx.createRadialGradient(-4, 2, 4, 0, 6, 38);
-  ig.addColorStop(0, "#e8d4ff");
-  ig.addColorStop(0.3, "#a78bfa");
-  ig.addColorStop(0.7, "#6d28d9");
-  ig.addColorStop(1, "#2e1065");
-  ctx.beginPath();
-  ctx.ellipse(0, 6, 34, 40, 0, 0, Math.PI * 2);
-  ctx.fillStyle = ig;
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "#1a1020";
-  ctx.stroke();
+  const ix = lookX * 40, iy = 6 + lookY * 30;
+  if (emo.heart) {
+    ctx.fillStyle = "#ff5a9a";
+    ctx.beginPath();
+    const s = 22;
+    ctx.moveTo(ix, iy + s * 0.35);
+    ctx.bezierCurveTo(ix - s, iy - s * 0.2, ix - s * 0.6, iy - s, ix, iy - s * 0.45);
+    ctx.bezierCurveTo(ix + s * 0.6, iy - s, ix + s, iy - s * 0.2, ix, iy + s * 0.35);
+    ctx.fill();
+  } else {
+    const ig = ctx.createRadialGradient(ix - 4, iy - 4, 4, ix, iy, 38);
+    ig.addColorStop(0, "#e8d4ff");
+    ig.addColorStop(0.3, "#a78bfa");
+    ig.addColorStop(0.7, "#6d28d9");
+    ig.addColorStop(1, "#2e1065");
+    ctx.beginPath();
+    ctx.ellipse(ix, iy, 34, 36 * Math.min(1, open), 0, 0, Math.PI * 2);
+    ctx.fillStyle = ig;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#1a1020";
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(ix, iy + 4, 12, 16 * Math.min(1, open), 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#0f0618";
+    ctx.fill();
+  }
 
-  // pupil
-  ctx.beginPath();
-  ctx.ellipse(0, 10, 12, 18, 0, 0, Math.PI * 2);
-  ctx.fillStyle = "#0f0618";
-  ctx.fill();
+  if (emo.sparkle !== false) {
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(ix - 12, iy - 12, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ix + 12, iy + 12, 5, 0, Math.PI * 2); ctx.fill();
+  }
 
-  // sparkles
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath(); ctx.arc(-12, -8, 11, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(12, 16, 5, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(14, -4, 3.5, 0, Math.PI * 2); ctx.fill();
-
-  // lower lash
+  // brow
+  const browY = -52 - (emo.brow || 0) * 20;
   ctx.beginPath();
-  ctx.moveTo(-48, 8);
-  ctx.bezierCurveTo(-20, 54, 28, 52, 48, 10);
-  ctx.lineWidth = 4;
+  ctx.moveTo(-40, browY + 8);
+  ctx.quadraticCurveTo(0, browY - 10 + (emo.brow || 0) * 25, 42, browY + 2);
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
   ctx.strokeStyle = "#1a1020";
   ctx.stroke();
 
   ctx.restore();
 }
 
+function drawMouth(ctx, w, h, kind = "soft") {
+  ctx.clearRect(0, 0, w, h);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const cx = w / 2, cy = h / 2;
+  ctx.strokeStyle = "#2a1520";
+  ctx.fillStyle = "#2a1520";
+  if (kind === "o") {
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 2, 10, 12, 0, 0, Math.PI * 2);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.fillStyle = "#4a2030";
+    ctx.fill();
+  } else if (kind === "smile") {
+    ctx.beginPath();
+    ctx.moveTo(cx - 22, cy - 2);
+    ctx.quadraticCurveTo(cx, cy + 18, cx + 22, cy - 2);
+    ctx.lineWidth = 5;
+    ctx.stroke();
+  } else if (kind === "smirk") {
+    ctx.beginPath();
+    ctx.moveTo(cx - 16, cy + 2);
+    ctx.quadraticCurveTo(cx + 4, cy + 14, cx + 24, cy - 6);
+    ctx.lineWidth = 5;
+    ctx.stroke();
+  } else if (kind === "open" || kind === "talk") {
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 2, 14, kind === "talk" ? 10 : 13, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#5a2438";
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  } else if (kind === "tongue") {
+    ctx.beginPath();
+    ctx.moveTo(cx - 18, cy - 2);
+    ctx.quadraticCurveTo(cx, cy + 10, cx + 18, cy - 2);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(cx + 4, cy + 10, 8, 6, 0.2, 0, Math.PI * 2);
+    ctx.fillStyle = "#ff7a9a";
+    ctx.fill();
+  } else if (kind === "small") {
+    ctx.beginPath();
+    ctx.moveTo(cx - 10, cy);
+    ctx.quadraticCurveTo(cx, cy + 6, cx + 10, cy);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  } else if (kind === "line") {
+    ctx.beginPath();
+    ctx.moveTo(cx - 12, cy);
+    ctx.lineTo(cx + 12, cy);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(cx - 18, cy);
+    ctx.quadraticCurveTo(cx, cy + 10, cx + 18, cy);
+    ctx.lineWidth = 5;
+    ctx.stroke();
+  }
+}
+
 function makeAnimeHead() {
   const g = new THREE.Group();
 
-  // pale pointed anime head
   const head = mesh(new THREE.SphereGeometry(0.118, 32, 24), skinF);
   head.scale.set(0.92, 1.08, 0.88);
   g.add(head);
-  // sharp chin
   const chin = mesh(new THREE.SphereGeometry(0.055, 20, 14), skinF);
   chin.position.set(0, -0.095, 0.015);
   chin.scale.set(0.75, 0.7, 0.7);
@@ -506,28 +686,19 @@ function makeAnimeHead() {
   jaw.scale.set(0.88, 0.55, 0.8);
   g.add(jaw);
 
-  // === BIG flat 2D eyes (planes) — always visible over skin/hair ===
   const eyes = [];
+  const eyeCanvases = [];
   for (const sx of [-1, 1]) {
-    // draw one eye onto its own canvas so each plane is crisp
     const c = document.createElement("canvas");
     c.width = 256; c.height = 256;
-    const ctx = c.getContext("2d");
-    ctx.clearRect(0, 0, 256, 256);
-    drawAnimeEye(ctx, 128, 128, sx < 0);
+    eyeCanvases.push({ c, ctx: c.getContext("2d"), flip: sx < 0, sx });
     const eyeTex = new THREE.CanvasTexture(c);
     eyeTex.colorSpace = THREE.SRGBColorSpace;
     eyeTex.needsUpdate = true;
-
     const eyeMat = new THREE.MeshBasicMaterial({
-      map: eyeTex,
-      transparent: true,
-      depthTest: false,   // never hide behind bangs / cheek
-      depthWrite: false,
-      side: THREE.FrontSide,
-      alphaTest: 0.05
+      map: eyeTex, transparent: true, depthTest: false, depthWrite: false,
+      side: THREE.FrontSide, alphaTest: 0.05
     });
-    // Large card — readable even from a 3/4 side camera
     const eye = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.095), eyeMat);
     eye.position.set(sx * 0.042, 0.028, 0.125);
     eye.rotation.y = sx * -0.35;
@@ -537,30 +708,14 @@ function makeAnimeHead() {
     eyes.push(eye);
   }
   g.userData.eyes = eyes;
+  g.userData.eyeCanvases = eyeCanvases;
 
-  // Soft brows above eyes
-  for (const sx of [-1, 1]) {
-    const brow = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.055, 0.012),
-      new THREE.MeshBasicMaterial({
-        color: 0x1a1020, transparent: true, opacity: 0.9,
-        depthTest: false, depthWrite: false, side: THREE.DoubleSide
-      })
-    );
-    brow.position.set(sx * 0.042, 0.072, 0.122);
-    brow.rotation.y = sx * -0.25;
-    brow.rotation.z = sx * -0.18;
-    brow.renderOrder = 10;
-    g.add(brow);
-  }
-
-  // blush pulse discs (in front of cheeks)
   g.userData.blush = [];
   for (const sx of [-1, 1]) {
     const bl = new THREE.Mesh(
       new THREE.CircleGeometry(0.03, 16),
       new THREE.MeshBasicMaterial({
-        color: 0xff7aa8, transparent: true, opacity: 0.4,
+        color: 0xff7aa8, transparent: true, opacity: 0.35,
         depthTest: false, depthWrite: false, side: THREE.DoubleSide
       })
     );
@@ -570,24 +725,14 @@ function makeAnimeHead() {
     g.userData.blush.push(bl);
   }
 
-  // tiny mouth line on a plane
   const mouthC = document.createElement("canvas");
   mouthC.width = 128; mouthC.height = 64;
-  {
-    const ctx = mouthC.getContext("2d");
-    ctx.clearRect(0, 0, 128, 64);
-    ctx.strokeStyle = "#2a1520";
-    ctx.lineWidth = 6;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(28, 28);
-    ctx.quadraticCurveTo(64, 48, 100, 28);
-    ctx.stroke();
-  }
+  const mouthCtx = mouthC.getContext("2d");
+  drawMouth(mouthCtx, 128, 64, "soft");
   const mouthTex = new THREE.CanvasTexture(mouthC);
   mouthTex.colorSpace = THREE.SRGBColorSpace;
   const mouth = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.04, 0.02),
+    new THREE.PlaneGeometry(0.045, 0.025),
     new THREE.MeshBasicMaterial({
       map: mouthTex, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide
     })
@@ -596,6 +741,22 @@ function makeAnimeHead() {
   mouth.renderOrder = 10;
   g.add(mouth);
   g.userData.mouth = mouth;
+  g.userData.mouthCanvas = { c: mouthC, ctx: mouthCtx, tex: mouthTex };
+
+  g.userData.emotion = "neutral";
+  g.userData.setEmotion = (name) => {
+    const emo = EMOTIONS[name] || EMOTIONS.neutral;
+    g.userData.emotion = name;
+    eyeCanvases.forEach((ec, i) => {
+      ec.ctx.clearRect(0, 0, 256, 256);
+      drawAnimeEye(ec.ctx, 128, 128, ec.flip, emo);
+      eyes[i].material.map.needsUpdate = true;
+    });
+    drawMouth(mouthCtx, 128, 64, emo.mouth || "soft");
+    mouthTex.needsUpdate = true;
+    g.userData.blush.forEach(b => { b.material.opacity = emo.blush ?? 0.35; });
+  };
+  g.userData.setEmotion("neutral");
 
   return g;
 }
@@ -752,6 +913,30 @@ function makeFoot(mat, side = 1) {
   });
 
   g.userData.soleOffsetY = -0.01;
+
+  // Socks + shoes (toggleable for story → barefoot)
+  const footwear = new THREE.Group();
+  footwear.name = "footwear";
+  const sock = mesh(new THREE.SphereGeometry(0.045, 14, 10), sockMat);
+  sock.position.set(0, 0.012, 0.02);
+  sock.scale.set(1.05, 0.7, 1.55);
+  footwear.add(sock);
+  const sockCuff = mesh(new THREE.TorusGeometry(0.028, 0.008, 8, 16), sockMat);
+  sockCuff.rotation.x = Math.PI / 2;
+  sockCuff.position.set(0, 0.045, -0.04);
+  footwear.add(sockCuff);
+  const shoe = mesh(new THREE.SphereGeometry(0.048, 14, 10), shoeMat);
+  shoe.position.set(0, 0.002, 0.03);
+  shoe.scale.set(1.15, 0.55, 1.7);
+  footwear.add(shoe);
+  const shoeToe = mesh(new THREE.SphereGeometry(0.03, 12, 8), shoeMat);
+  shoeToe.position.set(0, 0.0, 0.1);
+  shoeToe.scale.set(1.2, 0.55, 1.0);
+  footwear.add(shoeToe);
+  footwear.visible = false; // freeplay starts barefoot
+  g.add(footwear);
+  g.userData.footwear = footwear;
+
   return g;
 }
 
@@ -960,6 +1145,7 @@ function makeBoy() {
     shoulder.rotation.z = side * 1.1; shoulder.rotation.x = -0.3; elbow.rotation.x = -0.4;
   }
 
+  const legParts = [];
   for (const side of [-1, 1]) {
     const hip = new THREE.Group();
     hip.position.set(side * 0.09, -0.04, 0); hips.add(hip);
@@ -969,10 +1155,50 @@ function makeBoy() {
     const ankle = new THREE.Group(); ankle.position.y = -0.28; knee.add(ankle);
     const foot = makeFoot(skinM, side); foot.rotation.x = -Math.PI / 2; ankle.add(foot);
     hip.rotation.z = side * 0.55; hip.rotation.x = -0.35; knee.rotation.x = 0.85;
+    legParts.push({ hip, knee, thigh, calf });
   }
+
+  // --- Full clothes (story) ---
+  const shirt = new THREE.Group();
+  const shirtBody = mesh(new THREE.CapsuleGeometry(0.14, 0.28, 8, 16), boyShirtMat);
+  shirtBody.position.set(0, 0.12, 0);
+  shirt.add(shirtBody);
+  const collar = mesh(new THREE.TorusGeometry(0.06, 0.012, 8, 20), boyShirtMat);
+  collar.rotation.x = Math.PI / 2; collar.position.set(0, 0.28, 0.02); shirt.add(collar);
+  for (const sx of [-1, 1]) {
+    const sl = mesh(new THREE.SphereGeometry(0.055, 12, 10), boyShirtMat);
+    sl.position.set(sx * 0.15, 0.2, 0); sl.scale.set(0.9, 0.7, 0.9); shirt.add(sl);
+  }
+  torso.add(shirt);
+
+  const trousers = new THREE.Group();
+  const trouserWaist = mesh(new THREE.SphereGeometry(0.145, 20, 14), boyTrouserMat);
+  trouserWaist.scale.set(1.15, 0.55, 1.05); trouserWaist.position.set(0, -0.01, 0);
+  trousers.add(trouserWaist);
+  for (const sx of [-1, 1]) {
+    const leg = mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.42, 14), boyTrouserMat);
+    leg.position.set(sx * 0.08, -0.22, 0.02);
+    trousers.add(leg);
+  }
+  // crotch cover / bulge under trousers
+  const crotchCover = mesh(new THREE.SphereGeometry(0.07, 14, 12), boyTrouserMat);
+  crotchCover.position.set(0, 0.0, 0.1); crotchCover.scale.set(1.1, 0.7, 1.3);
+  trousers.add(crotchCover);
+  hips.add(trousers);
+
+  const underwear = new THREE.Group();
+  const brief = mesh(new THREE.SphereGeometry(0.1, 16, 12), boyUnderMat);
+  brief.scale.set(1.2, 0.45, 1.05); brief.position.set(0, 0.0, 0.02);
+  underwear.add(brief);
+  const bulge = mesh(new THREE.SphereGeometry(0.055, 14, 12), boyUnderMat);
+  bulge.position.set(0, 0.01, 0.11); bulge.scale.set(1.0, 0.75, 1.4);
+  underwear.add(bulge);
+  underwear.visible = false;
+  hips.add(underwear);
 
   const shorts = mesh(new THREE.TorusGeometry(0.14, 0.035, 10, 24), clothM);
   shorts.rotation.x = Math.PI / 2; shorts.position.set(0, -0.02, -0.05); hips.add(shorts);
+  shorts.visible = false; // freeplay can keep shorts off; gen exposed by default
 
   const gen = new THREE.Group(); gen.position.set(0, 0.02, 0.12); hips.add(gen);
   const SHAFT_R = 0.038;
@@ -989,13 +1215,86 @@ function makeBoy() {
   const shaftBase = new THREE.Object3D(); shaftBase.position.set(0, 0, 0.015); gen.add(shaftBase);
   const shaftTip = new THREE.Object3D(); shaftTip.position.set(0, 0, 0.205); gen.add(shaftTip);
 
-  root.userData = { hips, torso, head, gen, shaft, headG, shaftBase, shaftTip, SHAFT_R };
+  // Default freeplay: casual shorts, gen visible
+  shirt.visible = false;
+  trousers.visible = false;
+  underwear.visible = false;
+  gen.visible = true;
+  shorts.visible = true;
+
+  root.userData = {
+    hips, torso, head, gen, shaft, headG, shaftBase, shaftTip, SHAFT_R,
+    shirt, trousers, underwear, shorts, crotchCover, bulge,
+    setClothes(state) {
+      // state: "full" | "underwear" | "nude" | "freeplay"
+      if (state === "full") {
+        shirt.visible = true; trousers.visible = true; underwear.visible = false;
+        gen.visible = false; shorts.visible = false;
+      } else if (state === "underwear") {
+        shirt.visible = true; trousers.visible = false; underwear.visible = true;
+        gen.visible = false; shorts.visible = false;
+        // protruding bulge
+        bulge.scale.set(1.15, 0.9, 1.7);
+      } else if (state === "nude") {
+        shirt.visible = true; trousers.visible = false; underwear.visible = false;
+        gen.visible = true; shorts.visible = false;
+      } else {
+        shirt.visible = false; trousers.visible = false; underwear.visible = false;
+        gen.visible = true; shorts.visible = true;
+      }
+    }
+  };
   return root;
 }
 
 const girl = makeGirl();
 const boy = makeBoy();
 scene.add(girl); scene.add(boy);
+
+/* ---------- bedroom set (after materials exist) ---------- */
+const bedroom = new THREE.Group();
+bedroom.visible = false;
+scene.add(bedroom);
+{
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x3a2440, roughness: 0.9 });
+  const wallMat2 = new THREE.MeshStandardMaterial({ color: 0x2e1a36, roughness: 0.92 });
+  const back = mesh(new THREE.PlaneGeometry(4.2, 2.4), wallMat, false, true);
+  back.position.set(0, 1.2, -1.35); bedroom.add(back);
+  const side = mesh(new THREE.PlaneGeometry(3.2, 2.4), wallMat2, false, true);
+  side.rotation.y = Math.PI / 2; side.position.set(-1.8, 1.2, 0.1); bedroom.add(side);
+  const win = mesh(new THREE.PlaneGeometry(0.9, 0.7), new THREE.MeshBasicMaterial({ color: 0xffc8e8 }), false, false);
+  win.position.set(0.6, 1.45, -1.34); bedroom.add(win);
+  for (const x of [0.1, 1.1]) {
+    const curtain = mesh(new THREE.PlaneGeometry(0.25, 0.85), clothAccent, false, false);
+    curtain.position.set(x, 1.4, -1.33); bedroom.add(curtain);
+  }
+  const frame = mesh(new THREE.BoxGeometry(1.7, 0.18, 2.2), new THREE.MeshStandardMaterial({ color: 0x6a4058, roughness: 0.7 }));
+  frame.position.set(0, 0.18, 0.05); bedroom.add(frame);
+  const mattress = mesh(new THREE.BoxGeometry(1.55, 0.14, 2.0), new THREE.MeshStandardMaterial({ color: 0xffe0ee, roughness: 0.85 }));
+  mattress.position.set(0, 0.32, 0.05); bedroom.add(mattress);
+  const headboard = mesh(new THREE.BoxGeometry(1.7, 0.7, 0.1), new THREE.MeshStandardMaterial({ color: 0x5a3550, roughness: 0.65 }));
+  headboard.position.set(0, 0.65, -0.95); bedroom.add(headboard);
+  for (const sx of [-1, 1]) {
+    const pillow = mesh(new THREE.SphereGeometry(0.18, 16, 12), new THREE.MeshStandardMaterial({ color: 0xfff5fa, roughness: 0.8 }));
+    pillow.scale.set(1.4, 0.45, 1.0);
+    pillow.position.set(sx * 0.28, 0.48, -0.55);
+    bedroom.add(pillow);
+  }
+  const desk = mesh(new THREE.BoxGeometry(0.7, 0.06, 0.4), new THREE.MeshStandardMaterial({ color: 0x8a6048, roughness: 0.6 }));
+  desk.position.set(-1.1, 0.55, 0.7); bedroom.add(desk);
+  for (const sx of [-1, 1]) {
+    for (const z of [0.12, -0.12]) {
+      const leg = mesh(new THREE.BoxGeometry(0.05, 0.5, 0.05), new THREE.MeshStandardMaterial({ color: 0x6a4838, roughness: 0.7 }));
+      leg.position.set(-1.1 + sx * 0.28, 0.28, 0.7 + z); bedroom.add(leg);
+    }
+  }
+  const book = mesh(new THREE.BoxGeometry(0.22, 0.03, 0.28), boyShirtMat);
+  book.position.set(-1.05, 0.6, 0.7); bedroom.add(book);
+  const lamp = mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.2, 12), new THREE.MeshStandardMaterial({ color: 0xf0e0c0, roughness: 0.4 }));
+  lamp.position.set(-0.85, 0.68, 0.55); bedroom.add(lamp);
+  const lampLight = new THREE.PointLight(0xffd0a0, 0.55, 4);
+  lampLight.position.set(-0.85, 0.85, 0.55); bedroom.add(lampLight);
+}
 
 // Contact targets live on the shaft; feet stay parented to ankles (never detach)
 const strokeRig = new THREE.Group();
@@ -1431,12 +1730,18 @@ function placeFeet(dt) {
   }
 
   const react = stim.arousal * 0.08 + stim.twitch * 0.12;
-  girl.userData.torso.rotation.x = 0.32 + Math.sin(stim.phase) * 0.05 + react;
-  girl.userData.head.rotation.y = -0.18 + Math.sin(performance.now() * 0.0012) * 0.08;
-  girl.userData.head.rotation.x = -0.05 + stim.arousal * 0.12 + (toeMilk ? 0.08 : 0);
-  girl.userData.head.rotation.z = Math.sin(stim.phase * 1.5) * 0.04 * stim.arousal;
-  const blushOp = 0.35 + stim.arousal * 0.5 + (toeMilk ? 0.15 : 0);
-  girl.userData.head.userData.blush?.forEach(b => { b.material.opacity = blushOp; });
+  if (!(story.active && story.poseLock)) {
+    girl.userData.torso.rotation.x = 0.32 + Math.sin(stim.phase) * 0.05 + react;
+    girl.userData.head.rotation.y = story.headYaw + Math.sin(performance.now() * 0.0012) * 0.08;
+    girl.userData.head.rotation.x = -0.05 + stim.arousal * 0.12 + (toeMilk ? 0.08 : 0);
+    girl.userData.head.rotation.z = Math.sin(stim.phase * 1.5) * 0.04 * stim.arousal;
+  }
+  // Don't override story emotion blush unless freeplay / play phase
+  if (!story.active || story.phase === "play" || story.phase === "clothed_rub") {
+    const base = EMOTIONS[girl.userData.head.userData.emotion]?.blush ?? 0.35;
+    const blushOp = Math.max(base, 0.35 + stim.arousal * 0.5 + (toeMilk ? 0.15 : 0));
+    girl.userData.head.userData.blush?.forEach(b => { b.material.opacity = blushOp; });
+  }
   if (girl.userData.head.userData.mouth) {
     const m = girl.userData.head.userData.mouth;
     m.scale.set(1 + stim.arousal * 0.15, 1 + stim.twitch * 0.25, 1);
@@ -1562,7 +1867,8 @@ function updateSolver(dt) {
     if (d.life <= 0) { scene.remove(d.mesh); stim.droplets.splice(i, 1); }
   }
 
-  placeFeet(dt);
+  if (!(story.active && story.poseLock)) placeFeet(dt);
+  updateStory(dt);
 
   const p = Math.round(stim.arousal * 100);
   ui.bar.style.width = p + "%";
@@ -1608,6 +1914,362 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
+/* ========== STORY MODE ========== */
+const dlgEl = document.getElementById("dialogue");
+const dlgWho = document.getElementById("dlgWho");
+const dlgLine = document.getElementById("dlgLine");
+const storyBtn = document.getElementById("storyBtn");
+
+const story = {
+  active: false,
+  idx: 0,
+  phase: "cutscene", // cutscene | clothed_rub | undress | play
+  talkT: 0,
+  talkIdx: 0,
+  poseLock: false,
+  headYaw: -0.18,
+};
+
+function setFootwear(on) {
+  for (const side of ["L", "R"]) {
+    const fw = girl.userData.legs[side].foot.userData.footwear;
+    if (fw) fw.visible = !!on;
+  }
+}
+
+function setEmotion(name) {
+  girl.userData.head.userData.setEmotion?.(name);
+}
+
+function showDialogue(who, line) {
+  dlgEl.classList.add("show");
+  dlgWho.textContent = who;
+  dlgWho.className = "who " + (who === "Boy" ? "boy" : who === "…" ? "narr" : "");
+  dlgLine.textContent = line;
+}
+
+function hideDialogue() {
+  dlgEl.classList.remove("show");
+}
+
+function poseGirlLying() {
+  girl.userData.hips.position.set(0.0, 0.48, 0.15);
+  girl.userData.hips.rotation.set(1.15, Math.PI * 0.5, 0);
+  girl.userData.torso.rotation.set(0.15, 0, 0);
+  girl.userData.head.rotation.set(0.1, 0.6, 0);
+  story.headYaw = 0.6;
+  girl.userData.arms.L.shoulder.rotation.set(-0.3, 0.2, -0.8);
+  girl.userData.arms.R.shoulder.rotation.set(-0.3, -0.2, 0.8);
+  for (const side of ["L", "R"]) {
+    const leg = girl.userData.legs[side];
+    leg.hip.rotation.set(-0.2, 0, side === "L" ? 0.15 : -0.15);
+    leg.knee.rotation.set(0.4, 0, 0);
+  }
+}
+
+function poseGirlSitHomework() {
+  girl.userData.hips.position.set(-0.85, 0.42, 0.55);
+  girl.userData.hips.rotation.set(0.1, Math.PI * 0.15, 0);
+  girl.userData.torso.rotation.set(0.25, 0, 0);
+  girl.userData.head.rotation.set(-0.15, -0.2, 0);
+  story.headYaw = -0.2;
+  girl.userData.arms.L.shoulder.rotation.set(-0.9, 0.1, -0.3);
+  girl.userData.arms.R.shoulder.rotation.set(-1.0, -0.1, 0.35);
+}
+
+function poseBoyStanding(x = -0.4, z = 1.1) {
+  boy.position.set(x, 0, z);
+  boy.userData.hips.position.set(0, 0.95, 0);
+  boy.userData.hips.rotation.set(0, Math.PI, 0);
+  // straighten legs for standing
+  boy.traverse?.(() => {});
+}
+
+function poseBoyOnBed() {
+  boy.position.set(0, 0, 0);
+  boy.userData.hips.position.set(0, 0.42, 0.05);
+  boy.userData.hips.rotation.set(-Math.PI / 2 + 0.05, 0, 0);
+}
+
+function poseGirlFootjob() {
+  girl.userData.hips.position.set(0.0, 0.52, 0.50);
+  girl.userData.hips.rotation.set(0.12, Math.PI * 0.82, 0);
+  girl.userData.torso.rotation.set(0.28, 0, 0);
+  girl.userData.head.rotation.set(-0.05, -0.15, 0);
+  story.headYaw = -0.15;
+  girl.userData.arms.L.shoulder.rotation.set(-0.75, 0.25, -1.05);
+  girl.userData.arms.R.shoulder.rotation.set(-0.75, -0.25, 1.05);
+}
+
+const STORY_BEATS = [
+  {
+    who: "…", line: "Afternoon light fills her bedroom. She’s still in her school shirt-dress, shoes on, scrolling on the bed.",
+    emotion: "neutral",
+    enter() {
+      bedroom.visible = true; sheet.visible = false;
+      setFootwear(true);
+      boy.userData.setClothes("full");
+      boy.visible = false;
+      poseGirlLying();
+      story.poseLock = true;
+      camera.position.set(1.6, 1.1, 1.2);
+      controls.target.set(0.1, 0.7, 0.1);
+    }
+  },
+  {
+    who: "…", line: "Knock— the door opens. He steps in, fully dressed, notebook in hand.",
+    emotion: "neutral",
+    enter() {
+      boy.visible = true;
+      poseBoyStanding(-0.55, 1.35);
+      camera.position.set(1.4, 1.15, 1.5);
+    }
+  },
+  {
+    who: "Girl", line: "Huh…? You scared me.",
+    emotion: "huh",
+    enter() {
+      // turn head toward him
+      story.headYaw = -0.55;
+      girl.userData.head.rotation.y = -0.55;
+      girl.userData.head.rotation.x = 0.05;
+    }
+  },
+  {
+    who: "Boy", line: "Sorry— can you help me with homework? I’m stuck on the last page.",
+    emotion: "huh",
+    enter() {}
+  },
+  {
+    who: "Girl", line: "Homework…? Fine. Sit. Don’t make a mess.",
+    emotion: "shy",
+    enter() {
+      poseGirlSitHomework();
+      poseBoyStanding(-0.55, 0.95);
+      camera.position.set(0.4, 1.2, 1.8);
+      controls.target.set(-0.7, 0.7, 0.6);
+    }
+  },
+  {
+    who: "…", line: "Pens scratch. Pages turn. She leans in, focused… then the last problem clicks.",
+    emotion: "focus",
+    enter() {
+      setEmotion("focus");
+    }
+  },
+  {
+    who: "Girl", line: "There. Done. You’re welcome~",
+    emotion: "aha",
+    enter() {}
+  },
+  {
+    who: "Girl", line: "Reward time. On the bed. Now.",
+    emotion: "smug",
+    enter() {
+      poseBoyOnBed();
+      poseGirlFootjob();
+      camera.position.set(1.35, 1.05, -0.15);
+      controls.target.set(0.02, 0.88, 0.35);
+    }
+  },
+  {
+    who: "Girl", line: "I’m keeping the dress… but these shoes and socks are coming off.",
+    emotion: "tease",
+    enter() {
+      setFootwear(false);
+    }
+  },
+  {
+    who: "Girl", line: "Bare feet on your trousers first. Just… get comfortable.",
+    emotion: "shy",
+    enter() {
+      story.phase = "clothed_rub";
+      story.poseLock = false;
+      stim.auto = true; stim.arousal = 0.05; stim.technique = "stroke";
+      boy.userData.setClothes("full");
+      document.body.classList.add("story-playing");
+      ui.controls.classList.add("story-live");
+    }
+  },
+  {
+    who: "Girl", line: "You’re twitching through the fabric… almost there.",
+    emotion: "tease",
+    enter() {
+      // wait until high arousal in update — this beat is reached via advance when ready
+    }
+  },
+  {
+    who: "Girl", line: "Trousers— off. Toes hooked in the waistband… there.",
+    emotion: "naughty",
+    enter() {
+      boy.userData.setClothes("underwear");
+      story.phase = "undress";
+    }
+  },
+  {
+    who: "Girl", line: "Mmm… your underwear’s sticking out. I’ll roll it with my soles~",
+    emotion: "aroused",
+    enter() {
+      boy.userData.bulge.scale.set(1.35, 1.05, 2.0);
+    }
+  },
+  {
+    who: "Girl", line: "Toes under the band… and— got it. Only you now.",
+    emotion: "happy",
+    enter() {
+      boy.userData.setClothes("nude");
+      story.phase = "play";
+      stim.arousal = Math.max(stim.arousal, 0.55);
+    }
+  },
+  {
+    who: "Girl", line: "Hehe… you look so cute like this. I’ll take care of you with my feet.",
+    emotion: "love",
+    enter() {
+      story.phase = "play";
+      story.talkIdx = 0;
+      story.talkT = 0;
+      ui.hint.textContent = "Story play — she talks while footjobbing";
+      ui.hint.classList.add("hot");
+    }
+  },
+];
+
+const PLAY_LINES = [
+  { e: "happy", t: "Does that feel good? Tell me with your hips~" },
+  { e: "tease", t: "Soft soles… squeeze… slower… faster— your choice." },
+  { e: "smug", t: "You’re leaking already? Greedy." },
+  { e: "aroused", t: "Ahh… the heat on my arches…" },
+  { e: "love", t: "I’ve got you. Just let go when you’re ready." },
+  { e: "naughty", t: "Toes around the tip— like this?" },
+  { e: "talk", t: "Homework was boring. This is way better." },
+  { e: "happy", t: "Hehe~ look at you melting under my feet." },
+];
+
+function applyBeat(i) {
+  const b = STORY_BEATS[i];
+  if (!b) return;
+  story.idx = i;
+  setEmotion(b.emotion);
+  showDialogue(b.who, b.line);
+  b.enter?.();
+}
+
+function storyNext() {
+  if (!story.active) return;
+  // during clothed_rub, block advance until arousal high enough (unless last lines of undress)
+  if (story.phase === "clothed_rub" && story.idx === 9 && stim.arousal < 0.72) {
+    showDialogue("Girl", "Not yet… keep rubbing. Almost max~");
+    setEmotion("tease");
+    return;
+  }
+  if (story.idx >= STORY_BEATS.length - 1) {
+    // stay in play with rotating lines
+    story.phase = "play";
+    const line = PLAY_LINES[story.talkIdx % PLAY_LINES.length];
+    story.talkIdx++;
+    setEmotion(line.e);
+    showDialogue("Girl", line.t);
+    return;
+  }
+  applyBeat(story.idx + 1);
+}
+
+function startStory() {
+  story.active = true;
+  story.idx = 0;
+  story.phase = "cutscene";
+  story.poseLock = true;
+  story.talkIdx = 0;
+  stim.arousal = 0; stim.climax = false; stim.climaxCount = 0;
+  stim.neverStop = false; stim.technique = "stroke"; stim.sensitivity = 1;
+  stim.auto = false;
+  storyBtn.classList.add("active");
+  document.body.classList.add("story-playing");
+  ui.controls.classList.remove("story-live");
+  applyBeat(0);
+}
+
+function endStoryToFreeplay() {
+  story.active = false;
+  story.phase = "cutscene";
+  story.poseLock = false;
+  bedroom.visible = false;
+  sheet.visible = true;
+  boy.visible = true;
+  boy.position.set(0, 0, 0);
+  boy.userData.setClothes("freeplay");
+  setFootwear(false);
+  setEmotion("neutral");
+  hideDialogue();
+  poseGirlFootjob();
+  poseBoyOnBed();
+  storyBtn.classList.remove("active");
+  document.body.classList.remove("story-playing");
+  ui.controls.classList.remove("story-live");
+  stim.auto = true;
+}
+
+storyBtn.onclick = (e) => {
+  e.stopPropagation();
+  if (story.active) {
+    endStoryToFreeplay();
+    ui.hint.textContent = "Story ended — freeplay";
+  } else {
+    startStory();
+  }
+};
+
+dlgEl.onclick = (e) => { e.stopPropagation(); storyNext(); };
+window.addEventListener("keydown", (e) => {
+  if (!story.active) return;
+  if (e.code === "Space" || e.code === "Enter") {
+    e.preventDefault();
+    storyNext();
+  }
+});
+
+function updateStory(dt) {
+  if (!story.active) return;
+  if (story.poseLock) {
+    girl.userData.head.rotation.y = THREE.MathUtils.lerp(
+      girl.userData.head.rotation.y, story.headYaw, Math.min(1, dt * 3)
+    );
+  }
+  // auto-nudge clothed rub arousal a bit so story progresses
+  if (story.phase === "clothed_rub") {
+    stim.auto = true;
+    // slower build through fabric
+    if (stim.arousal > 0.72 && story.idx === 9) {
+      // flash hint
+      dlgNextHint("ready — click to pull trousers");
+    }
+  }
+  if (story.phase === "play") {
+    story.talkT += dt;
+    if (story.talkT > 5.5) {
+      story.talkT = 0;
+      const line = PLAY_LINES[story.talkIdx % PLAY_LINES.length];
+      story.talkIdx++;
+      setEmotion(line.e);
+      showDialogue("Girl", line.t);
+      // brief talk mouth
+      setTimeout(() => {
+        if (story.active && story.phase === "play") setEmotion(line.e);
+      }, 400);
+    }
+    // map arousal to emotion if not mid-line
+    if (stim.arousal > 0.9 && girl.userData.head.userData.emotion !== "aroused") {
+      // keep play lines driving emotion mostly
+    }
+  }
+}
+
+function dlgNextHint(t) {
+  const n = document.getElementById("dlgNext");
+  if (n) n.textContent = t;
+}
 
 document.getElementById("load").classList.add("hide");
 setTimeout(() => document.getElementById("load")?.remove(), 450);
