@@ -8,8 +8,8 @@
   @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
   :root {
     --bg: #1a1020;
-    --panel: rgba(36, 18, 40, 0.82);
-    --line: rgba(255, 140, 190, 0.28);
+    --panel: rgba(28, 14, 32, 0.55);
+    --line: rgba(255, 140, 190, 0.22);
     --text: #ffeaf2;
     --muted: #c49aaf;
     --accent: #ff8ec8;
@@ -24,107 +24,169 @@
     touch-action: none;
   }
   canvas#view { display: block; width: 100%; height: 100%; }
-  #ui { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
-  .panel {
+  #ui {
+    position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    /* keep center clear — chrome only hugs edges */
+  }
+  .chip, .dock, .stats {
     pointer-events: auto;
     background: var(--panel);
     border: 1px solid var(--line);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-radius: 16px;
-    padding: 14px 16px;
-    box-shadow: 0 18px 50px rgba(40, 0, 30, .45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(20, 0, 16, .35);
   }
-  #title { position: absolute; left: 18px; top: 16px; max-width: min(360px, calc(100vw - 36px)); }
+  /* minimal title — no long blurb */
+  #title {
+    position: absolute; left: 12px; top: 12px;
+    padding: 7px 12px;
+    max-width: min(240px, 55vw);
+  }
   #title h1 {
-    font-size: 16px; font-weight: 800; letter-spacing: 0.06em;
+    font-size: 12px; font-weight: 800; letter-spacing: 0.05em;
     background: linear-gradient(90deg, #ff9ad5, #ffd6ea, #ffe08a);
     -webkit-background-clip: text; background-clip: text; color: transparent;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  #title p { margin-top: 6px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+  /* compact stats — top right, narrow */
   #telemetry {
-    position: absolute; right: 18px; top: 16px;
-    width: min(280px, calc(100vw - 36px));
-    font-family: "IBM Plex Mono", monospace; font-size: 11px;
+    position: absolute; right: 12px; top: 12px;
+    width: 148px;
+    padding: 8px 10px;
+    font-family: "IBM Plex Mono", monospace; font-size: 10px;
+    transition: opacity .2s, transform .2s;
   }
+  #telemetry.hidden { opacity: 0; pointer-events: none; transform: translateY(-6px); }
   #telemetry .h {
-    color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase;
-    margin-bottom: 8px; font-size: 10px; font-family: "M PLUS Rounded 1c", sans-serif;
+    color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 4px; font-size: 9px; font-family: "M PLUS Rounded 1c", sans-serif;
+    display: flex; justify-content: space-between; align-items: center;
   }
-  .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; color: var(--muted); }
+  .row { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; color: var(--muted); }
   .row b { color: var(--text); font-weight: 500; }
+
+  /* slim bottom dock — doesn't cover the action */
   #controls {
-    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
-    width: min(540px, calc(100vw - 24px));
+    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+    width: min(420px, calc(100vw - 16px));
+    padding: 8px 10px 9px;
+  }
+  .dock-top {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .meters {
+    flex: 1; min-width: 0;
+    display: grid; gap: 4px;
   }
   .meter-label {
     display: flex; justify-content: space-between;
-    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 6px;
+    font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted); line-height: 1;
   }
   .meter {
-    height: 10px; border-radius: 999px;
-    background: rgba(255,255,255,.08); overflow: hidden; margin-bottom: 8px;
+    height: 6px; border-radius: 999px;
+    background: rgba(255,255,255,.08); overflow: hidden;
   }
   .meter > i {
     display: block; height: 100%; width: 0%;
     background: linear-gradient(90deg, #ff9ad5, #ff4d8d 55%, #ffe066);
-    box-shadow: 0 0 14px rgba(255, 100, 160, .45);
   }
   .meter.sense > i {
     background: linear-gradient(90deg, #ffe066, #ff4d8d, #ff9ad5);
   }
-  .btns { display: flex; flex-wrap: wrap; gap: 8px; }
-  button {
+  .dock-actions {
+    display: flex; flex-shrink: 0; gap: 4px;
+  }
+  button, .icon-btn {
     appearance: none; border: 1px solid var(--line);
     background: rgba(255,255,255,.06); color: var(--text);
-    border-radius: 999px; padding: 9px 14px;
-    font: 700 12px/1 "M PLUS Rounded 1c", sans-serif;
-    letter-spacing: 0.04em; cursor: pointer; pointer-events: auto;
+    border-radius: 999px; padding: 6px 10px;
+    font: 700 11px/1 "M PLUS Rounded 1c", sans-serif;
+    letter-spacing: 0.03em; cursor: pointer; pointer-events: auto;
   }
-  button:hover { background: rgba(255,255,255,.12); }
-  button.active { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 16px rgba(255,142,200,.25); }
+  .icon-btn {
+    width: 28px; height: 28px; padding: 0;
+    display: grid; place-items: center; font-size: 13px;
+    border-radius: 8px;
+  }
+  button:hover, .icon-btn:hover { background: rgba(255,255,255,.12); }
+  button.active { border-color: var(--accent); color: var(--accent); }
   button#overstim.active {
     border-color: var(--over); color: var(--over);
     background: rgba(255, 224, 102, .12);
     animation: pulse 0.9s ease-in-out infinite;
   }
   @keyframes pulse {
-    0%, 100% { box-shadow: 0 0 10px rgba(255,224,102,.2); }
-    50% { box-shadow: 0 0 22px rgba(255,77,141,.55); }
+    0%, 100% { box-shadow: 0 0 8px rgba(255,224,102,.15); }
+    50% { box-shadow: 0 0 16px rgba(255,77,141,.4); }
   }
+  .btns {
+    display: flex; flex-wrap: wrap; gap: 5px;
+    margin-top: 7px;
+  }
+  .btns button { flex: 1 1 auto; min-width: 0; padding: 7px 8px; font-size: 11px; }
+
+  /* sliders live in a drawer — closed by default so view stays open */
+  #more {
+    display: none;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  #controls.open #more { display: block; }
+  #controls.open #toggleMore { color: var(--accent); border-color: var(--accent); }
   .sliders {
     display: grid; grid-template-columns: 1fr 1fr;
-    gap: 10px 14px; margin: 10px 0 12px;
+    gap: 6px 10px;
   }
   .sliders label {
-    display: grid; gap: 4px; font-size: 11px; color: var(--muted);
-    letter-spacing: 0.06em; text-transform: uppercase;
+    display: grid; gap: 2px; font-size: 9px; color: var(--muted);
+    letter-spacing: 0.05em; text-transform: uppercase;
   }
-  input[type=range] { width: 100%; accent-color: var(--accent); }
-  #hint { margin-top: 8px; text-align: center; font-size: 12px; color: var(--muted); }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 16px; }
+
+  #hint {
+    margin-top: 6px; text-align: center;
+    font-size: 10px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   #hint.hot { color: var(--hot); font-weight: 700; }
+
+  /* corner toggles — top-right under title row, away from the action */
+  #chromeToggles {
+    position: absolute; right: 12px; top: 12px;
+    display: flex; gap: 4px; pointer-events: auto;
+    z-index: 6;
+  }
+  #telemetry { top: 48px; } /* sit below toggles when shown */
+  body.ui-hidden #title,
+  body.ui-hidden #telemetry,
+  body.ui-hidden #controls { opacity: 0; pointer-events: none; }
+  body.ui-hidden #chromeToggles #toggleStats { opacity: 0.35; }
+
   #fx {
     position: fixed; inset: 0; pointer-events: none; z-index: 4;
     opacity: 0; transition: opacity .15s;
     background:
-      radial-gradient(circle at 50% 55%, rgba(255,120,180,.35), transparent 55%),
-      radial-gradient(circle at 50% 50%, rgba(255,230,120,.2), transparent 40%);
+      radial-gradient(circle at 50% 55%, rgba(255,120,180,.28), transparent 55%),
+      radial-gradient(circle at 50% 50%, rgba(255,230,120,.15), transparent 40%);
   }
   #fx.on { opacity: 1; }
   #fx.over {
     opacity: 1;
     background:
-      radial-gradient(circle at 50% 50%, rgba(255,80,140,.45), transparent 50%),
-      radial-gradient(circle at 30% 40%, rgba(255,220,100,.25), transparent 35%),
-      radial-gradient(circle at 70% 60%, rgba(255,150,220,.3), transparent 40%);
+      radial-gradient(circle at 50% 50%, rgba(255,80,140,.35), transparent 50%),
+      radial-gradient(circle at 30% 40%, rgba(255,220,100,.18), transparent 35%),
+      radial-gradient(circle at 70% 60%, rgba(255,150,220,.22), transparent 40%);
   }
   #burst {
-    position: fixed; left: 50%; top: 42%; transform: translate(-50%,-50%) scale(.8);
+    position: fixed; left: 50%; top: 18%; transform: translate(-50%,-50%) scale(.8);
     pointer-events: none; z-index: 6; opacity: 0;
-    font: 800 42px/1 "M PLUS Rounded 1c", sans-serif;
+    font: 800 32px/1 "M PLUS Rounded 1c", sans-serif;
     letter-spacing: 0.08em; color: #ffe066;
-    text-shadow: 0 0 20px rgba(255,80,140,.8), 0 4px 0 #ff4d8d;
+    text-shadow: 0 0 16px rgba(255,80,140,.7), 0 3px 0 #ff4d8d;
     transition: opacity .2s, transform .2s;
   }
   #burst.show { opacity: 1; transform: translate(-50%,-50%) scale(1.05); }
@@ -132,7 +194,7 @@
     position: fixed; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;
   }
   .heart {
-    position: absolute; font-size: 18px; opacity: 0.9;
+    position: absolute; font-size: 16px; opacity: 0.9;
     animation: floatHeart 1.4s ease-out forwards;
   }
   @keyframes floatHeart {
@@ -146,9 +208,12 @@
   }
   #load.hide { opacity: 0; pointer-events: none; transition: opacity .4s; }
   @media (max-width: 700px) {
-    #telemetry { display: none; }
+    #telemetry { display: none !important; }
+    #chromeToggles #toggleStats { display: none; }
     .sliders { grid-template-columns: 1fr; }
-    #burst { font-size: 28px; }
+    #burst { font-size: 22px; top: 14%; }
+    #controls { bottom: 8px; width: calc(100vw - 12px); }
+    #hint { display: none; }
   }
 </style>
 </head>
@@ -177,37 +242,49 @@ setTimeout(() => {
 }, 8000);
 </script>
 <div id="ui">
-  <div class="panel" id="title">
-    <h1>Anime Footjob ★ Overstimulate</h1>
-    <p>Pink-haired anime girl · soles locked on shaft · overstim mode keeps going past climax.</p>
+  <div class="chip" id="title">
+    <h1>Anime Footjob ★</h1>
   </div>
-  <div class="panel" id="telemetry">
-    <div class="h">Status</div>
+  <div class="stats hidden" id="telemetry">
+    <div class="h"><span>Status</span></div>
     <div class="row"><span>stroke</span><b id="tPos">0.00</b></div>
-    <div class="row"><span>velocity</span><b id="tVel">0.00</b></div>
-    <div class="row"><span>contact</span><b id="tForce">0.0 N</b></div>
-    <div class="row"><span>cadence</span><b id="tCad">0.0 Hz</b></div>
-    <div class="row"><span>sensitivity</span><b id="tSense">1.0×</b></div>
-    <div class="row"><span>climaxes</span><b id="tClimax">0</b></div>
+    <div class="row"><span>vel</span><b id="tVel">0.00</b></div>
+    <div class="row"><span>force</span><b id="tForce">0.0 N</b></div>
+    <div class="row"><span>Hz</span><b id="tCad">0.0</b></div>
+    <div class="row"><span>sens</span><b id="tSense">1.0×</b></div>
+    <div class="row"><span>×</span><b id="tClimax">0</b></div>
   </div>
-  <div class="panel" id="controls">
-    <div class="meter-label"><span>Arousal</span><span id="pct">0%</span></div>
-    <div class="meter"><i id="bar"></i></div>
-    <div class="meter-label"><span>Sensitivity</span><span id="sensePct">100%</span></div>
-    <div class="meter sense"><i id="senseBar"></i></div>
-    <div class="sliders">
-      <label>Stroke speed<input id="speed" type="range" min="0.4" max="3.2" step="0.05" value="1.35"></label>
-      <label>Grip pressure<input id="grip" type="range" min="0.2" max="1.5" step="0.05" value="1.2"></label>
-      <label>Foot angle<input id="angle" type="range" min="-35" max="35" step="1" value="10"></label>
-      <label>Camera orbit<input id="orbit" type="range" min="0" max="1" step="0.01" value="0.08"></label>
+  <div class="dock" id="controls">
+    <div class="dock-top">
+      <div class="meters">
+        <div class="meter-label"><span>Arousal</span><span id="pct">0%</span></div>
+        <div class="meter"><i id="bar"></i></div>
+        <div class="meter-label"><span>Sens</span><span id="sensePct">100%</span></div>
+        <div class="meter sense"><i id="senseBar"></i></div>
+      </div>
+      <div class="dock-actions">
+        <button type="button" class="icon-btn" id="toggleMore" title="More controls">⚙</button>
+      </div>
     </div>
     <div class="btns">
-      <button type="button" id="overstim">Overstimulate</button>
-      <button type="button" id="auto" class="active">Auto stroke</button>
-      <button type="button" id="both" class="active">Both feet</button>
+      <button type="button" id="overstim">Overstim</button>
+      <button type="button" id="auto" class="active">Auto</button>
+      <button type="button" id="both" class="active">Both</button>
       <button type="button" id="reset">Reset</button>
     </div>
-    <div id="hint">After cum: toes milk the back of the shaft — never stops · Shift+drag to stroke</div>
+    <div id="more">
+      <div class="sliders">
+        <label>Speed<input id="speed" type="range" min="0.4" max="3.2" step="0.05" value="1.35"></label>
+        <label>Grip<input id="grip" type="range" min="0.2" max="1.5" step="0.05" value="1.2"></label>
+        <label>Angle<input id="angle" type="range" min="-35" max="35" step="1" value="10"></label>
+        <label>Orbit<input id="orbit" type="range" min="0" max="1" step="0.01" value="0.08"></label>
+      </div>
+      <div id="hint">Toes milk after cum · Shift+drag · H hides UI</div>
+    </div>
+  </div>
+  <div id="chromeToggles">
+    <button type="button" class="icon-btn" id="toggleStats" title="Toggle stats">▤</button>
+    <button type="button" class="icon-btn" id="toggleUi" title="Hide UI (H)">⛶</button>
   </div>
 </div>
 
@@ -985,6 +1062,11 @@ const ui = {
   grip: document.getElementById("grip"),
   angle: document.getElementById("angle"),
   orbit: document.getElementById("orbit"),
+  controls: document.getElementById("controls"),
+  telemetry: document.getElementById("telemetry"),
+  toggleMore: document.getElementById("toggleMore"),
+  toggleStats: document.getElementById("toggleStats"),
+  toggleUi: document.getElementById("toggleUi"),
 };
 
 function spawnHeart() {
@@ -1004,6 +1086,26 @@ function flashBurst(text) {
   setTimeout(() => burstEl.classList.remove("show"), 700);
 }
 
+ui.toggleMore.onclick = (e) => {
+  e.stopPropagation();
+  ui.controls.classList.toggle("open");
+};
+ui.toggleStats.onclick = (e) => {
+  e.stopPropagation();
+  ui.telemetry.classList.toggle("hidden");
+};
+ui.toggleUi.onclick = (e) => {
+  e.stopPropagation();
+  document.body.classList.toggle("ui-hidden");
+  ui.toggleUi.title = document.body.classList.contains("ui-hidden") ? "Show UI (H)" : "Hide UI (H)";
+};
+window.addEventListener("keydown", (e) => {
+  if (e.key === "h" || e.key === "H") {
+    if (e.target.matches?.("input,textarea")) return;
+    document.body.classList.toggle("ui-hidden");
+  }
+});
+
 ui.auto.onclick = () => {
   stim.auto = !stim.auto;
   ui.auto.classList.toggle("active", stim.auto);
@@ -1011,7 +1113,7 @@ ui.auto.onclick = () => {
 ui.both.onclick = () => {
   stim.bothFeet = !stim.bothFeet;
   ui.both.classList.toggle("active", stim.bothFeet);
-  ui.both.textContent = stim.bothFeet ? "Both feet" : "Single foot";
+  ui.both.textContent = stim.bothFeet ? "Both" : "One";
 };
 ui.overstim.onclick = () => {
   stim.overstim = !stim.overstim;
