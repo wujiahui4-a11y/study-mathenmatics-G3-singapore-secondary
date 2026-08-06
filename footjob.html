@@ -292,19 +292,19 @@ scene.add(sheet);
 
 /* ---------- anime materials ---------- */
 const skinF = new THREE.MeshPhysicalMaterial({
-  color: 0xffd0be, roughness: 0.42, metalness: 0,
-  clearcoat: 0.22, clearcoatRoughness: 0.5,
-  sheen: 0.55, sheenRoughness: 0.45, sheenColor: new THREE.Color(0xffb0c8)
+  color: 0xffe8e0, roughness: 0.55, metalness: 0,
+  clearcoat: 0.08, clearcoatRoughness: 0.7,
+  sheen: 0.25, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xffd0d8)
 });
 const skinM = new THREE.MeshPhysicalMaterial({
   color: 0xe0b090, roughness: 0.52, metalness: 0,
   clearcoat: 0.1, sheen: 0.2, sheenColor: new THREE.Color(0xe8b090)
 });
-const hairMat = new THREE.MeshPhysicalMaterial({
-  color: 0xff8ec8, roughness: 0.35, metalness: 0.08,
-  clearcoat: 0.4, clearcoatRoughness: 0.3
+const hairMat = new THREE.MeshStandardMaterial({
+  color: 0xffb6d9, roughness: 0.55, metalness: 0.0
 });
-const hairDark = new THREE.MeshStandardMaterial({ color: 0xff5fa8, roughness: 0.4 });
+const hairDark = new THREE.MeshStandardMaterial({ color: 0xe86aa8, roughness: 0.5 });
+const hairHiMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const clothF = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 });
 const clothAccent = new THREE.MeshStandardMaterial({ color: 0xff6ea9, roughness: 0.45 });
 const clothM = new THREE.MeshStandardMaterial({ color: 0x3a3048, roughness: 0.72 });
@@ -333,111 +333,277 @@ function limb(len, r0, r1, mat, segs = 12) {
   return mesh(new THREE.CylinderGeometry(r1, r0, len, segs), mat);
 }
 
-/* ---------- anime girl head / hair ---------- */
+/* ---------- anime girl head / hair (2D eyes on 3D head) ---------- */
+function makeEyeTexture(side = 1) {
+  // Draw a flat 2D anime eye onto a canvas, used as a plane texture on the face
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 256;
+  const ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, 256, 256);
+
+  // transparent outside; eye sits in center
+  const cx = 128, cy = 130;
+  // mirror for left/right so outer corner points outward
+  if (side < 0) { ctx.translate(256, 0); ctx.scale(-1, 1); }
+
+  // white sclera shape (tall anime eye)
+  ctx.beginPath();
+  ctx.moveTo(48, 120);
+  ctx.bezierCurveTo(60, 48, 196, 48, 210, 118);
+  ctx.bezierCurveTo(200, 200, 70, 205, 48, 120);
+  ctx.closePath();
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  // thick upper lash / outline
+  ctx.beginPath();
+  ctx.moveTo(44, 118);
+  ctx.bezierCurveTo(58, 42, 200, 40, 214, 112);
+  ctx.bezierCurveTo(200, 78, 70, 78, 44, 118);
+  ctx.closePath();
+  ctx.fillStyle = "#1a1020";
+  ctx.fill();
+
+  // lower lash line
+  ctx.beginPath();
+  ctx.moveTo(52, 128);
+  ctx.bezierCurveTo(80, 198, 185, 195, 208, 125);
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "#1a1020";
+  ctx.stroke();
+
+  // outer wing lash
+  ctx.beginPath();
+  ctx.moveTo(200, 100);
+  ctx.quadraticCurveTo(235, 95, 248, 108);
+  ctx.quadraticCurveTo(230, 100, 205, 112);
+  ctx.closePath();
+  ctx.fillStyle = "#1a1020";
+  ctx.fill();
+
+  // iris (purple)
+  const ig = ctx.createRadialGradient(128, 135, 8, 128, 138, 58);
+  ig.addColorStop(0, "#c9a0ff");
+  ig.addColorStop(0.35, "#8b5cf6");
+  ig.addColorStop(0.75, "#5b2d9e");
+  ig.addColorStop(1, "#2a1548");
+  ctx.beginPath();
+  ctx.ellipse(128, 138, 52, 58, 0, 0, Math.PI * 2);
+  ctx.fillStyle = ig;
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#1a1020";
+  ctx.stroke();
+
+  // pupil
+  ctx.beginPath();
+  ctx.ellipse(128, 142, 18, 24, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "#14081c";
+  ctx.fill();
+
+  // bottom iris glow ring
+  ctx.beginPath();
+  ctx.ellipse(128, 160, 28, 12, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(180,140,255,0.35)";
+  ctx.fill();
+
+  // big sparkle highlight
+  ctx.beginPath();
+  ctx.arc(108, 118, 16, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  // small sparkle
+  ctx.beginPath();
+  ctx.arc(148, 152, 7, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  // tiny sparkle
+  ctx.beginPath();
+  ctx.arc(150, 120, 4, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+function makeFaceDecal(drawFn, w = 128, h = 128) {
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+  drawFn(ctx, w, h);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 function makeAnimeHead() {
   const g = new THREE.Group();
-  const head = mesh(new THREE.SphereGeometry(0.12, 32, 24), skinF);
-  head.scale.set(0.95, 1.05, 0.9);
+
+  // pale pointed anime head
+  const head = mesh(new THREE.SphereGeometry(0.118, 32, 24), skinF);
+  head.scale.set(0.92, 1.08, 0.88);
   g.add(head);
-  const jaw = mesh(new THREE.SphereGeometry(0.07, 24, 16), skinF);
-  jaw.position.set(0, -0.08, 0.01); jaw.scale.set(0.95, 0.65, 0.85);
+  // sharp chin
+  const chin = mesh(new THREE.SphereGeometry(0.055, 20, 14), skinF);
+  chin.position.set(0, -0.095, 0.015);
+  chin.scale.set(0.75, 0.7, 0.7);
+  g.add(chin);
+  const jaw = mesh(new THREE.SphereGeometry(0.07, 20, 14), skinF);
+  jaw.position.set(0, -0.07, 0.01);
+  jaw.scale.set(0.88, 0.55, 0.8);
   g.add(jaw);
 
-  // huge anime eyes
+  // === 2D eyes on flat planes (NOT 3D spheres) ===
   for (const sx of [-1, 1]) {
-    const white = mesh(new THREE.SphereGeometry(0.032, 20, 14), eyeWhiteMat, false);
-    white.position.set(sx * 0.038, 0.02, 0.092);
-    white.scale.set(0.85, 1.15, 0.55);
-    g.add(white);
-    const iris = mesh(new THREE.SphereGeometry(0.018, 16, 12), irisMat, false);
-    iris.position.set(sx * 0.038, 0.016, 0.108);
-    g.add(iris);
-    const pupil = mesh(new THREE.SphereGeometry(0.009, 12, 10), pupilMat, false);
-    pupil.position.set(sx * 0.038, 0.014, 0.118);
-    g.add(pupil);
-    const shine = mesh(new THREE.SphereGeometry(0.006, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), false);
-    shine.position.set(sx * 0.032, 0.028, 0.122);
-    g.add(shine);
-    const shine2 = mesh(new THREE.SphereGeometry(0.0035, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), false);
-    shine2.position.set(sx * 0.045, 0.008, 0.122);
-    g.add(shine2);
+    const eyeTex = makeEyeTexture(sx);
+    const eyeMat = new THREE.MeshBasicMaterial({
+      map: eyeTex, transparent: true, depthWrite: false, side: THREE.DoubleSide
+    });
+    const eye = new THREE.Mesh(new THREE.PlaneGeometry(0.078, 0.078), eyeMat);
+    eye.position.set(sx * 0.036, 0.022, 0.102);
+    eye.rotation.y = sx * -0.22; // wrap slightly with cheek
+    eye.rotation.x = -0.05;
+    eye.renderOrder = 2;
+    g.add(eye);
   }
 
-  // brows
+  // 2D brows (thin arched strokes on planes)
   for (const sx of [-1, 1]) {
-    const b = mesh(new THREE.CapsuleGeometry(0.004, 0.028, 4, 6), hairDark, false);
-    b.position.set(sx * 0.04, 0.055, 0.1);
-    b.rotation.z = sx * -0.35; b.rotation.x = -0.2;
-    g.add(b);
+    const browTex = makeFaceDecal((ctx, w, h) => {
+      ctx.strokeStyle = "#1a1020";
+      ctx.lineWidth = 7;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      if (sx > 0) {
+        ctx.moveTo(20, 70); ctx.quadraticCurveTo(70, 28, 115, 40);
+      } else {
+        ctx.moveTo(236, 70); ctx.quadraticCurveTo(186, 28, 141, 40);
+      }
+      ctx.stroke();
+    });
+    const brow = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.05, 0.028),
+      new THREE.MeshBasicMaterial({ map: browTex, transparent: true, depthWrite: false })
+    );
+    brow.position.set(sx * 0.038, 0.058, 0.1);
+    brow.rotation.y = sx * -0.15;
+    brow.rotation.z = sx * -0.12;
+    g.add(brow);
   }
 
-  // blush patches
+  // blush — soft 2D circles
   for (const sx of [-1, 1]) {
-    const bl = mesh(new THREE.CircleGeometry(0.022, 16), blushMat, false);
-    bl.position.set(sx * 0.055, -0.01, 0.1);
-    bl.rotation.y = sx * 0.35;
+    const blTex = makeFaceDecal((ctx, w, h) => {
+      const grd = ctx.createRadialGradient(64, 64, 5, 64, 64, 55);
+      grd.addColorStop(0, "rgba(255,130,170,0.55)");
+      grd.addColorStop(1, "rgba(255,130,170,0)");
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, w, h);
+    });
+    const bl = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.045, 0.035),
+      new THREE.MeshBasicMaterial({ map: blTex, transparent: true, depthWrite: false })
+    );
+    bl.position.set(sx * 0.055, -0.005, 0.1);
+    bl.rotation.y = sx * 0.3;
     g.add(bl);
+    if (!g.userData.blush) g.userData.blush = [];
+    g.userData.blush.push(bl);
   }
 
-  // small mouth
-  const mouth = mesh(new THREE.SphereGeometry(0.016, 10, 8), new THREE.MeshStandardMaterial({
-    color: 0xff6a90, roughness: 0.35
-  }), false);
-  mouth.position.set(0, -0.04, 0.1); mouth.scale.set(1.0, 0.28, 0.45);
-  g.add(mouth);
-
-  // tiny nose
-  const nose = mesh(new THREE.SphereGeometry(0.006, 8, 6), skinF, false);
-  nose.position.set(0, 0.0, 0.112);
+  // tiny 2D nose line
+  const noseTex = makeFaceDecal((ctx, w, h) => {
+    ctx.strokeStyle = "rgba(40,20,30,0.55)";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(64, 40);
+    ctx.lineTo(64, 85);
+    ctx.stroke();
+  }, 128, 128);
+  const nose = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.018, 0.022),
+    new THREE.MeshBasicMaterial({ map: noseTex, transparent: true, depthWrite: false })
+  );
+  nose.position.set(0, 0.0, 0.108);
   g.add(nose);
 
-  g.userData.blush = g.children.filter(c => c.material === blushMat);
+  // simple 2D mouth line
+  const mouthTex = makeFaceDecal((ctx, w, h) => {
+    ctx.strokeStyle = "#2a1520";
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(36, 64);
+    ctx.quadraticCurveTo(64, 78, 92, 64);
+    ctx.stroke();
+  });
+  const mouth = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.032, 0.018),
+    new THREE.MeshBasicMaterial({ map: mouthTex, transparent: true, depthWrite: false })
+  );
+  mouth.position.set(0, -0.038, 0.106);
+  g.add(mouth);
   g.userData.mouth = mouth;
+
   return g;
 }
 
 function makeAnimeHair() {
   const g = new THREE.Group();
-  const scalp = mesh(new THREE.SphereGeometry(0.125, 24, 16), hairMat);
-  scalp.position.y = 0.02; scalp.scale.set(1.05, 1.0, 1.05);
+
+  // chin-length bob scalp
+  const scalp = mesh(new THREE.SphereGeometry(0.128, 28, 20), hairMat);
+  scalp.position.set(0, 0.015, -0.005);
+  scalp.scale.set(1.02, 1.0, 1.05);
   g.add(scalp);
 
-  // bangs
-  for (let i = -2; i <= 2; i++) {
-    const bang = mesh(new THREE.SphereGeometry(0.045, 12, 10), hairMat);
-    bang.position.set(i * 0.035, 0.04, 0.1);
-    bang.scale.set(0.7, 1.1, 0.55);
-    bang.rotation.x = 0.35;
-    g.add(bang);
-  }
+  // back bob volume
+  const bobBack = mesh(new THREE.SphereGeometry(0.11, 20, 14), hairDark);
+  bobBack.position.set(0, -0.02, -0.05);
+  bobBack.scale.set(1.05, 0.85, 0.7);
+  g.add(bobBack);
 
-  // twin tails
+  // side bob flaps (chin length)
   for (const sx of [-1, 1]) {
-    const base = mesh(new THREE.SphereGeometry(0.04, 12, 10), hairMat);
-    base.position.set(sx * 0.1, 0.02, -0.02);
-    g.add(base);
-    const tail = limb(0.38, 0.032, 0.018, hairMat, 10);
-    tail.position.set(sx * 0.12, -0.18, -0.04);
-    tail.rotation.z = sx * 0.25; tail.rotation.x = 0.2;
-    g.add(tail);
-    const tip = mesh(new THREE.SphereGeometry(0.025, 10, 8), hairDark);
-    tip.position.set(sx * 0.145, -0.38, -0.05);
+    const side = mesh(new THREE.SphereGeometry(0.07, 16, 12), hairMat);
+    side.position.set(sx * 0.095, -0.02, 0.01);
+    side.scale.set(0.55, 1.15, 0.75);
+    g.add(side);
+    const tip = mesh(new THREE.SphereGeometry(0.04, 12, 10), hairDark);
+    tip.position.set(sx * 0.1, -0.08, 0.02);
+    tip.scale.set(0.7, 1.0, 0.7);
     g.add(tip);
   }
 
-  // side locks
-  for (const sx of [-1, 1]) {
-    const lock = limb(0.22, 0.022, 0.014, hairMat, 8);
-    lock.position.set(sx * 0.1, -0.08, 0.04);
-    lock.rotation.z = sx * 0.45;
-    g.add(lock);
-  }
+  // pointed bang clumps (M-shaped center like reference)
+  const bangLayout = [
+    { x: 0, y: 0.05, z: 0.1, sx: 0.55, sy: 1.2, sz: 0.45, rx: 0.55 },
+    { x: -0.035, y: 0.048, z: 0.095, sx: 0.45, sy: 1.1, sz: 0.4, rx: 0.5 },
+    { x: 0.035, y: 0.048, z: 0.095, sx: 0.45, sy: 1.1, sz: 0.4, rx: 0.5 },
+    { x: -0.065, y: 0.045, z: 0.085, sx: 0.4, sy: 1.0, sz: 0.38, rx: 0.45 },
+    { x: 0.065, y: 0.045, z: 0.085, sx: 0.4, sy: 1.0, sz: 0.38, rx: 0.45 },
+  ];
+  bangLayout.forEach(b => {
+    const bang = mesh(new THREE.SphereGeometry(0.05, 12, 10), hairMat);
+    bang.position.set(b.x, b.y, b.z);
+    bang.scale.set(b.sx, b.sy, b.sz);
+    bang.rotation.x = b.rx;
+    g.add(bang);
+  });
 
-  // ahoge
-  const ahoge = mesh(new THREE.CapsuleGeometry(0.01, 0.08, 4, 6), hairMat);
-  ahoge.position.set(0.02, 0.16, 0.0);
-  ahoge.rotation.z = -0.5; ahoge.rotation.x = 0.3;
-  g.add(ahoge);
+  // flat anime hair highlight streaks (2D-looking cards)
+  for (const sx of [-0.04, 0.02, 0.05]) {
+    const hi = mesh(new THREE.PlaneGeometry(0.035, 0.012), hairHiMat, false);
+    hi.position.set(sx, 0.1, 0.06);
+    hi.rotation.x = -1.1;
+    hi.rotation.z = sx * 2;
+    g.add(hi);
+  }
 
   return g;
 }
@@ -1129,10 +1295,11 @@ function placeFeet(dt) {
   girl.userData.head.rotation.y = Math.sin(performance.now() * 0.0012) * 0.08;
   girl.userData.head.rotation.x = -0.12 + stim.arousal * 0.15 + (toeMilk ? 0.1 : 0);
   girl.userData.head.rotation.z = Math.sin(stim.phase * 1.5) * 0.04 * stim.arousal;
-  const blushOp = 0.25 + stim.arousal * 0.45 + (toeMilk ? 0.2 : 0);
-  girl.userData.head.userData.blush?.forEach(b => { b.material.opacity = blushOp; });
+  const blushOp = 0.35 + stim.arousal * 0.5 + (toeMilk ? 0.15 : 0);
+  girl.userData.head.userData.blush?.forEach(b => { b.material.opacity = blushOp; }); });
   if (girl.userData.head.userData.mouth) {
-    girl.userData.head.userData.mouth.scale.y = 0.28 + stim.arousal * 0.35 + stim.twitch * 0.2;
+    const m = girl.userData.head.userData.mouth;
+    m.scale.set(1 + stim.arousal * 0.15, 1 + stim.twitch * 0.25, 1);
   }
   girl.userData.hair.rotation.z = Math.sin(performance.now() * 0.002) * 0.04;
 
