@@ -1569,11 +1569,28 @@ function triggerClimax() {
       setEmotion("xd");
       showDialogue("Girl", "Sandwich on a backward stroke— as fast as I can!!");
     } else {
-      // sleep / later waves — stay on dream footjob, soft elastic
+      // dream sleep cum — twist his dick, then footjob fast (never leave)
       label = `DREAM ${n}`;
-      setTechnique("dreamFJ");
-      stim.rollAccel = 1;
+      setTechnique("twist");
+      stim.rollAccel = 2.8;
+      ui.speed.value = 2.6;
+      stim.speed = 2.6;
       setEmotion("xd");
+      if (typeof story !== "undefined") {
+        story.dreamBurst = 3.8; // seconds of post-cum twist→fast FJ
+        story.dreamBurstStage = 0;
+      }
+      showDialogue("Girl", "(dream) Twisting… then faster… don’t wake me…");
+      setTimeout(() => {
+        if (!story?.active || story.phase !== "sleep") return;
+        setTechnique("stroke"); // fast sole sandwich footjob
+        stim.rollAccel = 3.5;
+        ui.speed.value = 3.1;
+        stim.speed = 3.1;
+        story.dreamBurstStage = 1;
+        showDialogue("Girl", "(dream) Fast… keep cumming… feet won’t stop…");
+        setEmotion("naughty");
+      }, 900);
     }
   } else {
     stim.technique = "toeMilk";
@@ -2074,7 +2091,7 @@ function placeFeet(dt) {
   girl.userData.hair.rotation.z = Math.sin(performance.now() * 0.002) * 0.04;
 
   const swell = 1 + stim.arousal * 0.14 + (stim.climax ? 0.08 : 0) + stim.sensitivity * 0.015;
-  if (boy.userData.gen.visible) {
+  if (boy.userData.gen.visible && stim.technique !== "dreamFJ" && stim.technique !== "sleepClamp") {
     boy.userData.headG.scale.set(1.05 * swell, 0.95 * swell, 1.1 * swell);
   }
   const hipTwitch = Math.sin(stim.phase * 2) * 0.01 * stim.arousal + stim.twitch * Math.sin(performance.now() * 0.035) * 0.015;
@@ -2969,6 +2986,7 @@ function endStoryToFreeplay() {
   fadeEl.classList.remove("on");
   poseGirlFootjob();
   poseBoyOnBed();
+  setShaftElastic(false);
   key.intensity = 2.0;
   stim.allowCum = true;
   stim.rollAccel = 1;
