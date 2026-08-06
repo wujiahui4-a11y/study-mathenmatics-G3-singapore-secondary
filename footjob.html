@@ -1545,25 +1545,34 @@ function triggerClimax() {
     if (n === 1) {
       label = "CUM — twist~";
       setTechnique("twist");
-      // after short twist, switch to accelerating toe-clamp roll
       setTimeout(() => {
         if (!story.active) return;
         setTechnique("toeClampRoll");
-        stim.rollAccel = 1.2;
+        stim.rollAccel = 1.4;
         setEmotion("naughty");
-        showDialogue("Girl", "Got you— toes clamped. Rolling… faster…");
-      }, 900);
-      setTimeout(() => { if (story.active) stim.rollAccel = 2.2; }, 2200);
-      setTimeout(() => { if (story.active) stim.rollAccel = 3.4; }, 3800);
+        showDialogue("Girl", "Got you— toes clamped. Now I’ll switch… faster…");
+      }, 800);
     } else if (n === 2) {
-      label = "AGAIN — backward~";
-      setTechnique("backward");
+      label = "AGAIN~";
+      // stay in whatever frenzy tech — keep contact, bump speed
+      stim.rollAccel = Math.max(stim.rollAccel || 1, 2.6);
+      ui.speed.value = Math.min(3.2, Math.max(+ui.speed.value, 2.4));
+      stim.speed = +ui.speed.value;
       setEmotion("xd");
-      showDialogue("Girl", "Second one— backward footjob. Heels first~");
+      showDialogue("Girl", "Second already? Feet won’t stop— keep going~");
+    } else if (n === 3) {
+      label = "THIRD — backward sandwich!!";
+      setTechnique("backwardSandwich");
+      stim.rollAccel = 4.2;
+      ui.speed.value = 3.2;
+      stim.speed = 3.2;
+      setEmotion("xd");
+      showDialogue("Girl", "Sandwich on a backward stroke— as fast as I can!!");
     } else {
+      // sleep / later waves — stay clamped, gentle
       label = `NIGHT ${n}`;
-      setTechnique(n % 2 === 0 ? "toeClampRoll" : "toeMilk");
-      stim.rollAccel = 1.5 + n * 0.15;
+      setTechnique("sleepClamp");
+      stim.rollAccel = 1;
       setEmotion("xd");
     }
   } else {
@@ -1867,11 +1876,46 @@ function placeFeet(dt) {
     boy.userData.shaft.scale.set(1.12, 0.85, 1.08);
     poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
     poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "sleepClamp") {
+    // Soft overnight clamp — toes stay locked, slow gentle roll, never leaves
+    const t = stim.phase * 0.55;
+    const zz = 0.10 + Math.sin(t) * 0.025;
+    const clamp = r * (0.42 + grip * 0.12);
+    targetL.position.set(-clamp * 0.85, clamp * 0.25, zz);
+    targetR.position.set(clamp * 0.85, clamp * 0.28, zz + 0.008);
+    orientToesOnDorsalQuat(-1, _quat);
+    targetL.quaternion.copy(_quat); targetL.rotateX(-0.55); targetL.rotateZ(-0.12);
+    orientToesOnDorsalQuat(1, _quat);
+    targetR.quaternion.copy(_quat); targetR.rotateX(-0.55); targetR.rotateZ(0.12);
+    boy.userData.shaft.scale.set(1.06, 0.9, 1.02);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
+  } else if (tech === "backwardSandwich") {
+    // Backward stroke + sole sandwich cover, max speed
+    const accel = stim.rollAccel || 3.5;
+    const dig = 0.028 + grip * 0.03;
+    const sep = Math.max(0.006, 0.014 - dig);
+    const zBack = THREE.MathUtils.lerp(0.19, 0.035, stroke);
+    const twist = Math.sin(stim.phase * 3.2 * accel) * 0.25;
+    targetL.position.set(-sep, r * 0.02, zBack);
+    targetR.position.set(sep, r * 0.02, zBack * 0.97);
+    // soles inward (sandwich) but heels lead toward tip (backward)
+    orientSoleInwardQuat(1, _quat);
+    targetL.quaternion.copy(_quat);
+    targetL.rotateX(0.35); targetL.rotateZ(0.15 + twist); targetL.rotateY(0.4);
+    orientSoleInwardQuat(-1, _quat);
+    targetR.quaternion.copy(_quat);
+    targetR.rotateX(0.35); targetR.rotateZ(-0.15 - twist); targetR.rotateY(-0.4);
+    const squash = 1 - (0.12 + grip * 0.14);
+    boy.userData.shaft.scale.set(squash, squash, 1.06);
+    poseLegAndFoot(girl.userData.legs.L, footL, targetL, -1);
+    poseLegAndFoot(girl.userData.legs.R, footR, targetR, 1);
   } else if (tech === "backward") {
-    // Backward footjob — heels toward tip, toes toward base, reverse stroke feel
+    // Backward footjob — heels toward tip, toes toward base
     const dig = 0.02 + grip * 0.025;
     const sep = Math.max(0.01, 0.016 - dig);
-    const zBack = THREE.MathUtils.lerp(0.18, 0.04, stroke); // reversed travel
+    const zBack = THREE.MathUtils.lerp(0.18, 0.04, stroke);
+    const accel = stim.rollAccel || 1;
     targetL.position.set(-sep, r * 0.05, zBack);
     targetR.position.set(sep, r * 0.05, zBack * 0.96);
     orientHeelInQuat(-1, _quat);
@@ -2021,8 +2065,17 @@ function updateSolver(dt) {
       const accel = stim.rollAccel || 1;
       stim.phase += dt * stim.speed * 2.8 * accel;
       stim.target = 0.5 + Math.sin(stim.phase) * 0.35;
+    } else if (stim.technique === "sleepClamp") {
+      stim.phase += dt * stim.speed * 0.7;
+      stim.target = 0.5 + Math.sin(stim.phase) * 0.12;
+    } else if (stim.technique === "backwardSandwich") {
+      const accel = stim.rollAccel || 3.5;
+      stim.phase += dt * stim.speed * 3.6 * accel;
+      const s = Math.sin(stim.phase);
+      stim.target = 0.5 + Math.sign(s) * Math.pow(Math.abs(s), 0.55) * 0.45;
     } else if (stim.technique === "backward") {
-      stim.phase += dt * stim.speed * 2.4;
+      const accel = stim.rollAccel || 1;
+      stim.phase += dt * stim.speed * 2.4 * accel;
       const s = Math.sin(stim.phase);
       stim.target = 0.5 + Math.sign(s) * Math.pow(Math.abs(s), 0.7) * 0.4;
     } else if (stim.technique === "tipFlick") {
@@ -2281,6 +2334,21 @@ function poseGirlBeside() {
   story.headYaw = -0.55;
   girl.userData.arms.L.shoulder.rotation.set(-0.4, 0.2, -0.6);
   girl.userData.arms.R.shoulder.rotation.set(-0.5, -0.1, 0.5);
+}
+
+/** Sleep beside him with legs angled so toes can stay clamped on him */
+function poseGirlSleepClamp() {
+  poseBoyTired();
+  // curl beside him, hips close so feet reach
+  girl.userData.hips.position.set(0.22, 0.46, 0.28);
+  girl.userData.hips.rotation.set(0.55, Math.PI * 0.55, 0.2);
+  girl.userData.torso.rotation.set(0.35, -0.4, 0.05);
+  girl.userData.head.rotation.set(0.15, -0.7, 0.05);
+  story.headYaw = -0.7;
+  girl.userData.arms.L.shoulder.rotation.set(-0.55, 0.15, -0.5);
+  girl.userData.arms.R.shoulder.rotation.set(-0.35, -0.2, 0.7);
+  // soft "sleeping" look
+  setEmotion("xd");
 }
 
 function setPajamas(on) {
@@ -2545,28 +2613,72 @@ const STORY_BEATS = [
     }
   },
   {
-    id: "after_first",
-    who: "Girl", line: "Hehe… toes still clamped. Rolling you empty~",
+    id: "frenzy",
+    who: "Girl", line: "Still hard… I’ll use everything— and faster each time.",
     emotion: "naughty",
     enter() {
-      setTechnique("toeClampRoll");
-      stim.rollAccel = 3.0;
-      stim.allowCum = false;
-      stim.arousal = 0.75;
+      story.phase = "frenzy";
+      story.poseLock = false;
       story.techHold = 0;
+      story.frenzyIdx = 0;
+      stim.allowCum = false;
+      stim.arousal = 0.7;
+      stim.auto = true;
       poseGirlFootjob();
+      setTechnique("stroke");
+      stim.rollAccel = 1.3;
+      ui.speed.value = 1.6;
+      stim.speed = 1.6;
     }
   },
   {
     id: "second_cum",
-    who: "Girl", line: "Round two— backward footjob. Heels leading… cum again.",
+    who: "Girl", line: "Don’t you dare rest— second one, now~",
     emotion: "xd",
     enter() {
-      setTechnique("backward");
+      story.phase = "frenzy";
+      stim.arousal = 0.99;
+      stim.allowCum = true;
+      stim.rollAccel = Math.max(stim.rollAccel || 1, 2.8);
+      ui.speed.value = Math.min(3.2, Math.max(+ui.speed.value, 2.5));
+      stim.speed = +ui.speed.value;
+      setEmotion("xd");
+      setTimeout(() => { if (story.active && stim.allowCum) triggerClimax(); }, 350);
+    }
+  },
+  {
+    id: "frenzy2",
+    who: "Girl", line: "Still not done. More techniques— even faster!!",
+    emotion: "tease",
+    enter() {
+      story.phase = "frenzy";
+      story.techHold = 0;
+      story.frenzyIdx = 0;
+      stim.allowCum = false;
+      stim.arousal = 0.72;
+      stim.auto = true;
+      stim.rollAccel = 3.2;
+      ui.speed.value = 2.8;
+      stim.speed = 2.8;
+      setTechnique("toeClampRoll");
+      poseGirlFootjob();
+    }
+  },
+  {
+    id: "third_cum",
+    who: "Girl", line: "Third!! Backward sandwich— soles covering you, as fast as possible!!",
+    emotion: "xd",
+    enter() {
+      story.phase = "play";
+      setTechnique("backwardSandwich");
+      stim.rollAccel = 4.5;
+      ui.speed.value = 3.2;
+      stim.speed = 3.2;
       stim.arousal = 0.99;
       stim.allowCum = true;
       setEmotion("xd");
-      setTimeout(() => { if (story.active && stim.allowCum) triggerClimax(); }, 500);
+      poseGirlFootjob();
+      setTimeout(() => { if (story.active && stim.allowCum) triggerClimax(); }, 400);
     }
   },
   {
@@ -2575,6 +2687,7 @@ const STORY_BEATS = [
     emotion: "neutral",
     enter() {
       stim.allowCum = false;
+      stim.rollAccel = 1;
       storyFadeTo("2 hours later…", "He’s exhausted on the bed.", () => {
         poseBoyTired();
         poseGirlBeside();
@@ -2606,47 +2719,50 @@ const STORY_BEATS = [
         poseBoyTired();
         poseGirlBeside();
         setEmotion("happy");
-        showDialogue("Girl", "Bedtime. …but my feet aren’t sleepy yet.");
+        showDialogue("Girl", "Bedtime. …I’ll stay clamped. Softly.");
       });
     }
   },
   {
     id: "sleep_start",
-    who: "Girl", line: "Lights out… I’ll be gentle. Probably.",
-    emotion: "tease",
+    who: "Girl", line: "Lights out… I’ll sleep beside you. Toes stay on— gentle.",
+    emotion: "love",
     enter() {
       story.phase = "sleep";
       story.poseLock = false;
       story.sleepT = 0;
       story.sleepCums = 0;
       poseBoyTired();
-      poseGirlFootjob();
-      girl.userData.hips.position.set(0.15, 0.5, 0.45);
-      setTechnique("toeMilk");
+      poseGirlSleepClamp();
+      setTechnique("sleepClamp");
       stim.auto = true;
       stim.allowCum = false;
-      stim.arousal = 0.4;
+      stim.arousal = 0.35;
       stim.neverStop = true;
+      stim.rollAccel = 1;
+      ui.speed.value = 0.7;
+      stim.speed = 0.7;
       setEmotion("xd");
-      key.intensity = 0.55;
-      blushLight.intensity = 0.2;
-      camera.position.set(1.1, 0.85, 0.6);
-      controls.target.set(0.05, 0.55, 0.15);
+      key.intensity = 0.4;
+      blushLight.intensity = 0.12;
+      camera.position.set(1.25, 0.75, 0.55);
+      controls.target.set(0.1, 0.5, 0.12);
     }
   },
   {
     id: "sleep_loop",
-    who: "Girl", line: "Sleep footjob… soft… quiet… cum when I say~",
+    who: "Girl", line: "Mm… still holding you. Every time you finish, I won’t let go…",
     emotion: "love",
     enter() {
       story.phase = "sleep";
-      poseGirlFootjob();
-      showDialogue("Girl", "Sleep footjob… soft… quiet… cum when I say~");
+      poseGirlSleepClamp();
+      setTechnique("sleepClamp");
+      showDialogue("Girl", "Mm… still holding you. Every time you finish, I won’t let go…");
     }
   },
   {
     id: "ending",
-    who: "…", line: "Morning light. She’s still curled against him— feet resting like nothing happened.",
+    who: "…", line: "Morning light. She’s still curled against him— toes softly locked like nothing happened.",
     emotion: "happy",
     enter() {
       story.phase = "end";
@@ -2657,6 +2773,17 @@ const STORY_BEATS = [
       flashBurst("Good morning~");
     }
   },
+];
+
+const FRENZY_TECHS = [
+  { tech: "stroke", line: "Sole sandwich— pick up the pace~", e: "happy", spd: 1.7, acc: 1.4 },
+  { tech: "twist", line: "Twist harder… faster!", e: "tease", spd: 2.0, acc: 1.8 },
+  { tech: "archRub", line: "Arches grinding— don’t slack!", e: "aroused", spd: 2.2, acc: 2.0 },
+  { tech: "solePress", line: "Press!! Stack and pump!", e: "smug", spd: 2.4, acc: 2.3 },
+  { tech: "toeCage", line: "Toe cage— squeeze the tip!", e: "naughty", spd: 2.6, acc: 2.6 },
+  { tech: "toeClampRoll", line: "Clamp-roll— even faster!!", e: "xd", spd: 2.9, acc: 3.2 },
+  { tech: "heelGrind", line: "Heels!! Base!! Go!!", e: "tease", spd: 3.0, acc: 3.4 },
+  { tech: "singleSole", line: "One sole racing— other teasing!", e: "focus", spd: 3.1, acc: 3.6 },
 ];
 
 const PLAY_LINES = [
@@ -2680,7 +2807,7 @@ const TECH_TOUR_IDS = new Set([
   "tech_heel", "tech_single", "tech_cage", "tech_flick", "tech_milk"
 ]);
 
-const STORY_SLEEP_TECHS = ["toeMilk", "toeClampRoll", "archRub", "singleSole", "tipFlick"];
+const STORY_SLEEP_TECHS = ["sleepClamp"]; // never leave the clamp overnight
 
 function currentBeat() {
   return STORY_BEATS[story.idx] || null;
@@ -2822,49 +2949,82 @@ function updateStory(dt) {
     }
   }
 
-  // After first scripted cum, auto-advance to clamp-roll beat
-  if (story.beatId === "first_cum" && stim.climaxCount >= 1 && stim.climaxT > 4.5) {
+  // After first scripted cum → frenzy of techniques
+  if (story.beatId === "first_cum" && stim.climaxCount >= 1 && stim.climaxT > 3.2) {
     applyBeat(story.idx + 1);
   }
-  if (story.beatId === "after_first") {
+
+  if (story.phase === "frenzy") {
     story.techHold += dt;
-    if (story.techHold > 5.5) applyBeat(story.idx + 1);
+    // rotate techniques every ~2.4s, each faster than the last
+    if (story.techHold > 2.4) {
+      story.techHold = 0;
+      story.frenzyIdx = (story.frenzyIdx || 0) + 1;
+      const step = FRENZY_TECHS[Math.min(story.frenzyIdx, FRENZY_TECHS.length - 1)];
+      // keep looping last few at rising speed
+      const loop = FRENZY_TECHS[story.frenzyIdx % FRENZY_TECHS.length];
+      const use = story.frenzyIdx < FRENZY_TECHS.length ? step : loop;
+      const boost = 1 + Math.floor(story.frenzyIdx / FRENZY_TECHS.length) * 0.35;
+      setTechnique(use.tech);
+      stim.rollAccel = use.acc * boost;
+      ui.speed.value = Math.min(3.2, use.spd * boost);
+      stim.speed = +ui.speed.value;
+      setEmotion(use.e);
+      showDialogue("Girl", use.line);
+    }
+    // after enough frenzy, auto second cum once
+    if (story.beatId === "frenzy" && story.frenzyIdx >= 5 && stim.climaxCount < 2) {
+      applyBeat(story.idx + 1); // second_cum
+    }
+    // after second, continue frenzy2 then third
+    if (story.beatId === "second_cum" && stim.climaxCount >= 2 && stim.climaxT > 2.8) {
+      applyBeat(story.idx + 1); // frenzy2
+    }
+    if (story.beatId === "frenzy2" && story.frenzyIdx >= 4 && stim.climaxCount < 3) {
+      applyBeat(story.idx + 1); // third_cum
+    }
   }
-  if (story.beatId === "second_cum" && stim.climaxCount >= 2 && stim.climaxT > 3.5) {
+
+  if (story.beatId === "third_cum" && stim.climaxCount >= 3 && stim.climaxT > 4.0) {
     dlgNextHint("click — 2 hours later…");
   }
 
   if (story.phase === "sleep") {
     story.sleepT = (story.sleepT || 0) + dt;
     stim.auto = true;
-    const pulse = 0.15 + 0.25 * Math.abs(Math.sin(story.sleepT * 1.2));
+    // stay on sleepClamp always — never leave the dick
+    if (stim.technique !== "sleepClamp") setTechnique("sleepClamp");
+    poseGirlSleepClamp();
+    // slow soft breathing light
+    const pulse = 0.08 + 0.12 * (0.5 + 0.5 * Math.sin(story.sleepT * 0.55));
     blushLight.intensity = pulse;
-    key.intensity = 0.35 + pulse * 0.4;
+    key.intensity = 0.28 + pulse * 0.35;
 
-    if (story.sleepT > 8 && (story.sleepCums || 0) < 5) {
+    // slow overnight waves (~22s) — she stays clamped through each one
+    if (story.sleepT > 22 && (story.sleepCums || 0) < 4) {
       story.sleepT = 0;
       story.sleepCums = (story.sleepCums || 0) + 1;
-      const tech = STORY_SLEEP_TECHS[story.sleepCums % STORY_SLEEP_TECHS.length];
-      setTechnique(tech);
-      if (tech === "toeClampRoll") stim.rollAccel = 1.8 + story.sleepCums * 0.3;
+      setTechnique("sleepClamp");
+      stim.speed = 0.65;
+      stim.rollAccel = 1;
       stim.arousal = 0.995;
       stim.allowCum = true;
       setEmotion("xd");
       showDialogue("Girl", [
-        "Shh… another one…",
-        "Still twitching… good boy~",
-        "Sleep cum… soft…",
-        "Again… toes say so.",
-        "One more before morning…"
-      ][Math.min(4, story.sleepCums - 1)]);
+        "Nn… still holding… cum soft for me…",
+        "Don’t pull away… toes stay…",
+        "Another one… I’m not letting go…",
+        "Sleep… and finish again…"
+      ][Math.min(3, story.sleepCums - 1)]);
       triggerClimax();
-      fxEl.classList.add("on"); fxEl.classList.add("over");
-      setTimeout(() => { fxEl.classList.remove("on"); }, 500);
+      // gentle light bloom — not overstimulating flash
+      fxEl.classList.add("on");
+      setTimeout(() => { fxEl.classList.remove("on"); fxEl.classList.remove("over"); }, 700);
     }
-    if (story.sleepCums >= 5 && story.beatId === "sleep_start") {
+    if (story.sleepCums >= 4 && story.beatId === "sleep_start") {
       applyBeat(story.idx + 1);
     }
-    if (story.sleepCums >= 5 && story.beatId === "sleep_loop") {
+    if (story.sleepCums >= 4 && story.beatId === "sleep_loop") {
       dlgNextHint("click — morning");
     }
   }
