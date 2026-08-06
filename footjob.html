@@ -162,11 +162,12 @@
 // Failsafe: never leave the user stuck on the loader
 window.addEventListener("error", (e) => {
   const el = document.getElementById("load");
-  if (el) el.textContent = "Load error — check console / network (Three.js CDN)";
+  if (el) el.textContent = "Load error — " + (e.message || "check console");
 });
-window.addEventListener("unhandledrejection", () => {
+window.addEventListener("unhandledrejection", (e) => {
   const el = document.getElementById("load");
-  if (el) el.textContent = "Load error — Three.js failed to import";
+  const reason = e.reason?.message || String(e.reason || "import failed");
+  if (el) el.textContent = "Load error — " + reason;
 });
 setTimeout(() => {
   const el = document.getElementById("load");
@@ -1296,7 +1297,7 @@ function placeFeet(dt) {
   girl.userData.head.rotation.x = -0.12 + stim.arousal * 0.15 + (toeMilk ? 0.1 : 0);
   girl.userData.head.rotation.z = Math.sin(stim.phase * 1.5) * 0.04 * stim.arousal;
   const blushOp = 0.35 + stim.arousal * 0.5 + (toeMilk ? 0.15 : 0);
-  girl.userData.head.userData.blush?.forEach(b => { b.material.opacity = blushOp; }); });
+  girl.userData.head.userData.blush?.forEach(b => { b.material.opacity = blushOp; });
   if (girl.userData.head.userData.mouth) {
     const m = girl.userData.head.userData.mouth;
     m.scale.set(1 + stim.arousal * 0.15, 1 + stim.twitch * 0.25, 1);
