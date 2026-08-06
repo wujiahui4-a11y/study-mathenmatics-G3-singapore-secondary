@@ -199,7 +199,7 @@ setTimeout(() => {
       <label>Stroke speed<input id="speed" type="range" min="0.4" max="3.2" step="0.05" value="1.35"></label>
       <label>Grip pressure<input id="grip" type="range" min="0.2" max="1.5" step="0.05" value="1.2"></label>
       <label>Foot angle<input id="angle" type="range" min="-35" max="35" step="1" value="10"></label>
-      <label>Camera orbit<input id="orbit" type="range" min="0" max="1" step="0.01" value="0.25"></label>
+      <label>Camera orbit<input id="orbit" type="range" min="0" max="1" step="0.01" value="0.08"></label>
     </div>
     <div class="btns">
       <button type="button" id="overstim">Overstimulate</button>
@@ -334,62 +334,49 @@ function limb(len, r0, r1, mat, segs = 12) {
   return mesh(new THREE.CylinderGeometry(r1, r0, len, segs), mat);
 }
 
-/* ---------- anime girl head / hair (2D eyes on 3D head) ---------- */
-function makeEyeTexture(side = 1) {
-  // Draw a flat 2D anime eye onto a canvas, used as a plane texture on the face
-  const c = document.createElement("canvas");
-  c.width = 256; c.height = 256;
-  const ctx = c.getContext("2d");
-  ctx.clearRect(0, 0, 256, 256);
+/* ---------- anime girl head / hair (2D eyes on planes) ---------- */
+function drawAnimeEye(ctx, cx, cy, flip) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (flip) ctx.scale(-1, 1);
 
-  // transparent outside; eye sits in center
-  const cx = 128, cy = 130;
-  // mirror for left/right so outer corner points outward
-  if (side < 0) { ctx.translate(256, 0); ctx.scale(-1, 1); }
-
-  // white sclera shape (tall anime eye)
+  // sclera — large tall anime eye
   ctx.beginPath();
-  ctx.moveTo(48, 120);
-  ctx.bezierCurveTo(60, 48, 196, 48, 210, 118);
-  ctx.bezierCurveTo(200, 200, 70, 205, 48, 120);
+  ctx.moveTo(-52, -4);
+  ctx.bezierCurveTo(-40, -58, 42, -58, 52, -6);
+  ctx.bezierCurveTo(44, 52, -40, 56, -52, -4);
   ctx.closePath();
   ctx.fillStyle = "#ffffff";
   ctx.fill();
-
-  // thick upper lash / outline
-  ctx.beginPath();
-  ctx.moveTo(44, 118);
-  ctx.bezierCurveTo(58, 42, 200, 40, 214, 112);
-  ctx.bezierCurveTo(200, 78, 70, 78, 44, 118);
-  ctx.closePath();
-  ctx.fillStyle = "#1a1020";
-  ctx.fill();
-
-  // lower lash line
-  ctx.beginPath();
-  ctx.moveTo(52, 128);
-  ctx.bezierCurveTo(80, 198, 185, 195, 208, 125);
   ctx.lineWidth = 5;
   ctx.strokeStyle = "#1a1020";
   ctx.stroke();
 
-  // outer wing lash
+  // thick upper lash lid
   ctx.beginPath();
-  ctx.moveTo(200, 100);
-  ctx.quadraticCurveTo(235, 95, 248, 108);
-  ctx.quadraticCurveTo(230, 100, 205, 112);
+  ctx.moveTo(-54, -6);
+  ctx.bezierCurveTo(-38, -62, 44, -62, 56, -8);
+  ctx.bezierCurveTo(40, -28, -36, -26, -54, -6);
   ctx.closePath();
   ctx.fillStyle = "#1a1020";
   ctx.fill();
 
-  // iris (purple)
-  const ig = ctx.createRadialGradient(128, 135, 8, 128, 138, 58);
-  ig.addColorStop(0, "#c9a0ff");
-  ig.addColorStop(0.35, "#8b5cf6");
-  ig.addColorStop(0.75, "#5b2d9e");
-  ig.addColorStop(1, "#2a1548");
+  // outer wing lash
   ctx.beginPath();
-  ctx.ellipse(128, 138, 52, 58, 0, 0, Math.PI * 2);
+  ctx.moveTo(48, -12);
+  ctx.quadraticCurveTo(72, -18, 82, -4);
+  ctx.quadraticCurveTo(68, -10, 52, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // iris
+  const ig = ctx.createRadialGradient(-4, 2, 4, 0, 6, 38);
+  ig.addColorStop(0, "#e8d4ff");
+  ig.addColorStop(0.3, "#a78bfa");
+  ig.addColorStop(0.7, "#6d28d9");
+  ig.addColorStop(1, "#2e1065");
+  ctx.beginPath();
+  ctx.ellipse(0, 6, 34, 40, 0, 0, Math.PI * 2);
   ctx.fillStyle = ig;
   ctx.fill();
   ctx.lineWidth = 3;
@@ -398,47 +385,25 @@ function makeEyeTexture(side = 1) {
 
   // pupil
   ctx.beginPath();
-  ctx.ellipse(128, 142, 18, 24, 0, 0, Math.PI * 2);
-  ctx.fillStyle = "#14081c";
+  ctx.ellipse(0, 10, 12, 18, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "#0f0618";
   ctx.fill();
 
-  // bottom iris glow ring
-  ctx.beginPath();
-  ctx.ellipse(128, 160, 28, 12, 0, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(180,140,255,0.35)";
-  ctx.fill();
-
-  // big sparkle highlight
-  ctx.beginPath();
-  ctx.arc(108, 118, 16, 0, Math.PI * 2);
+  // sparkles
   ctx.fillStyle = "#ffffff";
-  ctx.fill();
-  // small sparkle
-  ctx.beginPath();
-  ctx.arc(148, 152, 7, 0, Math.PI * 2);
-  ctx.fillStyle = "#ffffff";
-  ctx.fill();
-  // tiny sparkle
-  ctx.beginPath();
-  ctx.arc(150, 120, 4, 0, Math.PI * 2);
-  ctx.fillStyle = "#ffffff";
-  ctx.fill();
+  ctx.beginPath(); ctx.arc(-12, -8, 11, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(12, 16, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(14, -4, 3.5, 0, Math.PI * 2); ctx.fill();
 
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  return tex;
-}
+  // lower lash
+  ctx.beginPath();
+  ctx.moveTo(-48, 8);
+  ctx.bezierCurveTo(-20, 54, 28, 52, 48, 10);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#1a1020";
+  ctx.stroke();
 
-function makeFaceDecal(drawFn, w = 128, h = 128) {
-  const c = document.createElement("canvas");
-  c.width = w; c.height = h;
-  const ctx = c.getContext("2d");
-  ctx.clearRect(0, 0, w, h);
-  drawFn(ctx, w, h);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
+  ctx.restore();
 }
 
 function makeAnimeHead() {
@@ -458,96 +423,102 @@ function makeAnimeHead() {
   jaw.scale.set(0.88, 0.55, 0.8);
   g.add(jaw);
 
-  // === 2D eyes on flat planes (NOT 3D spheres) ===
+  // === BIG flat 2D eyes (planes) — always visible over skin/hair ===
+  const eyes = [];
   for (const sx of [-1, 1]) {
-    const eyeTex = makeEyeTexture(sx);
-    const eyeMat = new THREE.MeshBasicMaterial({
-      map: eyeTex, transparent: true, depthWrite: false, side: THREE.DoubleSide
-    });
-    const eye = new THREE.Mesh(new THREE.PlaneGeometry(0.078, 0.078), eyeMat);
-    eye.position.set(sx * 0.036, 0.022, 0.102);
-    eye.rotation.y = sx * -0.22; // wrap slightly with cheek
-    eye.rotation.x = -0.05;
-    eye.renderOrder = 2;
-    g.add(eye);
-  }
+    // draw one eye onto its own canvas so each plane is crisp
+    const c = document.createElement("canvas");
+    c.width = 256; c.height = 256;
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0, 0, 256, 256);
+    drawAnimeEye(ctx, 128, 128, sx < 0);
+    const eyeTex = new THREE.CanvasTexture(c);
+    eyeTex.colorSpace = THREE.SRGBColorSpace;
+    eyeTex.needsUpdate = true;
 
-  // 2D brows (thin arched strokes on planes)
-  for (const sx of [-1, 1]) {
-    const browTex = makeFaceDecal((ctx, w, h) => {
-      ctx.strokeStyle = "#1a1020";
-      ctx.lineWidth = 7;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      if (sx > 0) {
-        ctx.moveTo(20, 70); ctx.quadraticCurveTo(70, 28, 115, 40);
-      } else {
-        ctx.moveTo(236, 70); ctx.quadraticCurveTo(186, 28, 141, 40);
-      }
-      ctx.stroke();
+    const eyeMat = new THREE.MeshBasicMaterial({
+      map: eyeTex,
+      transparent: true,
+      depthTest: false,   // never hide behind bangs / cheek
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      alphaTest: 0.05
     });
+    // Large card — readable even from a 3/4 side camera
+    const eye = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.095), eyeMat);
+    eye.position.set(sx * 0.042, 0.028, 0.125);
+    eye.rotation.y = sx * -0.35;
+    eye.rotation.x = -0.08;
+    eye.renderOrder = 10;
+    g.add(eye);
+    eyes.push(eye);
+
+    // Side-facing copy so profile / side cam still shows a pupil
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.08), eyeMat.clone());
+    side.position.set(sx * 0.095, 0.028, 0.055);
+    side.rotation.y = sx * (Math.PI / 2 - 0.35);
+    side.renderOrder = 10;
+    g.add(side);
+    eyes.push(side);
+  }
+  g.userData.eyes = eyes;
+
+  // Soft brows above eyes
+  for (const sx of [-1, 1]) {
     const brow = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.05, 0.028),
-      new THREE.MeshBasicMaterial({ map: browTex, transparent: true, depthWrite: false })
+      new THREE.PlaneGeometry(0.055, 0.012),
+      new THREE.MeshBasicMaterial({
+        color: 0x1a1020, transparent: true, opacity: 0.9,
+        depthTest: false, depthWrite: false, side: THREE.DoubleSide
+      })
     );
-    brow.position.set(sx * 0.038, 0.058, 0.1);
-    brow.rotation.y = sx * -0.15;
-    brow.rotation.z = sx * -0.12;
+    brow.position.set(sx * 0.042, 0.072, 0.122);
+    brow.rotation.y = sx * -0.25;
+    brow.rotation.z = sx * -0.18;
+    brow.renderOrder = 10;
     g.add(brow);
   }
 
-  // blush — soft 2D circles
+  // blush pulse discs (in front of cheeks)
+  g.userData.blush = [];
   for (const sx of [-1, 1]) {
-    const blTex = makeFaceDecal((ctx, w, h) => {
-      const grd = ctx.createRadialGradient(64, 64, 5, 64, 64, 55);
-      grd.addColorStop(0, "rgba(255,130,170,0.55)");
-      grd.addColorStop(1, "rgba(255,130,170,0)");
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, w, h);
-    });
     const bl = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.045, 0.035),
-      new THREE.MeshBasicMaterial({ map: blTex, transparent: true, depthWrite: false })
+      new THREE.CircleGeometry(0.03, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0xff7aa8, transparent: true, opacity: 0.4,
+        depthTest: false, depthWrite: false, side: THREE.DoubleSide
+      })
     );
-    bl.position.set(sx * 0.055, -0.005, 0.1);
-    bl.rotation.y = sx * 0.3;
+    bl.position.set(sx * 0.06, -0.01, 0.12);
+    bl.renderOrder = 9;
     g.add(bl);
-    if (!g.userData.blush) g.userData.blush = [];
     g.userData.blush.push(bl);
   }
 
-  // tiny 2D nose line
-  const noseTex = makeFaceDecal((ctx, w, h) => {
-    ctx.strokeStyle = "rgba(40,20,30,0.55)";
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(64, 40);
-    ctx.lineTo(64, 85);
-    ctx.stroke();
-  }, 128, 128);
-  const nose = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.018, 0.022),
-    new THREE.MeshBasicMaterial({ map: noseTex, transparent: true, depthWrite: false })
-  );
-  nose.position.set(0, 0.0, 0.108);
-  g.add(nose);
-
-  // simple 2D mouth line
-  const mouthTex = makeFaceDecal((ctx, w, h) => {
+  // tiny mouth line on a plane
+  const mouthC = document.createElement("canvas");
+  mouthC.width = 128; mouthC.height = 64;
+  {
+    const ctx = mouthC.getContext("2d");
+    ctx.clearRect(0, 0, 128, 64);
     ctx.strokeStyle = "#2a1520";
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 6;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(36, 64);
-    ctx.quadraticCurveTo(64, 78, 92, 64);
+    ctx.moveTo(28, 28);
+    ctx.quadraticCurveTo(64, 48, 100, 28);
     ctx.stroke();
-  });
+  }
+  const mouthTex = new THREE.CanvasTexture(mouthC);
+  mouthTex.colorSpace = THREE.SRGBColorSpace;
   const mouth = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.032, 0.018),
-    new THREE.MeshBasicMaterial({ map: mouthTex, transparent: true, depthWrite: false })
+    new THREE.PlaneGeometry(0.04, 0.02),
+    new THREE.MeshBasicMaterial({
+      map: mouthTex, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide
+    })
   );
-  mouth.position.set(0, -0.038, 0.106);
+  mouth.position.set(0, -0.04, 0.122);
+  mouth.renderOrder = 10;
   g.add(mouth);
   g.userData.mouth = mouth;
 
@@ -557,37 +528,37 @@ function makeAnimeHead() {
 function makeAnimeHair() {
   const g = new THREE.Group();
 
-  // chin-length bob scalp
+  // chin-length bob scalp — sits above/behind face, not over eyes
   const scalp = mesh(new THREE.SphereGeometry(0.128, 28, 20), hairMat);
-  scalp.position.set(0, 0.015, -0.005);
-  scalp.scale.set(1.02, 1.0, 1.05);
+  scalp.position.set(0, 0.025, -0.015);
+  scalp.scale.set(1.02, 0.92, 1.0);
   g.add(scalp);
 
   // back bob volume
   const bobBack = mesh(new THREE.SphereGeometry(0.11, 20, 14), hairDark);
-  bobBack.position.set(0, -0.02, -0.05);
+  bobBack.position.set(0, -0.02, -0.06);
   bobBack.scale.set(1.05, 0.85, 0.7);
   g.add(bobBack);
 
-  // side bob flaps (chin length)
+  // side bob flaps — pulled back so cheeks/eyes stay open
   for (const sx of [-1, 1]) {
     const side = mesh(new THREE.SphereGeometry(0.07, 16, 12), hairMat);
-    side.position.set(sx * 0.095, -0.02, 0.01);
-    side.scale.set(0.55, 1.15, 0.75);
+    side.position.set(sx * 0.105, -0.03, -0.02);
+    side.scale.set(0.55, 1.15, 0.65);
     g.add(side);
     const tip = mesh(new THREE.SphereGeometry(0.04, 12, 10), hairDark);
-    tip.position.set(sx * 0.1, -0.08, 0.02);
+    tip.position.set(sx * 0.11, -0.09, 0.0);
     tip.scale.set(0.7, 1.0, 0.7);
     g.add(tip);
   }
 
-  // pointed bang clumps (M-shaped center like reference)
+  // Short fringe ABOVE the eyes only (clear pupil window)
   const bangLayout = [
-    { x: 0, y: 0.05, z: 0.1, sx: 0.55, sy: 1.2, sz: 0.45, rx: 0.55 },
-    { x: -0.035, y: 0.048, z: 0.095, sx: 0.45, sy: 1.1, sz: 0.4, rx: 0.5 },
-    { x: 0.035, y: 0.048, z: 0.095, sx: 0.45, sy: 1.1, sz: 0.4, rx: 0.5 },
-    { x: -0.065, y: 0.045, z: 0.085, sx: 0.4, sy: 1.0, sz: 0.38, rx: 0.45 },
-    { x: 0.065, y: 0.045, z: 0.085, sx: 0.4, sy: 1.0, sz: 0.38, rx: 0.45 },
+    { x: 0, y: 0.1, z: 0.09, sx: 0.4, sy: 0.4, sz: 0.28, rx: 0.15 },
+    { x: -0.045, y: 0.095, z: 0.085, sx: 0.35, sy: 0.45, sz: 0.26, rx: 0.18 },
+    { x: 0.045, y: 0.095, z: 0.085, sx: 0.35, sy: 0.45, sz: 0.26, rx: 0.18 },
+    { x: -0.08, y: 0.09, z: 0.07, sx: 0.32, sy: 0.55, sz: 0.26, rx: 0.2 },
+    { x: 0.08, y: 0.09, z: 0.07, sx: 0.32, sy: 0.55, sz: 0.26, rx: 0.2 },
   ];
   bangLayout.forEach(b => {
     const bang = mesh(new THREE.SphereGeometry(0.05, 12, 10), hairMat);
@@ -597,10 +568,10 @@ function makeAnimeHair() {
     g.add(bang);
   });
 
-  // flat anime hair highlight streaks (2D-looking cards)
+  // flat anime hair highlight streaks
   for (const sx of [-0.04, 0.02, 0.05]) {
     const hi = mesh(new THREE.PlaneGeometry(0.035, 0.012), hairHiMat, false);
-    hi.position.set(sx, 0.1, 0.06);
+    hi.position.set(sx, 0.115, 0.05);
     hi.rotation.x = -1.1;
     hi.rotation.z = sx * 2;
     g.add(hi);
@@ -901,16 +872,16 @@ footR.scale.setScalar(1.0);
 footL.position.set(0, 0, 0);
 footR.position.set(0, 0, 0);
 
-// Sit close so legs can reach the shaft without breaking
+// Sit close; face camera enough that 2D eyes read clearly
 girl.userData.hips.position.set(0.0, 0.52, 0.50);
-girl.userData.hips.rotation.set(0.15, Math.PI, 0);
-girl.userData.torso.rotation.set(0.35, 0, 0);
-girl.userData.head.rotation.set(-0.25, 0, 0);
+girl.userData.hips.rotation.set(0.12, Math.PI * 0.82, 0); // slight 3/4 toward +X cam
+girl.userData.torso.rotation.set(0.28, 0, 0);
+girl.userData.head.rotation.set(-0.05, -0.15, 0);
 girl.userData.arms.L.shoulder.rotation.set(-0.75, 0.25, -1.05);
 girl.userData.arms.R.shoulder.rotation.set(-0.75, -0.25, 1.05);
 
-controls.target.set(0, 0.4, 0.12);
-camera.position.set(1.65, 0.55, 0.35);
+controls.target.set(0.02, 0.88, 0.35);
+camera.position.set(1.35, 1.05, -0.15);
 controls.update();
 
 /* ---------- stim / overstim state ---------- */
@@ -1293,8 +1264,8 @@ function placeFeet(dt) {
 
   const react = stim.arousal * 0.08 + stim.twitch * 0.12;
   girl.userData.torso.rotation.x = 0.32 + Math.sin(stim.phase) * 0.05 + react;
-  girl.userData.head.rotation.y = Math.sin(performance.now() * 0.0012) * 0.08;
-  girl.userData.head.rotation.x = -0.12 + stim.arousal * 0.15 + (toeMilk ? 0.1 : 0);
+  girl.userData.head.rotation.y = -0.18 + Math.sin(performance.now() * 0.0012) * 0.08;
+  girl.userData.head.rotation.x = -0.05 + stim.arousal * 0.12 + (toeMilk ? 0.08 : 0);
   girl.userData.head.rotation.z = Math.sin(stim.phase * 1.5) * 0.04 * stim.arousal;
   const blushOp = 0.35 + stim.arousal * 0.5 + (toeMilk ? 0.15 : 0);
   girl.userData.head.userData.blush?.forEach(b => { b.material.opacity = blushOp; });
@@ -1460,8 +1431,8 @@ function updateCamera(dt) {
   if (amt <= 0.001 || stim.manualDrive) return;
   orbitT += dt * 0.15 * amt;
   const r = camera.position.distanceTo(controls.target);
-  camera.position.x = THREE.MathUtils.lerp(camera.position.x, Math.cos(orbitT) * r * 0.35 + 1.2, dt * 0.3 * amt);
-  camera.position.z = THREE.MathUtils.lerp(camera.position.z, Math.sin(orbitT) * r * 0.25 + 2.0, dt * 0.3 * amt);
+  camera.position.x = THREE.MathUtils.lerp(camera.position.x, Math.cos(orbitT) * r * 0.45 + 1.1, dt * 0.3 * amt);
+  camera.position.z = THREE.MathUtils.lerp(camera.position.z, Math.sin(orbitT) * r * 0.35 - 0.2, dt * 0.3 * amt);
 }
 
 window.addEventListener("resize", () => {
