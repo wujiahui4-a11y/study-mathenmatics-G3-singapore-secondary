@@ -832,7 +832,6 @@
           videoEl.style.display = "none";
           const iframe = document.createElement("iframe");
           iframe.allow = "fullscreen; encrypted-media";
-          iframe.allowFullscreen = true;
           iframe.src = `https://player.bilibili.com/player.html?bvid=${video.bvid}&page=1&high_quality=1&danmaku=0&as_wide=1`;
           stage.appendChild(iframe);
           streamUrlEl.textContent = `${stream.url} （CDN 防盗链，已回退嵌入播放器）`;
@@ -841,8 +840,7 @@
         streamUrlEl.textContent = `提取失败：${err.message || err}`;
         videoEl.style.display = "none";
         const iframe = document.createElement("iframe");
-        iframe.allow = "fullscreen";
-        iframe.allowFullscreen = true;
+        iframe.allow = "fullscreen; encrypted-media";
         iframe.src = `https://player.bilibili.com/player.html?bvid=${video.bvid}&page=1&high_quality=1&danmaku=0`;
         stage.appendChild(iframe);
       } finally {
