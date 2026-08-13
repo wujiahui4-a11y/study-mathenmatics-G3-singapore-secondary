@@ -707,6 +707,18 @@
     .danmaku-toolbar .switch { width: 38px; height: 22px; }
     .danmaku-toolbar .switch i::after { width: 16px; height: 16px; top: 3px; left: 3px; }
     .danmaku-toolbar .switch input:checked + i::after { transform: translateX(16px); }
+    .danmaku-debug {
+      max-width: 100%;
+      margin: 0;
+      padding: 0.6rem 1.1rem 0.8rem;
+      border-top: 1px solid var(--line);
+      color: #7d5260;
+      background: #fff7f9;
+      font: 0.7rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .danmaku-debug[hidden] { display: none; }
     .extract-bar {
       display: grid;
       gap: 0.55rem;
@@ -1136,11 +1148,13 @@
       </div>
       <div class="danmaku-toolbar">
         <div><span class="chip">弹幕</span><span id="danmakuStatus">等待加载真实弹幕…</span></div>
+        <button class="btn btn-ghost" type="button" id="danmakuDebugBtn" style="padding:0.4rem 0.6rem;font-size:0.72rem">诊断</button>
         <label class="switch" title="显示或隐藏弹幕">
           <input id="danmakuToggle" type="checkbox" checked />
           <i></i>
         </label>
       </div>
+      <pre class="danmaku-debug" id="danmakuDebug" hidden></pre>
       <div class="player-stats" id="playerStats"></div>
       <div class="extract-bar">
         <div class="extract-row">
@@ -1186,6 +1200,8 @@
       scanToken: 0,
       autoDetectTimer: null,
       locks: loadLockCache(),
+      currentVideo: null,
+      danmakuLoading: false,
     };
 
     function loadLockCache() {
@@ -1239,6 +1255,8 @@
     const danmakuLayer = $("danmakuLayer");
     const danmakuStatus = $("danmakuStatus");
     const danmakuToggle = $("danmakuToggle");
+    const danmakuDebugBtn = $("danmakuDebugBtn");
+    const danmakuDebug = $("danmakuDebug");
     let danmakuItems = [];
     let danmakuIndex = 0;
     let danmakuLastTime = -1;
@@ -1384,26 +1402,54 @@
       catch (_) { return new TextDecoder().decode(buffer); }
     }
 
+    function danmakuLog(event, data = {}) {
+      const row = { time: new Date().toISOString(), event, ...data };
+      console.info("[BiliFlux danmaku]", row);
+      if (!danmakuDebug) return;
+      const lines = danmakuDebug.textContent ? danmakuDebug.textContent.split("\n") : [];
+      lines.push(JSON.stringify(row));
+      danmakuDebug.textContent = lines.slice(-10).join("\n");
+    }
+
+    async function readJinaText(target, signal) {
+      const started = performance.now();
+      danmakuLog("request", { target });
+      const response = await fetch(target, { signal, cache: "no-store", headers: { Accept: "text/html, text/plain", "X-Return-Format": "html" } });
+      const text = await response.text();
+      const info = { target, status: response.status, type: response.type, contentType: response.headers.get("content-type"), bytes: text.length, ms: Math.round(performance.now() - started) };
+      danmakuLog("response", info);
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return text;
+    }
+
+    function parseJinaDanmaku(text) {
+      const source = String(text || "");
+      const marker = source.indexOf("Markdown Content:");
+      const body = marker >= 0 ? source.slice(marker + "Markdown Content:".length) : source;
+      const head = body.match(/chat\.bilibili\.com\d+\d+[^\n]*/)?.[0] || "";
+      const comments = body
+        .replace(head, "")
+        .split(/(?=\S)/)
+        .map((text) => ({ time: 0, mode: 1, fontSize: 18, color: "#ffffff", text: text.trim() }))
+        .filter((item) => item.text);
+      return comments;
+    }
+
     async function fetchDanmakuXml(cid, timeoutMs = 10000) {
-      const absolute = "https://comment.bilibili.com/" + cid + ".xml";
       const minuteKey = Math.floor(Date.now() / 60000);
       const targets = [
-        "https://api.allorigins.win/raw?url=" + encodeURIComponent(absolute + "?biliflux=" + minuteKey),
-        "https://api.allorigins.win/raw?url=" + encodeURIComponent(absolute),
-        absolute,
+        "https://r.jina.ai/http://comment.bilibili.com/" + encodeURIComponent(cid) + ".xml?biliflux=" + minuteKey + "&x_return_format=html",
+        "https://r.jina.ai/http://api.bilibili.com/x/v1/dm/list.so?oid=" + encodeURIComponent(cid) + "&biliflux=" + minuteKey + "&x_return_format=html",
       ];
       let lastError = new Error("弹幕接口不可用");
       for (const target of targets) {
         try {
-          const text = await withTimeout(
-            (signal) => fetch(target, { signal, cache: "no-store" }).then(decodeDanmakuResponse),
-            timeoutMs,
-            "danmaku"
-          );
-          if (text.includes("<d p=")) return text;
-          throw new Error("没有可用弹幕");
+          const text = await withTimeout((signal) => readJinaText(target, signal), timeoutMs, "danmaku");
+          if (text.includes("<d p=\"") || text.includes("Markdown Content:")) return text;
+          throw new Error("代理返回格式错误");
         } catch (error) {
           lastError = error;
+          danmakuLog("attempt-failed", { target, error: String(error) });
         }
       }
       throw lastError;
@@ -1494,7 +1540,7 @@
         let items = danmakuCache.get(String(video.cid));
         if (!items) {
           const xml = await fetchDanmakuXml(video.cid);
-          items = parseDanmakuXml(xml);
+          items = xml.includes("<d p=") ? parseDanmakuXml(xml) : parseJinaDanmaku(xml);
           if (!items.length) throw new Error("没有可用弹幕");
           danmakuCache.set(String(video.cid), items);
         }
@@ -1510,6 +1556,7 @@
         if (token !== danmakuToken) return;
         state.danmakuLoading = false;
         console.warn("danmaku background load failed", error);
+        danmakuLog("load-failed", { cid: video.cid, error: String(error), stack: error && error.stack });
         danmakuStatus.textContent = "弹幕源暂时繁忙 · 自动重试中";
         setTimeout(() => {
           if (token === danmakuToken && danmakuToggle.checked && !danmakuItems.length) {
@@ -2167,6 +2214,10 @@ Return ONLY a JSON array like:
     });
     videoEl.addEventListener("play", () => danmakuLayer.classList.remove("paused"));
     videoEl.addEventListener("pause", () => danmakuLayer.classList.add("paused"));
+    danmakuDebugBtn.addEventListener("click", () => {
+      danmakuDebug.hidden = !danmakuDebug.hidden;
+      if (!danmakuDebug.hidden) danmakuLog("diagnostics-opened", { currentCid: state.currentVideo && state.currentVideo.cid });
+    });
     danmakuToggle.addEventListener("change", () => {
       danmakuLayer.hidden = !danmakuToggle.checked;
       if (danmakuToggle.checked) {
