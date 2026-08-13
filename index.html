@@ -1377,41 +1377,38 @@
       return new Response(stream).text();
     }
 
-    async function fetchDanmakuXml(cid, timeoutMs = 20000) {
-      const absolute = "https://comment.bilibili.com/" + cid + ".xml";
-      const cacheBust = (absolute.includes("?") ? "&" : "?") + "biliflux=" + Math.floor(Date.now() / 300000);
-      const runners = [
-        (signal) => fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(absolute + cacheBust), { signal }).then(async (res) => {
-          if (!res.ok) throw new Error("allorigins " + res.status);
-          const buffer = await res.arrayBuffer();
-          try { return await inflateRawDeflate(buffer); }
-          catch (_) { return new TextDecoder().decode(buffer); }
-        }),
-        (signal) => fetch(absolute, { signal }).then(async (res) => {
-          if (!res.ok) throw new Error("bilibili " + res.status);
-          const buffer = await res.arrayBuffer();
-          try { return await inflateRawDeflate(buffer); }
-          catch (_) { return new TextDecoder().decode(buffer); }
-        }),
-      ];
-      return new Promise((resolve, reject) => {
-        let pending = runners.length;
-        let lastErr = new Error("弹幕接口不可用");
-        let settled = false;
-        runners.forEach((run, i) => {
-          withTimeout(run, timeoutMs, "danmaku" + i)
-            .then((text) => {
-              if (!text.includes("<d p=")) throw new Error("没有可用弹幕");
-              if (!settled) { settled = true; resolve(text); }
-            })
-            .catch((err) => {
-              lastErr = err;
-              pending -= 1;
-              if (!settled && pending === 0) reject(lastErr);
-            });
-        });
-      });
+    async function decodeDanmakuResponse(res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const buffer = await res.arrayBuffer();
+      try { return await inflateRawDeflate(buffer); }
+      catch (_) { return new TextDecoder().decode(buffer); }
     }
+
+    async function fetchDanmakuXml(cid, timeoutMs = 10000) {
+      const absolute = "https://comment.bilibili.com/" + cid + ".xml";
+      const minuteKey = Math.floor(Date.now() / 60000);
+      const targets = [
+        "https://api.allorigins.win/raw?url=" + encodeURIComponent(absolute + "?biliflux=" + minuteKey),
+        "https://api.allorigins.win/raw?url=" + encodeURIComponent(absolute),
+        absolute,
+      ];
+      let lastError = new Error("弹幕接口不可用");
+      for (const target of targets) {
+        try {
+          const text = await withTimeout(
+            (signal) => fetch(target, { signal, cache: "no-store" }).then(decodeDanmakuResponse),
+            timeoutMs,
+            "danmaku"
+          );
+          if (text.includes("<d p=")) return text;
+          throw new Error("没有可用弹幕");
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError;
+    }
+
     function parseDanmakuColor(value) {
       const number = Number(value);
       if (!Number.isFinite(number)) return "#ffffff";
@@ -1490,8 +1487,9 @@
     }
 
     async function loadDanmaku(video, token) {
-      if (!video.cid) return;
-      danmakuStatus.textContent = "正在后台加载真实弹幕…";
+      if (!video.cid || state.danmakuLoading) return;
+      state.danmakuLoading = true;
+      danmakuStatus.textContent = "正在连接真实弹幕…";
       try {
         let items = danmakuCache.get(String(video.cid));
         if (!items) {
@@ -1505,12 +1503,19 @@
         danmakuIndex = lowerBoundDanmaku(Number(videoEl.currentTime) || 0);
         danmakuLastTime = Number(videoEl.currentTime) || 0;
         danmakuStatus.textContent = "已加载 " + items.length + " 条真实弹幕";
+        state.danmakuLoading = false;
         syncDanmaku();
         return "overlay";
       } catch (error) {
         if (token !== danmakuToken) return;
+        state.danmakuLoading = false;
         console.warn("danmaku background load failed", error);
-        danmakuStatus.textContent = "弹幕连接失败 · 点击开关重试";
+        danmakuStatus.textContent = "弹幕源暂时繁忙 · 自动重试中";
+        setTimeout(() => {
+          if (token === danmakuToken && danmakuToggle.checked && !danmakuItems.length) {
+            loadDanmaku(video, token);
+          }
+        }, 5000);
         return "unavailable";
       }
     }
@@ -1802,6 +1807,7 @@
       const iframe = stage.querySelector("iframe");
       if (iframe) iframe.remove();
       clearDanmaku();
+      state.danmakuLoading = false;
       videoEl.style.display = "block";
       videoEl.removeAttribute("src");
       videoEl.load();
@@ -1812,6 +1818,7 @@
       state.extracting = true;
       modal.classList.add("open");
       document.body.style.overflow = "hidden";
+      state.currentVideo = video;
       playerTitle.textContent = stripHtml(video.title || video.bvid || "加载中…");
       playerStats.innerHTML = `
         <span>UP：${escapeHtml(video.owner || "…")}</span>
@@ -2162,8 +2169,13 @@ Return ONLY a JSON array like:
     videoEl.addEventListener("pause", () => danmakuLayer.classList.add("paused"));
     danmakuToggle.addEventListener("change", () => {
       danmakuLayer.hidden = !danmakuToggle.checked;
-      if (danmakuToggle.checked) syncDanmaku();
-      else danmakuLayer.replaceChildren();
+      if (danmakuToggle.checked) {
+        if (danmakuItems.length) syncDanmaku();
+        else {
+          const current = state.currentVideo;
+          if (current) loadDanmaku(current, danmakuToken);
+        }
+      } else danmakuLayer.replaceChildren();
     });
     // Events
     $("eraserBtn").addEventListener("click", () => {
