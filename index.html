@@ -719,6 +719,26 @@
       overflow-wrap: anywhere;
     }
     .danmaku-debug[hidden] { display: none; }
+    .load-more-status {
+      min-height: 54px;
+      display: grid;
+      place-items: center;
+      color: var(--ink-soft);
+      font-size: 0.82rem;
+    }
+    .load-more-status[hidden] { display: none; }
+    .load-more-status.is-loading { color: var(--pink-deep); }
+    .load-more-status .mini-spinner {
+      width: 18px;
+      height: 18px;
+      margin-right: 0.45rem;
+      border: 2px solid rgba(251, 114, 153, 0.2);
+      border-top-color: var(--pink);
+      border-radius: 50%;
+      display: inline-block;
+      vertical-align: -5px;
+      animation: spin 0.8s linear infinite;
+    }
     .extract-bar {
       display: grid;
       gap: 0.55rem;
@@ -1127,6 +1147,7 @@
       </div>
       <div class="tabs" id="tabs" role="tablist"></div>
       <div id="grid" class="grid"></div>
+      <div id="loadMoreStatus" class="load-more-status" hidden aria-live="polite"></div>
       <div id="status" class="status" hidden></div>
     </main>
 
@@ -1202,6 +1223,10 @@
       locks: loadLockCache(),
       currentVideo: null,
       danmakuLoading: false,
+      feedPage: 1,
+      feedLoading: false,
+      feedHasMore: true,
+      feedRequestId: 0,
     };
 
     function loadLockCache() {
@@ -1265,6 +1290,8 @@
     const featuredTitle = $("featuredTitle");
     const featuredMeta = $("featuredMeta");
     const featuredPlayBtn = $("featuredPlayBtn");
+    const loadMoreStatus = $("loadMoreStatus");
+    let loadMoreObserver = null;
 
     function httpsPic(url = "") {
       let u = String(url || "");
@@ -1652,9 +1679,64 @@
       throw lastErr || new Error("搜索无结果");
     }
 
+    function setLoadMoreStatus(text = "", loading = false) {
+      loadMoreStatus.hidden = !text;
+      loadMoreStatus.classList.toggle("is-loading", loading);
+      loadMoreStatus.innerHTML = loading
+        ? `<span class="mini-spinner" aria-hidden="true"></span>${escapeHtml(text)}`
+        : escapeHtml(text);
+    }
+
+    function canLoadMore() {
+      return state.category.type === "popular" && state.feedHasMore;
+    }
+
+    async function loadMoreFeed() {
+      if (!canLoadMore() || state.feedLoading) return;
+      const requestId = state.feedRequestId;
+      const nextPage = state.feedPage + 1;
+      state.feedLoading = true;
+      setLoadMoreStatus(`正在加载第 ${nextPage} 页热门视频…`, true);
+
+      try {
+        const json = await proxyFetch(`/x/web-interface/popular?ps=30&pn=${nextPage}`, 12000);
+        if (requestId !== state.feedRequestId || state.category.type !== "popular") return;
+        const list = (json.data && json.data.list) || [];
+        const known = new Set(state.videos.map((video) => video.bvid));
+        const incoming = list.map(normalizeItem).filter((video) => video.bvid && !known.has(video.bvid));
+        state.feedPage = nextPage;
+        state.videos.push(...incoming);
+        state.feedHasMore = incoming.length > 0 && list.length > 0;
+        renderGrid();
+        feedMeta.textContent = `${state.category.label} · ${state.videos.length} 条 · ${new Date().toLocaleTimeString()}`;
+        setLoadMoreStatus(state.feedHasMore ? "继续下滑加载更多" : "已经到底了", false);
+      } catch (error) {
+        if (requestId !== state.feedRequestId) return;
+        console.warn("load more feed failed", error);
+        setLoadMoreStatus("加载失败，继续下滑可重试", false);
+      } finally {
+        if (requestId === state.feedRequestId) state.feedLoading = false;
+      }
+    }
+
+    function setupLoadMoreObserver() {
+      if (loadMoreObserver) loadMoreObserver.disconnect();
+      if (!canLoadMore() || typeof IntersectionObserver !== "function") return;
+      loadMoreObserver = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMoreFeed();
+      }, { rootMargin: "600px 0px" });
+      loadMoreObserver.observe(loadMoreStatus);
+    }
+
     async function loadFeed() {
       const cat = state.category;
       const requestId = (state.requestId = (state.requestId || 0) + 1);
+      state.feedRequestId += 1;
+      state.feedPage = 1;
+      state.feedLoading = false;
+      state.feedHasMore = cat.type === "popular";
+      if (loadMoreObserver) loadMoreObserver.disconnect();
+      setLoadMoreStatus(cat.type === "popular" ? "继续下滑加载更多" : "", false);
       showStatus(true, cat.type === "search" ? `正在搜索「${escapeHtml(cat.keyword)}」…` : "正在实时抓取 Bilibili 列表…");
       grid.innerHTML = "";
 
@@ -1678,10 +1760,12 @@
 
         if (requestId !== state.requestId) return;
         state.videos = videos;
+        state.feedHasMore = cat.type === "popular" && videos.length > 0;
         renderGrid();
         const now = new Date();
         feedMeta.textContent = `${cat.label} · ${state.videos.length} 条${note} · ${now.toLocaleTimeString()}`;
         showStatus(false);
+        setupLoadMoreObserver();
 
         if (state.videos[0]) {
           const featured = state.videos[0];
@@ -1693,6 +1777,7 @@
       } catch (err) {
         if (requestId !== state.requestId) return;
         console.error(err);
+        setLoadMoreStatus("加载失败，点击刷新重试", false);
         const msg = err && err.name === "AbortError" ? "请求超时" : err.message || err;
         showStatus(true, `抓取失败：${escapeHtml(String(msg))}<br/><small>可点击「立即刷新」或换个关键词重试</small>`);
         feedMeta.textContent = "连接中断，等待重试";
@@ -2254,6 +2339,12 @@ Return ONLY a JSON array like:
       loadFeed();
       scheduleRefresh();
     });
+
+    window.addEventListener("scroll", () => {
+      if (!loadMoreObserver && canLoadMore() && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 900) {
+        loadMoreFeed();
+      }
+    }, { passive: true });
 
     grid.addEventListener("click", (e) => {
       const card = e.target.closest(".card");
