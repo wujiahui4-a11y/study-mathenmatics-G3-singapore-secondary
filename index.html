@@ -1488,6 +1488,21 @@
       }
     }
 
+    function showOfficialDanmakuPlayer(video) {
+      clearDanmaku(false);
+      videoEl.style.display = "none";
+      let iframe = stage.querySelector("iframe");
+      if (!iframe) {
+        iframe = document.createElement("iframe");
+        iframe.allow = "autoplay; fullscreen; encrypted-media";
+        iframe.allowFullscreen = true;
+        stage.appendChild(iframe);
+      }
+      iframe.src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(video.bvid)}&page=1&high_quality=1&danmaku=1&autoplay=1&as_wide=1`;
+      danmakuStatus.textContent = "已切换 Bilibili 官方弹幕播放器";
+      streamUrlEl.textContent = "弹幕代理不可用，已使用官方播放器显示真实弹幕";
+    }
+
     async function loadDanmaku(video) {
       if (!video.cid) return;
       const token = ++danmakuToken;
@@ -1506,9 +1521,12 @@
         danmakuLastTime = Number(videoEl.currentTime) || 0;
         danmakuStatus.textContent = "已加载 " + items.length + " 条真实弹幕";
         syncDanmaku();
+        return "overlay";
       } catch (error) {
         if (token !== danmakuToken) return;
-        danmakuStatus.textContent = "弹幕加载失败 · " + (error.message || "代理不可用");
+        console.warn("danmaku proxy failed, using official player", error);
+        showOfficialDanmakuPlayer(video);
+        return "official";
       }
     }
     function normalizeItem(raw) {
@@ -1822,11 +1840,13 @@
 
       try {
         const stream = await extractPlayUrl(video);
-        loadDanmaku(video);
+        const danmakuMode = await loadDanmaku(video);
         playerTitle.textContent = stripHtml(video.title || video.bvid);
         streamUrlEl.textContent = stream.url;
         streamUrlEl.title = stream.url;
         playerStats.innerHTML += `<span>清晰度 qn=${stream.quality}</span><span class="chip">直链已提取</span>`;
+
+        if (danmakuMode === "official") return;
 
         const tryUrls = [stream.url, ...stream.backups];
         let played = false;
