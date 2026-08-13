@@ -739,7 +739,7 @@
       vertical-align: -5px;
       animation: spin 0.8s linear infinite;
     }
-    .extract-bar {
+    .content-layout{width:min(1840px,100%);margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:1rem;align-items:start}.content-layout .feed{width:auto;margin:0;min-width:0}.shorts-panel{position:sticky;top:calc(var(--nav-h) + 1rem);overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(23,24,28,.06)}.shorts-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.9rem .95rem;border-bottom:1px solid var(--line)}.shorts-head h2{font-size:1rem}.shorts-head p{margin-top:.15rem;color:var(--ink-soft);font-size:.72rem}.shorts-refresh{width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink-soft);cursor:pointer}.shorts-refresh:hover{color:var(--pink-deep);border-color:#f0b5c5}.shorts-stage{position:relative;aspect-ratio:9/14;background:#111319}.shorts-stage video{width:100%;height:100%;display:block;object-fit:cover;background:#111319}.shorts-info{padding:.8rem .9rem .7rem}.shorts-info h3{min-height:2.7em;font-size:.88rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.shorts-info p{margin-top:.35rem;color:var(--ink-soft);font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.shorts-controls{display:flex;gap:.5rem;padding:0 .9rem .85rem}.shorts-controls button{flex:1;min-height:34px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;font-size:.78rem}.shorts-list{display:grid;gap:.5rem;max-height:310px;overflow:auto;padding:0 .65rem .75rem}.short-item{display:grid;grid-template-columns:72px minmax(0,1fr);gap:.6rem;align-items:center;width:100%;padding:.35rem;border:1px solid transparent;border-radius:6px;background:#f7f8fa;color:var(--ink);text-align:left;cursor:pointer}.short-item:hover,.short-item.active{border-color:#f0b5c5;background:#fff5f8}.short-item img{width:72px;aspect-ratio:9/12;object-fit:cover;border-radius:4px;background:#e7e9ed}.short-item strong{font-size:.76rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.short-item span{display:block;margin-top:.25rem;color:var(--ink-soft);font-size:.68rem}.shorts-empty{padding:1rem;color:var(--ink-soft);font-size:.78rem;text-align:center}@media(max-width:780px){.content-layout{display:block}.shorts-panel{position:relative;top:auto;margin:0 1rem 1rem}.shorts-stage{aspect-ratio:16/9}.shorts-stage video{object-fit:contain}.shorts-list{max-height:230px;grid-template-columns:repeat(2,minmax(0,1fr))}.short-item{grid-template-columns:52px minmax(0,1fr)}.short-item img{width:52px}}    .extract-bar {
       display: grid;
       gap: 0.55rem;
       padding: 0.9rem 1.1rem 1.15rem;
@@ -1138,6 +1138,7 @@
       </div>
     </section>
 
+    <div class="content-layout">
     <main class="feed" id="feed">
       <div class="feed-head">
         <div>
@@ -1150,6 +1151,9 @@
       <div id="loadMoreStatus" class="load-more-status" hidden aria-live="polite"></div>
       <div id="status" class="status" hidden></div>
     </main>
+
+    <aside class="shorts-panel" id="shortsPanel" aria-label="Bilibili Shorts"><div class="shorts-head"><div><h2>Shorts</h2><p id="shortsMeta">短视频推荐</p></div><button class="shorts-refresh" id="shortsRefreshBtn" type="button" aria-label="刷新 Shorts" title="刷新 Shorts"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 5v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="shorts-stage" id="shortsStage"><video id="shortVideo" controls muted playsinline preload="metadata"></video></div><div class="shorts-info"><h3 id="shortTitle">正在加载短视频…</h3><p id="shortMeta">Bilibili · Shorts</p></div><div class="shorts-controls"><button id="shortPrevBtn" type="button">上一条</button><button id="shortNextBtn" type="button">下一条</button></div><div class="shorts-list" id="shortsList"><div class="shorts-empty">正在发现短视频…</div></div></aside>
+    </div>
 
     <footer class="footer">
       <span>BiliFlux · HTML-only · 直链提取自 Bilibili playurl</span>
@@ -1227,6 +1231,11 @@
       feedLoading: false,
       feedHasMore: true,
       feedRequestId: 0,
+      feedKind: "popular",
+      shorts: [],
+      shortIndex: 0,
+      shortRequestId: 0,
+      shortLoading: false,
     };
 
     function loadLockCache() {
@@ -1292,6 +1301,7 @@
     const featuredPlayBtn = $("featuredPlayBtn");
     const loadMoreStatus = $("loadMoreStatus");
     let loadMoreObserver = null;
+    const shortVideo=$("shortVideo"),shortsStage=$("shortsStage"),shortsList=$("shortsList"),shortsMeta=$("shortsMeta"),shortTitle=$("shortTitle"),shortMeta=$("shortMeta"),shortsRefreshBtn=$("shortsRefreshBtn"),shortPrevBtn=$("shortPrevBtn"),shortNextBtn=$("shortNextBtn");
 
     function httpsPic(url = "") {
       let u = String(url || "");
@@ -1627,11 +1637,11 @@
       return [];
     }
 
-    async function searchVideos(keyword) {
+    async function searchVideos(keyword,page=1) {
       const q = encodeURIComponent(keyword);
       const endpoints = [
-        `/x/web-interface/search/all/v2?keyword=${q}&page=1`,
-        `/x/web-interface/wbi/search/type?search_type=video&keyword=${q}&page=1&page_size=30`,
+        `/x/web-interface/search/all/v2?keyword=${q}&page=${page}`,
+        `/x/web-interface/wbi/search/type?search_type=video&keyword=${q}&page=${page}&page_size=30`,
       ];
 
       let lastErr;
@@ -1641,7 +1651,7 @@
           const list = extractSearchList(json)
             .map(normalizeItem)
             .filter((v) => v.bvid);
-          if (list.length) return { list, source: "api" };
+          if (list.length) return { list, source: "api", hasMore: page < 50 };
         } catch (err) {
           lastErr = err;
         }
@@ -1679,6 +1689,10 @@
       throw lastErr || new Error("搜索无结果");
     }
 
+    function renderShorts(){if(!state.shorts.length){shortsList.innerHTML='<div class="shorts-empty">暂时没有找到短视频</div>';return}shortsList.innerHTML=state.shorts.map((v,i)=>'<button class="short-item'+(i===state.shortIndex?' active':'')+'" type="button" data-short-index="'+i+'" aria-label="播放短视频 '+escapeHtml(v.title)+'"><img src="'+v.pic+'" alt="'+escapeHtml(v.title)+'" loading="lazy" referrerpolicy="no-referrer"><span><strong>'+escapeHtml(v.title)+'</strong><span>'+formatDuration(v.duration)+' · '+formatCount(v.play)+' 播放</span></span></button>').join('');shortsMeta.textContent=state.shorts.length+' 条推荐'}
+    async function playShort(index){if(!state.shorts.length)return;const i=(index+state.shorts.length)%state.shorts.length,v=state.shorts[i];state.shortIndex=i;renderShorts();shortTitle.textContent=v.title;shortMeta.textContent=v.owner+' · '+formatDuration(v.duration)+' · '+formatCount(v.play)+' 播放';shortVideo.pause();shortVideo.removeAttribute('src');shortVideo.load();try{const st=await extractPlayUrl(v);let ok=false;for(const u of [st.url,...st.backups]){try{await attemptElementPlay(shortVideo,u,9000);ok=true;break}catch(_){}}if(!ok)throw Error('short video failed')}catch(e){console.warn('short playback failed',e);shortMeta.textContent='短视频暂时无法播放，请切换下一条'}}
+    async function loadShorts(){if(state.shortLoading)return;state.shortLoading=true;console.info("[BiliFlux shorts] loading");try{const rs=await Promise.allSettled([1,2,3].map(p=>proxyFetch('/x/web-interface/popular?ps=40&pn='+p,10000)));const seen=new Set(),out=[];for(const r of rs){if(r.status!=='fulfilled')continue;for(const raw of (r.value.data&&r.value.data.list)||[]){const v=normalizeItem(raw);if(!v.bvid||seen.has(v.bvid)||!v.duration||v.duration>180)continue;seen.add(v.bvid);out.push(v);if(out.length>=12)break}if(out.length>=12)break}state.shorts=out;state.shortIndex=0;renderShorts();if(out[0])playShort(0)}catch(e){console.warn('short feed failed',e);shortsMeta.textContent='加载失败'}finally{state.shortLoading=false}}
+
     function setLoadMoreStatus(text = "", loading = false) {
       loadMoreStatus.hidden = !text;
       loadMoreStatus.classList.toggle("is-loading", loading);
@@ -1688,27 +1702,45 @@
     }
 
     function canLoadMore() {
-      return state.category.type === "popular" && state.feedHasMore;
+      return state.feedHasMore && ["popular","rank","search"].includes(state.category.type);
+    }
+
+    function feedListFromResponse(json) {
+      const data = json && json.data ? json.data : {};
+      if (Array.isArray(data.list)) return data.list;
+      if (Array.isArray(data.archives)) return data.archives;
+      return [];
     }
 
     async function loadMoreFeed() {
       if (!canLoadMore() || state.feedLoading) return;
       const requestId = state.feedRequestId;
+      const cat = state.category;
       const nextPage = state.feedPage + 1;
       state.feedLoading = true;
-      setLoadMoreStatus(`正在加载第 ${nextPage} 页热门视频…`, true);
+      setLoadMoreStatus(`正在加载第 ${nextPage} 页${cat.label}…`, true);
 
       try {
-        const json = await proxyFetch(`/x/web-interface/popular?ps=30&pn=${nextPage}`, 12000);
-        if (requestId !== state.feedRequestId || state.category.type !== "popular") return;
-        const list = (json.data && json.data.list) || [];
+        let list = [];
+        let hasMore = true;
+        if (cat.type === "search") {
+          const result = await searchVideos(cat.keyword, nextPage);
+          list = result.list;
+          hasMore = result.hasMore !== false;
+        } else if (cat.type === "popular") {
+          list = feedListFromResponse(await proxyFetch(`/x/web-interface/popular?ps=30&pn=${nextPage}`, 12000));
+        } else if (cat.type === "rank") {
+          list = feedListFromResponse(await proxyFetch(`/x/web-interface/newlist?rid=${cat.rid}&pn=${nextPage}&ps=30`, 12000));
+        }
+        if (requestId !== state.feedRequestId || state.category !== cat) return;
+
         const known = new Set(state.videos.map((video) => video.bvid));
         const incoming = list.map(normalizeItem).filter((video) => video.bvid && !known.has(video.bvid));
         state.feedPage = nextPage;
         state.videos.push(...incoming);
-        state.feedHasMore = incoming.length > 0 && list.length > 0;
+        state.feedHasMore = hasMore && incoming.length > 0 && list.length > 0;
         renderGrid();
-        feedMeta.textContent = `${state.category.label} · ${state.videos.length} 条 · ${new Date().toLocaleTimeString()}`;
+        feedMeta.textContent = `${cat.label} · ${state.videos.length} 条 · ${new Date().toLocaleTimeString()}`;
         setLoadMoreStatus(state.feedHasMore ? "继续下滑加载更多" : "已经到底了", false);
       } catch (error) {
         if (requestId !== state.feedRequestId) return;
@@ -1734,9 +1766,9 @@
       state.feedRequestId += 1;
       state.feedPage = 1;
       state.feedLoading = false;
-      state.feedHasMore = cat.type === "popular";
+      state.feedHasMore = ["popular","rank","search"].includes(cat.type);
       if (loadMoreObserver) loadMoreObserver.disconnect();
-      setLoadMoreStatus(cat.type === "popular" ? "继续下滑加载更多" : "", false);
+      setLoadMoreStatus(["popular", "rank", "search"].includes(cat.type) ? "继续下滑加载更多" : "", false);
       showStatus(true, cat.type === "search" ? `正在搜索「${escapeHtml(cat.keyword)}」…` : "正在实时抓取 Bilibili 列表…");
       grid.innerHTML = "";
 
@@ -1745,8 +1777,9 @@
         let note = "";
 
         if (cat.type === "search") {
-          const result = await searchVideos(cat.keyword);
+          const result = await searchVideos(cat.keyword,1);
           videos = result.list;
+          state.feedHasMore = result.hasMore !== false && videos.length > 0;
           note = result.source === "fallback" ? "（热门池匹配）" : "";
         } else {
           const path =
@@ -1754,13 +1787,13 @@
               ? "/x/web-interface/popular?ps=30&pn=1"
               : `/x/web-interface/ranking/v2?rid=${cat.rid}&type=all`;
           const json = await proxyFetch(path);
-          const list = (json.data && json.data.list) || [];
+          const list = feedListFromResponse(json);
           videos = list.map(normalizeItem).filter((v) => v.bvid);
         }
 
         if (requestId !== state.requestId) return;
         state.videos = videos;
-        state.feedHasMore = cat.type === "popular" && videos.length > 0;
+        state.feedHasMore = ["popular","rank","search"].includes(cat.type) && videos.length > 0 && state.feedHasMore;
         renderGrid();
         const now = new Date();
         feedMeta.textContent = `${cat.label} · ${state.videos.length} 条${note} · ${now.toLocaleTimeString()}`;
@@ -1998,33 +2031,8 @@
       }
     }
 
-    function attemptVideoPlay(url) {
-      return new Promise((resolve, reject) => {
-        const onReady = () => {
-          cleanup();
-          videoEl.play().catch(() => {});
-          resolve();
-        };
-        const onErr = () => {
-          cleanup();
-          reject(new Error("video error"));
-        };
-        const cleanup = () => {
-          videoEl.removeEventListener("loadeddata", onReady);
-          videoEl.removeEventListener("error", onErr);
-        };
-        videoEl.addEventListener("loadeddata", onReady, { once: true });
-        videoEl.addEventListener("error", onErr, { once: true });
-        videoEl.src = url;
-        videoEl.load();
-        setTimeout(() => {
-          if (videoEl.readyState < 2) {
-            cleanup();
-            reject(new Error("timeout"));
-          }
-        }, 12000);
-      });
-    }
+    function attemptElementPlay(element,url,timeoutMs=12000){return new Promise((resolve,reject)=>{let done=false;const finish=e=>{if(done)return;done=true;element.onloadeddata=null;element.onerror=null;clearTimeout(timer);e?reject(e):resolve()};element.onloadeddata=()=>{element.play().catch(()=>{});finish()};element.onerror=()=>finish(Error('video error'));const timer=setTimeout(()=>finish(Error('video timeout')),timeoutMs);element.src=url;element.load()})}
+    function attemptVideoPlay(url){return attemptElementPlay(videoEl,url)}
 
     function closeModal() {
       modal.classList.remove("open");
@@ -2346,6 +2354,7 @@ Return ONLY a JSON array like:
       }
     }, { passive: true });
 
+    shortsList.addEventListener("click",e=>{const item=e.target.closest(".short-item");if(item)playShort(Number(item.dataset.shortIndex))});shortPrevBtn.addEventListener("click",()=>playShort(state.shortIndex-1));shortNextBtn.addEventListener("click",()=>playShort(state.shortIndex+1));shortsRefreshBtn.addEventListener("click",loadShorts);shortVideo.addEventListener("ended",()=>playShort(state.shortIndex+1));
     grid.addEventListener("click", (e) => {
       const card = e.target.closest(".card");
       if (!card) return;
@@ -2412,6 +2421,7 @@ Return ONLY a JSON array like:
     // Boot
     renderTabs();
     loadFeed();
+    loadShorts();
     scheduleRefresh();
     tickClock();
     setInterval(tickClock, 1000);
