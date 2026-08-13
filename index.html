@@ -877,6 +877,7 @@
       .shorts-view.open { grid-template-rows: 58px minmax(0, 1fr); }
       .short-card { min-height: 100%; }
     }
+    .quality-control{display:flex;align-items:center;gap:.35rem;margin-left:auto}.quality-control label{font-size:.72rem;color:var(--ink-soft)}.quality-select{height:32px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);padding:0 .45rem;font-size:.76rem;cursor:pointer}.short-quality-select{height:32px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(0,0,0,.28);color:#fff;padding:0 .4rem;font-size:.72rem;cursor:pointer}@media(max-width:520px){.quality-control label{display:none}.quality-control{margin-left:0}.quality-select{height:30px}}
     .extract-bar {
       display: grid;
       gap: 0.55rem;
@@ -1285,12 +1286,13 @@
     </footer>
   </div>
 
-  <section class="shorts-view" id="shortsView" aria-label="Bilibili Shorts"><header class="shorts-view-head"><div class="shorts-view-title"><span>Shorts</span><small id="shortsViewMeta">连续短视频</small></div><button class="shorts-view-close" id="shortsCloseBtn" type="button" aria-label="关闭 Shorts">×</button></header><div class="shorts-view-body"><div class="shorts-feed" id="shortsFeed"><div class="shorts-loading">正在发现短视频…</div></div></div></section>
+  <section class="shorts-view" id="shortsView" aria-label="Bilibili Shorts"><header class="shorts-view-head"><div class="shorts-view-title"><span>Shorts</span><small id="shortsViewMeta">连续短视频</small></div><select class="short-quality-select" id="shortQualitySelect" aria-label="Shorts 清晰度"><option value="16">360p</option><option value="64" selected>720p</option><option value="80">1080p</option></select><button class="shorts-view-close" id="shortsCloseBtn" type="button" aria-label="关闭 Shorts">×</button></header><div class="shorts-view-body"><div class="shorts-feed" id="shortsFeed"><div class="shorts-loading">正在发现短视频…</div></div></div></section>
 
   <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
     <div class="player-shell">
       <div class="player-top">
         <h3 id="playerTitle">加载中…</h3>
+        <div class="quality-control"><label for="qualitySelect">清晰度</label><select class="quality-select" id="qualitySelect" aria-label="视频清晰度"><option value="16">360p</option><option value="64" selected>720p</option><option value="80">1080p</option></select></div>
         <button class="icon-btn" type="button" id="closeBtn" aria-label="关闭">×</button>
       </div>
       <div class="stage" id="stage">
@@ -1363,6 +1365,7 @@
       shortRequestId: 0,
       shortLoading: false,
       shortOpen: false,
+      quality: Number(localStorage.getItem("biliflux_quality")) || 64,
       shortIndex: 0,
       shortNavigating: false,
       shortTouchY: null,
@@ -1417,6 +1420,8 @@
     const streamUrlEl = $("streamUrl");
     const playerTitle = $("playerTitle");
     const playerStats = $("playerStats");
+    const qualitySelect = $("qualitySelect");
+    const shortQualitySelect = $("shortQualitySelect");
     const danmakuLayer = $("danmakuLayer");
     const danmakuStatus = $("danmakuStatus");
     const danmakuToggle = $("danmakuToggle");
@@ -1434,6 +1439,8 @@
     let loadMoreObserver = null;
     const shortsOpenBtn=$("shortsOpenBtn"),shortsView=$("shortsView"),shortsFeed=$("shortsFeed"),shortsCloseBtn=$("shortsCloseBtn"),shortsViewMeta=$("shortsViewMeta");
     let shortsObserver=null;
+    qualitySelect.value=String(state.quality);
+    shortQualitySelect.value=String(state.quality);
     let shortWheelLock=null;
 
     function httpsPic(url = "") {
@@ -1979,7 +1986,7 @@
       if (element.dataset.loading) return;
       element.dataset.loading = '1';
       try {
-        const stream = await extractPlayUrl(video);
+        const stream = await extractPlayUrl(video, state.quality);
         for (const url of [stream.url, ...stream.backups]) {
           try {
             await attemptElementPlay(element, url, 9000);
@@ -2297,10 +2304,10 @@
       return video.cid;
     }
 
-    async function extractPlayUrl(video) {
+    async function extractPlayUrl(video, preferredQuality = state.quality) {
       const cid = await ensureCid(video);
-      // Prefer mid quality first — html5 streams are more compatible cross-origin
-      const qualities = [32, 64, 16, 80];
+      const requested = Number(preferredQuality) || 64;
+      const qualities = [...new Set([requested, 64, 16, 80, 32])];
       let lastErr;
       for (const qn of qualities) {
         try {
@@ -2355,7 +2362,7 @@
 
       try {
         const danmakuRunToken = ++danmakuToken;
-        const stream = await extractPlayUrl(video);
+        const stream = await extractPlayUrl(video, state.quality);
         playerTitle.textContent = stripHtml(video.title || video.bvid);
         streamUrlEl.textContent = stream.url;
         streamUrlEl.title = stream.url;
@@ -2747,6 +2754,23 @@ Return ONLY a JSON array like:
       const video = state.videos[Number(card.dataset.index)];
       if (video) playVideo(video);
     });
+
+    function setQuality(value) {
+      const quality = Number(value);
+      if (![16, 64, 80].includes(quality)) return;
+      state.quality = quality;
+      localStorage.setItem("biliflux_quality", String(quality));
+      qualitySelect.value = String(quality);
+      shortQualitySelect.value = String(quality);
+      if (modal.classList.contains("open") && state.currentVideo) playVideo(state.currentVideo);
+      if (state.shortOpen && state.shorts[state.shortIndex]) {
+        const element = shortVideoElement(state.shortIndex);
+        if (element) { element.dataset.loaded = ""; element.removeAttribute("src"); element.load(); }
+        loadShortSource(state.shortIndex, true);
+      }
+    }
+    qualitySelect.addEventListener("change", (event) => setQuality(event.target.value));
+    shortQualitySelect.addEventListener("change", (event) => setQuality(event.target.value));
 
     $("closeBtn").addEventListener("click", closeModal);
     modal.addEventListener("click", (e) => {
