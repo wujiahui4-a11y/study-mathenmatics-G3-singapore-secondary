@@ -6,7 +6,6 @@
   <title>BiliFlux — 实时哔哩视频流</title>
   <meta name="description" content="实时抓取 Bilibili 热门视频并提取直链播放" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23fb7299'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-size='28' font-family='sans-serif' font-weight='700' fill='white'%3EBF%3C/text%3E%3C/svg%3E" />
-  <link rel="preconnect" href="https://player.bilibili.com" crossorigin />
   <link rel="dns-prefetch" href="https://api.bilibili.com" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1490,21 +1489,6 @@
       }
     }
 
-    function showOfficialDanmakuPlayer(video) {
-      clearDanmaku(false);
-      videoEl.style.display = "none";
-      let iframe = stage.querySelector("iframe");
-      if (!iframe) {
-        iframe = document.createElement("iframe");
-        iframe.allow = "autoplay; fullscreen; encrypted-media";
-        iframe.allowFullscreen = true;
-        stage.appendChild(iframe);
-      }
-      iframe.src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(video.bvid)}&page=1&high_quality=1&danmaku=1&autoplay=1&as_wide=1`;
-      danmakuStatus.textContent = "已切换 Bilibili 官方弹幕播放器";
-      streamUrlEl.textContent = "弹幕代理不可用，已使用官方播放器显示真实弹幕";
-    }
-
     async function loadDanmaku(video, token) {
       if (!video.cid) return;
       danmakuStatus.textContent = "正在后台加载真实弹幕…";
@@ -1526,7 +1510,7 @@
       } catch (error) {
         if (token !== danmakuToken) return;
         console.warn("danmaku background load failed", error);
-        danmakuStatus.textContent = "弹幕暂时不可用 · 视频继续播放";
+        danmakuStatus.textContent = "弹幕连接失败 · 点击开关重试";
         return "unavailable";
       }
     }
@@ -1823,7 +1807,7 @@
       videoEl.load();
     }
 
-    function playVideo(video) {
+    async function playVideo(video) {
       if (state.extracting) return;
       state.extracting = true;
       modal.classList.add("open");
@@ -1834,24 +1818,45 @@
         <span>${formatCount(video.play)} 播放</span>
         <span>${formatCount(video.danmaku)} 弹幕</span>
         <span>${escapeHtml(video.bvid || "")}</span>
-        <span class="chip">官方分段弹幕</span>
       `;
+      streamUrlEl.textContent = "正在提取 playurl 直链…";
       clearStageExtras();
-      videoEl.style.display = "none";
+      danmakuToggle.closest(".switch").hidden = false;
+      danmakuStatus.textContent = "视频优先加载 · 弹幕后台加载";
 
-      const iframe = document.createElement("iframe");
-      iframe.title = playerTitle.textContent;
-      iframe.allow = "autoplay; fullscreen; encrypted-media; picture-in-picture";
-      iframe.allowFullscreen = true;
-      iframe.loading = "eager";
-      iframe.src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(video.bvid)}&page=1&high_quality=1&danmaku=1&autoplay=1&as_wide=1`;
-      stage.appendChild(iframe);
+      try {
+        const danmakuRunToken = ++danmakuToken;
+        const stream = await extractPlayUrl(video);
+        playerTitle.textContent = stripHtml(video.title || video.bvid);
+        streamUrlEl.textContent = stream.url;
+        streamUrlEl.title = stream.url;
+        playerStats.innerHTML += `<span>清晰度 qn=${stream.quality}</span><span class="chip">直链已提取</span>`;
 
-      danmakuStatus.textContent = "Bilibili 官方分段弹幕 · 已开启";
-      danmakuToggle.closest(".switch").hidden = true;
-      streamUrlEl.textContent = "官方播放器已加载 · 弹幕由 Bilibili 分段提供";
-      streamUrlEl.title = iframe.src;
-      state.extracting = false;
+        const tryUrls = [stream.url, ...stream.backups];
+        let played = false;
+        for (const url of tryUrls) {
+          try {
+            await attemptVideoPlay(url);
+            streamUrlEl.textContent = url;
+            played = true;
+            loadDanmaku(video, danmakuRunToken);
+            break;
+          } catch (_) {
+            /* try next CDN */
+          }
+        }
+
+        if (!played) {
+          streamUrlEl.textContent = "视频 CDN 暂时不可用，请关闭后重试";
+          danmakuStatus.textContent = "视频未开始，弹幕已暂停";
+        }
+      } catch (err) {
+        console.error(err);
+        streamUrlEl.textContent = `提取失败：${err.message || err}`;
+        danmakuStatus.textContent = "等待视频成功后加载弹幕";
+      } finally {
+        state.extracting = false;
+      }
     }
 
     function attemptVideoPlay(url) {
