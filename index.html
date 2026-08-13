@@ -1503,10 +1503,9 @@
       streamUrlEl.textContent = "弹幕代理不可用，已使用官方播放器显示真实弹幕";
     }
 
-    async function loadDanmaku(video) {
+    async function loadDanmaku(video, token) {
       if (!video.cid) return;
-      const token = ++danmakuToken;
-      danmakuStatus.textContent = "正在提取真实弹幕…";
+      danmakuStatus.textContent = "正在后台加载真实弹幕…";
       try {
         let items = danmakuCache.get(String(video.cid));
         if (!items) {
@@ -1524,9 +1523,9 @@
         return "overlay";
       } catch (error) {
         if (token !== danmakuToken) return;
-        console.warn("danmaku proxy failed, using official player", error);
-        showOfficialDanmakuPlayer(video);
-        return "official";
+        console.warn("danmaku background load failed", error);
+        danmakuStatus.textContent = "弹幕暂时不可用 · 视频继续播放";
+        return "unavailable";
       }
     }
     function normalizeItem(raw) {
@@ -1839,14 +1838,12 @@
       danmakuStatus.textContent = "正在等待真实弹幕…";
 
       try {
+        const danmakuRunToken = ++danmakuToken;
         const stream = await extractPlayUrl(video);
-        const danmakuMode = await loadDanmaku(video);
         playerTitle.textContent = stripHtml(video.title || video.bvid);
         streamUrlEl.textContent = stream.url;
         streamUrlEl.title = stream.url;
         playerStats.innerHTML += `<span>清晰度 qn=${stream.quality}</span><span class="chip">直链已提取</span>`;
-
-        if (danmakuMode === "official") return;
 
         const tryUrls = [stream.url, ...stream.backups];
         let played = false;
@@ -1855,6 +1852,7 @@
             await attemptVideoPlay(url);
             streamUrlEl.textContent = url;
             played = true;
+            loadDanmaku(video, danmakuRunToken);
             break;
           } catch (_) {
             /* try next */
@@ -1867,6 +1865,7 @@
           iframe.allow = "fullscreen; encrypted-media";
           iframe.src = `https://player.bilibili.com/player.html?bvid=${video.bvid}&page=1&high_quality=1&danmaku=1&as_wide=1`;
           stage.appendChild(iframe);
+          danmakuStatus.textContent = "Bilibili 官方播放器弹幕已开启";
           streamUrlEl.textContent = `${stream.url} （CDN 防盗链，已回退嵌入播放器）`;
         }
       } catch (err) {
@@ -1877,6 +1876,7 @@
         iframe.allow = "fullscreen; encrypted-media";
         iframe.src = `https://player.bilibili.com/player.html?bvid=${video.bvid}&page=1&high_quality=1&danmaku=1`;
         stage.appendChild(iframe);
+        danmakuStatus.textContent = "Bilibili 官方播放器弹幕已开启";
       } finally {
         state.extracting = false;
       }
