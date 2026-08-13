@@ -782,7 +782,7 @@
     .shorts-feed {
       width: min(100%, 520px);
       height: 100%;
-      overflow-y: hidden;
+      overflow: hidden;
       overscroll-behavior: contain;
       touch-action: none;
       scrollbar-width: none;
@@ -791,7 +791,7 @@
     .short-card {
       position: relative;
       height: 100%;
-      min-height: 100%;
+      min-height: 0;
       overflow: hidden;
       background: #111319;
     }
@@ -1822,42 +1822,34 @@
       throw lastErr || new Error("搜索无结果");
     }
 
-    function shortElement(index) {
-      return shortsFeed.querySelector('[data-short-index="' + index + '"]');
-    }
-
     function shortVideoElement(index) {
       return shortsFeed.querySelector('[data-short-video="' + index + '"]');
     }
 
-    function scrollToShort(index, behavior = "smooth") {
+    function scrollToShort(index) {
       if (!state.shorts.length) return;
       const target = Math.max(0, Math.min(state.shorts.length - 1, index));
-      if (target === state.shortIndex && behavior !== "auto") return;
+      if (target === state.shortIndex && shortsFeed.querySelector('.short-card')) return;
       state.shortIndex = target;
-      const card = shortElement(target);
-      if (card) shortsFeed.scrollTo({ top: card.offsetTop, behavior });
-      shortsViewMeta.textContent = (target + 1) + " / " + state.shorts.length + " · 上下滑切换";
-      loadShortSource(target, true);
+      state.shortDanmaku.clear();
+      renderShorts();
     }
 
     function renderShorts() {
-      if (!state.shorts.length) {
-        shortsFeed.innerHTML = '<div class="shorts-loading">暂时没有找到短视频</div>';
+      const video = state.shorts[state.shortIndex];
+      if (!video) {
+        shortsFeed.innerHTML = '<div class="shorts-loading">暂时没有找到竖版短视频</div>';
         return;
       }
-      shortsFeed.innerHTML = state.shorts.map((video, index) =>
-        '<article class="short-card" data-short-index="' + index + '">' +
-          '<video controls muted playsinline preload="none" data-short-video="' + index + '" poster="' + video.pic + '"></video>' +
-          '<div class="short-danmaku-layer" data-short-danmaku="' + index + '" aria-hidden="true"></div>' +
-          '<div class="short-card-info"><h3>' + escapeHtml(video.title) + '</h3><p>' + escapeHtml(video.owner) + ' · ' + formatDuration(video.duration) + ' · ' + formatCount(video.play) + ' 播放</p><span class="short-danmaku-status" data-short-danmaku-status="' + index + '">弹幕等待视频加载</span></div>' +
-          '<div class="short-card-actions"><button type="button" data-short-danmaku-toggle="' + index + '" aria-label="切换弹幕">弹</button><button type="button" data-short-play="' + index + '" aria-label="播放短视频">▶</button></div>' +
-        '</article>'
-      ).join('');
-      state.shortIndex = 0;
-      state.shortDanmaku.clear();
-      shortsViewMeta.textContent = '1 / ' + state.shorts.length + ' · 上下滑切换';
-      setTimeout(() => loadShortSource(0, true), 0);
+      shortsFeed.innerHTML =
+        '<article class="short-card" data-short-index="' + state.shortIndex + '">' +
+          '<video controls muted playsinline preload="metadata" data-short-video="' + state.shortIndex + '" poster="' + video.pic + '"></video>' +
+          '<div class="short-danmaku-layer" data-short-danmaku="' + state.shortIndex + '" aria-hidden="true"></div>' +
+          '<div class="short-card-info"><h3>' + escapeHtml(video.title) + '</h3><p>' + escapeHtml(video.owner) + ' · ' + formatDuration(video.duration) + ' · ' + formatCount(video.play) + ' 播放</p><span class="short-danmaku-status" data-short-danmaku-status="' + state.shortIndex + '">弹幕等待视频加载</span></div>' +
+          '<div class="short-card-actions"><button type="button" data-short-danmaku-toggle="' + state.shortIndex + '" aria-label="切换弹幕">弹</button><button type="button" data-short-play="' + state.shortIndex + '" aria-label="播放短视频">▶</button></div>' +
+        '</article>';
+      shortsViewMeta.textContent = (state.shortIndex + 1) + ' / ' + state.shorts.length + ' · 上下滑切换';
+      setTimeout(() => loadShortSource(state.shortIndex, true), 0);
     }
 
     function setShortDanmakuStatus(index, text) {
@@ -1908,9 +1900,13 @@
       }
       runtime.lastTime = now;
       const cutoff = now + 0.15;
+      let spawned = 0;
       while (runtime.cursor < runtime.items.length && runtime.items[runtime.cursor].time <= cutoff) {
         const item = runtime.items[runtime.cursor];
-        if (item.time >= now - 0.8) spawnShortDanmaku(index, item, runtime.cursor);
+        if (item.time >= now - 0.8 && spawned < 8) {
+          spawnShortDanmaku(index, item, runtime.cursor);
+          spawned += 1;
+        }
         runtime.cursor += 1;
       }
     }
@@ -2011,7 +2007,7 @@
       shortsView.classList.add('open');
       document.body.style.overflow = 'hidden';
       if (!state.shorts.length) loadShorts();
-      else scrollToShort(state.shortIndex, 'auto');
+      else renderShorts();
     }
 
     function closeShorts() {
@@ -2025,14 +2021,17 @@
       if (state.shortLoading) return;
       state.shortLoading = true;
       try {
-        const results = await Promise.allSettled([1, 2, 3].map((page) => proxyFetch('/x/web-interface/popular?ps=40&pn=' + page, 10000)));
+        const results = await Promise.allSettled([1, 2, 3, 4, 5].map((page) => proxyFetch('/x/web-interface/popular?ps=40&pn=' + page, 10000)));
         const seen = new Set();
         const shorts = [];
         for (const result of results) {
           if (result.status !== 'fulfilled') continue;
           for (const raw of (result.value.data && result.value.data.list) || []) {
+            const dimension = raw.dimension || {};
+            const width = Number(dimension.width) || 0;
+            const height = Number(dimension.height) || 0;
             const video = normalizeItem(raw);
-            if (!video.bvid || seen.has(video.bvid) || !video.duration || video.duration > 180) continue;
+            if (!video.bvid || seen.has(video.bvid) || !video.duration || video.duration > 180 || height <= width) continue;
             seen.add(video.bvid);
             shorts.push(video);
             if (shorts.length >= 12) break;
@@ -2040,6 +2039,8 @@
           if (shorts.length >= 12) break;
         }
         state.shorts = shorts;
+        state.shortIndex = 0;
+        state.shortDanmaku.clear();
         renderShorts();
       } catch (error) {
         console.warn('short feed failed', error);
