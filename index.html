@@ -739,7 +739,144 @@
       vertical-align: -5px;
       animation: spin 0.8s linear infinite;
     }
-    .shorts-nav-btn{display:inline-flex;align-items:center;gap:.45rem;height:42px;padding:0 .85rem;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);cursor:pointer;font-weight:700}.shorts-nav-btn:hover{color:var(--pink-deep);border-color:#f0b5c5}.shorts-view{position:fixed;inset:0;z-index:90;display:none;background:#101116;color:#fff}.shorts-view.open{display:grid;grid-template-rows:68px minmax(0,1fr)}.shorts-view-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:0 1rem;border-bottom:1px solid rgba(255,255,255,.1);background:#17181e}.shorts-view-title{display:flex;align-items:center;gap:.7rem;font-weight:800}.shorts-view-title small{color:rgba(255,255,255,.55);font-size:.75rem;font-weight:500}.shorts-view-close{width:38px;height:38px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.18);border-radius:7px;background:transparent;color:#fff;cursor:pointer;font-size:1.25rem}.shorts-view-body{min-height:0;overflow:hidden;display:flex;justify-content:center}.shorts-feed{width:min(100%,520px);height:100%;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none}.shorts-feed::-webkit-scrollbar{display:none}.short-card{position:relative;height:100%;min-height:520px;scroll-snap-align:start;background:#111319;border-bottom:1px solid rgba(255,255,255,.14)}.short-card video{width:100%;height:100%;display:block;object-fit:cover;background:#111319}.short-card:after{content:"";position:absolute;inset:45% 0 0;pointer-events:none;background:linear-gradient(transparent,rgba(0,0,0,.75))}.short-card-info{position:absolute;left:1rem;right:1rem;bottom:1rem;z-index:1}.short-card-info h3{max-width:85%;margin-bottom:.4rem;font-size:1.05rem;line-height:1.35}.short-card-info p{color:rgba(255,255,255,.72);font-size:.78rem}.short-card-actions{position:absolute;right:1rem;bottom:1rem;z-index:2}.short-card-actions button{width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.25);border-radius:50%;background:rgba(0,0,0,.35);color:#fff;cursor:pointer}.shorts-loading{display:grid;place-items:center;height:100%;color:rgba(255,255,255,.65)}@media(max-width:780px){.shorts-nav-btn{width:42px;padding:0;justify-content:center;font-size:0}.shorts-view.open{grid-template-rows:58px minmax(0,1fr)}.short-card{min-height:0}}
+    .shorts-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      height: 42px;
+      padding: 0 0.85rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .shorts-nav-btn:hover { color: var(--pink-deep); border-color: #f0b5c5; }
+    .shorts-view { position: fixed; inset: 0; z-index: 90; display: none; background: #101116; color: #fff; }
+    .shorts-view.open { display: grid; grid-template-rows: 68px minmax(0, 1fr); }
+    .shorts-view-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: #17181e;
+    }
+    .shorts-view-title { display: flex; align-items: center; gap: 0.7rem; font-weight: 800; }
+    .shorts-view-title small { color: rgba(255, 255, 255, 0.55); font-size: 0.75rem; font-weight: 500; }
+    .shorts-view-close {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 7px;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.25rem;
+    }
+    .shorts-view-body { min-height: 0; overflow: hidden; display: flex; justify-content: center; }
+    .shorts-feed {
+      width: min(100%, 520px);
+      height: 100%;
+      overflow-y: hidden;
+      overscroll-behavior: contain;
+      touch-action: none;
+      scrollbar-width: none;
+    }
+    .shorts-feed::-webkit-scrollbar { display: none; }
+    .short-card {
+      position: relative;
+      height: 100%;
+      min-height: 100%;
+      overflow: hidden;
+      background: #111319;
+    }
+    .short-card video { width: 100%; height: 100%; display: block; object-fit: cover; background: #111319; }
+    .short-card::after {
+      content: "";
+      position: absolute;
+      inset: 45% 0 0;
+      pointer-events: none;
+      background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+    }
+    .short-danmaku-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      overflow: hidden;
+      pointer-events: none;
+      user-select: none;
+    }
+    .short-danmaku-item {
+      position: absolute;
+      left: 100%;
+      top: 0;
+      max-width: 88%;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+      text-shadow: 0 1px 3px #000, 1px 0 3px #000, -1px 0 3px #000;
+      will-change: transform;
+      animation: short-danmaku-scroll var(--short-dm-duration, 8s) linear forwards;
+    }
+    .short-danmaku-item.is-top,
+    .short-danmaku-item.is-bottom {
+      left: 50%;
+      max-width: 86%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transform: translateX(-50%);
+      animation: short-danmaku-fixed 4.5s ease-out forwards;
+    }
+    .short-danmaku-item.is-top { top: 9%; }
+    .short-danmaku-item.is-bottom { top: auto; bottom: 20%; }
+    .short-danmaku-layer.paused .short-danmaku-item { animation-play-state: paused; }
+    @keyframes short-danmaku-scroll {
+      from { transform: translateX(0); }
+      to { transform: translateX(var(--short-dm-travel)); }
+    }
+    @keyframes short-danmaku-fixed {
+      0%, 75% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .short-card-info { position: absolute; left: 1rem; right: 1rem; bottom: 1rem; z-index: 2; }
+    .short-card-info h3 { max-width: 85%; margin-bottom: 0.4rem; font-size: 1.05rem; line-height: 1.35; }
+    .short-card-info p { color: rgba(255, 255, 255, 0.72); font-size: 0.78rem; }
+    .short-danmaku-status {
+      display: inline-flex;
+      margin-top: 0.5rem;
+      padding: 0.18rem 0.42rem;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.42);
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 0.68rem;
+    }
+    .short-card-actions { position: absolute; right: 1rem; bottom: 1rem; z-index: 3; display: grid; gap: 0.5rem; }
+    .short-card-actions button {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.35);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .short-card-actions button.is-off { opacity: 0.52; }
+    .shorts-loading { display: grid; place-items: center; height: 100%; color: rgba(255, 255, 255, 0.65); }
+    @media (max-width: 780px) {
+      .shorts-nav-btn { width: 42px; padding: 0; justify-content: center; font-size: 0; }
+      .shorts-view.open { grid-template-rows: 58px minmax(0, 1fr); }
+      .short-card { min-height: 100%; }
+    }
     .extract-bar {
       display: grid;
       gap: 0.55rem;
@@ -1226,6 +1363,10 @@
       shortRequestId: 0,
       shortLoading: false,
       shortOpen: false,
+      shortIndex: 0,
+      shortNavigating: false,
+      shortTouchY: null,
+      shortDanmaku: new Map(),
     };
 
     function loadLockCache() {
@@ -1293,6 +1434,7 @@
     let loadMoreObserver = null;
     const shortsOpenBtn=$("shortsOpenBtn"),shortsView=$("shortsView"),shortsFeed=$("shortsFeed"),shortsCloseBtn=$("shortsCloseBtn"),shortsViewMeta=$("shortsViewMeta");
     let shortsObserver=null;
+    let shortWheelLock=null;
 
     function httpsPic(url = "") {
       let u = String(url || "");
@@ -1680,43 +1822,233 @@
       throw lastErr || new Error("搜索无结果");
     }
 
-    function renderShorts(){
-      if(!state.shorts.length){shortsFeed.innerHTML="<div class=\"shorts-loading\">暂时没有找到短视频</div>";return;}
-      shortsFeed.innerHTML=state.shorts.map((video,index)=>"<article class=\"short-card\" data-short-index=\""+index+"\"><video controls muted playsinline preload=\"none\" data-short-video=\""+index+"\" poster=\""+video.pic+"\"></video><div class=\"short-card-info\"><h3>"+escapeHtml(video.title)+"</h3><p>"+escapeHtml(video.owner)+" · "+formatDuration(video.duration)+" · "+formatCount(video.play)+" 播放</p></div><div class=\"short-card-actions\"><button type=\"button\" data-short-play=\""+index+"\" aria-label=\"播放短视频\">▶</button></div></article>").join("");
-      shortsViewMeta.textContent=state.shorts.length+" 条推荐 · 上下滑切换";
-      setupShortsObserver();
-      setTimeout(()=>loadShortSource(0,true),0);
+    function shortElement(index) {
+      return shortsFeed.querySelector('[data-short-index="' + index + '"]');
     }
-    function setupShortsObserver(){
-      if(shortsObserver)shortsObserver.disconnect();
-      shortsObserver=new IntersectionObserver(entries=>{
-        entries.forEach(entry=>{
-          const element=entry.target,index=Number(element.dataset.shortVideo);
-          if(entry.isIntersecting&&entry.intersectionRatio>=.6){
-            shortsFeed.querySelectorAll("video").forEach(video=>{if(video!==element)video.pause()});
-            loadShortSource(index,true);
-          }else element.pause();
-        });
-      },{root:shortsFeed,threshold:[.25,.6,.85]});
-      shortsFeed.querySelectorAll("[data-short-video]").forEach(video=>shortsObserver.observe(video));
+
+    function shortVideoElement(index) {
+      return shortsFeed.querySelector('[data-short-video="' + index + '"]');
     }
-    async function loadShortSource(index,autoplay=false){
-      const video=state.shorts[index],element=shortsFeed.querySelector("[data-short-video=\""+index+"\"]");
-      if(!video||!element)return;
-      if(element.dataset.loaded){if(autoplay)element.play().catch(()=>{});return;}
-      if(element.dataset.loading)return;
-      element.dataset.loading="1";
-      try{
-        const stream=await extractPlayUrl(video);
-        for(const url of [stream.url,...stream.backups]){
-          try{await attemptElementPlay(element,url,9000);element.dataset.loaded="1";if(!autoplay)element.pause();return}catch(_){ }
+
+    function scrollToShort(index, behavior = "smooth") {
+      if (!state.shorts.length) return;
+      const target = Math.max(0, Math.min(state.shorts.length - 1, index));
+      if (target === state.shortIndex && behavior !== "auto") return;
+      state.shortIndex = target;
+      const card = shortElement(target);
+      if (card) shortsFeed.scrollTo({ top: card.offsetTop, behavior });
+      shortsViewMeta.textContent = (target + 1) + " / " + state.shorts.length + " · 上下滑切换";
+      loadShortSource(target, true);
+    }
+
+    function renderShorts() {
+      if (!state.shorts.length) {
+        shortsFeed.innerHTML = '<div class="shorts-loading">暂时没有找到短视频</div>';
+        return;
+      }
+      shortsFeed.innerHTML = state.shorts.map((video, index) =>
+        '<article class="short-card" data-short-index="' + index + '">' +
+          '<video controls muted playsinline preload="none" data-short-video="' + index + '" poster="' + video.pic + '"></video>' +
+          '<div class="short-danmaku-layer" data-short-danmaku="' + index + '" aria-hidden="true"></div>' +
+          '<div class="short-card-info"><h3>' + escapeHtml(video.title) + '</h3><p>' + escapeHtml(video.owner) + ' · ' + formatDuration(video.duration) + ' · ' + formatCount(video.play) + ' 播放</p><span class="short-danmaku-status" data-short-danmaku-status="' + index + '">弹幕等待视频加载</span></div>' +
+          '<div class="short-card-actions"><button type="button" data-short-danmaku-toggle="' + index + '" aria-label="切换弹幕">弹</button><button type="button" data-short-play="' + index + '" aria-label="播放短视频">▶</button></div>' +
+        '</article>'
+      ).join('');
+      state.shortIndex = 0;
+      state.shortDanmaku.clear();
+      shortsViewMeta.textContent = '1 / ' + state.shorts.length + ' · 上下滑切换';
+      setTimeout(() => loadShortSource(0, true), 0);
+    }
+
+    function setShortDanmakuStatus(index, text) {
+      const status = shortsFeed.querySelector('[data-short-danmaku-status="' + index + '"]');
+      if (status) status.textContent = text;
+    }
+
+    function clearShortDanmaku(index) {
+      const layer = shortsFeed.querySelector('[data-short-danmaku="' + index + '"]');
+      if (layer) layer.replaceChildren();
+      const runtime = state.shortDanmaku.get(index);
+      if (runtime) {
+        runtime.cursor = 0;
+        runtime.lastTime = -1;
+      }
+    }
+
+    function spawnShortDanmaku(index, item, itemIndex) {
+      const runtime = state.shortDanmaku.get(index);
+      const layer = shortsFeed.querySelector('[data-short-danmaku="' + index + '"]');
+      const video = shortVideoElement(index);
+      if (!runtime || !runtime.enabled || !layer || !video) return;
+      const element = document.createElement('span');
+      const fixed = item.mode === 4 || item.mode === 5;
+      element.className = 'short-danmaku-item' + (fixed ? (item.mode === 5 ? ' is-top' : ' is-bottom') : '');
+      element.textContent = item.text;
+      element.style.color = item.color;
+      element.style.fontSize = Math.max(14, Math.min(24, item.fontSize)) + 'px';
+      if (!fixed) {
+        const lanes = Math.max(4, Math.floor(video.clientHeight / 32));
+        element.style.top = 8 + (itemIndex % lanes) * Math.min(32, video.clientHeight / lanes) + 'px';
+        element.style.setProperty('--short-dm-duration', Math.max(6, Math.min(11, 7 + item.text.length * 0.04)) + 's');
+        element.style.setProperty('--short-dm-travel', (-video.clientWidth - 320) + 'px');
+      }
+      layer.appendChild(element);
+      element.addEventListener('animationend', () => element.remove(), { once: true });
+    }
+
+    function syncShortDanmaku(index) {
+      const runtime = state.shortDanmaku.get(index);
+      const video = shortVideoElement(index);
+      if (!runtime || !runtime.enabled || !video || !runtime.items.length || video.readyState < 1) return;
+      const now = Number(video.currentTime);
+      if (!Number.isFinite(now)) return;
+      if (runtime.lastTime >= 0 && (now + 0.5 < runtime.lastTime || now - runtime.lastTime > 1.5)) {
+        clearShortDanmaku(index);
+        runtime.cursor = lowerBoundShortDanmaku(runtime.items, Math.max(0, now - 0.2));
+      }
+      runtime.lastTime = now;
+      const cutoff = now + 0.15;
+      while (runtime.cursor < runtime.items.length && runtime.items[runtime.cursor].time <= cutoff) {
+        const item = runtime.items[runtime.cursor];
+        if (item.time >= now - 0.8) spawnShortDanmaku(index, item, runtime.cursor);
+        runtime.cursor += 1;
+      }
+    }
+
+    function lowerBoundShortDanmaku(items, time) {
+      let low = 0;
+      let high = items.length;
+      while (low < high) {
+        const middle = (low + high) >> 1;
+        if (items[middle].time < time) low = middle + 1;
+        else high = middle;
+      }
+      return low;
+    }
+
+    async function loadShortDanmaku(index) {
+      const video = state.shorts[index];
+      const player = shortVideoElement(index);
+      if (!video || !player) return;
+      let runtime = state.shortDanmaku.get(index);
+      if (runtime && (runtime.loading || runtime.items.length)) return;
+      runtime = { items: [], cursor: 0, lastTime: -1, enabled: true, loading: true };
+      state.shortDanmaku.set(index, runtime);
+      setShortDanmakuStatus(index, '正在加载真实弹幕…');
+      try {
+        if (!video.cid) await ensureCid(video);
+        const source = await fetchDanmakuXml(video.cid);
+        const items = source.includes('<d p=') ? parseDanmakuXml(source) : parseJinaDanmaku(source);
+        if (!items.length) throw new Error('没有可用弹幕');
+        runtime.items = items;
+        runtime.cursor = lowerBoundShortDanmaku(items, Number(player.currentTime) || 0);
+        runtime.lastTime = Number(player.currentTime) || 0;
+        runtime.loading = false;
+        setShortDanmakuStatus(index, '已加载 ' + items.length + ' 条真实弹幕');
+        syncShortDanmaku(index);
+      } catch (error) {
+        runtime.loading = false;
+        setShortDanmakuStatus(index, '弹幕暂时不可用');
+        console.warn('short danmaku failed', error);
+      }
+    }
+
+    function toggleShortDanmaku(index) {
+      const runtime = state.shortDanmaku.get(index);
+      const layer = shortsFeed.querySelector('[data-short-danmaku="' + index + '"]');
+      const button = shortsFeed.querySelector('[data-short-danmaku-toggle="' + index + '"]');
+      if (!runtime) {
+        loadShortDanmaku(index);
+        return;
+      }
+      runtime.enabled = !runtime.enabled;
+      if (layer) {
+        layer.hidden = !runtime.enabled;
+        if (!runtime.enabled) layer.replaceChildren();
+      }
+      if (button) button.classList.toggle('is-off', !runtime.enabled);
+      setShortDanmakuStatus(index, runtime.enabled ? '弹幕已开启' : '弹幕已关闭');
+      if (runtime.enabled) syncShortDanmaku(index);
+    }
+
+    async function loadShortSource(index, autoplay = false) {
+      const video = state.shorts[index];
+      const element = shortVideoElement(index);
+      if (!video || !element) return;
+      if (element.dataset.loaded) {
+        if (autoplay) element.play().catch(() => {});
+        loadShortDanmaku(index);
+        return;
+      }
+      if (element.dataset.loading) return;
+      element.dataset.loading = '1';
+      try {
+        const stream = await extractPlayUrl(video);
+        for (const url of [stream.url, ...stream.backups]) {
+          try {
+            await attemptElementPlay(element, url, 9000);
+            element.dataset.loaded = '1';
+            delete element.dataset.loading;
+            if (!autoplay) element.pause();
+            element.addEventListener('timeupdate', () => syncShortDanmaku(index));
+            element.addEventListener('seeking', () => clearShortDanmaku(index));
+            element.addEventListener('play', () => shortsFeed.querySelector('[data-short-danmaku="' + index + '"]')?.classList.remove('paused'));
+            element.addEventListener('pause', () => shortsFeed.querySelector('[data-short-danmaku="' + index + '"]')?.classList.add('paused'));
+            loadShortDanmaku(index);
+            return;
+          } catch (_) { }
         }
-        throw new Error("short source unavailable");
-      }catch(error){console.warn("short source failed",error);delete element.dataset.loading;}
+        throw new Error('short source unavailable');
+      } catch (error) {
+        delete element.dataset.loading;
+        setShortDanmakuStatus(index, '短视频暂时不可用');
+        console.warn('short source failed', error);
+      }
     }
-    function openShorts(){state.shortOpen=true;shortsView.classList.add("open");document.body.style.overflow="hidden";if(!state.shorts.length)loadShorts();else renderShorts()}
-    function closeShorts(){state.shortOpen=false;shortsView.classList.remove("open");document.body.style.overflow="";if(shortsObserver)shortsObserver.disconnect();shortsFeed.querySelectorAll("video").forEach(video=>video.pause())}
-    async function loadShorts(){if(state.shortLoading)return;state.shortLoading=true;try{const results=await Promise.allSettled([1,2,3].map(page=>proxyFetch("/x/web-interface/popular?ps=40&pn="+page,10000))),seen=new Set(),out=[];for(const result of results){if(result.status!=="fulfilled")continue;for(const raw of(result.value.data&&result.value.data.list)||[]){const video=normalizeItem(raw);if(!video.bvid||seen.has(video.bvid)||!video.duration||video.duration>180)continue;seen.add(video.bvid);out.push(video);if(out.length>=12)break}if(out.length>=12)break}state.shorts=out;renderShorts()}catch(error){console.warn("short feed failed",error);shortsViewMeta.textContent="加载失败"}finally{state.shortLoading=false}}
+
+    function openShorts() {
+      state.shortOpen = true;
+      shortsView.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      if (!state.shorts.length) loadShorts();
+      else scrollToShort(state.shortIndex, 'auto');
+    }
+
+    function closeShorts() {
+      state.shortOpen = false;
+      shortsView.classList.remove('open');
+      document.body.style.overflow = '';
+      shortsFeed.querySelectorAll('video').forEach((video) => video.pause());
+    }
+
+    async function loadShorts() {
+      if (state.shortLoading) return;
+      state.shortLoading = true;
+      try {
+        const results = await Promise.allSettled([1, 2, 3].map((page) => proxyFetch('/x/web-interface/popular?ps=40&pn=' + page, 10000)));
+        const seen = new Set();
+        const shorts = [];
+        for (const result of results) {
+          if (result.status !== 'fulfilled') continue;
+          for (const raw of (result.value.data && result.value.data.list) || []) {
+            const video = normalizeItem(raw);
+            if (!video.bvid || seen.has(video.bvid) || !video.duration || video.duration > 180) continue;
+            seen.add(video.bvid);
+            shorts.push(video);
+            if (shorts.length >= 12) break;
+          }
+          if (shorts.length >= 12) break;
+        }
+        state.shorts = shorts;
+        renderShorts();
+      } catch (error) {
+        console.warn('short feed failed', error);
+        shortsViewMeta.textContent = '加载失败';
+      } finally {
+        state.shortLoading = false;
+      }
+    }
+
     function setLoadMoreStatus(text = "", loading = false) {
       loadMoreStatus.hidden = !text;
       loadMoreStatus.classList.toggle("is-loading", loading);
@@ -2378,9 +2710,36 @@ Return ONLY a JSON array like:
       }
     }, { passive: true });
 
-    shortsOpenBtn.addEventListener("click",openShorts);
-    shortsCloseBtn.addEventListener("click",closeShorts);
-    shortsFeed.addEventListener("click",event=>{const button=event.target.closest("[data-short-play]");if(button){const video=shortsFeed.querySelector("[data-short-video=\""+button.dataset.shortPlay+"\"]");if(video)video.play().catch(()=>{})}});
+    shortsOpenBtn.addEventListener('click', openShorts);
+    shortsCloseBtn.addEventListener('click', closeShorts);
+    shortsFeed.addEventListener('click', (event) => {
+      const playButton = event.target.closest('[data-short-play]');
+      const danmakuButton = event.target.closest('[data-short-danmaku-toggle]');
+      if (playButton) shortVideoElement(Number(playButton.dataset.shortPlay))?.play().catch(() => {});
+      if (danmakuButton) toggleShortDanmaku(Number(danmakuButton.dataset.shortDanmakuToggle));
+    });
+    shortsFeed.addEventListener('wheel', (event) => {
+      if (!state.shortOpen || !state.shorts.length) return;
+      event.preventDefault();
+      if (state.shortNavigating || Math.abs(event.deltaY) < 8) return;
+      state.shortNavigating = true;
+      scrollToShort(state.shortIndex + (event.deltaY > 0 ? 1 : -1));
+      clearTimeout(shortWheelLock);
+      shortWheelLock = setTimeout(() => { state.shortNavigating = false; }, 520);
+    }, { passive: false });
+    shortsFeed.addEventListener('touchstart', (event) => { state.shortTouchY = event.touches[0]?.clientY ?? null; }, { passive: true });
+    shortsFeed.addEventListener('touchend', (event) => {
+      if (state.shortTouchY === null) return;
+      const endY = event.changedTouches[0]?.clientY ?? state.shortTouchY;
+      const delta = state.shortTouchY - endY;
+      state.shortTouchY = null;
+      if (Math.abs(delta) > 40) scrollToShort(state.shortIndex + (delta > 0 ? 1 : -1));
+    }, { passive: true });
+    document.addEventListener('keydown', (event) => {
+      if (!state.shortOpen || !['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+      event.preventDefault();
+      scrollToShort(state.shortIndex + (event.key === 'ArrowDown' ? 1 : -1));
+    });
     grid.addEventListener("click", (e) => {
       const card = e.target.closest(".card");
       if (!card) return;
