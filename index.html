@@ -739,7 +739,8 @@
       vertical-align: -5px;
       animation: spin 0.8s linear infinite;
     }
-    .content-layout{width:min(1840px,100%);margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:1rem;align-items:start}.content-layout .feed{width:auto;margin:0;min-width:0}.shorts-panel{position:sticky;top:calc(var(--nav-h) + 1rem);overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(23,24,28,.06)}.shorts-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.9rem .95rem;border-bottom:1px solid var(--line)}.shorts-head h2{font-size:1rem}.shorts-head p{margin-top:.15rem;color:var(--ink-soft);font-size:.72rem}.shorts-refresh{width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink-soft);cursor:pointer}.shorts-refresh:hover{color:var(--pink-deep);border-color:#f0b5c5}.shorts-stage{position:relative;aspect-ratio:9/14;background:#111319}.shorts-stage video{width:100%;height:100%;display:block;object-fit:cover;background:#111319}.shorts-info{padding:.8rem .9rem .7rem}.shorts-info h3{min-height:2.7em;font-size:.88rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.shorts-info p{margin-top:.35rem;color:var(--ink-soft);font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.shorts-controls{display:flex;gap:.5rem;padding:0 .9rem .85rem}.shorts-controls button{flex:1;min-height:34px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;font-size:.78rem}.shorts-list{display:grid;gap:.5rem;max-height:310px;overflow:auto;padding:0 .65rem .75rem}.short-item{display:grid;grid-template-columns:72px minmax(0,1fr);gap:.6rem;align-items:center;width:100%;padding:.35rem;border:1px solid transparent;border-radius:6px;background:#f7f8fa;color:var(--ink);text-align:left;cursor:pointer}.short-item:hover,.short-item.active{border-color:#f0b5c5;background:#fff5f8}.short-item img{width:72px;aspect-ratio:9/12;object-fit:cover;border-radius:4px;background:#e7e9ed}.short-item strong{font-size:.76rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.short-item span{display:block;margin-top:.25rem;color:var(--ink-soft);font-size:.68rem}.shorts-empty{padding:1rem;color:var(--ink-soft);font-size:.78rem;text-align:center}@media(max-width:780px){.content-layout{display:block}.shorts-panel{position:relative;top:auto;margin:0 1rem 1rem}.shorts-stage{aspect-ratio:16/9}.shorts-stage video{object-fit:contain}.shorts-list{max-height:230px;grid-template-columns:repeat(2,minmax(0,1fr))}.short-item{grid-template-columns:52px minmax(0,1fr)}.short-item img{width:52px}}    .extract-bar {
+    .shorts-nav-btn{display:inline-flex;align-items:center;gap:.45rem;height:42px;padding:0 .85rem;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);cursor:pointer;font-weight:700}.shorts-nav-btn:hover{color:var(--pink-deep);border-color:#f0b5c5}.shorts-view{position:fixed;inset:0;z-index:90;display:none;background:#101116;color:#fff}.shorts-view.open{display:grid;grid-template-rows:68px minmax(0,1fr)}.shorts-view-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:0 1rem;border-bottom:1px solid rgba(255,255,255,.1);background:#17181e}.shorts-view-title{display:flex;align-items:center;gap:.7rem;font-weight:800}.shorts-view-title small{color:rgba(255,255,255,.55);font-size:.75rem;font-weight:500}.shorts-view-close{width:38px;height:38px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.18);border-radius:7px;background:transparent;color:#fff;cursor:pointer;font-size:1.25rem}.shorts-view-body{min-height:0;overflow:hidden;display:flex;justify-content:center}.shorts-feed{width:min(100%,520px);height:100%;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none}.shorts-feed::-webkit-scrollbar{display:none}.short-card{position:relative;height:100%;min-height:520px;scroll-snap-align:start;background:#111319;border-bottom:1px solid rgba(255,255,255,.14)}.short-card video{width:100%;height:100%;display:block;object-fit:cover;background:#111319}.short-card:after{content:"";position:absolute;inset:45% 0 0;pointer-events:none;background:linear-gradient(transparent,rgba(0,0,0,.75))}.short-card-info{position:absolute;left:1rem;right:1rem;bottom:1rem;z-index:1}.short-card-info h3{max-width:85%;margin-bottom:.4rem;font-size:1.05rem;line-height:1.35}.short-card-info p{color:rgba(255,255,255,.72);font-size:.78rem}.short-card-actions{position:absolute;right:1rem;bottom:1rem;z-index:2}.short-card-actions button{width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.25);border-radius:50%;background:rgba(0,0,0,.35);color:#fff;cursor:pointer}.shorts-loading{display:grid;place-items:center;height:100%;color:rgba(255,255,255,.65)}@media(max-width:780px){.shorts-nav-btn{width:42px;padding:0;justify-content:center;font-size:0}.shorts-view.open{grid-template-rows:58px minmax(0,1fr)}.short-card{min-height:0}}
+    .extract-bar {
       display: grid;
       gap: 0.55rem;
       padding: 0.9rem 1.1rem 1.15rem;
@@ -1085,6 +1086,7 @@
           </span>
           Anime Girl Eraser
         </button>
+        <button class="shorts-nav-btn" type="button" id="shortsOpenBtn" title="打开 Shorts"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="3" stroke="currentColor" stroke-width="2"/><path d="m10 8 5 4-5 4V8Z" fill="currentColor"/></svg>Shorts</button>
         <div class="live-pill" title="列表自动刷新">
           <span class="live-dot"></span>
           LIVE
@@ -1138,28 +1140,15 @@
       </div>
     </section>
 
-    <div class="content-layout">
-    <main class="feed" id="feed">
-      <div class="feed-head">
-        <div>
-          <h2>发现视频</h2>
-          <p class="feed-meta" id="feedMeta">正在连接 Bilibili API…</p>
-        </div>
-      </div>
-      <div class="tabs" id="tabs" role="tablist"></div>
-      <div id="grid" class="grid"></div>
-      <div id="loadMoreStatus" class="load-more-status" hidden aria-live="polite"></div>
-      <div id="status" class="status" hidden></div>
-    </main>
-
-    <aside class="shorts-panel" id="shortsPanel" aria-label="Bilibili Shorts"><div class="shorts-head"><div><h2>Shorts</h2><p id="shortsMeta">短视频推荐</p></div><button class="shorts-refresh" id="shortsRefreshBtn" type="button" aria-label="刷新 Shorts" title="刷新 Shorts"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 5v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="shorts-stage" id="shortsStage"><video id="shortVideo" controls muted playsinline preload="metadata"></video></div><div class="shorts-info"><h3 id="shortTitle">正在加载短视频…</h3><p id="shortMeta">Bilibili · Shorts</p></div><div class="shorts-controls"><button id="shortPrevBtn" type="button">上一条</button><button id="shortNextBtn" type="button">下一条</button></div><div class="shorts-list" id="shortsList"><div class="shorts-empty">正在发现短视频…</div></div></aside>
-    </div>
+    <main class="feed" id="feed"><div class="feed-head"><div><h2>发现视频</h2><p class="feed-meta" id="feedMeta">正在连接 Bilibili API…</p></div></div><div class="tabs" id="tabs" role="tablist"></div><div id="grid" class="grid"></div><div id="loadMoreStatus" class="load-more-status" hidden aria-live="polite"></div><div id="status" class="status" hidden></div></main>
 
     <footer class="footer">
       <span>BiliFlux · HTML-only · 直链提取自 Bilibili playurl</span>
       <span id="clock"></span>
     </footer>
   </div>
+
+  <section class="shorts-view" id="shortsView" aria-label="Bilibili Shorts"><header class="shorts-view-head"><div class="shorts-view-title"><span>Shorts</span><small id="shortsViewMeta">连续短视频</small></div><button class="shorts-view-close" id="shortsCloseBtn" type="button" aria-label="关闭 Shorts">×</button></header><div class="shorts-view-body"><div class="shorts-feed" id="shortsFeed"><div class="shorts-loading">正在发现短视频…</div></div></div></section>
 
   <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
     <div class="player-shell">
@@ -1236,6 +1225,7 @@
       shortIndex: 0,
       shortRequestId: 0,
       shortLoading: false,
+      shortOpen: false,
     };
 
     function loadLockCache() {
@@ -1301,7 +1291,8 @@
     const featuredPlayBtn = $("featuredPlayBtn");
     const loadMoreStatus = $("loadMoreStatus");
     let loadMoreObserver = null;
-    const shortVideo=$("shortVideo"),shortsStage=$("shortsStage"),shortsList=$("shortsList"),shortsMeta=$("shortsMeta"),shortTitle=$("shortTitle"),shortMeta=$("shortMeta"),shortsRefreshBtn=$("shortsRefreshBtn"),shortPrevBtn=$("shortPrevBtn"),shortNextBtn=$("shortNextBtn");
+    const shortsOpenBtn=$("shortsOpenBtn"),shortsView=$("shortsView"),shortsFeed=$("shortsFeed"),shortsCloseBtn=$("shortsCloseBtn"),shortsViewMeta=$("shortsViewMeta");
+    let shortsObserver=null;
 
     function httpsPic(url = "") {
       let u = String(url || "");
@@ -1689,10 +1680,43 @@
       throw lastErr || new Error("搜索无结果");
     }
 
-    function renderShorts(){if(!state.shorts.length){shortsList.innerHTML='<div class="shorts-empty">暂时没有找到短视频</div>';return}shortsList.innerHTML=state.shorts.map((v,i)=>'<button class="short-item'+(i===state.shortIndex?' active':'')+'" type="button" data-short-index="'+i+'" aria-label="播放短视频 '+escapeHtml(v.title)+'"><img src="'+v.pic+'" alt="'+escapeHtml(v.title)+'" loading="lazy" referrerpolicy="no-referrer"><span><strong>'+escapeHtml(v.title)+'</strong><span>'+formatDuration(v.duration)+' · '+formatCount(v.play)+' 播放</span></span></button>').join('');shortsMeta.textContent=state.shorts.length+' 条推荐'}
-    async function playShort(index){if(!state.shorts.length)return;const i=(index+state.shorts.length)%state.shorts.length,v=state.shorts[i];state.shortIndex=i;renderShorts();shortTitle.textContent=v.title;shortMeta.textContent=v.owner+' · '+formatDuration(v.duration)+' · '+formatCount(v.play)+' 播放';shortVideo.pause();shortVideo.removeAttribute('src');shortVideo.load();try{const st=await extractPlayUrl(v);let ok=false;for(const u of [st.url,...st.backups]){try{await attemptElementPlay(shortVideo,u,9000);ok=true;break}catch(_){}}if(!ok)throw Error('short video failed')}catch(e){console.warn('short playback failed',e);shortMeta.textContent='短视频暂时无法播放，请切换下一条'}}
-    async function loadShorts(){if(state.shortLoading)return;state.shortLoading=true;console.info("[BiliFlux shorts] loading");try{const rs=await Promise.allSettled([1,2,3].map(p=>proxyFetch('/x/web-interface/popular?ps=40&pn='+p,10000)));const seen=new Set(),out=[];for(const r of rs){if(r.status!=='fulfilled')continue;for(const raw of (r.value.data&&r.value.data.list)||[]){const v=normalizeItem(raw);if(!v.bvid||seen.has(v.bvid)||!v.duration||v.duration>180)continue;seen.add(v.bvid);out.push(v);if(out.length>=12)break}if(out.length>=12)break}state.shorts=out;state.shortIndex=0;renderShorts();if(out[0])playShort(0)}catch(e){console.warn('short feed failed',e);shortsMeta.textContent='加载失败'}finally{state.shortLoading=false}}
-
+    function renderShorts(){
+      if(!state.shorts.length){shortsFeed.innerHTML="<div class=\"shorts-loading\">暂时没有找到短视频</div>";return;}
+      shortsFeed.innerHTML=state.shorts.map((video,index)=>"<article class=\"short-card\" data-short-index=\""+index+"\"><video controls muted playsinline preload=\"none\" data-short-video=\""+index+"\" poster=\""+video.pic+"\"></video><div class=\"short-card-info\"><h3>"+escapeHtml(video.title)+"</h3><p>"+escapeHtml(video.owner)+" · "+formatDuration(video.duration)+" · "+formatCount(video.play)+" 播放</p></div><div class=\"short-card-actions\"><button type=\"button\" data-short-play=\""+index+"\" aria-label=\"播放短视频\">▶</button></div></article>").join("");
+      shortsViewMeta.textContent=state.shorts.length+" 条推荐 · 上下滑切换";
+      setupShortsObserver();
+      setTimeout(()=>loadShortSource(0,true),0);
+    }
+    function setupShortsObserver(){
+      if(shortsObserver)shortsObserver.disconnect();
+      shortsObserver=new IntersectionObserver(entries=>{
+        entries.forEach(entry=>{
+          const element=entry.target,index=Number(element.dataset.shortVideo);
+          if(entry.isIntersecting&&entry.intersectionRatio>=.6){
+            shortsFeed.querySelectorAll("video").forEach(video=>{if(video!==element)video.pause()});
+            loadShortSource(index,true);
+          }else element.pause();
+        });
+      },{root:shortsFeed,threshold:[.25,.6,.85]});
+      shortsFeed.querySelectorAll("[data-short-video]").forEach(video=>shortsObserver.observe(video));
+    }
+    async function loadShortSource(index,autoplay=false){
+      const video=state.shorts[index],element=shortsFeed.querySelector("[data-short-video=\""+index+"\"]");
+      if(!video||!element)return;
+      if(element.dataset.loaded){if(autoplay)element.play().catch(()=>{});return;}
+      if(element.dataset.loading)return;
+      element.dataset.loading="1";
+      try{
+        const stream=await extractPlayUrl(video);
+        for(const url of [stream.url,...stream.backups]){
+          try{await attemptElementPlay(element,url,9000);element.dataset.loaded="1";if(!autoplay)element.pause();return}catch(_){ }
+        }
+        throw new Error("short source unavailable");
+      }catch(error){console.warn("short source failed",error);delete element.dataset.loading;}
+    }
+    function openShorts(){state.shortOpen=true;shortsView.classList.add("open");document.body.style.overflow="hidden";if(!state.shorts.length)loadShorts();else renderShorts()}
+    function closeShorts(){state.shortOpen=false;shortsView.classList.remove("open");document.body.style.overflow="";if(shortsObserver)shortsObserver.disconnect();shortsFeed.querySelectorAll("video").forEach(video=>video.pause())}
+    async function loadShorts(){if(state.shortLoading)return;state.shortLoading=true;try{const results=await Promise.allSettled([1,2,3].map(page=>proxyFetch("/x/web-interface/popular?ps=40&pn="+page,10000))),seen=new Set(),out=[];for(const result of results){if(result.status!=="fulfilled")continue;for(const raw of(result.value.data&&result.value.data.list)||[]){const video=normalizeItem(raw);if(!video.bvid||seen.has(video.bvid)||!video.duration||video.duration>180)continue;seen.add(video.bvid);out.push(video);if(out.length>=12)break}if(out.length>=12)break}state.shorts=out;renderShorts()}catch(error){console.warn("short feed failed",error);shortsViewMeta.textContent="加载失败"}finally{state.shortLoading=false}}
     function setLoadMoreStatus(text = "", loading = false) {
       loadMoreStatus.hidden = !text;
       loadMoreStatus.classList.toggle("is-loading", loading);
@@ -2354,7 +2378,9 @@ Return ONLY a JSON array like:
       }
     }, { passive: true });
 
-    shortsList.addEventListener("click",e=>{const item=e.target.closest(".short-item");if(item)playShort(Number(item.dataset.shortIndex))});shortPrevBtn.addEventListener("click",()=>playShort(state.shortIndex-1));shortNextBtn.addEventListener("click",()=>playShort(state.shortIndex+1));shortsRefreshBtn.addEventListener("click",loadShorts);shortVideo.addEventListener("ended",()=>playShort(state.shortIndex+1));
+    shortsOpenBtn.addEventListener("click",openShorts);
+    shortsCloseBtn.addEventListener("click",closeShorts);
+    shortsFeed.addEventListener("click",event=>{const button=event.target.closest("[data-short-play]");if(button){const video=shortsFeed.querySelector("[data-short-video=\""+button.dataset.shortPlay+"\"]");if(video)video.play().catch(()=>{})}});
     grid.addEventListener("click", (e) => {
       const card = e.target.closest(".card");
       if (!card) return;
@@ -2369,6 +2395,7 @@ Return ONLY a JSON array like:
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         if (modal.classList.contains("open")) closeModal();
+        else if (state.shortOpen) closeShorts();
         else if (state.eraserOpen) toggleAiPanel(false);
       }
     });
@@ -2421,7 +2448,6 @@ Return ONLY a JSON array like:
     // Boot
     renderTabs();
     loadFeed();
-    loadShorts();
     scheduleRefresh();
     tickClock();
     setInterval(tickClock, 1000);
