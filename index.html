@@ -647,6 +647,65 @@
       display: block;
       background: #000;
     }
+    .danmaku-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      overflow: hidden;
+      pointer-events: none;
+      user-select: none;
+    }
+    .danmaku-layer[hidden] { display: none; }
+    .danmaku-item {
+      position: absolute;
+      left: 100%;
+      top: 0;
+      max-width: 80%;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+      text-shadow: 0 1px 3px #000, 1px 0 3px #000, -1px 0 3px #000;
+      will-change: transform;
+      animation: danmaku-scroll var(--dm-duration, 8s) linear forwards;
+    }
+    .danmaku-item.dm-top,
+    .danmaku-item.dm-bottom {
+      left: 50%;
+      max-width: 90%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transform: translateX(-50%);
+      animation: danmaku-fixed 4.5s ease-out forwards;
+    }
+    .danmaku-item.dm-top { top: 8%; }
+    .danmaku-item.dm-bottom { top: auto; bottom: 12%; }
+    .danmaku-layer.paused .danmaku-item { animation-play-state: paused; }
+    @keyframes danmaku-scroll {
+      from { transform: translateX(0); }
+      to { transform: translateX(calc(-100vw - 100%)); }
+    }
+    @keyframes danmaku-fixed {
+      0%, 75% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .danmaku-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.65rem 1.1rem;
+      border-top: 1px solid var(--line);
+      background: #fbfbfc;
+      color: var(--ink-soft);
+      font-size: 0.78rem;
+    }
+    .danmaku-toolbar > div { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+    .danmaku-toolbar #danmakuStatus { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .danmaku-toolbar .switch { width: 38px; height: 22px; }
+    .danmaku-toolbar .switch i::after { width: 16px; height: 16px; top: 3px; left: 3px; }
+    .danmaku-toolbar .switch input:checked + i::after { transform: translateX(16px); }
     .extract-bar {
       display: grid;
       gap: 0.55rem;
@@ -1072,6 +1131,14 @@
       </div>
       <div class="stage" id="stage">
         <video id="video" controls playsinline crossorigin="anonymous"></video>
+        <div class="danmaku-layer" id="danmakuLayer" aria-hidden="true"></div>
+      </div>
+      <div class="danmaku-toolbar">
+        <div><span class="chip">弹幕</span><span id="danmakuStatus">等待加载真实弹幕…</span></div>
+        <label class="switch" title="显示或隐藏弹幕">
+          <input id="danmakuToggle" type="checkbox" checked />
+          <i></i>
+        </label>
       </div>
       <div class="player-stats" id="playerStats"></div>
       <div class="extract-bar">
@@ -1168,6 +1235,14 @@
     const streamUrlEl = $("streamUrl");
     const playerTitle = $("playerTitle");
     const playerStats = $("playerStats");
+    const danmakuLayer = $("danmakuLayer");
+    const danmakuStatus = $("danmakuStatus");
+    const danmakuToggle = $("danmakuToggle");
+    let danmakuItems = [];
+    let danmakuIndex = 0;
+    let danmakuLastTime = -1;
+    let danmakuToken = 0;
+    const danmakuCache = new Map();
     const featuredTitle = $("featuredTitle");
     const featuredMeta = $("featuredMeta");
     const featuredPlayBtn = $("featuredPlayBtn");
@@ -1295,6 +1370,148 @@
       });
     }
 
+    async function proxyFetchText(url, timeoutMs = 12000) {
+      const absolute = /^https?:\/\//i.test(url) ? url : "https://api.bilibili.com" + url;
+      const runners = [
+        (signal) => fetch("https://r.jina.ai/http://" + absolute.replace(/^https?:\/\//i, ""), {
+          signal,
+          headers: { Accept: "text/plain", "X-Return-Format": "text" },
+        }).then(async (res) => {
+          if (!res.ok) throw new Error("jina " + res.status);
+          return res.text();
+        }),
+        (signal) => fetch("https://r.jina.ai/" + absolute, {
+          signal,
+          headers: { Accept: "text/plain", "X-Return-Format": "text" },
+        }).then(async (res) => {
+          if (!res.ok) throw new Error("jina-https " + res.status);
+          return res.text();
+        }),
+        (signal) => fetch("https://api.allorigins.win/get?url=" + encodeURIComponent(absolute), { signal }).then(async (res) => {
+          if (!res.ok) throw new Error("allorigins " + res.status);
+          const payload = await res.json();
+          if (!payload.contents) throw new Error("代理没有返回弹幕 XML");
+          return payload.contents;
+        }),
+      ];
+      return new Promise((resolve, reject) => {
+        let pending = runners.length;
+        let lastErr = new Error("所有弹幕代理均失败");
+        let settled = false;
+        runners.forEach((run, i) => {
+          withTimeout(run, timeoutMs, "danmaku-proxy" + i)
+            .then((text) => {
+              if (!settled) { settled = true; resolve(text); }
+            })
+            .catch((err) => {
+              lastErr = err;
+              pending -= 1;
+              if (!settled && pending === 0) reject(lastErr);
+            });
+        });
+      });
+    }
+
+    function parseDanmakuColor(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return "#ffffff";
+      return "#" + Math.max(0, Math.min(0xffffff, number)).toString(16).padStart(6, "0");
+    }
+
+    function parseDanmakuXml(text) {
+      const doc = new DOMParser().parseFromString(String(text || ""), "application/xml");
+      return [...doc.querySelectorAll("d")]
+        .map((node) => {
+          const parts = String(node.getAttribute("p") || "").split(",");
+          return {
+            time: Number(parts[0]),
+            mode: Number(parts[1]) || 1,
+            fontSize: Number(parts[2]) || 18,
+            color: parseDanmakuColor(parts[3]),
+            text: String(node.textContent || "").trim(),
+          };
+        })
+        .filter((item) => Number.isFinite(item.time) && item.text)
+        .sort((a, b) => a.time - b.time);
+    }
+
+    function lowerBoundDanmaku(time) {
+      let low = 0;
+      let high = danmakuItems.length;
+      while (low < high) {
+        const middle = (low + high) >> 1;
+        if (danmakuItems[middle].time < time) low = middle + 1;
+        else high = middle;
+      }
+      return low;
+    }
+
+    function clearDanmaku(resetStatus = true) {
+      danmakuToken += 1;
+      danmakuItems = [];
+      danmakuIndex = 0;
+      danmakuLastTime = -1;
+      danmakuLayer.replaceChildren();
+      if (resetStatus) danmakuStatus.textContent = "等待加载真实弹幕…";
+    }
+
+    function spawnDanmaku(item, index) {
+      if (!danmakuToggle.checked) return;
+      const element = document.createElement("span");
+      const fixed = item.mode === 4 || item.mode === 5;
+      element.className = "danmaku-item " + (fixed ? (item.mode === 5 ? "dm-top" : "dm-bottom") : "dm-scroll");
+      element.textContent = item.text;
+      element.style.color = item.color;
+      element.style.fontSize = Math.max(14, Math.min(26, item.fontSize)) + "px";
+      if (!fixed) {
+        const laneCount = Math.max(4, Math.floor(stage.clientHeight / 34));
+        element.style.top = 8 + (index % laneCount) * Math.min(34, stage.clientHeight / laneCount) + "px";
+        element.style.setProperty("--dm-duration", Math.max(6, Math.min(12, 7 + item.text.length * 0.04)) + "s");
+      }
+      danmakuLayer.appendChild(element);
+      element.addEventListener("animationend", () => element.remove(), { once: true });
+    }
+
+    function syncDanmaku() {
+      if (!danmakuItems.length || !danmakuToggle.checked || videoEl.readyState < 1) return;
+      const now = Number(videoEl.currentTime);
+      if (!Number.isFinite(now)) return;
+      if (danmakuLastTime >= 0 && (now + 0.5 < danmakuLastTime || now - danmakuLastTime > 1.5)) {
+        danmakuLayer.replaceChildren();
+        danmakuIndex = lowerBoundDanmaku(Math.max(0, now - 0.2));
+      }
+      danmakuLastTime = now;
+      const cutoff = now + 0.15;
+      while (danmakuIndex < danmakuItems.length && danmakuItems[danmakuIndex].time <= cutoff) {
+        const item = danmakuItems[danmakuIndex];
+        if (item.time >= now - 0.8) spawnDanmaku(item, danmakuIndex);
+        danmakuIndex += 1;
+      }
+    }
+
+    async function loadDanmaku(video) {
+      if (!video.cid) return;
+      const token = ++danmakuToken;
+      danmakuStatus.textContent = "正在提取真实弹幕…";
+      try {
+        let items = danmakuCache.get(String(video.cid));
+        if (!items) {
+          const xml = await proxyFetchText("https://comment.bilibili.com/" + video.cid + ".xml");
+          items = parseDanmakuXml(xml);
+          if (!items.length) throw new Error("没有可用弹幕");
+          danmakuCache.set(String(video.cid), items);
+        }
+        if (token !== danmakuToken) return;
+        danmakuItems = items;
+        danmakuIndex = lowerBoundDanmaku(Number(videoEl.currentTime) || 0);
+        danmakuLastTime = Number(videoEl.currentTime) || 0;
+        danmakuStatus.textContent = "已加载 " + items.length + " 条真实弹幕";
+        syncDanmaku();
+      } catch (error) {
+        if (token !== danmakuToken) return;
+        danmakuStatus.textContent = "弹幕加载失败 · " + (error.message || "代理不可用");
+      }
+    }
     function normalizeItem(raw) {
       const stat = raw.stat || {};
       const pic = raw.pic || raw.cover || "";
@@ -1582,6 +1799,7 @@
     function clearStageExtras() {
       const iframe = stage.querySelector("iframe");
       if (iframe) iframe.remove();
+      clearDanmaku();
       videoEl.style.display = "block";
       videoEl.removeAttribute("src");
       videoEl.load();
@@ -1601,9 +1819,11 @@
       `;
       streamUrlEl.textContent = "正在提取 playurl 直链…";
       clearStageExtras();
+      danmakuStatus.textContent = "正在等待真实弹幕…";
 
       try {
         const stream = await extractPlayUrl(video);
+        loadDanmaku(video);
         playerTitle.textContent = stripHtml(video.title || video.bvid);
         streamUrlEl.textContent = stream.url;
         streamUrlEl.title = stream.url;
@@ -1626,7 +1846,7 @@
           videoEl.style.display = "none";
           const iframe = document.createElement("iframe");
           iframe.allow = "fullscreen; encrypted-media";
-          iframe.src = `https://player.bilibili.com/player.html?bvid=${video.bvid}&page=1&high_quality=1&danmaku=0&as_wide=1`;
+          iframe.src = `https://player.bilibili.com/player.html?bvid=${video.bvid}&page=1&high_quality=1&danmaku=1&as_wide=1`;
           stage.appendChild(iframe);
           streamUrlEl.textContent = `${stream.url} （CDN 防盗链，已回退嵌入播放器）`;
         }
@@ -1636,7 +1856,7 @@
         videoEl.style.display = "none";
         const iframe = document.createElement("iframe");
         iframe.allow = "fullscreen; encrypted-media";
-        iframe.src = `https://player.bilibili.com/player.html?bvid=${video.bvid}&page=1&high_quality=1&danmaku=0`;
+        iframe.src = `https://player.bilibili.com/player.html?bvid=${video.bvid}&page=1&high_quality=1&danmaku=1`;
         stage.appendChild(iframe);
       } finally {
         state.extracting = false;
@@ -1935,6 +2155,19 @@ Return ONLY a JSON array like:
       }
     }
 
+    videoEl.addEventListener("timeupdate", syncDanmaku);
+    videoEl.addEventListener("seeking", () => {
+      danmakuLayer.replaceChildren();
+      danmakuIndex = lowerBoundDanmaku(Number(videoEl.currentTime) || 0);
+      danmakuLastTime = Number(videoEl.currentTime) || 0;
+    });
+    videoEl.addEventListener("play", () => danmakuLayer.classList.remove("paused"));
+    videoEl.addEventListener("pause", () => danmakuLayer.classList.add("paused"));
+    danmakuToggle.addEventListener("change", () => {
+      danmakuLayer.hidden = !danmakuToggle.checked;
+      if (danmakuToggle.checked) syncDanmaku();
+      else danmakuLayer.replaceChildren();
+    });
     // Events
     $("eraserBtn").addEventListener("click", () => {
       toggleAiPanel();
