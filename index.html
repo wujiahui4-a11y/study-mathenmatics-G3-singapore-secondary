@@ -1256,6 +1256,260 @@
     @media (max-width: 860px) { .player-shell { height: min(940px,calc(100svh - 1.5rem)); } .player-workspace { grid-template-columns: minmax(0,1fr); overflow-y: auto; } .player-main { overflow: visible; } .recommendation-panel { height: min(390px,48svh); min-height: 300px; border-top: 1px solid var(--line); border-left: 0; } }
     @media (max-width: 640px) { .modal { padding: 0; } .player-shell { width: 100%; height: 100svh; border: 0; border-radius: 0; } .player-top { gap: .6rem; padding: .7rem .75rem; } .player-eyebrow { font-size: .6rem; } .player-top h3 { font-size: .86rem; } .player-top-actions { gap: .25rem; } .player-top-actions .quality-control label { display: none; } .player-top-actions .quality-select { width: 58px; } .stage { max-height: none; } .player-control-deck { right: .5rem; bottom: .5rem; left: .5rem; gap: .25rem; } .player-volume,#pictureInPictureBtn { display: none; } .player-time { min-width: 68px; font-size: .62rem; } .player-progress { min-width: 42px; } .player-stats { padding: .65rem .75rem; } .danmaku-toolbar,.extract-bar,.recommendation-head,.recommendation-context { padding-right: .75rem; padding-left: .75rem; } .recommendation-scroll { padding-right: .4rem; padding-left: .4rem; } .recommendation-card { grid-template-columns: 112px minmax(0,1fr); gap: .55rem; } }
 
+
+    /* Shorts is a dedicated viewing surface, not an enlarged browser video. */
+    .shorts-view {
+      --shorts-panel: #15171d;
+      --shorts-panel-soft: #20232b;
+      --shorts-line: rgba(255, 255, 255, 0.1);
+      position: fixed;
+      inset: 0;
+      z-index: 110;
+      display: none;
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 18vw);
+      grid-template-rows: 1fr;
+      overflow: hidden;
+      background: #101116;
+      color: #fff;
+    }
+    .shorts-view.open { display: grid; grid-template-rows: minmax(0, 1fr); animation: fade .2s ease; }
+    .shorts-view::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(80% 100% at 50% 50%, rgba(251, 114, 153, 0.08), transparent 68%);
+    }
+    .shorts-view-head {
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      z-index: 12;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      height: 68px;
+      padding: 0 1.25rem;
+      border-bottom: 1px solid var(--shorts-line);
+      background: linear-gradient(180deg, rgba(14, 15, 19, 0.96), rgba(14, 15, 19, 0.7));
+      backdrop-filter: blur(16px);
+    }
+    .shorts-brand { display: flex; min-width: 0; align-items: center; gap: .72rem; }
+    .shorts-brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 7px;
+      background: var(--pink);
+      color: #fff;
+      font-size: .76rem;
+      font-weight: 900;
+    }
+    .shorts-view-title { display: grid; gap: .1rem; font-weight: 800; }
+    .shorts-view-title span { font-size: .96rem; letter-spacing: 0; }
+    .shorts-view-title small { color: rgba(255,255,255,.55); font-size: .68rem; font-weight: 500; }
+    .shorts-head-actions { display: flex; flex: 0 0 auto; align-items: center; gap: .5rem; }
+    .short-quality-select {
+      height: 34px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 6px;
+      background: rgba(255,255,255,.07);
+      color: #fff;
+      padding: 0 .45rem;
+      font-size: .72rem;
+      cursor: pointer;
+    }
+    .short-quality-select option { color: #17181c; }
+    .shorts-view-close {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 6px;
+      background: rgba(255,255,255,.07);
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+    .shorts-view-close:hover { background: rgba(255,255,255,.14); }
+    .shorts-view-body {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      grid-column: 1;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 82px 1.5rem 1.5rem;
+    }
+    .shorts-feed {
+      width: min(100%, 500px);
+      height: 100%;
+      max-height: 940px;
+      overflow: hidden;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      scrollbar-width: none;
+    }
+    .shorts-feed::-webkit-scrollbar { display: none; }
+    .short-card {
+      position: relative;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 8px;
+      background: #090a0d;
+      box-shadow: 0 24px 70px rgba(0,0,0,.42);
+    }
+    .short-card video { width: 100%; height: 100%; display: block; object-fit: cover; background: #090a0d; }
+    .short-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(0,0,0,.38), transparent 24%, transparent 52%, rgba(0,0,0,.86));
+    }
+    .short-card.is-paused::after {
+      content: "▶";
+      position: absolute;
+      top: 46%;
+      left: 50%;
+      z-index: 6;
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 50%;
+      background: rgba(10,11,15,.64);
+      color: #fff;
+      font-size: 1.25rem;
+      transform: translate(-50%, -50%);
+      backdrop-filter: blur(12px);
+    }
+    .short-topline {
+      position: absolute;
+      top: .85rem;
+      right: .9rem;
+      left: .9rem;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .6rem;
+    }
+    .short-category,
+    .short-index {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: .2rem .45rem;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 4px;
+      background: rgba(8,9,12,.44);
+      color: rgba(255,255,255,.88);
+      font-size: .65rem;
+      font-weight: 700;
+      backdrop-filter: blur(8px);
+    }
+    .short-index { color: rgba(255,255,255,.68); font-variant-numeric: tabular-nums; }
+    .short-danmaku-layer { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; user-select: none; }
+    .short-danmaku-item { position: absolute; left: 100%; top: 0; max-width: 88%; color: #fff; font-size: 16px; font-weight: 700; line-height: 1.2; white-space: nowrap; text-shadow: 0 1px 3px #000,1px 0 3px #000,-1px 0 3px #000; will-change: transform; animation: short-danmaku-scroll var(--short-dm-duration,8s) linear forwards; }
+    .short-danmaku-item.is-top,.short-danmaku-item.is-bottom { left: 50%; max-width: 86%; overflow: hidden; text-overflow: ellipsis; transform: translateX(-50%); animation: short-danmaku-fixed 4.5s ease-out forwards; }
+    .short-danmaku-item.is-top { top: 9%; }
+    .short-danmaku-item.is-bottom { top: auto; bottom: 20%; }
+    .short-danmaku-layer.paused .short-danmaku-item { animation-play-state: paused; }
+    .short-info {
+      position: absolute;
+      right: 5rem;
+      bottom: 1rem;
+      left: 1rem;
+      z-index: 5;
+      min-width: 0;
+    }
+    .short-owner { display: flex; align-items: center; gap: .45rem; margin-bottom: .55rem; color: rgba(255,255,255,.82); font-size: .73rem; }
+    .short-owner-avatar { width: 24px; height: 24px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--pink); color: #fff; font-size: .61rem; font-weight: 800; }
+    .short-owner-name { overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .short-info h3 { display: -webkit-box; overflow: hidden; margin: 0; font-size: clamp(1rem,1.7vw,1.14rem); line-height: 1.34; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .short-info p { display: flex; flex-wrap: wrap; gap: .25rem .5rem; margin-top: .5rem; color: rgba(255,255,255,.68); font-size: .7rem; }
+    .short-danmaku-status { display: inline-flex; margin-top: .6rem; padding: .2rem .4rem; border: 1px solid rgba(255,255,255,.1); border-radius: 4px; background: rgba(0,0,0,.34); color: rgba(255,255,255,.72); font-size: .63rem; }
+    .short-card-actions { position: absolute; right: .85rem; bottom: 1rem; z-index: 6; display: grid; gap: .55rem; }
+    .short-action {
+      width: 42px;
+      min-height: 42px;
+      display: grid;
+      place-items: center;
+      gap: .12rem;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 50%;
+      background: rgba(10,11,15,.48);
+      color: #fff;
+      cursor: pointer;
+      font-size: .8rem;
+      font-weight: 800;
+      backdrop-filter: blur(10px);
+    }
+    .short-action:hover { background: rgba(255,255,255,.16); }
+    .short-action.is-off { opacity: .52; }
+    .short-action small { display: none; }
+    .short-loading-state { display: grid; height: 100%; place-content: center; justify-items: center; gap: .65rem; color: rgba(255,255,255,.68); font-size: .78rem; }
+    .short-loading-state i { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,.18); border-top-color: var(--pink); border-radius: 50%; animation: spin .8s linear infinite; }
+    .shorts-sidebar {
+      height: 100%;
+      position: relative;
+      z-index: 2;
+      grid-column: 2;
+      min-width: 0;
+      overflow-y: auto;
+      padding: 92px 1rem 1.25rem;
+      border-left: 1px solid var(--shorts-line);
+      background: var(--shorts-panel);
+    }
+    .shorts-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-bottom: .8rem; }
+    .shorts-sidebar-head h3 { font-size: .86rem; }
+    .shorts-sidebar-head span { color: rgba(255,255,255,.48); font-size: .66rem; }
+    .shorts-queue { display: grid; gap: .35rem; }
+    .short-queue-card { width: 100%; display: grid; grid-template-columns: 84px minmax(0,1fr); gap: .55rem; padding: .35rem; border: 1px solid transparent; border-radius: 6px; background: transparent; color: rgba(255,255,255,.78); cursor: pointer; text-align: left; }
+    .short-queue-card:hover,.short-queue-card:focus-visible { border-color: rgba(255,255,255,.13); background: rgba(255,255,255,.07); outline: 0; }
+    .short-queue-card.is-current { border-color: rgba(251,114,153,.6); background: rgba(251,114,153,.12); color: #fff; }
+    .short-queue-thumb { position: relative; aspect-ratio: 9 / 12; overflow: hidden; border-radius: 4px; background: #282b34; }
+    .short-queue-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .short-queue-duration { position: absolute; right: 3px; bottom: 3px; padding: .1rem .22rem; border-radius: 3px; background: rgba(0,0,0,.72); color: #fff; font-size: .58rem; }
+    .short-queue-copy { min-width: 0; align-self: center; }
+    .short-queue-copy h4 { display: -webkit-box; overflow: hidden; font-size: .7rem; line-height: 1.36; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .short-queue-copy p { overflow: hidden; margin-top: .28rem; color: rgba(255,255,255,.5); font-size: .62rem; text-overflow: ellipsis; white-space: nowrap; }
+    .shorts-hint { margin-top: 1rem; padding-top: .85rem; border-top: 1px solid var(--shorts-line); color: rgba(255,255,255,.45); font-size: .66rem; line-height: 1.55; }
+    @media (max-width: 900px) {
+      .shorts-view { grid-template-columns: minmax(0,1fr); }
+      .shorts-sidebar { display: none; }
+      .shorts-view-body { padding-right: 1rem; padding-left: 1rem; }
+    }
+    @media (max-width: 560px) {
+      .shorts-view-head { height: 58px; padding: 0 .75rem; }
+      .shorts-brand-mark { width: 30px; height: 30px; font-size: .66rem; }
+      .shorts-view-title span { font-size: .88rem; }
+      .shorts-view-title small { font-size: .61rem; }
+      .shorts-view-body { padding: 70px 0 0; }
+      .shorts-feed { width: 100%; max-height: none; }
+      .short-card { border: 0; border-radius: 0; }
+      .short-info { right: 4.4rem; bottom: 1.1rem; left: .85rem; }
+      .short-card-actions { right: .65rem; bottom: 1.1rem; }
+      .short-action { width: 40px; min-height: 40px; }
+      .short-topline { top: .65rem; right: .7rem; left: .7rem; }
+    }
+
   </style>
 </head>
 <body>
@@ -1342,7 +1596,14 @@
     </footer>
   </div>
 
-  <section class="shorts-view" id="shortsView" aria-label="Bilibili Shorts"><header class="shorts-view-head"><div class="shorts-view-title"><span>Shorts</span><small id="shortsViewMeta">连续短视频</small></div><select class="short-quality-select" id="shortQualitySelect" aria-label="Shorts 清晰度"><option value="16">360p</option><option value="64" selected>720p</option><option value="80">1080p</option></select><button class="shorts-view-close" id="shortsCloseBtn" type="button" aria-label="关闭 Shorts">×</button></header><div class="shorts-view-body"><div class="shorts-feed" id="shortsFeed"><div class="shorts-loading">正在发现短视频…</div></div></div></section>
+  <section class="shorts-view" id="shortsView" aria-label="BiliFlux Shorts">
+    <header class="shorts-view-head">
+      <div class="shorts-brand"><span class="shorts-brand-mark">BF</span><div class="shorts-view-title"><span>Shorts</span><small id="shortsViewMeta">正在准备短视频</small></div></div>
+      <div class="shorts-head-actions"><select class="short-quality-select" id="shortQualitySelect" aria-label="Shorts 清晰度"><option value="16">360p</option><option value="64" selected>720p</option><option value="80">1080p</option></select><button class="shorts-view-close" id="shortsCloseBtn" type="button" aria-label="关闭 Shorts" title="关闭 Shorts">×</button></div>
+    </header>
+    <div class="shorts-view-body"><div class="shorts-feed" id="shortsFeed"><div class="short-loading-state"><i aria-hidden="true"></i><span>正在发现短视频…</span></div></div></div>
+    <aside class="shorts-sidebar" aria-label="Shorts 队列"><div class="shorts-sidebar-head"><h3>接下来播放</h3><span id="shortsQueueCount">0 条</span></div><div class="shorts-queue" id="shortsQueue"></div><p class="shorts-hint">使用鼠标滚轮、触控滑动或方向键在短视频之间切换。</p></aside>
+  </section>
 
   <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
     <div class="player-shell">
@@ -1532,7 +1793,7 @@
     const featuredPlayBtn = $("featuredPlayBtn");
     const loadMoreStatus = $("loadMoreStatus");
     let loadMoreObserver = null;
-    const shortsOpenBtn=$("shortsOpenBtn"),shortsView=$("shortsView"),shortsFeed=$("shortsFeed"),shortsCloseBtn=$("shortsCloseBtn"),shortsViewMeta=$("shortsViewMeta");
+    const shortsOpenBtn=$("shortsOpenBtn"),shortsView=$("shortsView"),shortsFeed=$("shortsFeed"),shortsCloseBtn=$("shortsCloseBtn"),shortsViewMeta=$("shortsViewMeta"),shortsQueue=$("shortsQueue"),shortsQueueCount=$("shortsQueueCount");
     let shortsObserver=null;
     qualitySelect.value=String(state.quality);
     shortQualitySelect.value=String(state.quality);
@@ -1953,22 +2214,65 @@
       renderShorts();
     }
 
+    function shortOwnerInitial(owner) {
+      const text = String(owner || "UP").trim();
+      return text ? text.slice(0, 1).toUpperCase() : "U";
+    }
+
+    function formatShortTime(value) {
+      const seconds = Number(value) || 0;
+      return formatDuration(seconds);
+    }
+
+    function syncShortUi(index) {
+      const element = shortVideoElement(index);
+      const card = shortsFeed.querySelector('.short-card');
+      const playButton = shortsFeed.querySelector('[data-short-play="' + index + '"]');
+      const time = shortsFeed.querySelector('[data-short-time="' + index + '"]');
+      if (!element || !card) return;
+      const paused = element.paused;
+      card.classList.toggle('is-paused', paused);
+      if (playButton) {
+        playButton.textContent = paused ? '▶' : 'Ⅱ';
+        playButton.setAttribute('aria-label', paused ? '播放短视频' : '暂停短视频');
+        playButton.title = paused ? '播放' : '暂停';
+      }
+      if (time) time.textContent = formatShortTime(element.currentTime) + ' / ' + formatShortTime(element.duration || state.shorts[index]?.duration);
+    }
+
+    function renderShortQueue() {
+      shortsQueueCount.textContent = state.shorts.length + ' 条';
+      shortsQueue.innerHTML = state.shorts.map((item, index) => {
+        const active = index === state.shortIndex;
+        return '<button type="button" class="short-queue-card' + (active ? ' is-current' : '') + '" data-short-queue-index="' + index + '" aria-label="播放短视频：' + escapeHtml(item.title) + '">' +
+          '<span class="short-queue-thumb"><img src="' + escapeHtml(item.pic || '') + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" /><span class="short-queue-duration">' + formatDuration(item.duration) + '</span></span>' +
+          '<span class="short-queue-copy"><h4>' + escapeHtml(item.title) + '</h4><p>' + escapeHtml(item.owner) + '</p></span>' +
+        '</button>';
+      }).join('');
+    }
+
     function renderShorts() {
       const video = state.shorts[state.shortIndex];
       if (!video) {
-        shortsFeed.innerHTML = '<div class="shorts-loading">暂时没有找到竖版短视频</div>';
+        shortsFeed.innerHTML = '<div class="short-loading-state"><i aria-hidden="true"></i><span>暂时没有找到竖版短视频</span></div>';
+        shortsQueue.replaceChildren();
+        shortsQueueCount.textContent = '0 条';
         return;
       }
+      const index = state.shortIndex;
       shortsFeed.innerHTML =
-        '<article class="short-card" data-short-index="' + state.shortIndex + '">' +
-          '<video controls muted playsinline preload="metadata" data-short-video="' + state.shortIndex + '" poster="' + video.pic + '"></video>' +
-          '<div class="short-danmaku-layer" data-short-danmaku="' + state.shortIndex + '" aria-hidden="true"></div>' +
-          '<div class="short-card-info"><h3>' + escapeHtml(video.title) + '</h3><p>' + escapeHtml(video.owner) + ' · ' + formatDuration(video.duration) + ' · ' + formatCount(video.play) + ' 播放</p><span class="short-danmaku-status" data-short-danmaku-status="' + state.shortIndex + '">弹幕等待视频加载</span></div>' +
-          '<div class="short-card-actions"><button type="button" data-short-danmaku-toggle="' + state.shortIndex + '" aria-label="切换弹幕">弹</button><button type="button" data-short-play="' + state.shortIndex + '" aria-label="播放短视频">▶</button></div>' +
+        '<article class="short-card is-paused" data-short-index="' + index + '">' +
+          '<video muted playsinline preload="metadata" data-short-video="' + index + '" poster="' + escapeHtml(video.pic || '') + '"></video>' +
+          '<div class="short-topline"><span class="short-category">' + escapeHtml(video.tname || '热门短视频') + '</span><span class="short-index">' + (index + 1) + ' / ' + state.shorts.length + '</span></div>' +
+          '<div class="short-danmaku-layer" data-short-danmaku="' + index + '" aria-hidden="true"></div>' +
+          '<div class="short-info"><div class="short-owner"><span class="short-owner-avatar">' + escapeHtml(shortOwnerInitial(video.owner)) + '</span><span class="short-owner-name">' + escapeHtml(video.owner || 'UP主') + '</span></div><h3>' + escapeHtml(video.title) + '</h3><p><span>' + formatCount(video.play) + ' 播放</span><span data-short-time="' + index + '">0:00 / ' + formatDuration(video.duration) + '</span></p><span class="short-danmaku-status" data-short-danmaku-status="' + index + '">弹幕正在准备</span></div>' +
+          '<div class="short-card-actions"><button class="short-action" type="button" data-short-danmaku-toggle="' + index + '" aria-label="切换弹幕" title="切换弹幕">弹</button><button class="short-action" type="button" data-short-play="' + index + '" aria-label="播放短视频" title="播放">▶</button></div>' +
         '</article>';
-      shortsViewMeta.textContent = (state.shortIndex + 1) + ' / ' + state.shorts.length + ' · 上下滑切换';
-      setTimeout(() => loadShortSource(state.shortIndex, true), 0);
+      shortsViewMeta.textContent = (index + 1) + ' / ' + state.shorts.length + ' · 向上或向下切换';
+      renderShortQueue();
+      setTimeout(() => loadShortSource(index, true), 0);
     }
+
 
     function setShortDanmakuStatus(index, text) {
       const status = shortsFeed.querySelector('[data-short-danmaku-status="' + index + '"]');
@@ -2092,10 +2396,12 @@
       if (element.dataset.loaded) {
         if (autoplay) element.play().catch(() => {});
         loadShortDanmaku(index);
+        syncShortUi(index);
         return;
       }
       if (element.dataset.loading) return;
       element.dataset.loading = '1';
+      setShortDanmakuStatus(index, '正在加载视频…');
       try {
         const stream = await extractPlayUrl(video, state.quality);
         for (const url of [stream.url, ...stream.backups]) {
@@ -2103,12 +2409,15 @@
             await attemptElementPlay(element, url, 9000);
             element.dataset.loaded = '1';
             delete element.dataset.loading;
-            if (!autoplay) element.pause();
-            element.addEventListener('timeupdate', () => syncShortDanmaku(index));
+            element.addEventListener('timeupdate', () => { syncShortDanmaku(index); syncShortUi(index); });
+            element.addEventListener('loadedmetadata', () => syncShortUi(index));
             element.addEventListener('seeking', () => clearShortDanmaku(index));
-            element.addEventListener('play', () => shortsFeed.querySelector('[data-short-danmaku="' + index + '"]')?.classList.remove('paused'));
-            element.addEventListener('pause', () => shortsFeed.querySelector('[data-short-danmaku="' + index + '"]')?.classList.add('paused'));
+            element.addEventListener('play', () => { shortsFeed.querySelector('[data-short-danmaku="' + index + '"]')?.classList.remove('paused'); syncShortUi(index); });
+            element.addEventListener('pause', () => { shortsFeed.querySelector('[data-short-danmaku="' + index + '"]')?.classList.add('paused'); syncShortUi(index); });
+            element.addEventListener('ended', () => { syncShortUi(index); if (index < state.shorts.length - 1) setTimeout(() => scrollToShort(index + 1), 350); });
+            if (!autoplay) element.pause();
             loadShortDanmaku(index);
+            syncShortUi(index);
             return;
           } catch (_) { }
         }
@@ -2117,8 +2426,10 @@
         delete element.dataset.loading;
         setShortDanmakuStatus(index, '短视频暂时不可用');
         console.warn('short source failed', error);
+        syncShortUi(index);
       }
     }
+
 
     function openShorts() {
       state.shortOpen = true;
@@ -3149,8 +3460,13 @@ Return ONLY a JSON array like:
     shortsFeed.addEventListener('click', (event) => {
       const playButton = event.target.closest('[data-short-play]');
       const danmakuButton = event.target.closest('[data-short-danmaku-toggle]');
-      if (playButton) shortVideoElement(Number(playButton.dataset.shortPlay))?.play().catch(() => {});
+      if (playButton) { const player = shortVideoElement(Number(playButton.dataset.shortPlay)); if (player) { if (player.paused) player.play().catch(() => {}); else player.pause(); } }
       if (danmakuButton) toggleShortDanmaku(Number(danmakuButton.dataset.shortDanmakuToggle));
+    });
+    shortsQueue.addEventListener('click', (event) => {
+      const card = event.target.closest('[data-short-queue-index]');
+      if (!card) return;
+      scrollToShort(Number(card.dataset.shortQueueIndex));
     });
     shortsFeed.addEventListener('wheel', (event) => {
       if (!state.shortOpen || !state.shorts.length) return;
