@@ -1602,7 +1602,7 @@
       <div class="shorts-head-actions"><select class="short-quality-select" id="shortQualitySelect" aria-label="Shorts 清晰度"><option value="16">360p</option><option value="64" selected>720p</option><option value="80">1080p</option></select><button class="shorts-view-close" id="shortsCloseBtn" type="button" aria-label="关闭 Shorts" title="关闭 Shorts">×</button></div>
     </header>
     <div class="shorts-view-body"><div class="shorts-feed" id="shortsFeed"><div class="short-loading-state"><i aria-hidden="true"></i><span>正在发现短视频…</span></div></div></div>
-    <aside class="shorts-sidebar" aria-label="Shorts 队列"><div class="shorts-sidebar-head"><h3>接下来播放</h3><span id="shortsQueueCount">0 条</span></div><div class="shorts-queue" id="shortsQueue"></div><p class="shorts-hint">使用鼠标滚轮、触控滑动或方向键在短视频之间切换。</p></aside>
+    <aside class="shorts-sidebar" id="shortsSidebar" aria-label="Shorts 队列"><div class="shorts-sidebar-head"><h3>接下来播放</h3><span id="shortsQueueCount">0 条</span></div><div class="shorts-queue" id="shortsQueue"></div><p class="shorts-hint">使用鼠标滚轮、触控滑动或方向键在短视频之间切换。</p></aside>
   </section>
 
   <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
@@ -1675,6 +1675,12 @@
     ];
 
     const REFRESH_MS = 90_000;
+    const SHORT_PAGE_SIZE = 40;
+    const SHORT_MAX_DURATION = 180;
+    const SHORT_LOAD_AHEAD = 5;
+    const SHORT_SOURCE_PREFETCH_AHEAD = 2;
+    const SHORT_POPULAR_PAGE_LIMIT = 50;
+    const SHORT_RANK_IDS = [0, 1, 3, 4, 5, 36, 129, 160, 181, 211, 217];
     const OPENROUTER_MODEL = "google/gemini-3.6-flash";
     const OR_KEY_STORAGE = "biliflux_openrouter_key";
     const AUTO_DETECT_STORAGE = "biliflux_auto_detect";
@@ -1700,12 +1706,18 @@
       shorts: [],
       shortIndex: 0,
       shortRequestId: 0,
+      shortPage: 0,
       shortLoading: false,
+      shortHasMore: true,
+      shortEmptyPages: 0,
+      shortPendingNavigation: null,
       shortOpen: false,
       quality: Number(localStorage.getItem("biliflux_quality")) || 64,
-      shortIndex: 0,
       shortNavigating: false,
       shortTouchY: null,
+      shortSeen: new Set(),
+      shortSourceCache: new Map(),
+      shortSourcePromises: new Map(),
       shortDanmaku: new Map(),
       recommendation: { token: 0, video: null, items: [], seen: new Set(), terms: [], termCursor: 0, categoryPage: 1, relatedAttempted: false, loading: false, emptyRuns: 0 },
     };
@@ -1793,7 +1805,7 @@
     const featuredPlayBtn = $("featuredPlayBtn");
     const loadMoreStatus = $("loadMoreStatus");
     let loadMoreObserver = null;
-    const shortsOpenBtn=$("shortsOpenBtn"),shortsView=$("shortsView"),shortsFeed=$("shortsFeed"),shortsCloseBtn=$("shortsCloseBtn"),shortsViewMeta=$("shortsViewMeta"),shortsQueue=$("shortsQueue"),shortsQueueCount=$("shortsQueueCount");
+    const shortsOpenBtn=$("shortsOpenBtn"),shortsView=$("shortsView"),shortsFeed=$("shortsFeed"),shortsCloseBtn=$("shortsCloseBtn"),shortsViewMeta=$("shortsViewMeta"),shortsQueue=$("shortsQueue"),shortsQueueCount=$("shortsQueueCount"),shortsSidebar=$("shortsSidebar");
     let shortsObserver=null;
     qualitySelect.value=String(state.quality);
     shortQualitySelect.value=String(state.quality);
@@ -2205,13 +2217,122 @@
       return shortsFeed.querySelector('[data-short-video="' + index + '"]');
     }
 
+    function shortFeedPath(page) {
+      if (page <= SHORT_POPULAR_PAGE_LIMIT) {
+        return "/x/web-interface/popular?ps=" + SHORT_PAGE_SIZE + "&pn=" + page;
+      }
+      const slot = page - SHORT_POPULAR_PAGE_LIMIT - 1;
+      const rid = SHORT_RANK_IDS[slot % SHORT_RANK_IDS.length];
+      const rankPage = Math.floor(slot / SHORT_RANK_IDS.length) + 1;
+      return "/x/web-interface/newlist?rid=" + rid + "&pn=" + rankPage + "&ps=" + SHORT_PAGE_SIZE;
+    }
+
+    function shortRawList(json) {
+      const data = json && json.data;
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.list)) return data.list;
+      return [];
+    }
+
+    function appendShortItems(rawList) {
+      const added = [];
+      for (const raw of rawList) {
+        const dimension = raw.dimension || {};
+        const width = Number(dimension.width || raw.width) || 0;
+        const height = Number(dimension.height || raw.height) || 0;
+        const video = normalizeItem(raw);
+        if (!video.bvid || state.shortSeen.has(video.bvid) || !video.duration || video.duration > SHORT_MAX_DURATION || height <= width) continue;
+        state.shortSeen.add(video.bvid);
+        video.shortWidth = width;
+        video.shortHeight = height;
+        added.push(video);
+      }
+      state.shorts.push(...added);
+      return added;
+    }
+
+    function updateShortsMeta() {
+      const loaded = state.shorts.length;
+      if (!loaded) {
+        shortsViewMeta.textContent = state.shortLoading ? "正在加载短视频…" : "暂时没有找到竖版短视频";
+      } else {
+        shortsViewMeta.textContent = (state.shortIndex + 1) + " / " + loaded + (state.shortLoading ? " · 正在加载更多" : " · 向上或向下切换");
+      }
+      shortsQueueCount.textContent = state.shortLoading ? loaded + " · 加载中" : loaded + " 条";
+    }
+
+    async function loadMoreShorts({ initial = false } = {}) {
+      if (state.shortLoading || !state.shortHasMore) return;
+      const page = state.shortPage + 1;
+      const requestId = ++state.shortRequestId;
+      state.shortLoading = true;
+      updateShortsMeta();
+      try {
+        const json = await proxyFetch(shortFeedPath(page), 10000);
+        if (requestId !== state.shortRequestId) return;
+        const rawList = shortRawList(json);
+        const added = appendShortItems(rawList);
+        state.shortPage = page;
+        state.shortEmptyPages = added.length ? 0 : state.shortEmptyPages + 1;
+        state.shortHasMore = state.shortEmptyPages < 8;
+
+        const pending = state.shortPendingNavigation;
+        if (pending !== null && pending < state.shorts.length) {
+          state.shortPendingNavigation = null;
+          state.shortIndex = Math.max(0, pending);
+          state.shortDanmaku.clear();
+        }
+        if (state.shortOpen) {
+          if (initial || !shortsFeed.querySelector('.short-card') || pending !== null) renderShorts();
+          else renderShortQueue();
+        }
+        updateShortsMeta();
+
+        if (pending !== null && pending >= state.shorts.length && state.shortHasMore) {
+          setTimeout(() => loadMoreShorts(), 0);
+        } else if (state.shortHasMore && state.shorts.length - state.shortIndex <= SHORT_LOAD_AHEAD && !added.length && state.shortEmptyPages < 8) {
+          setTimeout(() => loadMoreShorts(), 0);
+        }
+      } catch (error) {
+        if (requestId !== state.shortRequestId) return;
+        console.warn("short feed page failed", error);
+        state.shortHasMore = true;
+        shortsViewMeta.textContent = "加载下一批失败 · 继续下滑重试";
+      } finally {
+        if (requestId === state.shortRequestId) {
+          state.shortLoading = false;
+          updateShortsMeta();
+        }
+      }
+    }
+
+    function requestShortsIfNeeded(index = state.shortIndex) {
+      if (state.shortHasMore && state.shorts.length - index <= SHORT_LOAD_AHEAD) {
+        loadMoreShorts();
+      }
+      preloadShortSources(index + 1);
+    }
+
     function scrollToShort(index) {
-      if (!state.shorts.length) return;
-      const target = Math.max(0, Math.min(state.shorts.length - 1, index));
+      if (index < 0) return;
+      if (!state.shorts.length) {
+        state.shortPendingNavigation = index;
+        loadMoreShorts({ initial: true });
+        return;
+      }
+      if (index >= state.shorts.length) {
+        state.shortPendingNavigation = index;
+        updateShortsMeta();
+        loadMoreShorts();
+        return;
+      }
+      const target = index;
       if (target === state.shortIndex && shortsFeed.querySelector('.short-card')) return;
       state.shortIndex = target;
+      state.shortPendingNavigation = null;
       state.shortDanmaku.clear();
       renderShorts();
+      requestShortsIfNeeded(target);
     }
 
     function shortOwnerInitial(owner) {
@@ -2268,8 +2389,9 @@
           '<div class="short-info"><div class="short-owner"><span class="short-owner-avatar">' + escapeHtml(shortOwnerInitial(video.owner)) + '</span><span class="short-owner-name">' + escapeHtml(video.owner || 'UP主') + '</span></div><h3>' + escapeHtml(video.title) + '</h3><p><span>' + formatCount(video.play) + ' 播放</span><span data-short-time="' + index + '">0:00 / ' + formatDuration(video.duration) + '</span></p><span class="short-danmaku-status" data-short-danmaku-status="' + index + '">弹幕正在准备</span></div>' +
           '<div class="short-card-actions"><button class="short-action" type="button" data-short-danmaku-toggle="' + index + '" aria-label="切换弹幕" title="切换弹幕">弹</button><button class="short-action" type="button" data-short-play="' + index + '" aria-label="播放短视频" title="播放">▶</button></div>' +
         '</article>';
-      shortsViewMeta.textContent = (index + 1) + ' / ' + state.shorts.length + ' · 向上或向下切换';
+      updateShortsMeta();
       renderShortQueue();
+      preloadShortSources(index + 1);
       setTimeout(() => loadShortSource(index, true), 0);
     }
 
@@ -2389,6 +2511,40 @@
       if (runtime.enabled) syncShortDanmaku(index);
     }
 
+    function shortSourceKey(video) {
+      return String(video.bvid || "") + "@" + String(state.quality);
+    }
+
+    function rememberShortSource(key, stream) {
+      state.shortSourceCache.set(key, stream);
+      while (state.shortSourceCache.size > 80) {
+        state.shortSourceCache.delete(state.shortSourceCache.keys().next().value);
+      }
+      return stream;
+    }
+
+    function getShortStream(video) {
+      const key = shortSourceKey(video);
+      const cached = state.shortSourceCache.get(key);
+      if (cached) return Promise.resolve(cached);
+      const pending = state.shortSourcePromises.get(key);
+      if (pending) return pending;
+      const promise = extractPlayUrl(video, state.quality)
+        .then((stream) => rememberShortSource(key, stream))
+        .finally(() => state.shortSourcePromises.delete(key));
+      state.shortSourcePromises.set(key, promise);
+      return promise;
+    }
+
+    function preloadShortSources(startIndex) {
+      const first = Math.max(0, Number(startIndex) || 0);
+      for (let offset = 0; offset < SHORT_SOURCE_PREFETCH_AHEAD; offset += 1) {
+        const video = state.shorts[first + offset];
+        if (video) getShortStream(video).catch((error) => console.warn("short source prefetch failed", error));
+      }
+      if (state.shortHasMore && state.shorts.length - first <= SHORT_LOAD_AHEAD) loadMoreShorts();
+    }
+
     async function loadShortSource(index, autoplay = false) {
       const video = state.shorts[index];
       const element = shortVideoElement(index);
@@ -2403,7 +2559,9 @@
       element.dataset.loading = '1';
       setShortDanmakuStatus(index, '正在加载视频…');
       try {
-        const stream = await extractPlayUrl(video, state.quality);
+        element.preload = 'auto';
+        const stream = await getShortStream(video);
+        if (shortVideoElement(index) !== element) return;
         for (const url of [stream.url, ...stream.backups]) {
           try {
             await attemptElementPlay(element, url, 9000);
@@ -2435,8 +2593,8 @@
       state.shortOpen = true;
       shortsView.classList.add('open');
       document.body.style.overflow = 'hidden';
-      if (!state.shorts.length) loadShorts();
-      else renderShorts();
+      if (!state.shorts.length) loadMoreShorts({ initial: true });
+      else { renderShorts(); requestShortsIfNeeded(state.shortIndex); }
     }
 
     function closeShorts() {
@@ -2446,38 +2604,6 @@
       shortsFeed.querySelectorAll('video').forEach((video) => video.pause());
     }
 
-    async function loadShorts() {
-      if (state.shortLoading) return;
-      state.shortLoading = true;
-      try {
-        const results = await Promise.allSettled([1, 2, 3, 4, 5].map((page) => proxyFetch('/x/web-interface/popular?ps=40&pn=' + page, 10000)));
-        const seen = new Set();
-        const shorts = [];
-        for (const result of results) {
-          if (result.status !== 'fulfilled') continue;
-          for (const raw of (result.value.data && result.value.data.list) || []) {
-            const dimension = raw.dimension || {};
-            const width = Number(dimension.width) || 0;
-            const height = Number(dimension.height) || 0;
-            const video = normalizeItem(raw);
-            if (!video.bvid || seen.has(video.bvid) || !video.duration || video.duration > 180 || height <= width) continue;
-            seen.add(video.bvid);
-            shorts.push(video);
-            if (shorts.length >= 12) break;
-          }
-          if (shorts.length >= 12) break;
-        }
-        state.shorts = shorts;
-        state.shortIndex = 0;
-        state.shortDanmaku.clear();
-        renderShorts();
-      } catch (error) {
-        console.warn('short feed failed', error);
-        shortsViewMeta.textContent = '加载失败';
-      } finally {
-        state.shortLoading = false;
-      }
-    }
 
     function setLoadMoreStatus(text = "", loading = false) {
       loadMoreStatus.hidden = !text;
@@ -3468,6 +3594,9 @@ Return ONLY a JSON array like:
       if (!card) return;
       scrollToShort(Number(card.dataset.shortQueueIndex));
     });
+    shortsSidebar.addEventListener('scroll', () => {
+      if (shortsSidebar.scrollTop + shortsSidebar.clientHeight >= shortsSidebar.scrollHeight - 500) loadMoreShorts();
+    }, { passive: true });
     shortsFeed.addEventListener('wheel', (event) => {
       if (!state.shortOpen || !state.shorts.length) return;
       event.preventDefault();
@@ -3549,11 +3678,14 @@ Return ONLY a JSON array like:
       localStorage.setItem("biliflux_quality", String(quality));
       qualitySelect.value = String(quality);
       shortQualitySelect.value = String(quality);
+      state.shortSourceCache.clear();
+      state.shortSourcePromises.clear();
       if (modal.classList.contains("open") && state.currentVideo) playVideo(state.currentVideo);
       if (state.shortOpen && state.shorts[state.shortIndex]) {
         const element = shortVideoElement(state.shortIndex);
         if (element) { element.dataset.loaded = ""; element.removeAttribute("src"); element.load(); }
         loadShortSource(state.shortIndex, true);
+        preloadShortSources(state.shortIndex + 1);
       }
     }
     qualitySelect.addEventListener("change", (event) => setQuality(event.target.value));
