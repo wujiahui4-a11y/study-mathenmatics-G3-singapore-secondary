@@ -1200,6 +1200,62 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
     }
+
+    /* Playback workspace: keep the video focused while recommendations scroll independently. */
+    .modal { padding: clamp(0.75rem, 2vw, 1.5rem); background: rgba(8, 9, 12, 0.8); }
+    .player-shell { width: min(1480px, 100%); height: min(860px, calc(100svh - 1.5rem)); max-height: none; display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; background: #fff; }
+    .player-top { flex: 0 0 auto; align-items: center; padding: .8rem 1rem; border-bottom: 1px solid var(--line); background: #fff; }
+    .player-heading { min-width: 0; flex: 1; }
+    .player-eyebrow { display: block; margin-bottom: .15rem; color: var(--pink-deep); font-size: .66rem; font-weight: 800; letter-spacing: .08em; }
+    .player-top h3 { max-width: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; }
+    .player-top-actions { display: flex; flex: 0 0 auto; align-items: center; gap: .45rem; }
+    .player-top-actions .quality-control { margin-left: 0; }
+    .player-workspace { display: grid; grid-template-columns: minmax(0,1fr) clamp(300px,28vw,390px); flex: 1 1 auto; min-height: 0; background: #fff; }
+    .player-main { min-width: 0; min-height: 0; overflow-y: auto; background: #fff; scrollbar-width: thin; }
+    .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: min(64svh,690px); overflow: hidden; background: #08090d; }
+    .stage video { object-fit: contain; }
+    .stage-gradient { position: absolute; inset: auto 0 0; z-index: 6; height: 44%; pointer-events: none; background: linear-gradient(transparent,rgba(0,0,0,.72)); }
+    .player-loading { position: absolute; inset: 0; z-index: 7; display: grid; place-content: center; justify-items: center; gap: .7rem; color: rgba(255,255,255,.88); background: rgba(8,9,13,.54); font-size: .84rem; font-weight: 700; }
+    .player-loading[hidden] { display: none; }
+    .player-loading-spinner { width: 30px; height: 30px; border: 3px solid rgba(255,255,255,.22); border-top-color: var(--pink); border-radius: 50%; animation: spin .8s linear infinite; }
+    .player-control-deck { position: absolute; right: .8rem; bottom: .75rem; left: .8rem; z-index: 8; display: flex; align-items: center; gap: .5rem; min-height: 42px; padding: .35rem .45rem; border: 1px solid rgba(255,255,255,.16); border-radius: 7px; background: rgba(18,19,24,.86); backdrop-filter: blur(12px); color: #fff; }
+    .player-control-deck.is-loading { opacity: .62; }
+    .player-control-btn { width: 32px; height: 32px; display: grid; flex: 0 0 auto; place-items: center; border: 0; border-radius: 5px; background: transparent; color: #fff; cursor: pointer; font-size: .94rem; line-height: 1; }
+    .player-control-btn:hover { background: rgba(255,255,255,.14); }
+    .player-control-btn:disabled { cursor: wait; opacity: .5; }
+    .player-progress { flex: 1 1 120px; min-width: 80px; accent-color: var(--pink); }
+    .player-time { flex: 0 0 auto; min-width: 82px; color: rgba(255,255,255,.82); font-size: .7rem; font-variant-numeric: tabular-nums; text-align: center; }
+    .player-volume { width: 74px; accent-color: var(--pink); }
+    .player-detail { background: #fff; }
+    .player-stats { min-height: 48px; align-items: center; margin: 0; padding: .75rem 1rem; border-bottom: 1px solid var(--line); background: #fff; }
+    .danmaku-toolbar { min-height: 48px; padding: .65rem 1rem; border-top: 0; border-bottom: 1px solid var(--line); background: #fbfbfc; }
+    .danmaku-debug { padding-right: 1rem; padding-left: 1rem; }
+    .extract-bar { padding: .75rem 1rem .85rem; border-top: 0; background: #fff; }
+    .recommendation-panel { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0,1fr); border-left: 1px solid var(--line); background: #fafafb; }
+    .recommendation-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .9rem .9rem .65rem; border-bottom: 1px solid var(--line); background: #fff; }
+    .recommendation-head h4 { font-size: .92rem; }
+    .recommendation-head p { margin-top: .16rem; color: var(--ink-soft); font-size: .72rem; }
+    .recommendation-count { flex: 0 0 auto; padding: .24rem .45rem; border-radius: 4px; background: #fff0f5; color: var(--pink-deep); font-size: .68rem; font-weight: 800; }
+    .recommendation-context { display: flex; flex-wrap: wrap; gap: .35rem; padding: .6rem .9rem; border-bottom: 1px solid var(--line); background: #fff; }
+    .recommendation-context[hidden] { display: none; }
+    .recommendation-context span { max-width: 16ch; overflow: hidden; padding: .25rem .45rem; border: 1px solid #e7e9ed; border-radius: 4px; color: #656873; font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+    .recommendation-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: .45rem .5rem .85rem; scrollbar-width: thin; }
+    .recommendation-list { display: grid; gap: .15rem; }
+    .recommendation-card { width: 100%; display: grid; grid-template-columns: 124px minmax(0,1fr); gap: .65rem; padding: .45rem; border: 1px solid transparent; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; text-align: left; transition: background .18s,border-color .18s; }
+    .recommendation-card:hover,.recommendation-card:focus-visible { border-color: #e0e3e8; background: #fff; outline: 0; }
+    .recommendation-thumb { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; background: #e8eaee; }
+    .recommendation-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .recommendation-duration { position: absolute; right: 4px; bottom: 4px; padding: .13rem .25rem; border-radius: 3px; background: rgba(0,0,0,.76); color: #fff; font-size: .63rem; font-variant-numeric: tabular-nums; }
+    .recommendation-copy { min-width: 0; padding: .04rem 0; }
+    .recommendation-reason { display: block; overflow: hidden; margin-bottom: .22rem; color: var(--pink-deep); font-size: .65rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .recommendation-copy h5 { display: -webkit-box; overflow: hidden; color: var(--ink); font-size: .78rem; font-weight: 700; line-height: 1.36; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .recommendation-copy p { display: -webkit-box; overflow: hidden; margin-top: .34rem; color: var(--ink-soft); font-size: .67rem; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .recommendation-status { min-height: 58px; display: grid; place-content: center; color: var(--ink-soft); font-size: .72rem; text-align: center; }
+    .recommendation-status.is-loading { color: var(--pink-deep); }
+    .recommendation-empty { padding: 1.5rem .5rem; color: var(--ink-soft); font-size: .76rem; text-align: center; }
+    @media (max-width: 860px) { .player-shell { height: min(940px,calc(100svh - 1.5rem)); } .player-workspace { grid-template-columns: minmax(0,1fr); overflow-y: auto; } .player-main { overflow: visible; } .recommendation-panel { height: min(390px,48svh); min-height: 300px; border-top: 1px solid var(--line); border-left: 0; } }
+    @media (max-width: 640px) { .modal { padding: 0; } .player-shell { width: 100%; height: 100svh; border: 0; border-radius: 0; } .player-top { gap: .6rem; padding: .7rem .75rem; } .player-eyebrow { font-size: .6rem; } .player-top h3 { font-size: .86rem; } .player-top-actions { gap: .25rem; } .player-top-actions .quality-control label { display: none; } .player-top-actions .quality-select { width: 58px; } .stage { max-height: none; } .player-control-deck { right: .5rem; bottom: .5rem; left: .5rem; gap: .25rem; } .player-volume,#pictureInPictureBtn { display: none; } .player-time { min-width: 68px; font-size: .62rem; } .player-progress { min-width: 42px; } .player-stats { padding: .65rem .75rem; } .danmaku-toolbar,.extract-bar,.recommendation-head,.recommendation-context { padding-right: .75rem; padding-left: .75rem; } .recommendation-scroll { padding-right: .4rem; padding-left: .4rem; } .recommendation-card { grid-template-columns: 112px minmax(0,1fr); gap: .55rem; } }
+
   </style>
 </head>
 <body>
@@ -1291,30 +1347,50 @@
   <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
     <div class="player-shell">
       <div class="player-top">
-        <h3 id="playerTitle">加载中…</h3>
-        <div class="quality-control"><label for="qualitySelect">清晰度</label><select class="quality-select" id="qualitySelect" aria-label="视频清晰度"><option value="16">360p</option><option value="64" selected>720p</option><option value="80">1080p</option></select></div>
-        <button class="icon-btn" type="button" id="closeBtn" aria-label="关闭">×</button>
-      </div>
-      <div class="stage" id="stage">
-        <video id="video" controls playsinline crossorigin="anonymous"></video>
-        <div class="danmaku-layer" id="danmakuLayer" aria-hidden="true"></div>
-      </div>
-      <div class="danmaku-toolbar">
-        <div><span class="chip">弹幕</span><span id="danmakuStatus">等待加载真实弹幕…</span></div>
-        <button class="btn btn-ghost" type="button" id="danmakuDebugBtn" style="padding:0.4rem 0.6rem;font-size:0.72rem">诊断</button>
-        <label class="switch" title="显示或隐藏弹幕">
-          <input id="danmakuToggle" type="checkbox" checked />
-          <i></i>
-        </label>
-      </div>
-      <pre class="danmaku-debug" id="danmakuDebug" hidden></pre>
-      <div class="player-stats" id="playerStats"></div>
-      <div class="extract-bar">
-        <div class="extract-row">
-          <span class="chip">EXTRACTED</span>
-          <code id="streamUrl">等待提取直链…</code>
-          <button class="btn btn-ghost" type="button" id="copyBtn" style="padding:0.45rem 0.9rem;font-size:0.8rem">复制</button>
+        <div class="player-heading">
+          <span class="player-eyebrow">NOW PLAYING</span>
+          <h3 id="playerTitle">加载中…</h3>
         </div>
+        <div class="player-top-actions">
+          <div class="quality-control"><label for="qualitySelect">清晰度</label><select class="quality-select" id="qualitySelect" aria-label="视频清晰度"><option value="16">360p</option><option value="64" selected>720p</option><option value="80">1080p</option></select></div>
+          <button class="icon-btn" type="button" id="closeBtn" aria-label="关闭播放器" title="关闭播放器">×</button>
+        </div>
+      </div>
+      <div class="player-workspace">
+        <section class="player-main" aria-label="视频播放区">
+          <div class="stage" id="stage">
+            <video id="video" playsinline crossorigin="anonymous"></video>
+            <div class="danmaku-layer" id="danmakuLayer" aria-hidden="true"></div>
+            <div class="stage-gradient" aria-hidden="true"></div>
+            <div class="player-loading" id="playerLoading" hidden aria-live="polite"><span class="player-loading-spinner" aria-hidden="true"></span><span id="playerLoadingText">正在提取视频…</span></div>
+            <div class="player-control-deck" id="playerControlDeck" aria-label="播放器控制">
+              <button class="player-control-btn" id="playerPlayBtn" type="button" aria-label="播放" title="播放">▶</button>
+              <button class="player-control-btn" id="playerBackBtn" type="button" aria-label="后退 10 秒" title="后退 10 秒">↶</button>
+              <button class="player-control-btn" id="playerForwardBtn" type="button" aria-label="前进 10 秒" title="前进 10 秒">↷</button>
+              <input class="player-progress" id="playerProgress" type="range" min="0" max="0" value="0" step="0.1" aria-label="播放进度" />
+              <output class="player-time" id="playerTime">0:00 / 0:00</output>
+              <button class="player-control-btn" id="playerMuteBtn" type="button" aria-label="静音" title="静音">◖</button>
+              <input class="player-volume" id="playerVolume" type="range" min="0" max="1" value="1" step="0.05" aria-label="音量" />
+              <button class="player-control-btn" id="pictureInPictureBtn" type="button" aria-label="画中画" title="画中画">▣</button>
+              <button class="player-control-btn" id="fullscreenBtn" type="button" aria-label="全屏" title="全屏">⛶</button>
+            </div>
+          </div>
+          <div class="player-detail">
+            <div class="player-stats" id="playerStats"></div>
+            <div class="danmaku-toolbar">
+              <div><span class="chip">弹幕</span><span id="danmakuStatus">等待加载真实弹幕…</span></div>
+              <button class="btn btn-ghost" type="button" id="danmakuDebugBtn" style="padding:.4rem .6rem;font-size:.72rem">诊断</button>
+              <label class="switch" title="显示或隐藏弹幕"><input id="danmakuToggle" type="checkbox" checked /><i></i></label>
+            </div>
+            <pre class="danmaku-debug" id="danmakuDebug" hidden></pre>
+            <div class="extract-bar"><div class="extract-row"><span class="chip">EXTRACTED</span><code id="streamUrl">等待提取直链…</code><button class="btn btn-ghost" type="button" id="copyBtn" style="padding:.45rem .9rem;font-size:.8rem">复制</button></div></div>
+          </div>
+        </section>
+        <aside class="recommendation-panel" aria-labelledby="recommendationTitle">
+          <header class="recommendation-head"><div><h4 id="recommendationTitle">为你推荐</h4><p>基于标签、分区与相关稿件</p></div><span class="recommendation-count" id="recommendationCount">0 条</span></header>
+          <div class="recommendation-context" id="recommendationContext" hidden></div>
+          <div class="recommendation-scroll" id="recommendationScroll" aria-label="推荐视频，可连续向下滚动"><div class="recommendation-list" id="recommendationList"></div><div class="recommendation-status" id="recommendationStatus" aria-live="polite">正在准备推荐…</div></div>
+        </aside>
       </div>
     </div>
   </div>
@@ -1370,6 +1446,7 @@
       shortNavigating: false,
       shortTouchY: null,
       shortDanmaku: new Map(),
+      recommendation: { token: 0, video: null, items: [], seen: new Set(), terms: [], termCursor: 0, categoryPage: 1, relatedAttempted: false, loading: false, emptyRuns: 0 },
     };
 
     function loadLockCache() {
@@ -1427,6 +1504,24 @@
     const danmakuToggle = $("danmakuToggle");
     const danmakuDebugBtn = $("danmakuDebugBtn");
     const danmakuDebug = $("danmakuDebug");
+    const playerLoading = $("playerLoading");
+    const playerLoadingText = $("playerLoadingText");
+    const playerControlDeck = $("playerControlDeck");
+    const playerPlayBtn = $("playerPlayBtn");
+    const playerBackBtn = $("playerBackBtn");
+    const playerForwardBtn = $("playerForwardBtn");
+    const playerProgress = $("playerProgress");
+    const playerTime = $("playerTime");
+    const playerMuteBtn = $("playerMuteBtn");
+    const playerVolume = $("playerVolume");
+    const pictureInPictureBtn = $("pictureInPictureBtn");
+    const fullscreenBtn = $("fullscreenBtn");
+    const recommendationList = $("recommendationList");
+    const recommendationScroll = $("recommendationScroll");
+    const recommendationStatus = $("recommendationStatus");
+    const recommendationCount = $("recommendationCount");
+    const recommendationContext = $("recommendationContext");
+    let recommendationObserver = null;
     let danmakuItems = [];
     let danmakuIndex = 0;
     let danmakuLastTime = -1;
@@ -1743,6 +1838,21 @@
         return "unavailable";
       }
     }
+    function normalizeTags(value) {
+      const rows = Array.isArray(value) ? value : [value];
+      const tokens = [];
+      for (const row of rows) {
+        if (!row) continue;
+        const text = typeof row === "object" ? (row.tag_name || row.name || row.title || "") : String(row);
+        tokens.push(...String(text).split(/[|,，、/#;；]+/));
+      }
+      return [...new Set(tokens.map((token) => stripHtml(token).replace(/^#+|#+$/g, "").trim()).filter((token) => token && token.length <= 32))].slice(0, 12);
+    }
+
+    function mergeVideoTags(...groups) {
+      return [...new Set(groups.flatMap((group) => normalizeTags(group)))].slice(0, 12);
+    }
+
     function normalizeItem(raw) {
       const stat = raw.stat || {};
       const pic = raw.pic || raw.cover || "";
@@ -1759,6 +1869,7 @@
         pubdate: raw.pubdate || raw.ctime || raw.senddate || 0,
         tname: raw.tname || raw.typename || "",
         desc: stripHtml(raw.desc || raw.description || ""),
+        tags: normalizeTags(raw.tags || raw.tag_name || raw.tag || raw.tag_names || ""),
       };
     }
 
@@ -2292,17 +2403,67 @@
         .replace(/"/g, "&quot;");
     }
 
-    async function ensureCid(video) {
-      if (video.cid) return video.cid;
-      const json = await proxyFetch(`/x/web-interface/view?bvid=${video.bvid}`, 10000);
-      if (json.code !== 0) throw new Error(json.message || "获取稿件信息失败");
-      video.cid = json.data.cid;
-      video.aid = json.data.aid;
-      if (json.data.owner) video.owner = json.data.owner.name;
-      if (json.data.pic) video.pic = httpsPic(json.data.pic);
-      if (json.data.title) video.title = stripHtml(json.data.title);
-      return video.cid;
+    function refreshCurrentRecommendationTerms(video) {
+      const rec = state.recommendation;
+      if (!rec || rec.video !== video) return;
+      const nextTerms = buildRecommendationTerms(video);
+      if (nextTerms.join("\u0000") === rec.terms.join("\u0000")) return;
+      rec.terms = nextTerms;
+      renderRecommendationContext(nextTerms);
+      if (rec.loading) rec.refreshAfterHydrate = true;
+      else loadMoreRecommendations(rec.token);
     }
+
+    function hydrateVideoTags(video) {
+      if (!video.aid || video.tagsLoaded || video.tagsPromise) return;
+      video.tagsPromise = proxyFetch("/x/tag/archive/tags?aid=" + encodeURIComponent(video.aid), 9000)
+        .then((json) => {
+          const rows = Array.isArray(json && json.data) ? json.data : [];
+          video.tags = mergeVideoTags(video.tags, rows);
+          video.tagsLoaded = true;
+          refreshCurrentRecommendationTerms(video);
+        })
+        .catch((error) => console.warn("video tag lookup failed", error))
+        .finally(() => { delete video.tagsPromise; });
+    }
+
+    async function hydrateVideoDetail(video) {
+      if (video.detailsLoaded) return video;
+      if (video.detailPromise) return video.detailPromise;
+      video.detailPromise = (async () => {
+        const json = await proxyFetch("/x/web-interface/view?bvid=" + encodeURIComponent(video.bvid), 10000);
+        if (json.code !== 0 || !json.data) throw new Error(json.message || "获取稿件信息失败");
+        const detail = json.data;
+        if (!detail.cid && !video.cid) throw new Error("稿件没有可播放分 P");
+        video.cid = detail.cid || video.cid;
+        video.aid = detail.aid || video.aid;
+        if (detail.owner) video.owner = detail.owner.name || video.owner;
+        if (detail.pic) video.pic = httpsPic(detail.pic);
+        if (detail.title) video.title = stripHtml(detail.title);
+        if (detail.tname) video.tname = detail.tname;
+        if (detail.desc) video.desc = stripHtml(detail.desc);
+        video.tags = mergeVideoTags(video.tags, detail.tag_name, detail.tags, detail.tag);
+        video.detailsLoaded = true;
+        hydrateVideoTags(video);
+        refreshCurrentRecommendationTerms(video);
+        return video;
+      })();
+      try {
+        return await video.detailPromise;
+      } finally {
+        delete video.detailPromise;
+      }
+    }
+
+    async function ensureCid(video) {
+      if (video.cid) {
+        hydrateVideoDetail(video).catch((error) => console.warn("video metadata lookup failed", error));
+        return video.cid;
+      }
+      const detailed = await hydrateVideoDetail(video);
+      return detailed.cid;
+    }
+
 
     async function extractPlayUrl(video, preferredQuality = state.quality) {
       const cid = await ensureCid(video);
@@ -2342,31 +2503,283 @@
       videoEl.load();
     }
 
+
+    function setPlayerLoading(loading, text) {
+      playerLoading.hidden = !loading;
+      playerControlDeck.classList.toggle("is-loading", !!loading);
+      if (text) playerLoadingText.textContent = text;
+    }
+
+    function syncPlayerControls() {
+      const duration = Number(videoEl.duration);
+      const current = Number(videoEl.currentTime) || 0;
+      const hasDuration = Number.isFinite(duration) && duration > 0;
+      playerProgress.max = String(hasDuration ? duration : 0);
+      playerProgress.value = String(hasDuration ? Math.min(current, duration) : 0);
+      playerProgress.disabled = !hasDuration;
+      playerTime.textContent = formatDuration(current) + " / " + formatDuration(hasDuration ? duration : 0);
+      const paused = videoEl.paused;
+      playerPlayBtn.textContent = paused ? "▶" : "Ⅱ";
+      playerPlayBtn.setAttribute("aria-label", paused ? "播放" : "暂停");
+      playerPlayBtn.title = paused ? "播放" : "暂停";
+      const muted = videoEl.muted || !videoEl.volume;
+      playerMuteBtn.textContent = muted ? "◖" : "◕";
+      playerMuteBtn.setAttribute("aria-label", muted ? "取消静音" : "静音");
+      playerMuteBtn.title = muted ? "取消静音" : "静音";
+      playerVolume.value = String(muted ? 0 : videoEl.volume);
+      pictureInPictureBtn.disabled = !document.pictureInPictureEnabled;
+    }
+
+    function togglePlayback() {
+      if (!videoEl.currentSrc && !videoEl.src) return;
+      if (videoEl.paused) videoEl.play().catch(() => {});
+      else videoEl.pause();
+    }
+
+    function jumpPlayback(seconds) {
+      const duration = Number(videoEl.duration);
+      if (!Number.isFinite(duration)) return;
+      videoEl.currentTime = Math.max(0, Math.min(duration, (Number(videoEl.currentTime) || 0) + seconds));
+    }
+
+    function buildRecommendationTerms(video) {
+      const terms = mergeVideoTags(video.tags, video.tname);
+      const title = stripHtml(video.title || "").trim();
+      if (title) terms.push(title.slice(0, 36));
+      const descPieces = stripHtml(video.desc || "").split(/[\n。！？!?；;，,]+/).map((piece) => piece.trim()).filter((piece) => piece.length >= 2 && piece.length <= 32);
+      terms.push(...descPieces.slice(0, 3));
+      return [...new Set(terms.filter((term) => term && term.length >= 2))].slice(0, 8);
+    }
+
+    function renderRecommendationContext(terms) {
+      recommendationContext.hidden = !terms.length;
+      recommendationContext.innerHTML = terms.map((term) => "<span title=\"" + escapeHtml(term) + "\">" + escapeHtml(term) + "</span>").join("");
+    }
+
+    function setRecommendationStatus(text, loading) {
+      recommendationStatus.textContent = text;
+      recommendationStatus.classList.toggle("is-loading", !!loading);
+    }
+
+    function beginRecommendationSession(video) {
+      const token = (state.recommendation.token || 0) + 1;
+      state.recommendation = {
+        token,
+        video,
+        items: [],
+        seen: new Set(video.bvid ? [video.bvid] : []),
+        terms: buildRecommendationTerms(video),
+        termCursor: 0,
+        categoryPage: 1,
+        relatedAttempted: false,
+        loading: false,
+        emptyRuns: 0,
+        refreshAfterHydrate: false,
+      };
+      hydrateVideoDetail(video).catch((error) => console.warn("recommendation metadata lookup failed", error));
+      recommendationList.replaceChildren();
+      recommendationCount.textContent = "0 条";
+      renderRecommendationContext(state.recommendation.terms);
+      setRecommendationStatus("正在读取视频标签与相关稿件…", true);
+      setupRecommendationObserver();
+      return token;
+    }
+
+    function stopRecommendationSession() {
+      if (state.recommendation) state.recommendation.token += 1;
+      if (recommendationObserver) recommendationObserver.disconnect();
+      recommendationObserver = null;
+    }
+
+    function relatedListFromResponse(json) {
+      const data = (json && json.data) || {};
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data.list)) return data.list;
+      if (Array.isArray(data.related)) return data.related;
+      return [];
+    }
+
+    async function fetchRelatedRecommendations(video) {
+      const json = await proxyFetch("/x/web-interface/archive/related?bvid=" + encodeURIComponent(video.bvid), 10000);
+      return relatedListFromResponse(json).map(normalizeItem).filter((item) => item.bvid).map((item) => Object.assign(item, { relatedSource: true }));
+    }
+
+    function categoryForVideo(video) {
+      const category = CATEGORIES.find((candidate) => candidate.type === "rank" && candidate.label === video.tname);
+      return category && category.rid;
+    }
+
+    async function fetchRecommendationCandidates(video, rec) {
+      const jobs = [];
+      if (!rec.relatedAttempted) {
+        rec.relatedAttempted = true;
+        jobs.push(fetchRelatedRecommendations(video));
+      }
+      const terms = rec.terms.length ? rec.terms : [video.tname || video.title || "热门视频"];
+      const cursor = rec.termCursor++;
+      const term = terms[cursor % terms.length];
+      const page = 1 + Math.floor(cursor / terms.length);
+      jobs.push(searchVideos(term, page).then((result) => result.list.map((item) => Object.assign(item, { matchedTerm: term }))));
+      const rid = categoryForVideo(video);
+      if (rid && rec.termCursor % 2 === 0) {
+        const categoryPage = rec.categoryPage++;
+        jobs.push(proxyFetch("/x/web-interface/newlist?rid=" + rid + "&pn=" + categoryPage + "&ps=30", 11000).then((json) => feedListFromResponse(json).map(normalizeItem).filter((item) => item.bvid).map((item) => Object.assign(item, { matchedTerm: video.tname }))));
+      }
+      const settled = await Promise.allSettled(jobs);
+      const candidates = [];
+      let failures = 0;
+      for (const result of settled) {
+        if (result.status === "fulfilled") candidates.push(...result.value);
+        else failures += 1;
+      }
+      if (!candidates.length && failures === settled.length) throw new Error("推荐源暂时不可用");
+      return candidates;
+    }
+
+    function recommendationScore(candidate, video, terms) {
+      const corpus = [candidate.title, candidate.tname, candidate.desc, ...(candidate.tags || [])].join(" ").toLowerCase();
+      let score = candidate.relatedSource ? 80 : 0;
+      if (candidate.tname && candidate.tname === video.tname) score += 24;
+      terms.forEach((term, index) => {
+        if (term.length > 1 && corpus.includes(term.toLowerCase())) score += Math.max(8, 32 - index * 3);
+      });
+      score += Math.min(8, Math.log10((candidate.play || 0) + 1));
+      return score;
+    }
+
+    function recommendationReason(candidate, video, terms) {
+      const corpus = [candidate.title, candidate.tname, candidate.desc, ...(candidate.tags || [])].join(" ").toLowerCase();
+      const matched = terms.find((term) => term.length > 1 && corpus.includes(term.toLowerCase()));
+      if (candidate.relatedSource) return matched ? "相关稿件 · " + matched : "相关稿件";
+      if (matched) return "匹配标签 · " + matched;
+      if (candidate.tname && candidate.tname === video.tname) return "同一分区 · " + candidate.tname;
+      return "参考当前视频";
+    }
+
+    function createRecommendationCard(video, index) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "recommendation-card";
+      card.dataset.recommendationIndex = String(index);
+      card.setAttribute("aria-label", "播放推荐视频：" + (video.title || video.bvid));
+
+      const thumb = document.createElement("div");
+      thumb.className = "recommendation-thumb";
+      const image = document.createElement("img");
+      image.src = video.pic || "";
+      image.alt = "";
+      image.loading = "lazy";
+      image.decoding = "async";
+      image.referrerPolicy = "no-referrer";
+      thumb.appendChild(image);
+      const duration = document.createElement("span");
+      duration.className = "recommendation-duration";
+      duration.textContent = formatDuration(video.duration);
+      thumb.appendChild(duration);
+
+      const copy = document.createElement("div");
+      copy.className = "recommendation-copy";
+      const reason = document.createElement("span");
+      reason.className = "recommendation-reason";
+      reason.textContent = video.recommendationReason || "参考当前视频";
+      const title = document.createElement("h5");
+      title.textContent = video.title || video.bvid;
+      const meta = document.createElement("p");
+      meta.textContent = [video.owner || "UP主", formatCount(video.play) + " 播放", video.tname].filter(Boolean).join(" · ");
+      copy.append(reason, title, meta);
+      card.append(thumb, copy);
+      return card;
+    }
+
+    function appendRecommendations(items) {
+      const rec = state.recommendation;
+      const fragment = document.createDocumentFragment();
+      for (const item of items) {
+        const index = rec.items.length;
+        rec.items.push(item);
+        fragment.appendChild(createRecommendationCard(item, index));
+      }
+      recommendationList.appendChild(fragment);
+      recommendationCount.textContent = rec.items.length + " 条";
+    }
+
+    async function loadMoreRecommendations(expectedToken) {
+      const rec = state.recommendation;
+      if (!rec || rec.loading || rec.token !== expectedToken || !rec.video) return;
+      rec.loading = true;
+      setRecommendationStatus(rec.items.length ? "正在加载更多相似视频…" : "正在依据标签和相关稿件推荐…", true);
+      try {
+        rec.terms = buildRecommendationTerms(rec.video);
+        renderRecommendationContext(rec.terms);
+        const candidates = await fetchRecommendationCandidates(rec.video, rec);
+        if (state.recommendation !== rec || rec.token !== expectedToken) return;
+        const fresh = candidates.filter((candidate) => candidate.bvid && !rec.seen.has(candidate.bvid));
+        fresh.forEach((candidate) => {
+          rec.seen.add(candidate.bvid);
+          candidate.recommendationReason = recommendationReason(candidate, rec.video, rec.terms);
+          candidate.recommendationScore = recommendationScore(candidate, rec.video, rec.terms);
+        });
+        fresh.sort((left, right) => right.recommendationScore - left.recommendationScore);
+        if (fresh.length) {
+          rec.emptyRuns = 0;
+          appendRecommendations(fresh);
+          setRecommendationStatus("继续向下滚动加载更多", false);
+        } else {
+          rec.emptyRuns += 1;
+          setRecommendationStatus("正在换一组参考标签…", true);
+          if (rec.emptyRuns <= 3) setTimeout(() => loadMoreRecommendations(expectedToken), 240);
+          else { rec.emptyRuns = 0; setRecommendationStatus("继续向下滚动加载更多", false); }
+        }
+      } catch (error) {
+        if (state.recommendation === rec && rec.token === expectedToken) {
+          console.warn("recommendation load failed", error);
+          setRecommendationStatus("加载失败，继续向下滚动可重试", false);
+        }
+      } finally {
+        if (state.recommendation === rec && rec.token === expectedToken) {
+          rec.loading = false;
+          if (rec.refreshAfterHydrate) {
+            rec.refreshAfterHydrate = false;
+            setTimeout(() => loadMoreRecommendations(expectedToken), 0);
+          }
+        }
+      }
+    }
+
+    function setupRecommendationObserver() {
+      if (recommendationObserver) recommendationObserver.disconnect();
+      if (typeof IntersectionObserver !== "function") return;
+      recommendationObserver = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMoreRecommendations(state.recommendation.token);
+      }, { root: recommendationScroll, rootMargin: "700px 0px" });
+      recommendationObserver.observe(recommendationStatus);
+    }
+
     async function playVideo(video) {
       if (state.extracting) return;
+      const isNewVideo = !state.currentVideo || state.currentVideo.bvid !== video.bvid;
       state.extracting = true;
       modal.classList.add("open");
       document.body.style.overflow = "hidden";
       state.currentVideo = video;
+      const recommendationToken = isNewVideo ? beginRecommendationSession(video) : state.recommendation.token;
       playerTitle.textContent = stripHtml(video.title || video.bvid || "加载中…");
-      playerStats.innerHTML = `
-        <span>UP：${escapeHtml(video.owner || "…")}</span>
-        <span>${formatCount(video.play)} 播放</span>
-        <span>${formatCount(video.danmaku)} 弹幕</span>
-        <span>${escapeHtml(video.bvid || "")}</span>
-      `;
+      playerStats.innerHTML = "<span>UP：" + escapeHtml(video.owner || "…") + "</span><span>" + formatCount(video.play) + " 播放</span><span>" + formatCount(video.danmaku) + " 弹幕</span><span>" + escapeHtml(video.bvid || "") + "</span>";
       streamUrlEl.textContent = "正在提取 playurl 直链…";
       clearStageExtras();
+      setPlayerLoading(true, "正在提取视频…");
       danmakuToggle.closest(".switch").hidden = false;
       danmakuStatus.textContent = "视频优先加载 · 弹幕后台加载";
+      syncPlayerControls();
 
       try {
         const danmakuRunToken = ++danmakuToken;
         const stream = await extractPlayUrl(video, state.quality);
+        if (isNewVideo && state.recommendation.token === recommendationToken) loadMoreRecommendations(recommendationToken);
         playerTitle.textContent = stripHtml(video.title || video.bvid);
         streamUrlEl.textContent = stream.url;
         streamUrlEl.title = stream.url;
-        playerStats.innerHTML += `<span>清晰度 qn=${stream.quality}</span><span class="chip">直链已提取</span>`;
+        playerStats.innerHTML += "<span>清晰度 qn=" + stream.quality + "</span><span class=\"chip\">直链已提取</span>";
 
         const tryUrls = [stream.url, ...stream.backups];
         let played = false;
@@ -2378,22 +2791,26 @@
             loadDanmaku(video, danmakuRunToken);
             break;
           } catch (_) {
-            /* try next CDN */
+            /* Try the next CDN endpoint. */
           }
         }
-
         if (!played) {
           streamUrlEl.textContent = "视频 CDN 暂时不可用，请关闭后重试";
           danmakuStatus.textContent = "视频未开始，弹幕已暂停";
         }
       } catch (err) {
         console.error(err);
-        streamUrlEl.textContent = `提取失败：${err.message || err}`;
+        streamUrlEl.textContent = "提取失败：" + (err.message || err);
         danmakuStatus.textContent = "等待视频成功后加载弹幕";
+        if (isNewVideo && state.recommendation.token === recommendationToken) loadMoreRecommendations(recommendationToken);
       } finally {
         state.extracting = false;
+        setPlayerLoading(false);
+        syncPlayerControls();
       }
     }
+
+
 
     function attemptElementPlay(element,url,timeoutMs=12000){return new Promise((resolve,reject)=>{let done=false;const finish=e=>{if(done)return;done=true;element.onloadeddata=null;element.onerror=null;clearTimeout(timer);e?reject(e):resolve()};element.onloadeddata=()=>{element.play().catch(()=>{});finish()};element.onerror=()=>finish(Error('video error'));const timer=setTimeout(()=>finish(Error('video timeout')),timeoutMs);element.src=url;element.load()})}
     function attemptVideoPlay(url){return attemptElementPlay(videoEl,url)}
@@ -2401,10 +2818,15 @@
     function closeModal() {
       modal.classList.remove("open");
       document.body.style.overflow = "";
+      stopRecommendationSession();
       clearStageExtras();
+      setPlayerLoading(false);
       streamUrlEl.textContent = "等待提取直链…";
       danmakuToggle.closest(".switch").hidden = false;
+      state.currentVideo = null;
+      syncPlayerControls();
     }
+
 
     function renderTabs() {
       const cats = [...CATEGORIES];
@@ -2663,14 +3085,18 @@ Return ONLY a JSON array like:
       }
     }
 
-    videoEl.addEventListener("timeupdate", syncDanmaku);
+    videoEl.addEventListener("timeupdate", () => { syncDanmaku(); syncPlayerControls(); });
+    videoEl.addEventListener("loadedmetadata", syncPlayerControls);
+    videoEl.addEventListener("durationchange", syncPlayerControls);
+    videoEl.addEventListener("volumechange", syncPlayerControls);
     videoEl.addEventListener("seeking", () => {
       danmakuLayer.replaceChildren();
       danmakuIndex = lowerBoundDanmaku(Number(videoEl.currentTime) || 0);
       danmakuLastTime = Number(videoEl.currentTime) || 0;
     });
-    videoEl.addEventListener("play", () => danmakuLayer.classList.remove("paused"));
-    videoEl.addEventListener("pause", () => danmakuLayer.classList.add("paused"));
+    videoEl.addEventListener("play", () => { danmakuLayer.classList.remove("paused"); syncPlayerControls(); });
+    videoEl.addEventListener("pause", () => { danmakuLayer.classList.add("paused"); syncPlayerControls(); });
+    videoEl.addEventListener("ended", syncPlayerControls);
     danmakuDebugBtn.addEventListener("click", () => {
       danmakuDebug.hidden = !danmakuDebug.hidden;
       if (!danmakuDebug.hidden) danmakuLog("diagnostics-opened", { currentCid: state.currentVideo && state.currentVideo.cid });
@@ -2755,6 +3181,51 @@ Return ONLY a JSON array like:
       if (video) playVideo(video);
     });
 
+
+    playerPlayBtn.addEventListener("click", togglePlayback);
+    playerBackBtn.addEventListener("click", () => jumpPlayback(-10));
+    playerForwardBtn.addEventListener("click", () => jumpPlayback(10));
+    playerProgress.addEventListener("input", (event) => {
+      const next = Number(event.target.value);
+      if (Number.isFinite(next)) videoEl.currentTime = next;
+    });
+    playerMuteBtn.addEventListener("click", () => { videoEl.muted = !videoEl.muted; syncPlayerControls(); });
+    playerVolume.addEventListener("input", (event) => {
+      videoEl.volume = Number(event.target.value);
+      videoEl.muted = videoEl.volume === 0;
+      syncPlayerControls();
+    });
+    pictureInPictureBtn.addEventListener("click", async () => {
+      try {
+        if (document.pictureInPictureElement) await document.exitPictureInPicture();
+        else if (document.pictureInPictureEnabled) await videoEl.requestPictureInPicture();
+      } catch (error) { console.warn("picture-in-picture unavailable", error); }
+    });
+    fullscreenBtn.addEventListener("click", async () => {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else if (stage.requestFullscreen) await stage.requestFullscreen();
+      } catch (error) { console.warn("fullscreen unavailable", error); }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      const active = document.fullscreenElement === stage;
+      fullscreenBtn.textContent = active ? "⊡" : "⛶";
+      fullscreenBtn.setAttribute("aria-label", active ? "退出全屏" : "全屏");
+      fullscreenBtn.title = active ? "退出全屏" : "全屏";
+    });
+    stage.addEventListener("dblclick", () => fullscreenBtn.click());
+    stage.addEventListener("click", (event) => { if (event.target === videoEl) togglePlayback(); });
+    recommendationList.addEventListener("click", (event) => {
+      const card = event.target.closest("[data-recommendation-index]");
+      if (!card) return;
+      const item = state.recommendation.items[Number(card.dataset.recommendationIndex)];
+      if (item) playVideo(item);
+    });
+    recommendationScroll.addEventListener("scroll", () => {
+      const nearBottom = recommendationScroll.scrollTop + recommendationScroll.clientHeight >= recommendationScroll.scrollHeight - 700;
+      if (nearBottom) loadMoreRecommendations(state.recommendation.token);
+    }, { passive: true });
+
     function setQuality(value) {
       const quality = Number(value);
       if (![16, 64, 80].includes(quality)) return;
@@ -2777,6 +3248,11 @@ Return ONLY a JSON array like:
       if (e.target === modal) closeModal();
     });
     document.addEventListener("keydown", (e) => {
+      if (modal.classList.contains("open") && e.key === " " && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) {
+        e.preventDefault();
+        togglePlayback();
+        return;
+      }
       if (e.key === "Escape") {
         if (modal.classList.contains("open")) closeModal();
         else if (state.shortOpen) closeShorts();
