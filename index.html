@@ -1,0 +1,3774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BiliFlux — 实时哔哩视频流</title>
+  <meta name="description" content="实时抓取 Bilibili 热门视频并提取直链播放" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23fb7299'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-size='28' font-family='sans-serif' font-weight='700' fill='white'%3EBF%3C/text%3E%3C/svg%3E" />
+  <link rel="dns-prefetch" href="https://api.bilibili.com" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --pink: #fb7299;
+      --pink-deep: #e85a82;
+      --ink: #1a1b26;
+      --ink-soft: #3d4055;
+      --mist: #f6f3f7;
+      --paper: #fffafb;
+      --line: rgba(26, 27, 38, 0.08);
+      --sky: #7ec8e3;
+      --glow: rgba(251, 114, 153, 0.35);
+      --radius: 18px;
+      --nav-h: 72px;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Noto Sans SC", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 12% -10%, rgba(251, 114, 153, 0.22), transparent 55%),
+        radial-gradient(900px 500px at 92% 8%, rgba(126, 200, 227, 0.28), transparent 50%),
+        linear-gradient(180deg, #fff5f8 0%, var(--mist) 42%, #eef6fa 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    img { display: block; max-width: 100%; }
+    button, input { font: inherit; }
+    a { color: inherit; text-decoration: none; }
+
+    .noise {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .shell { position: relative; z-index: 1; }
+
+    /* ——— Nav ——— */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      height: var(--nav-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0 clamp(1rem, 4vw, 3rem);
+      backdrop-filter: blur(16px) saturate(1.2);
+      background: rgba(255, 250, 251, 0.72);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      font-family: Syne, "Noto Sans SC", sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      font-size: 1.35rem;
+    }
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--pink), #ff9ebb 45%, var(--sky));
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 0.85rem;
+      box-shadow: 0 8px 24px var(--glow);
+      animation: bob 3.2s var(--ease) infinite;
+    }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(251, 114, 153, 0.12);
+      color: var(--pink-deep);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--pink);
+      box-shadow: 0 0 0 0 var(--glow);
+      animation: pulse 1.6s ease-out infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(251, 114, 153, 0.55); }
+      70% { box-shadow: 0 0 0 10px rgba(251, 114, 153, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(251, 114, 153, 0); }
+    }
+    .nav-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .eraser-btn {
+      appearance: none;
+      border: 1px solid rgba(26, 27, 38, 0.1);
+      background: linear-gradient(135deg, #1a1b26, #2d3148);
+      color: #fff;
+      border-radius: 999px;
+      padding: 0.5rem 0.95rem;
+      font-weight: 700;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      letter-spacing: 0.02em;
+      box-shadow: 0 8px 22px rgba(26, 27, 38, 0.18);
+      transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+      white-space: nowrap;
+    }
+    .eraser-btn:hover { transform: translateY(-1px); }
+    .eraser-btn.active {
+      background: linear-gradient(135deg, #fb7299, #e85a82);
+      box-shadow: 0 10px 28px var(--glow);
+    }
+    .eraser-btn .lock-mini {
+      width: 14px;
+      height: 14px;
+      display: inline-grid;
+      place-items: center;
+    }
+    .eraser-btn .lock-mini svg { width: 14px; height: 14px; display: block; }
+
+    .ai-panel {
+      position: fixed;
+      top: calc(var(--nav-h) + 10px);
+      right: clamp(0.75rem, 3vw, 2rem);
+      z-index: 50;
+      width: min(360px, calc(100vw - 1.5rem));
+      background: rgba(255, 250, 251, 0.94);
+      backdrop-filter: blur(18px);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 24px 60px rgba(26, 27, 38, 0.16);
+      padding: 1rem 1.05rem 1.1rem;
+      display: none;
+      animation: rise 0.35s var(--ease);
+    }
+    .ai-panel.open { display: block; }
+    .ai-panel h3 {
+      font-family: Syne, "Noto Sans SC", sans-serif;
+      font-size: 1.05rem;
+      margin-bottom: 0.35rem;
+      letter-spacing: -0.02em;
+    }
+    .ai-panel p {
+      font-size: 0.82rem;
+      color: var(--ink-soft);
+      line-height: 1.5;
+      margin-bottom: 0.85rem;
+    }
+    .ai-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .ai-stat {
+      flex: 1;
+      min-width: 90px;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 0.55rem 0.65rem;
+    }
+    .ai-stat b {
+      display: block;
+      font-size: 1.1rem;
+      font-family: Syne, sans-serif;
+    }
+    .ai-stat span {
+      font-size: 0.72rem;
+      color: var(--ink-soft);
+    }
+    .ai-progress {
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(26, 27, 38, 0.08);
+      overflow: hidden;
+      margin-bottom: 0.65rem;
+    }
+    .ai-progress > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #1a1b26, var(--pink));
+      transition: width 0.3s var(--ease);
+    }
+    .ai-log {
+      font-size: 0.75rem;
+      color: var(--ink-soft);
+      max-height: 72px;
+      overflow: auto;
+    }
+    .ai-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      margin-bottom: 0.65rem;
+      font-size: 0.8rem;
+    }
+    .ai-option span {
+      color: var(--ink-soft);
+      font-size: 0.72rem;
+      display: block;
+      margin-top: 0.15rem;
+    }
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 26px;
+      flex: 0 0 auto;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch i {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #d7dbe7;
+      cursor: pointer;
+      transition: 0.2s var(--ease);
+    }
+    .switch i::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      top: 3px;
+      left: 3px;
+      transition: 0.2s var(--ease);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .switch input:checked + i { background: var(--pink); }
+    .switch input:checked + i::after { transform: translateX(18px); }
+
+    .cover-lock {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 0.75rem;
+      color: #fff;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(251, 114, 153, 0.35), transparent 45%),
+        linear-gradient(160deg, rgba(22, 24, 36, 0.92), rgba(42, 28, 40, 0.88));
+      backdrop-filter: blur(14px) saturate(0.7);
+    }
+    .cover-lock::before {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border-radius: 12px;
+      border: 1px dashed rgba(255, 255, 255, 0.28);
+      pointer-events: none;
+    }
+    .lock-badge {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 0.35rem;
+      justify-items: center;
+      animation: lockIn 0.45s var(--ease) both;
+    }
+    @keyframes lockIn {
+      from { opacity: 0; transform: scale(0.86) translateY(8px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .lock-ring {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05));
+      border: 1px solid rgba(255,255,255,0.28);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.25);
+      font-size: 1.35rem;
+    }
+    .lock-badge strong {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .lock-badge em {
+      font-style: normal;
+      font-size: 0.68rem;
+      opacity: 0.78;
+      max-width: 16ch;
+      line-height: 1.35;
+    }
+    .thumb.locked img {
+      filter: blur(18px) brightness(0.55) saturate(0.4);
+      transform: scale(1.12);
+    }
+    .card.locked-card .play-hint { display: none; }
+    .scan-dot {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 4;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.2rem 0.45rem;
+      border-radius: 999px;
+      background: rgba(26, 27, 38, 0.72);
+      color: #fff;
+    }
+    .scan-dot.safe { background: rgba(46, 125, 98, 0.85); }
+    .scan-dot.danger { background: rgba(232, 90, 130, 0.92); }
+    .scan-dot.busy { background: rgba(26, 27, 38, 0.75); }
+    .search {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.45rem 0.9rem;
+      min-width: min(280px, 42vw);
+      box-shadow: 0 6px 20px rgba(26, 27, 38, 0.04);
+    }
+    .search input {
+      border: 0;
+      outline: 0;
+      width: 100%;
+      background: transparent;
+      color: var(--ink);
+    }
+    .search input::placeholder { color: #9aa0b4; }
+
+    /* ——— Hero ——— */
+    .hero {
+      position: relative;
+      min-height: calc(100svh - var(--nav-h));
+      display: grid;
+      align-items: end;
+      padding: clamp(2rem, 6vw, 5rem) clamp(1rem, 4vw, 3rem) clamp(2.5rem, 5vw, 4rem);
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 245, 248, 0.15) 0%, rgba(246, 243, 247, 0.92) 78%, var(--mist) 100%),
+        var(--hero-image, linear-gradient(135deg, #ffd6e4, #cfeef8));
+      background-size: cover;
+      background-position: center;
+      filter: saturate(1.05);
+      transform: scale(1.04);
+      animation: ken 22s ease-in-out infinite alternate;
+    }
+    @keyframes ken {
+      from { transform: scale(1.04) translate(0, 0); }
+      to { transform: scale(1.1) translate(-1.5%, 1%); }
+    }
+    .hero-content {
+      position: relative;
+      max-width: 780px;
+      animation: rise 0.9s var(--ease) both;
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(28px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .hero-brand {
+      font-family: Syne, "Noto Sans SC", sans-serif;
+      font-weight: 800;
+      font-size: clamp(3.4rem, 12vw, 7.5rem);
+      line-height: 0.92;
+      letter-spacing: -0.05em;
+      color: var(--ink);
+      text-shadow: 0 12px 40px rgba(255, 255, 255, 0.55);
+      margin-bottom: 1.1rem;
+    }
+    .hero-brand span {
+      background: linear-gradient(120deg, var(--pink-deep), #ff8fb0 40%, #5eb8d6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hero p {
+      font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+      color: var(--ink-soft);
+      max-width: 34ch;
+      line-height: 1.55;
+      margin-bottom: 1.6rem;
+    }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .btn {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 0.85rem 1.35rem;
+      font-weight: 700;
+      transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), background 0.2s;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+      color: white;
+      box-shadow: 0 12px 30px var(--glow);
+    }
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    /* ——— Feed ——— */
+    .feed {
+      padding: 0 clamp(1rem, 4vw, 3rem) 4rem;
+    }
+    .feed-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .feed-head h2 {
+      font-family: Syne, "Noto Sans SC", sans-serif;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      letter-spacing: -0.03em;
+    }
+    .feed-meta {
+      color: var(--ink-soft);
+      font-size: 0.92rem;
+    }
+    .tabs {
+      display: flex;
+      gap: 0.45rem;
+      overflow-x: auto;
+      padding-bottom: 0.35rem;
+      margin-bottom: 1.4rem;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.7);
+      color: var(--ink-soft);
+      border-radius: 999px;
+      padding: 0.55rem 1rem;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: 0.2s var(--ease);
+    }
+    .tab:hover { border-color: rgba(251, 114, 153, 0.4); color: var(--ink); }
+    .tab.active {
+      background: var(--ink);
+      color: white;
+      border-color: var(--ink);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1.25rem 1rem;
+    }
+    .card {
+      cursor: pointer;
+      border: 0;
+      background: transparent;
+      text-align: left;
+      color: inherit;
+      animation: rise 0.7s var(--ease) both;
+    }
+    .thumb {
+      position: relative;
+      aspect-ratio: 16 / 10;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #e8e4ea;
+      margin-bottom: 0.7rem;
+    }
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.55s var(--ease);
+    }
+    .card:hover .thumb img { transform: scale(1.06); }
+    .thumb-meta {
+      position: absolute;
+      inset: auto 0 0 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 1.6rem 0.65rem 0.55rem;
+      background: linear-gradient(transparent, rgba(10, 12, 20, 0.72));
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .play-hint {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(26, 27, 38, 0.0);
+      transition: 0.3s var(--ease);
+    }
+    .play-hint span {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--pink-deep);
+      font-size: 1.1rem;
+      opacity: 0;
+      transform: scale(0.85);
+      transition: 0.3s var(--ease);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+    }
+    .card:hover .play-hint { background: rgba(26, 27, 38, 0.18); }
+    .card:hover .play-hint span { opacity: 1; transform: scale(1); }
+    .card-title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 0.35rem;
+    }
+    .card-sub {
+      font-size: 0.8rem;
+      color: var(--ink-soft);
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      padding: 3rem 1rem;
+      text-align: center;
+      color: var(--ink-soft);
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 3px solid rgba(251, 114, 153, 0.2);
+      border-top-color: var(--pink);
+      margin: 0 auto 1rem;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ——— Player modal ——— */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      place-items: center;
+      padding: 1rem;
+      background: rgba(16, 18, 28, 0.62);
+      backdrop-filter: blur(10px);
+    }
+    .modal.open { display: grid; animation: fade 0.25s ease; }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    .player-shell {
+      width: min(1040px, 100%);
+      background: var(--paper);
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
+      animation: rise 0.4s var(--ease);
+    }
+    .player-top {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.1rem 0.75rem;
+    }
+    .player-top h3 {
+      font-size: 1.05rem;
+      line-height: 1.4;
+      max-width: 80%;
+    }
+    .icon-btn {
+      border: 0;
+      background: rgba(26, 27, 38, 0.06);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+    .stage {
+      position: relative;
+      background: #0d0f16;
+      aspect-ratio: 16 / 9;
+    }
+    .stage video, .stage iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #000;
+    }
+    .danmaku-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      overflow: hidden;
+      pointer-events: none;
+      user-select: none;
+    }
+    .danmaku-layer[hidden] { display: none; }
+    .danmaku-item {
+      position: absolute;
+      left: 100%;
+      top: 0;
+      max-width: 80%;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+      text-shadow: 0 1px 3px #000, 1px 0 3px #000, -1px 0 3px #000;
+      will-change: transform;
+      animation: danmaku-scroll var(--dm-duration, 8s) linear forwards;
+    }
+    .danmaku-item.dm-top,
+    .danmaku-item.dm-bottom {
+      left: 50%;
+      max-width: 90%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transform: translateX(-50%);
+      animation: danmaku-fixed 4.5s ease-out forwards;
+    }
+    .danmaku-item.dm-top { top: 8%; }
+    .danmaku-item.dm-bottom { top: auto; bottom: 12%; }
+    .danmaku-layer.paused .danmaku-item { animation-play-state: paused; }
+    @keyframes danmaku-scroll {
+      from { transform: translateX(0); }
+      to { transform: translateX(calc(-100vw - 100%)); }
+    }
+    @keyframes danmaku-fixed {
+      0%, 75% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .danmaku-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.65rem 1.1rem;
+      border-top: 1px solid var(--line);
+      background: #fbfbfc;
+      color: var(--ink-soft);
+      font-size: 0.78rem;
+    }
+    .danmaku-toolbar > div { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+    .danmaku-toolbar #danmakuStatus { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .danmaku-toolbar .switch { width: 38px; height: 22px; }
+    .danmaku-toolbar .switch i::after { width: 16px; height: 16px; top: 3px; left: 3px; }
+    .danmaku-toolbar .switch input:checked + i::after { transform: translateX(16px); }
+    .danmaku-debug {
+      max-width: 100%;
+      margin: 0;
+      padding: 0.6rem 1.1rem 0.8rem;
+      border-top: 1px solid var(--line);
+      color: #7d5260;
+      background: #fff7f9;
+      font: 0.7rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .danmaku-debug[hidden] { display: none; }
+    .load-more-status {
+      min-height: 54px;
+      display: grid;
+      place-items: center;
+      color: var(--ink-soft);
+      font-size: 0.82rem;
+    }
+    .load-more-status[hidden] { display: none; }
+    .load-more-status.is-loading { color: var(--pink-deep); }
+    .load-more-status .mini-spinner {
+      width: 18px;
+      height: 18px;
+      margin-right: 0.45rem;
+      border: 2px solid rgba(251, 114, 153, 0.2);
+      border-top-color: var(--pink);
+      border-radius: 50%;
+      display: inline-block;
+      vertical-align: -5px;
+      animation: spin 0.8s linear infinite;
+    }
+    .shorts-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      height: 42px;
+      padding: 0 0.85rem;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .shorts-nav-btn:hover { color: var(--pink-deep); border-color: #f0b5c5; }
+    .shorts-view { position: fixed; inset: 0; z-index: 90; display: none; background: #101116; color: #fff; }
+    .shorts-view.open { display: grid; grid-template-rows: 68px minmax(0, 1fr); }
+    .shorts-view-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: #17181e;
+    }
+    .shorts-view-title { display: flex; align-items: center; gap: 0.7rem; font-weight: 800; }
+    .shorts-view-title small { color: rgba(255, 255, 255, 0.55); font-size: 0.75rem; font-weight: 500; }
+    .shorts-view-close {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 7px;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.25rem;
+    }
+    .shorts-view-body { min-height: 0; overflow: hidden; display: flex; justify-content: center; }
+    .shorts-feed {
+      width: min(100%, 520px);
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: contain;
+      touch-action: none;
+      scrollbar-width: none;
+    }
+    .shorts-feed::-webkit-scrollbar { display: none; }
+    .short-card {
+      position: relative;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      background: #111319;
+    }
+    .short-card video { width: 100%; height: 100%; display: block; object-fit: cover; background: #111319; }
+    .short-card::after {
+      content: "";
+      position: absolute;
+      inset: 45% 0 0;
+      pointer-events: none;
+      background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+    }
+    .short-danmaku-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      overflow: hidden;
+      pointer-events: none;
+      user-select: none;
+    }
+    .short-danmaku-item {
+      position: absolute;
+      left: 100%;
+      top: 0;
+      max-width: 88%;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+      text-shadow: 0 1px 3px #000, 1px 0 3px #000, -1px 0 3px #000;
+      will-change: transform;
+      animation: short-danmaku-scroll var(--short-dm-duration, 8s) linear forwards;
+    }
+    .short-danmaku-item.is-top,
+    .short-danmaku-item.is-bottom {
+      left: 50%;
+      max-width: 86%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transform: translateX(-50%);
+      animation: short-danmaku-fixed 4.5s ease-out forwards;
+    }
+    .short-danmaku-item.is-top { top: 9%; }
+    .short-danmaku-item.is-bottom { top: auto; bottom: 20%; }
+    .short-danmaku-layer.paused .short-danmaku-item { animation-play-state: paused; }
+    @keyframes short-danmaku-scroll {
+      from { transform: translateX(0); }
+      to { transform: translateX(var(--short-dm-travel)); }
+    }
+    @keyframes short-danmaku-fixed {
+      0%, 75% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .short-card-info { position: absolute; left: 1rem; right: 1rem; bottom: 1rem; z-index: 2; }
+    .short-card-info h3 { max-width: 85%; margin-bottom: 0.4rem; font-size: 1.05rem; line-height: 1.35; }
+    .short-card-info p { color: rgba(255, 255, 255, 0.72); font-size: 0.78rem; }
+    .short-danmaku-status {
+      display: inline-flex;
+      margin-top: 0.5rem;
+      padding: 0.18rem 0.42rem;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.42);
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 0.68rem;
+    }
+    .short-card-actions { position: absolute; right: 1rem; bottom: 1rem; z-index: 3; display: grid; gap: 0.5rem; }
+    .short-card-actions button {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.35);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .short-card-actions button.is-off { opacity: 0.52; }
+    .shorts-loading { display: grid; place-items: center; height: 100%; color: rgba(255, 255, 255, 0.65); }
+    @media (max-width: 780px) {
+      .shorts-nav-btn { width: 42px; padding: 0; justify-content: center; font-size: 0; }
+      .shorts-view.open { grid-template-rows: 58px minmax(0, 1fr); }
+      .short-card { min-height: 100%; }
+    }
+    .quality-control{display:flex;align-items:center;gap:.35rem;margin-left:auto}.quality-control label{font-size:.72rem;color:var(--ink-soft)}.quality-select{height:32px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);padding:0 .45rem;font-size:.76rem;cursor:pointer}.short-quality-select{height:32px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(0,0,0,.28);color:#fff;padding:0 .4rem;font-size:.72rem;cursor:pointer}@media(max-width:520px){.quality-control label{display:none}.quality-control{margin-left:0}.quality-select{height:30px}}
+    .extract-bar {
+      display: grid;
+      gap: 0.55rem;
+      padding: 0.9rem 1.1rem 1.15rem;
+      border-top: 1px solid var(--line);
+      background: white;
+    }
+    .extract-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .extract-row code {
+      flex: 1;
+      font-size: 0.72rem;
+      background: var(--mist);
+      border-radius: 10px;
+      padding: 0.55rem 0.7rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ink-soft);
+    }
+    .chip {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--pink-deep);
+      background: rgba(251, 114, 153, 0.12);
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+    }
+    .player-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      font-size: 0.8rem;
+      color: var(--ink-soft);
+      padding: 0 1.1rem 1rem;
+    }
+
+    .footer {
+      padding: 2rem clamp(1rem, 4vw, 3rem) 2.5rem;
+      color: var(--ink-soft);
+      font-size: 0.85rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.75rem;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    @media (max-width: 640px) {
+      .search { min-width: 0; flex: 1; max-width: 42vw; }
+      .eraser-btn { padding: 0.45rem 0.7rem; font-size: 0.7rem; }
+      .hero { align-items: center; min-height: 78svh; }
+      .player-top h3 { font-size: 0.95rem; }
+      .ai-panel { right: 0.75rem; left: 0.75rem; width: auto; }
+    }
+
+    /* Refined application shell */
+    :root {
+      --pink-deep: #df4c79;
+      --ink: #17181c;
+      --ink-soft: #656873;
+      --mist: #f4f5f7;
+      --paper: #ffffff;
+      --line: #e2e4e8;
+      --sky: #00a1d6;
+      --glow: rgba(251, 114, 153, 0.2);
+      --radius: 8px;
+      --nav-h: 68px;
+    }
+
+    html { scroll-padding-top: calc(var(--nav-h) + 16px); }
+    body { background: var(--mist); }
+    .noise { display: none; }
+    .shell { min-height: 100vh; }
+    .brand,
+    .hero-brand,
+    .feed-head h2,
+    .ai-panel h3,
+    .live-pill,
+    .eraser-btn,
+    .lock-badge strong { letter-spacing: 0; }
+
+    .nav {
+      height: var(--nav-h);
+      padding: 0 clamp(1rem, 3vw, 2.5rem);
+      background: rgba(255, 255, 255, 0.94);
+      border-color: var(--line);
+      box-shadow: 0 1px 10px rgba(23, 24, 28, 0.04);
+    }
+    .brand { gap: 0.65rem; font-size: 1.2rem; }
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 7px;
+      background: var(--pink);
+      box-shadow: none;
+      animation: none;
+    }
+    .nav-actions { flex: 1; justify-content: flex-end; }
+    .search {
+      width: min(500px, 46vw);
+      min-width: 220px;
+      height: 42px;
+      border-radius: 7px;
+      padding: 0 0.8rem;
+      background: #f7f8fa;
+      box-shadow: none;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+    .search:focus-within {
+      background: #fff;
+      border-color: rgba(251, 114, 153, 0.65);
+      box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.12);
+    }
+    .search input { min-width: 0; font-size: 0.9rem; }
+    .eraser-btn {
+      height: 42px;
+      border-radius: 7px;
+      padding: 0 0.9rem;
+      border-color: var(--line);
+      background: #fff;
+      color: var(--ink);
+      box-shadow: none;
+    }
+    .eraser-btn:hover { border-color: #c9ccd2; box-shadow: 0 4px 12px rgba(23, 24, 28, 0.07); }
+    .eraser-btn.active { background: #fff0f5; color: var(--pink-deep); box-shadow: none; }
+    .live-pill {
+      height: 42px;
+      padding: 0 0.75rem;
+      border: 1px solid #f4ceda;
+      border-radius: 7px;
+      background: #fff5f8;
+    }
+
+    .ai-panel {
+      top: calc(var(--nav-h) + 10px);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: 0 18px 50px rgba(23, 24, 28, 0.16);
+    }
+    .ai-stat, .ai-option { border-radius: 7px; }
+    .ai-progress, .switch i, .chip, .scan-dot { border-radius: 4px; }
+
+    .hero {
+      min-height: 0;
+      height: clamp(340px, 42vw, 500px);
+      align-items: end;
+      padding: clamp(2rem, 5vw, 4.5rem) clamp(1rem, 5vw, 5rem);
+      background: #1c1d22;
+    }
+    .hero-bg {
+      background:
+        linear-gradient(90deg, rgba(12, 13, 17, 0.92) 0%, rgba(12, 13, 17, 0.7) 48%, rgba(12, 13, 17, 0.12) 100%),
+        linear-gradient(0deg, rgba(12, 13, 17, 0.52), rgba(12, 13, 17, 0.05) 60%),
+        var(--hero-image, url("maxresdefault.jpg"));
+      background-size: cover;
+      background-position: center 35%;
+      filter: none;
+      transform: none;
+      animation: none;
+    }
+    .hero-content { width: min(660px, 100%); color: #fff; }
+    .hero-kicker {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 0.75rem;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .hero-brand {
+      margin-bottom: 0.55rem;
+      color: #fff;
+      font-size: clamp(2.5rem, 7vw, 4.5rem);
+      line-height: 1;
+      text-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    }
+    .hero-brand span { color: var(--pink); background: none; }
+    .featured-title {
+      max-width: 24ch;
+      margin-bottom: 0.45rem;
+      font-size: clamp(1.35rem, 3vw, 2rem);
+      line-height: 1.25;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .hero p {
+      margin-bottom: 1.35rem;
+      color: rgba(255, 255, 255, 0.76);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+    .btn { border-radius: 7px; padding: 0.75rem 1rem; }
+    .btn:disabled { cursor: wait; opacity: 0.65; transform: none; }
+    .btn-primary { background: var(--pink); box-shadow: 0 8px 24px rgba(251, 114, 153, 0.24); }
+    .hero .btn-ghost { background: rgba(255, 255, 255, 0.12); color: #fff; border-color: rgba(255, 255, 255, 0.24); }
+    .btn-content { display: inline-flex; align-items: center; gap: 0.5rem; }
+    .btn-content svg { width: 16px; height: 16px; }
+
+    .feed {
+      width: min(1600px, 100%);
+      margin: 0 auto;
+      padding: clamp(1.6rem, 3vw, 2.5rem) clamp(1rem, 3vw, 2.5rem) 4rem;
+    }
+    .feed-head { margin-bottom: 0.75rem; }
+    .feed-head h2 { font-size: clamp(1.45rem, 2.5vw, 2rem); }
+    .feed-meta { margin-top: 0.2rem; font-size: 0.84rem; }
+    .tabs {
+      gap: 0;
+      margin: 0 -0.5rem 1.25rem;
+      padding: 0 0.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .tab {
+      min-height: 42px;
+      padding: 0 0.85rem;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      background: transparent;
+      font-size: 0.86rem;
+    }
+    .tab:hover { border-color: #cfd1d6; }
+    .tab.active { color: var(--pink-deep); background: transparent; border-color: var(--pink); }
+
+    .grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+    .card {
+      min-width: 0;
+      overflow: hidden;
+      padding: 6px 6px 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      transition: transform 0.22s var(--ease), border-color 0.22s, box-shadow 0.22s;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: #cfd1d6;
+      box-shadow: 0 10px 24px rgba(23, 24, 28, 0.08);
+    }
+    .thumb { aspect-ratio: 16 / 9; margin-bottom: 0.7rem; border-radius: 6px; }
+    .rank-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 2;
+      min-width: 30px;
+      padding: 0.24rem 0.4rem;
+      border-radius: 4px;
+      background: rgba(17, 18, 22, 0.76);
+      color: #fff;
+      font-family: Syne, sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-align: center;
+      backdrop-filter: blur(6px);
+    }
+    .play-hint span { width: 46px; height: 46px; }
+    .card-title { min-height: 2.8em; margin: 0 0.55rem 0.35rem; font-size: 0.94rem; }
+    .card-sub { margin: 0 0.55rem; justify-content: space-between; flex-wrap: nowrap; }
+    .card-sub span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card-sub span:first-child { max-width: 68%; }
+    .status { min-height: 220px; display: grid; place-content: center; }
+
+    .modal { background: rgba(10, 11, 14, 0.76); }
+    .player-shell { border-radius: 8px; background: #fff; }
+    .player-top { align-items: center; }
+    .icon-btn { border-radius: 6px; }
+    .extract-row code { border-radius: 6px; }
+    .footer { background: #fff; }
+
+    button:focus-visible, a:focus-visible, input:focus-visible {
+      outline: 3px solid rgba(0, 161, 214, 0.32);
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 780px) {
+      .nav { gap: 0.65rem; padding: 0 0.75rem; }
+      .brand > span, .live-pill { display: none; }
+      .nav-actions { min-width: 0; gap: 0.5rem; }
+      .search { flex: 1; width: auto; min-width: 0; max-width: none; }
+      .search input { font-size: 0.84rem; }
+      .eraser-btn { width: 42px; padding: 0; justify-content: center; font-size: 0; }
+      .eraser-btn .lock-mini, .eraser-btn .lock-mini svg { width: 17px; height: 17px; }
+      .hero { height: 360px; min-height: 0; padding: 2rem 1rem; }
+      .hero-bg {
+        background:
+          linear-gradient(90deg, rgba(12, 13, 17, 0.88), rgba(12, 13, 17, 0.42)),
+          linear-gradient(0deg, rgba(12, 13, 17, 0.58), rgba(12, 13, 17, 0.08)),
+          var(--hero-image, url("maxresdefault.jpg"));
+        background-size: cover;
+        background-position: center;
+      }
+      .hero-brand { font-size: 2.7rem; }
+      .featured-title { font-size: 1.35rem; }
+      .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.8rem; }
+      .ai-panel { top: calc(var(--nav-h) + 8px); right: 0.75rem; left: 0.75rem; width: auto; }
+    }
+
+    @media (max-width: 520px) {
+      .search input::placeholder { color: transparent; }
+      .hero { height: 340px; }
+      .hero-kicker { margin-bottom: 0.55rem; }
+      .hero p { margin-bottom: 1rem; }
+      .feed { padding-top: 1.35rem; }
+      .grid { grid-template-columns: 1fr; }
+      .modal { padding: 0; place-items: end center; }
+      .player-shell { max-height: 94svh; border-radius: 8px 8px 0 0; overflow-y: auto; }
+      .extract-row { flex-wrap: wrap; }
+      .extract-row code { order: 3; width: 100%; flex-basis: 100%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+
+    /* Playback workspace: keep the video focused while recommendations scroll independently. */
+    .modal { padding: clamp(0.75rem, 2vw, 1.5rem); background: rgba(8, 9, 12, 0.8); }
+    .player-shell { width: min(1480px, 100%); height: min(860px, calc(100svh - 1.5rem)); max-height: none; display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; background: #fff; }
+    .player-top { flex: 0 0 auto; align-items: center; padding: .8rem 1rem; border-bottom: 1px solid var(--line); background: #fff; }
+    .player-heading { min-width: 0; flex: 1; }
+    .player-eyebrow { display: block; margin-bottom: .15rem; color: var(--pink-deep); font-size: .66rem; font-weight: 800; letter-spacing: .08em; }
+    .player-top h3 { max-width: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; }
+    .player-top-actions { display: flex; flex: 0 0 auto; align-items: center; gap: .45rem; }
+    .player-top-actions .quality-control { margin-left: 0; }
+    .player-workspace { display: grid; grid-template-columns: minmax(0,1fr) clamp(300px,28vw,390px); flex: 1 1 auto; min-height: 0; background: #fff; }
+    .player-main { min-width: 0; min-height: 0; overflow-y: auto; background: #fff; scrollbar-width: thin; }
+    .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: min(64svh,690px); overflow: hidden; background: #08090d; }
+    .stage video { object-fit: contain; }
+    .stage-gradient { position: absolute; inset: auto 0 0; z-index: 6; height: 44%; pointer-events: none; background: linear-gradient(transparent,rgba(0,0,0,.72)); }
+    .player-loading { position: absolute; inset: 0; z-index: 7; display: grid; place-content: center; justify-items: center; gap: .7rem; color: rgba(255,255,255,.88); background: rgba(8,9,13,.54); font-size: .84rem; font-weight: 700; }
+    .player-loading[hidden] { display: none; }
+    .player-loading-spinner { width: 30px; height: 30px; border: 3px solid rgba(255,255,255,.22); border-top-color: var(--pink); border-radius: 50%; animation: spin .8s linear infinite; }
+    .player-control-deck { position: absolute; right: .8rem; bottom: .75rem; left: .8rem; z-index: 8; display: flex; align-items: center; gap: .5rem; min-height: 42px; padding: .35rem .45rem; border: 1px solid rgba(255,255,255,.16); border-radius: 7px; background: rgba(18,19,24,.86); backdrop-filter: blur(12px); color: #fff; }
+    .player-control-deck.is-loading { opacity: .62; }
+    .player-control-btn { width: 32px; height: 32px; display: grid; flex: 0 0 auto; place-items: center; border: 0; border-radius: 5px; background: transparent; color: #fff; cursor: pointer; font-size: .94rem; line-height: 1; }
+    .player-control-btn:hover { background: rgba(255,255,255,.14); }
+    .player-control-btn:disabled { cursor: wait; opacity: .5; }
+    .player-progress { flex: 1 1 120px; min-width: 80px; accent-color: var(--pink); }
+    .player-time { flex: 0 0 auto; min-width: 82px; color: rgba(255,255,255,.82); font-size: .7rem; font-variant-numeric: tabular-nums; text-align: center; }
+    .player-volume { width: 74px; accent-color: var(--pink); }
+    .player-detail { background: #fff; }
+    .player-stats { min-height: 48px; align-items: center; margin: 0; padding: .75rem 1rem; border-bottom: 1px solid var(--line); background: #fff; }
+    .danmaku-toolbar { min-height: 48px; padding: .65rem 1rem; border-top: 0; border-bottom: 1px solid var(--line); background: #fbfbfc; }
+    .danmaku-debug { padding-right: 1rem; padding-left: 1rem; }
+    .extract-bar { padding: .75rem 1rem .85rem; border-top: 0; background: #fff; }
+    .recommendation-panel { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0,1fr); border-left: 1px solid var(--line); background: #fafafb; }
+    .recommendation-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .9rem .9rem .65rem; border-bottom: 1px solid var(--line); background: #fff; }
+    .recommendation-head h4 { font-size: .92rem; }
+    .recommendation-head p { margin-top: .16rem; color: var(--ink-soft); font-size: .72rem; }
+    .recommendation-count { flex: 0 0 auto; padding: .24rem .45rem; border-radius: 4px; background: #fff0f5; color: var(--pink-deep); font-size: .68rem; font-weight: 800; }
+    .recommendation-context { display: flex; flex-wrap: wrap; gap: .35rem; padding: .6rem .9rem; border-bottom: 1px solid var(--line); background: #fff; }
+    .recommendation-context[hidden] { display: none; }
+    .recommendation-context span { max-width: 16ch; overflow: hidden; padding: .25rem .45rem; border: 1px solid #e7e9ed; border-radius: 4px; color: #656873; font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+    .recommendation-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: .45rem .5rem .85rem; scrollbar-width: thin; }
+    .recommendation-list { display: grid; gap: .15rem; }
+    .recommendation-card { width: 100%; display: grid; grid-template-columns: 124px minmax(0,1fr); gap: .65rem; padding: .45rem; border: 1px solid transparent; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; text-align: left; transition: background .18s,border-color .18s; }
+    .recommendation-card:hover,.recommendation-card:focus-visible { border-color: #e0e3e8; background: #fff; outline: 0; }
+    .recommendation-thumb { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; background: #e8eaee; }
+    .recommendation-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .recommendation-duration { position: absolute; right: 4px; bottom: 4px; padding: .13rem .25rem; border-radius: 3px; background: rgba(0,0,0,.76); color: #fff; font-size: .63rem; font-variant-numeric: tabular-nums; }
+    .recommendation-copy { min-width: 0; padding: .04rem 0; }
+    .recommendation-reason { display: block; overflow: hidden; margin-bottom: .22rem; color: var(--pink-deep); font-size: .65rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .recommendation-copy h5 { display: -webkit-box; overflow: hidden; color: var(--ink); font-size: .78rem; font-weight: 700; line-height: 1.36; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .recommendation-copy p { display: -webkit-box; overflow: hidden; margin-top: .34rem; color: var(--ink-soft); font-size: .67rem; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .recommendation-status { min-height: 58px; display: grid; place-content: center; color: var(--ink-soft); font-size: .72rem; text-align: center; }
+    .recommendation-status.is-loading { color: var(--pink-deep); }
+    .recommendation-empty { padding: 1.5rem .5rem; color: var(--ink-soft); font-size: .76rem; text-align: center; }
+    @media (max-width: 860px) { .player-shell { height: min(940px,calc(100svh - 1.5rem)); } .player-workspace { grid-template-columns: minmax(0,1fr); overflow-y: auto; } .player-main { overflow: visible; } .recommendation-panel { height: min(390px,48svh); min-height: 300px; border-top: 1px solid var(--line); border-left: 0; } }
+    @media (max-width: 640px) { .modal { padding: 0; } .player-shell { width: 100%; height: 100svh; border: 0; border-radius: 0; } .player-top { gap: .6rem; padding: .7rem .75rem; } .player-eyebrow { font-size: .6rem; } .player-top h3 { font-size: .86rem; } .player-top-actions { gap: .25rem; } .player-top-actions .quality-control label { display: none; } .player-top-actions .quality-select { width: 58px; } .stage { max-height: none; } .player-control-deck { right: .5rem; bottom: .5rem; left: .5rem; gap: .25rem; } .player-volume,#pictureInPictureBtn { display: none; } .player-time { min-width: 68px; font-size: .62rem; } .player-progress { min-width: 42px; } .player-stats { padding: .65rem .75rem; } .danmaku-toolbar,.extract-bar,.recommendation-head,.recommendation-context { padding-right: .75rem; padding-left: .75rem; } .recommendation-scroll { padding-right: .4rem; padding-left: .4rem; } .recommendation-card { grid-template-columns: 112px minmax(0,1fr); gap: .55rem; } }
+
+
+    /* Shorts is a dedicated viewing surface, not an enlarged browser video. */
+    .shorts-view {
+      --shorts-panel: #15171d;
+      --shorts-panel-soft: #20232b;
+      --shorts-line: rgba(255, 255, 255, 0.1);
+      position: fixed;
+      inset: 0;
+      z-index: 110;
+      display: none;
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 18vw);
+      grid-template-rows: 1fr;
+      overflow: hidden;
+      background: #101116;
+      color: #fff;
+    }
+    .shorts-view.open { display: grid; grid-template-rows: minmax(0, 1fr); animation: fade .2s ease; }
+    .shorts-view::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(80% 100% at 50% 50%, rgba(251, 114, 153, 0.08), transparent 68%);
+    }
+    .shorts-view-head {
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      z-index: 12;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      height: 68px;
+      padding: 0 1.25rem;
+      border-bottom: 1px solid var(--shorts-line);
+      background: linear-gradient(180deg, rgba(14, 15, 19, 0.96), rgba(14, 15, 19, 0.7));
+      backdrop-filter: blur(16px);
+    }
+    .shorts-brand { display: flex; min-width: 0; align-items: center; gap: .72rem; }
+    .shorts-brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 7px;
+      background: var(--pink);
+      color: #fff;
+      font-size: .76rem;
+      font-weight: 900;
+    }
+    .shorts-view-title { display: grid; gap: .1rem; font-weight: 800; }
+    .shorts-view-title span { font-size: .96rem; letter-spacing: 0; }
+    .shorts-view-title small { color: rgba(255,255,255,.55); font-size: .68rem; font-weight: 500; }
+    .shorts-head-actions { display: flex; flex: 0 0 auto; align-items: center; gap: .5rem; }
+    .short-quality-select {
+      height: 34px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 6px;
+      background: rgba(255,255,255,.07);
+      color: #fff;
+      padding: 0 .45rem;
+      font-size: .72rem;
+      cursor: pointer;
+    }
+    .short-quality-select option { color: #17181c; }
+    .shorts-view-close {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 6px;
+      background: rgba(255,255,255,.07);
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+    .shorts-view-close:hover { background: rgba(255,255,255,.14); }
+    .shorts-view-body {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      grid-column: 1;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 82px 1.5rem 1.5rem;
+    }
+    .shorts-feed {
+      width: min(100%, 500px);
+      height: 100%;
+      max-height: 940px;
+      overflow: hidden;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      scrollbar-width: none;
+    }
+    .shorts-feed::-webkit-scrollbar { display: none; }
+    .short-card {
+      position: relative;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 8px;
+      background: #090a0d;
+      box-shadow: 0 24px 70px rgba(0,0,0,.42);
+    }
+    .short-card video { width: 100%; height: 100%; display: block; object-fit: cover; background: #090a0d; }
+    .short-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(0,0,0,.38), transparent 24%, transparent 52%, rgba(0,0,0,.86));
+    }
+    .short-card.is-paused::after {
+      content: "▶";
+      position: absolute;
+      top: 46%;
+      left: 50%;
+      z-index: 6;
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 50%;
+      background: rgba(10,11,15,.64);
+      color: #fff;
+      font-size: 1.25rem;
+      transform: translate(-50%, -50%);
+      backdrop-filter: blur(12px);
+    }
+    .short-topline {
+      position: absolute;
+      top: .85rem;
+      right: .9rem;
+      left: .9rem;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .6rem;
+    }
+    .short-category,
+    .short-index {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: .2rem .45rem;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 4px;
+      background: rgba(8,9,12,.44);
+      color: rgba(255,255,255,.88);
+      font-size: .65rem;
+      font-weight: 700;
+      backdrop-filter: blur(8px);
+    }
+    .short-index { color: rgba(255,255,255,.68); font-variant-numeric: tabular-nums; }
+    .short-danmaku-layer { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; user-select: none; }
+    .short-danmaku-item { position: absolute; left: 100%; top: 0; max-width: 88%; color: #fff; font-size: 16px; font-weight: 700; line-height: 1.2; white-space: nowrap; text-shadow: 0 1px 3px #000,1px 0 3px #000,-1px 0 3px #000; will-change: transform; animation: short-danmaku-scroll var(--short-dm-duration,8s) linear forwards; }
+    .short-danmaku-item.is-top,.short-danmaku-item.is-bottom { left: 50%; max-width: 86%; overflow: hidden; text-overflow: ellipsis; transform: translateX(-50%); animation: short-danmaku-fixed 4.5s ease-out forwards; }
+    .short-danmaku-item.is-top { top: 9%; }
+    .short-danmaku-item.is-bottom { top: auto; bottom: 20%; }
+    .short-danmaku-layer.paused .short-danmaku-item { animation-play-state: paused; }
+    .short-info {
+      position: absolute;
+      right: 5rem;
+      bottom: 1rem;
+      left: 1rem;
+      z-index: 5;
+      min-width: 0;
+    }
+    .short-owner { display: flex; align-items: center; gap: .45rem; margin-bottom: .55rem; color: rgba(255,255,255,.82); font-size: .73rem; }
+    .short-owner-avatar { width: 24px; height: 24px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--pink); color: #fff; font-size: .61rem; font-weight: 800; }
+    .short-owner-name { overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .short-info h3 { display: -webkit-box; overflow: hidden; margin: 0; font-size: clamp(1rem,1.7vw,1.14rem); line-height: 1.34; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .short-info p { display: flex; flex-wrap: wrap; gap: .25rem .5rem; margin-top: .5rem; color: rgba(255,255,255,.68); font-size: .7rem; }
+    .short-danmaku-status { display: inline-flex; margin-top: .6rem; padding: .2rem .4rem; border: 1px solid rgba(255,255,255,.1); border-radius: 4px; background: rgba(0,0,0,.34); color: rgba(255,255,255,.72); font-size: .63rem; }
+    .short-card-actions { position: absolute; right: .85rem; bottom: 1rem; z-index: 6; display: grid; gap: .55rem; }
+    .short-action {
+      width: 42px;
+      min-height: 42px;
+      display: grid;
+      place-items: center;
+      gap: .12rem;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 50%;
+      background: rgba(10,11,15,.48);
+      color: #fff;
+      cursor: pointer;
+      font-size: .8rem;
+      font-weight: 800;
+      backdrop-filter: blur(10px);
+    }
+    .short-action:hover { background: rgba(255,255,255,.16); }
+    .short-action.is-off { opacity: .52; }
+    .short-action small { display: none; }
+    .short-loading-state { display: grid; height: 100%; place-content: center; justify-items: center; gap: .65rem; color: rgba(255,255,255,.68); font-size: .78rem; }
+    .short-loading-state i { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,.18); border-top-color: var(--pink); border-radius: 50%; animation: spin .8s linear infinite; }
+    .shorts-sidebar {
+      height: 100%;
+      position: relative;
+      z-index: 2;
+      grid-column: 2;
+      min-width: 0;
+      overflow-y: auto;
+      padding: 92px 1rem 1.25rem;
+      border-left: 1px solid var(--shorts-line);
+      background: var(--shorts-panel);
+    }
+    .shorts-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-bottom: .8rem; }
+    .shorts-sidebar-head h3 { font-size: .86rem; }
+    .shorts-sidebar-head span { color: rgba(255,255,255,.48); font-size: .66rem; }
+    .shorts-queue { display: grid; gap: .35rem; }
+    .short-queue-card { width: 100%; display: grid; grid-template-columns: 84px minmax(0,1fr); gap: .55rem; padding: .35rem; border: 1px solid transparent; border-radius: 6px; background: transparent; color: rgba(255,255,255,.78); cursor: pointer; text-align: left; }
+    .short-queue-card:hover,.short-queue-card:focus-visible { border-color: rgba(255,255,255,.13); background: rgba(255,255,255,.07); outline: 0; }
+    .short-queue-card.is-current { border-color: rgba(251,114,153,.6); background: rgba(251,114,153,.12); color: #fff; }
+    .short-queue-thumb { position: relative; aspect-ratio: 9 / 12; overflow: hidden; border-radius: 4px; background: #282b34; }
+    .short-queue-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .short-queue-duration { position: absolute; right: 3px; bottom: 3px; padding: .1rem .22rem; border-radius: 3px; background: rgba(0,0,0,.72); color: #fff; font-size: .58rem; }
+    .short-queue-copy { min-width: 0; align-self: center; }
+    .short-queue-copy h4 { display: -webkit-box; overflow: hidden; font-size: .7rem; line-height: 1.36; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .short-queue-copy p { overflow: hidden; margin-top: .28rem; color: rgba(255,255,255,.5); font-size: .62rem; text-overflow: ellipsis; white-space: nowrap; }
+    .shorts-hint { margin-top: 1rem; padding-top: .85rem; border-top: 1px solid var(--shorts-line); color: rgba(255,255,255,.45); font-size: .66rem; line-height: 1.55; }
+    @media (max-width: 900px) {
+      .shorts-view { grid-template-columns: minmax(0,1fr); }
+      .shorts-sidebar { display: none; }
+      .shorts-view-body { padding-right: 1rem; padding-left: 1rem; }
+    }
+    @media (max-width: 560px) {
+      .shorts-view-head { height: 58px; padding: 0 .75rem; }
+      .shorts-brand-mark { width: 30px; height: 30px; font-size: .66rem; }
+      .shorts-view-title span { font-size: .88rem; }
+      .shorts-view-title small { font-size: .61rem; }
+      .shorts-view-body { padding: 70px 0 0; }
+      .shorts-feed { width: 100%; max-height: none; }
+      .short-card { border: 0; border-radius: 0; }
+      .short-info { right: 4.4rem; bottom: 1.1rem; left: .85rem; }
+      .short-card-actions { right: .65rem; bottom: 1.1rem; }
+      .short-action { width: 40px; min-height: 40px; }
+      .short-topline { top: .65rem; right: .7rem; left: .7rem; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="shell">
+    <header class="nav">
+      <div class="brand">
+        <div class="brand-mark">BF</div>
+        <span>BiliFlux</span>
+      </div>
+      <div class="nav-actions">
+        <label class="search" aria-label="搜索 BV 号或关键词">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="#9aa0b4" stroke-width="2"/>
+            <path d="M20 20l-3.5-3.5" stroke="#9aa0b4" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input id="searchInput" type="search" placeholder="BV 号 / 关键词，回车播放或搜索" />
+        </label>
+        <button class="eraser-btn" type="button" id="eraserBtn" title="Anime Girl Eraser">
+          <span class="lock-mini" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          Anime Girl Eraser
+        </button>
+        <button class="shorts-nav-btn" type="button" id="shortsOpenBtn" title="打开 Shorts"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="3" stroke="currentColor" stroke-width="2"/><path d="m10 8 5 4-5 4V8Z" fill="currentColor"/></svg>Shorts</button>
+        <div class="live-pill" title="列表自动刷新">
+          <span class="live-dot"></span>
+          LIVE
+        </div>
+      </div>
+    </header>
+
+    <aside class="ai-panel" id="aiPanel" aria-live="polite">
+      <h3>Anime Girl Eraser</h3>
+      <p>Gemini 直接识图检测封面。若封面主体是萌系（moe）二次元美少女，将上锁模糊，不直接显示封面人物。</p>
+      <label style="display:grid;gap:0.35rem;margin-bottom:0.75rem;font-size:0.78rem;color:var(--ink-soft)">
+        OpenRouter API Key
+        <input id="orKeyInput" type="password" placeholder="sk-or-v1-..." autocomplete="off"
+          style="border:1px solid var(--line);border-radius:12px;padding:0.55rem 0.7rem;background:#fff;color:var(--ink);outline:none" />
+      </label>
+      <label class="ai-option" for="autoDetectToggle">
+        <div>
+          <b>Auto Detect</b>
+          <span>列表加载后自动扫描新封面（不卡顿）</span>
+        </div>
+        <span class="switch">
+          <input id="autoDetectToggle" type="checkbox" />
+          <i></i>
+        </span>
+      </label>
+      <div class="ai-row">
+        <div class="ai-stat"><b id="aiScanned">0</b><span>已扫描</span></div>
+        <div class="ai-stat"><b id="aiLocked">0</b><span>已上锁</span></div>
+        <div class="ai-stat"><b id="aiSafe">0</b><span>安全</span></div>
+      </div>
+      <div class="ai-progress"><i id="aiBar"></i></div>
+      <div class="ai-row">
+        <button class="btn btn-primary" type="button" id="aiScanBtn" style="padding:0.65rem 1rem;font-size:0.82rem">开始扫描</button>
+        <button class="btn btn-ghost" type="button" id="aiClearBtn" style="padding:0.65rem 1rem;font-size:0.82rem">清除锁</button>
+        <button class="btn btn-ghost" type="button" id="aiCloseBtn" style="padding:0.65rem 1rem;font-size:0.82rem">关闭</button>
+      </div>
+      <div class="ai-log" id="aiLog">模型：google/gemini-3.6-flash · 视觉封面检测 · 待命</div>
+    </aside>
+
+    <section class="hero" id="hero">
+      <div class="hero-bg" id="heroBg"></div>
+      <div class="hero-content">
+        <div class="hero-kicker"><span class="live-dot"></span><span>热门视频正在更新</span></div>
+        <h1 class="hero-brand">Bili<span>Flux</span></h1>
+        <h2 class="featured-title" id="featuredTitle">正在发现热门视频…</h2>
+        <p id="featuredMeta">连接 Bilibili 热门流</p>
+        <div class="cta-row">
+          <button class="btn btn-primary" type="button" id="featuredPlayBtn" disabled><span class="btn-content"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z" fill="currentColor"/></svg>播放头条</span></button>
+          <button class="btn btn-ghost" type="button" id="refreshBtn"><span class="btn-content"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 5v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>刷新</span></button>
+        </div>
+      </div>
+    </section>
+
+    <main class="feed" id="feed"><div class="feed-head"><div><h2>发现视频</h2><p class="feed-meta" id="feedMeta">正在连接 Bilibili API…</p></div></div><div class="tabs" id="tabs" role="tablist"></div><div id="grid" class="grid"></div><div id="loadMoreStatus" class="load-more-status" hidden aria-live="polite"></div><div id="status" class="status" hidden></div></main>
+
+    <footer class="footer">
+      <span>BiliFlux · HTML-only · 直链提取自 Bilibili playurl</span>
+      <span id="clock"></span>
+    </footer>
+  </div>
+
+  <section class="shorts-view" id="shortsView" aria-label="BiliFlux Shorts">
+    <header class="shorts-view-head">
+      <div class="shorts-brand"><span class="shorts-brand-mark">BF</span><div class="shorts-view-title"><span>Shorts</span><small id="shortsViewMeta">正在准备短视频</small></div></div>
+      <div class="shorts-head-actions"><select class="short-quality-select" id="shortQualitySelect" aria-label="Shorts 清晰度"><option value="16">360p</option><option value="64" selected>720p</option><option value="80">1080p</option></select><button class="shorts-view-close" id="shortsCloseBtn" type="button" aria-label="关闭 Shorts" title="关闭 Shorts">×</button></div>
+    </header>
+    <div class="shorts-view-body"><div class="shorts-feed" id="shortsFeed"><div class="short-loading-state"><i aria-hidden="true"></i><span>正在发现短视频…</span></div></div></div>
+    <aside class="shorts-sidebar" id="shortsSidebar" aria-label="Shorts 队列"><div class="shorts-sidebar-head"><h3>接下来播放</h3><span id="shortsQueueCount">0 条</span></div><div class="shorts-queue" id="shortsQueue"></div><p class="shorts-hint">使用鼠标滚轮、触控滑动或方向键在短视频之间切换。</p></aside>
+  </section>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
+    <div class="player-shell">
+      <div class="player-top">
+        <div class="player-heading">
+          <span class="player-eyebrow">NOW PLAYING</span>
+          <h3 id="playerTitle">加载中…</h3>
+        </div>
+        <div class="player-top-actions">
+          <div class="quality-control"><label for="qualitySelect">清晰度</label><select class="quality-select" id="qualitySelect" aria-label="视频清晰度"><option value="16">360p</option><option value="64" selected>720p</option><option value="80">1080p</option></select></div>
+          <button class="icon-btn" type="button" id="closeBtn" aria-label="关闭播放器" title="关闭播放器">×</button>
+        </div>
+      </div>
+      <div class="player-workspace">
+        <section class="player-main" aria-label="视频播放区">
+          <div class="stage" id="stage">
+            <video id="video" playsinline crossorigin="anonymous"></video>
+            <div class="danmaku-layer" id="danmakuLayer" aria-hidden="true"></div>
+            <div class="stage-gradient" aria-hidden="true"></div>
+            <div class="player-loading" id="playerLoading" hidden aria-live="polite"><span class="player-loading-spinner" aria-hidden="true"></span><span id="playerLoadingText">正在提取视频…</span></div>
+            <div class="player-control-deck" id="playerControlDeck" aria-label="播放器控制">
+              <button class="player-control-btn" id="playerPlayBtn" type="button" aria-label="播放" title="播放">▶</button>
+              <button class="player-control-btn" id="playerBackBtn" type="button" aria-label="后退 10 秒" title="后退 10 秒">↶</button>
+              <button class="player-control-btn" id="playerForwardBtn" type="button" aria-label="前进 10 秒" title="前进 10 秒">↷</button>
+              <input class="player-progress" id="playerProgress" type="range" min="0" max="0" value="0" step="0.1" aria-label="播放进度" />
+              <output class="player-time" id="playerTime">0:00 / 0:00</output>
+              <button class="player-control-btn" id="playerMuteBtn" type="button" aria-label="静音" title="静音">◖</button>
+              <input class="player-volume" id="playerVolume" type="range" min="0" max="1" value="1" step="0.05" aria-label="音量" />
+              <button class="player-control-btn" id="pictureInPictureBtn" type="button" aria-label="画中画" title="画中画">▣</button>
+              <button class="player-control-btn" id="fullscreenBtn" type="button" aria-label="全屏" title="全屏">⛶</button>
+            </div>
+          </div>
+          <div class="player-detail">
+            <div class="player-stats" id="playerStats"></div>
+            <div class="danmaku-toolbar">
+              <div><span class="chip">弹幕</span><span id="danmakuStatus">等待加载真实弹幕…</span></div>
+              <button class="btn btn-ghost" type="button" id="danmakuDebugBtn" style="padding:.4rem .6rem;font-size:.72rem">诊断</button>
+              <label class="switch" title="显示或隐藏弹幕"><input id="danmakuToggle" type="checkbox" checked /><i></i></label>
+            </div>
+            <pre class="danmaku-debug" id="danmakuDebug" hidden></pre>
+            <div class="extract-bar"><div class="extract-row"><span class="chip">EXTRACTED</span><code id="streamUrl">等待提取直链…</code><button class="btn btn-ghost" type="button" id="copyBtn" style="padding:.45rem .9rem;font-size:.8rem">复制</button></div></div>
+          </div>
+        </section>
+        <aside class="recommendation-panel" aria-labelledby="recommendationTitle">
+          <header class="recommendation-head"><div><h4 id="recommendationTitle">为你推荐</h4><p>基于标签、分区与相关稿件</p></div><span class="recommendation-count" id="recommendationCount">0 条</span></header>
+          <div class="recommendation-context" id="recommendationContext" hidden></div>
+          <div class="recommendation-scroll" id="recommendationScroll" aria-label="推荐视频，可连续向下滚动"><div class="recommendation-list" id="recommendationList"></div><div class="recommendation-status" id="recommendationStatus" aria-live="polite">正在准备推荐…</div></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CATEGORIES = [
+      { id: "popular", label: "热门", type: "popular" },
+      { id: "0", label: "全站榜", type: "rank", rid: 0 },
+      { id: "1", label: "动画", type: "rank", rid: 1 },
+      { id: "3", label: "音乐", type: "rank", rid: 3 },
+      { id: "4", label: "游戏", type: "rank", rid: 4 },
+      { id: "5", label: "娱乐", type: "rank", rid: 5 },
+      { id: "36", label: "科技", type: "rank", rid: 36 },
+      { id: "119", label: "鬼畜", type: "rank", rid: 119 },
+      { id: "129", label: "舞蹈", type: "rank", rid: 129 },
+      { id: "155", label: "时尚", type: "rank", rid: 155 },
+      { id: "160", label: "生活", type: "rank", rid: 160 },
+      { id: "181", label: "影视", type: "rank", rid: 181 },
+      { id: "211", label: "美食", type: "rank", rid: 211 },
+      { id: "217", label: "动物", type: "rank", rid: 217 },
+    ];
+
+    const REFRESH_MS = 90_000;
+    const SHORT_PAGE_SIZE = 40;
+    const SHORT_MAX_DURATION = 180;
+    const SHORT_LOAD_AHEAD = 5;
+    const SHORT_SOURCE_PREFETCH_AHEAD = 2;
+    const SHORT_POPULAR_PAGE_LIMIT = 50;
+    const SHORT_RANK_IDS = [0, 1, 3, 4, 5, 36, 129, 160, 181, 211, 217];
+    const OPENROUTER_MODEL = "google/gemini-3.6-flash";
+    const OR_KEY_STORAGE = "biliflux_openrouter_key";
+    const AUTO_DETECT_STORAGE = "biliflux_auto_detect";
+    const LOCK_CACHE_STORAGE = "biliflux_lock_cache_v2_gemini";
+    const state = {
+      category: CATEGORIES[0],
+      videos: [],
+      timer: null,
+      extracting: false,
+      eraserOpen: false,
+      autoDetect: localStorage.getItem(AUTO_DETECT_STORAGE) === "1",
+      scanning: false,
+      scanToken: 0,
+      autoDetectTimer: null,
+      locks: loadLockCache(),
+      currentVideo: null,
+      danmakuLoading: false,
+      feedPage: 1,
+      feedLoading: false,
+      feedHasMore: true,
+      feedRequestId: 0,
+      feedKind: "popular",
+      shorts: [],
+      shortIndex: 0,
+      shortRequestId: 0,
+      shortPage: 0,
+      shortLoading: false,
+      shortHasMore: true,
+      shortEmptyPages: 0,
+      shortPendingNavigation: null,
+      shortOpen: false,
+      quality: Number(localStorage.getItem("biliflux_quality")) || 64,
+      shortNavigating: false,
+      shortTouchY: null,
+      shortSeen: new Set(),
+      shortSourceCache: new Map(),
+      shortSourcePromises: new Map(),
+      shortDanmaku: new Map(),
+      recommendation: { token: 0, video: null, items: [], seen: new Set(), terms: [], termCursor: 0, categoryPage: 1, relatedAttempted: false, loading: false, emptyRuns: 0 },
+    };
+
+    function loadLockCache() {
+      try {
+        return JSON.parse(localStorage.getItem(LOCK_CACHE_STORAGE) || "{}") || {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function persistLockCache() {
+      try {
+        // Keep cache bounded
+        const entries = Object.entries(state.locks);
+        const trimmed = entries.length > 400 ? Object.fromEntries(entries.slice(-400)) : state.locks;
+        localStorage.setItem(LOCK_CACHE_STORAGE, JSON.stringify(trimmed));
+      } catch (_) {
+        /* ignore quota */
+      }
+    }
+
+    function safeBvidSel(bvid) {
+      try {
+        return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(bvid) : String(bvid).replace(/"/g, '\\"');
+      } catch (_) {
+        return String(bvid);
+      }
+    }
+
+    function yieldToMain() {
+      return new Promise((resolve) => {
+        if (typeof requestIdleCallback === "function") {
+          requestIdleCallback(() => resolve(), { timeout: 40 });
+        } else {
+          setTimeout(resolve, 0);
+        }
+      });
+    }
+
+    const $ = (id) => document.getElementById(id);
+    const grid = $("grid");
+    const statusEl = $("status");
+    const feedMeta = $("feedMeta");
+    const tabs = $("tabs");
+    const modal = $("modal");
+    const videoEl = $("video");
+    const stage = $("stage");
+    const streamUrlEl = $("streamUrl");
+    const playerTitle = $("playerTitle");
+    const playerStats = $("playerStats");
+    const qualitySelect = $("qualitySelect");
+    const shortQualitySelect = $("shortQualitySelect");
+    const danmakuLayer = $("danmakuLayer");
+    const danmakuStatus = $("danmakuStatus");
+    const danmakuToggle = $("danmakuToggle");
+    const danmakuDebugBtn = $("danmakuDebugBtn");
+    const danmakuDebug = $("danmakuDebug");
+    const playerLoading = $("playerLoading");
+    const playerLoadingText = $("playerLoadingText");
+    const playerControlDeck = $("playerControlDeck");
+    const playerPlayBtn = $("playerPlayBtn");
+    const playerBackBtn = $("playerBackBtn");
+    const playerForwardBtn = $("playerForwardBtn");
+    const playerProgress = $("playerProgress");
+    const playerTime = $("playerTime");
+    const playerMuteBtn = $("playerMuteBtn");
+    const playerVolume = $("playerVolume");
+    const pictureInPictureBtn = $("pictureInPictureBtn");
+    const fullscreenBtn = $("fullscreenBtn");
+    const recommendationList = $("recommendationList");
+    const recommendationScroll = $("recommendationScroll");
+    const recommendationStatus = $("recommendationStatus");
+    const recommendationCount = $("recommendationCount");
+    const recommendationContext = $("recommendationContext");
+    let recommendationObserver = null;
+    let danmakuItems = [];
+    let danmakuIndex = 0;
+    let danmakuLastTime = -1;
+    let danmakuToken = 0;
+    const danmakuCache = new Map();
+    const featuredTitle = $("featuredTitle");
+    const featuredMeta = $("featuredMeta");
+    const featuredPlayBtn = $("featuredPlayBtn");
+    const loadMoreStatus = $("loadMoreStatus");
+    let loadMoreObserver = null;
+    const shortsOpenBtn=$("shortsOpenBtn"),shortsView=$("shortsView"),shortsFeed=$("shortsFeed"),shortsCloseBtn=$("shortsCloseBtn"),shortsViewMeta=$("shortsViewMeta"),shortsQueue=$("shortsQueue"),shortsQueueCount=$("shortsQueueCount"),shortsSidebar=$("shortsSidebar");
+    let shortsObserver=null;
+    qualitySelect.value=String(state.quality);
+    shortQualitySelect.value=String(state.quality);
+    let shortWheelLock=null;
+
+    function httpsPic(url = "") {
+      let u = String(url || "");
+      if (u.startsWith("//")) u = "https:" + u;
+      return u.replace(/^http:\/\//i, "https://");
+    }
+
+    function stripHtml(str = "") {
+      return String(str)
+        .replace(/<[^>]+>/g, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .trim();
+    }
+
+    function parseDuration(value) {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      const s = String(value || "").trim();
+      if (!s) return 0;
+      if (/^\d+$/.test(s)) return Number(s);
+      const parts = s.split(":").map((x) => Number(x) || 0);
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      return 0;
+    }
+
+    function formatCount(n) {
+      n = Number(n) || 0;
+      if (n >= 1e8) return (n / 1e8).toFixed(1) + "亿";
+      if (n >= 1e4) return (n / 1e4).toFixed(1) + "万";
+      return String(n);
+    }
+
+    function formatDuration(sec) {
+      sec = Number(sec) || 0;
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = Math.floor(sec % 60);
+      if (h) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      return `${m}:${String(s).padStart(2, "0")}`;
+    }
+
+    function parseJsonBlob(text) {
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start < 0 || end < start) throw new Error("代理返回中未找到 JSON");
+      return JSON.parse(text.slice(start, end + 1));
+    }
+
+    function assertBiliJson(data) {
+      if (!data || typeof data !== "object") throw new Error("无效响应");
+      if (data.data && data.data._voucher) throw new Error("搜索风控校验，请换词重试");
+      if (typeof data.code === "number" && data.code !== 0) {
+        throw new Error(data.message || `API code ${data.code}`);
+      }
+      return data;
+    }
+
+    function withTimeout(promise, ms, label) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), ms);
+      return Promise.race([
+        promise(ctrl.signal),
+        new Promise((_, reject) => {
+          ctrl.signal.addEventListener("abort", () => reject(new Error(`${label} 超时`)));
+        }),
+      ]).finally(() => clearTimeout(timer));
+    }
+
+    async function proxyFetch(apiPath, timeoutMs = 12000) {
+      const absolute = `https://api.bilibili.com${apiPath}`;
+      const runners = [
+        (signal) =>
+          fetch(`https://r.jina.ai/http://api.bilibili.com${apiPath}`, {
+            signal,
+            headers: { Accept: "text/plain", "X-Return-Format": "text" },
+          }).then(async (res) => {
+            if (!res.ok) throw new Error(`jina ${res.status}`);
+            return assertBiliJson(parseJsonBlob(await res.text()));
+          }),
+        (signal) =>
+          fetch(`https://r.jina.ai/${absolute}`, {
+            signal,
+            headers: { Accept: "text/plain", "X-Return-Format": "text" },
+          }).then(async (res) => {
+            if (!res.ok) throw new Error(`jina-https ${res.status}`);
+            return assertBiliJson(parseJsonBlob(await res.text()));
+          }),
+        (signal) =>
+          fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(absolute)}`, { signal }).then(
+            async (res) => {
+              if (!res.ok) throw new Error(`allorigins ${res.status}`);
+              const payload = await res.json();
+              const contents = payload.contents || "";
+              if (/<!DOCTYPE|<html/i.test(contents)) throw new Error("allorigins 返回网页而非 JSON");
+              return assertBiliJson(JSON.parse(contents));
+            }
+          ),
+      ];
+
+      return new Promise((resolve, reject) => {
+        let pending = runners.length;
+        let lastErr = new Error("所有代理均失败");
+        let settled = false;
+        runners.forEach((run, i) => {
+          withTimeout(run, timeoutMs, `proxy${i}`)
+            .then((data) => {
+              if (!settled) {
+                settled = true;
+                resolve(data);
+              }
+            })
+            .catch((err) => {
+              lastErr = err;
+              pending -= 1;
+              if (!settled && pending === 0) reject(lastErr);
+            });
+        });
+      });
+    }
+
+    async function inflateRawDeflate(buffer) {
+      if (typeof DecompressionStream !== "function") throw new Error("浏览器不支持弹幕解压");
+      const stream = new Blob([buffer]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      return new Response(stream).text();
+    }
+
+    async function decodeDanmakuResponse(res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const buffer = await res.arrayBuffer();
+      try { return await inflateRawDeflate(buffer); }
+      catch (_) { return new TextDecoder().decode(buffer); }
+    }
+
+    function danmakuLog(event, data = {}) {
+      const row = { time: new Date().toISOString(), event, ...data };
+      console.info("[BiliFlux danmaku]", row);
+      if (!danmakuDebug) return;
+      const lines = danmakuDebug.textContent ? danmakuDebug.textContent.split("\n") : [];
+      lines.push(JSON.stringify(row));
+      danmakuDebug.textContent = lines.slice(-10).join("\n");
+    }
+
+    async function readJinaText(target, signal) {
+      const started = performance.now();
+      danmakuLog("request", { target });
+      const response = await fetch(target, { signal, cache: "no-store", headers: { Accept: "text/html, text/plain", "X-Return-Format": "html" } });
+      const text = await response.text();
+      const info = { target, status: response.status, type: response.type, contentType: response.headers.get("content-type"), bytes: text.length, ms: Math.round(performance.now() - started) };
+      danmakuLog("response", info);
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return text;
+    }
+
+    function parseJinaDanmaku(text) {
+      const source = String(text || "");
+      const marker = source.indexOf("Markdown Content:");
+      const body = marker >= 0 ? source.slice(marker + "Markdown Content:".length) : source;
+      const head = body.match(/chat\.bilibili\.com\d+\d+[^\n]*/)?.[0] || "";
+      const comments = body
+        .replace(head, "")
+        .split(/(?=\S)/)
+        .map((text) => ({ time: 0, mode: 1, fontSize: 18, color: "#ffffff", text: text.trim() }))
+        .filter((item) => item.text);
+      return comments;
+    }
+
+    async function fetchDanmakuXml(cid, timeoutMs = 10000) {
+      const minuteKey = Math.floor(Date.now() / 60000);
+      const targets = [
+        "https://r.jina.ai/http://comment.bilibili.com/" + encodeURIComponent(cid) + ".xml?biliflux=" + minuteKey + "&x_return_format=html",
+        "https://r.jina.ai/http://api.bilibili.com/x/v1/dm/list.so?oid=" + encodeURIComponent(cid) + "&biliflux=" + minuteKey + "&x_return_format=html",
+      ];
+      let lastError = new Error("弹幕接口不可用");
+      for (const target of targets) {
+        try {
+          const text = await withTimeout((signal) => readJinaText(target, signal), timeoutMs, "danmaku");
+          if (text.includes("<d p=\"") || text.includes("Markdown Content:")) return text;
+          throw new Error("代理返回格式错误");
+        } catch (error) {
+          lastError = error;
+          danmakuLog("attempt-failed", { target, error: String(error) });
+        }
+      }
+      throw lastError;
+    }
+
+    function parseDanmakuColor(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return "#ffffff";
+      return "#" + Math.max(0, Math.min(0xffffff, number)).toString(16).padStart(6, "0");
+    }
+
+    function parseDanmakuXml(text) {
+      const doc = new DOMParser().parseFromString(String(text || ""), "application/xml");
+      return [...doc.querySelectorAll("d")]
+        .map((node) => {
+          const parts = String(node.getAttribute("p") || "").split(",");
+          return {
+            time: Number(parts[0]),
+            mode: Number(parts[1]) || 1,
+            fontSize: Number(parts[2]) || 18,
+            color: parseDanmakuColor(parts[3]),
+            text: String(node.textContent || "").trim(),
+          };
+        })
+        .filter((item) => Number.isFinite(item.time) && item.text)
+        .sort((a, b) => a.time - b.time);
+    }
+
+    function lowerBoundDanmaku(time) {
+      let low = 0;
+      let high = danmakuItems.length;
+      while (low < high) {
+        const middle = (low + high) >> 1;
+        if (danmakuItems[middle].time < time) low = middle + 1;
+        else high = middle;
+      }
+      return low;
+    }
+
+    function clearDanmaku(resetStatus = true) {
+      danmakuToken += 1;
+      danmakuItems = [];
+      danmakuIndex = 0;
+      danmakuLastTime = -1;
+      danmakuLayer.replaceChildren();
+      if (resetStatus) danmakuStatus.textContent = "等待加载真实弹幕…";
+    }
+
+    function spawnDanmaku(item, index) {
+      if (!danmakuToggle.checked) return;
+      const element = document.createElement("span");
+      const fixed = item.mode === 4 || item.mode === 5;
+      element.className = "danmaku-item " + (fixed ? (item.mode === 5 ? "dm-top" : "dm-bottom") : "dm-scroll");
+      element.textContent = item.text;
+      element.style.color = item.color;
+      element.style.fontSize = Math.max(14, Math.min(26, item.fontSize)) + "px";
+      if (!fixed) {
+        const laneCount = Math.max(4, Math.floor(stage.clientHeight / 34));
+        element.style.top = 8 + (index % laneCount) * Math.min(34, stage.clientHeight / laneCount) + "px";
+        element.style.setProperty("--dm-duration", Math.max(6, Math.min(12, 7 + item.text.length * 0.04)) + "s");
+      }
+      danmakuLayer.appendChild(element);
+      element.addEventListener("animationend", () => element.remove(), { once: true });
+    }
+
+    function syncDanmaku() {
+      if (!danmakuItems.length || !danmakuToggle.checked || videoEl.readyState < 1) return;
+      const now = Number(videoEl.currentTime);
+      if (!Number.isFinite(now)) return;
+      if (danmakuLastTime >= 0 && (now + 0.5 < danmakuLastTime || now - danmakuLastTime > 1.5)) {
+        danmakuLayer.replaceChildren();
+        danmakuIndex = lowerBoundDanmaku(Math.max(0, now - 0.2));
+      }
+      danmakuLastTime = now;
+      const cutoff = now + 0.15;
+      while (danmakuIndex < danmakuItems.length && danmakuItems[danmakuIndex].time <= cutoff) {
+        const item = danmakuItems[danmakuIndex];
+        if (item.time >= now - 0.8) spawnDanmaku(item, danmakuIndex);
+        danmakuIndex += 1;
+      }
+    }
+
+    async function loadDanmaku(video, token) {
+      if (!video.cid || state.danmakuLoading) return;
+      state.danmakuLoading = true;
+      danmakuStatus.textContent = "正在连接真实弹幕…";
+      try {
+        let items = danmakuCache.get(String(video.cid));
+        if (!items) {
+          const xml = await fetchDanmakuXml(video.cid);
+          items = xml.includes("<d p=") ? parseDanmakuXml(xml) : parseJinaDanmaku(xml);
+          if (!items.length) throw new Error("没有可用弹幕");
+          danmakuCache.set(String(video.cid), items);
+        }
+        if (token !== danmakuToken) return;
+        danmakuItems = items;
+        danmakuIndex = lowerBoundDanmaku(Number(videoEl.currentTime) || 0);
+        danmakuLastTime = Number(videoEl.currentTime) || 0;
+        danmakuStatus.textContent = "已加载 " + items.length + " 条真实弹幕";
+        state.danmakuLoading = false;
+        syncDanmaku();
+        return "overlay";
+      } catch (error) {
+        if (token !== danmakuToken) return;
+        state.danmakuLoading = false;
+        console.warn("danmaku background load failed", error);
+        danmakuLog("load-failed", { cid: video.cid, error: String(error), stack: error && error.stack });
+        danmakuStatus.textContent = "弹幕源暂时繁忙 · 自动重试中";
+        setTimeout(() => {
+          if (token === danmakuToken && danmakuToggle.checked && !danmakuItems.length) {
+            loadDanmaku(video, token);
+          }
+        }, 5000);
+        return "unavailable";
+      }
+    }
+    function normalizeTags(value) {
+      const rows = Array.isArray(value) ? value : [value];
+      const tokens = [];
+      for (const row of rows) {
+        if (!row) continue;
+        const text = typeof row === "object" ? (row.tag_name || row.name || row.title || "") : String(row);
+        tokens.push(...String(text).split(/[|,，、/#;；]+/));
+      }
+      return [...new Set(tokens.map((token) => stripHtml(token).replace(/^#+|#+$/g, "").trim()).filter((token) => token && token.length <= 32))].slice(0, 12);
+    }
+
+    function mergeVideoTags(...groups) {
+      return [...new Set(groups.flatMap((group) => normalizeTags(group)))].slice(0, 12);
+    }
+
+    function normalizeItem(raw) {
+      const stat = raw.stat || {};
+      const pic = raw.pic || raw.cover || "";
+      return {
+        aid: raw.aid,
+        bvid: raw.bvid,
+        cid: raw.cid,
+        title: stripHtml(raw.title || "未命名稿件"),
+        pic: httpsPic(pic),
+        owner: (raw.owner && raw.owner.name) || raw.author || raw.uname || "UP主",
+        duration: parseDuration(raw.duration),
+        play: Number(stat.view ?? raw.play ?? raw.view ?? 0) || 0,
+        danmaku: Number(stat.danmaku ?? raw.danmaku ?? raw.video_review ?? 0) || 0,
+        pubdate: raw.pubdate || raw.ctime || raw.senddate || 0,
+        tname: raw.tname || raw.typename || "",
+        desc: stripHtml(raw.desc || raw.description || ""),
+        tags: normalizeTags(raw.tags || raw.tag_name || raw.tag || raw.tag_names || ""),
+      };
+    }
+
+    function extractSearchList(json) {
+      const data = json.data || {};
+      // wbi/search/type → data.result = video array
+      if (Array.isArray(data.result) && data.result[0] && data.result[0].bvid) {
+        return data.result;
+      }
+      // search/all/v2 → data.result = typed blocks
+      if (Array.isArray(data.result)) {
+        const videoBlock = data.result.find((b) => b && b.result_type === "video");
+        if (videoBlock && Array.isArray(videoBlock.data)) return videoBlock.data;
+      }
+      if (Array.isArray(data.item)) return data.item;
+      return [];
+    }
+
+    async function searchVideos(keyword,page=1) {
+      const q = encodeURIComponent(keyword);
+      const endpoints = [
+        `/x/web-interface/search/all/v2?keyword=${q}&page=${page}`,
+        `/x/web-interface/wbi/search/type?search_type=video&keyword=${q}&page=${page}&page_size=30`,
+      ];
+
+      let lastErr;
+      for (const path of endpoints) {
+        try {
+          const json = await proxyFetch(path, 10000);
+          const list = extractSearchList(json)
+            .map(normalizeItem)
+            .filter((v) => v.bvid);
+          if (list.length) return { list, source: "api", hasMore: page < 50 };
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+
+      // Fallback: scan live popular + ranking feeds and filter locally (faster / more reliable)
+      const fallbackPaths = [
+        "/x/web-interface/popular?ps=40&pn=1",
+        "/x/web-interface/ranking/v2?rid=0&type=all",
+        "/x/web-interface/ranking/v2?rid=1&type=all",
+        "/x/web-interface/ranking/v2?rid=3&type=all",
+        "/x/web-interface/ranking/v2?rid=4&type=all",
+        "/x/web-interface/ranking/v2?rid=160&type=all",
+        "/x/web-interface/ranking/v2?rid=211&type=all",
+      ];
+      const chunks = await Promise.allSettled(fallbackPaths.map((p) => proxyFetch(p, 9000)));
+      const needle = keyword.toLowerCase();
+      const seen = new Set();
+      const matched = [];
+      for (const chunk of chunks) {
+        if (chunk.status !== "fulfilled") continue;
+        const list = (chunk.value.data && (chunk.value.data.list || chunk.value.data)) || [];
+        const arr = Array.isArray(list) ? list : [];
+        for (const raw of arr) {
+          const item = normalizeItem(raw);
+          if (!item.bvid || seen.has(item.bvid)) continue;
+          const hay = `${item.title} ${item.owner} ${item.tname} ${item.desc}`.toLowerCase();
+          if (hay.includes(needle)) {
+            seen.add(item.bvid);
+            matched.push(item);
+          }
+        }
+      }
+      if (matched.length) return { list: matched, source: "fallback" };
+      throw lastErr || new Error("搜索无结果");
+    }
+
+    function shortVideoElement(index) {
+      return shortsFeed.querySelector('[data-short-video="' + index + '"]');
+    }
+
+    function shortFeedPath(page) {
+      if (page <= SHORT_POPULAR_PAGE_LIMIT) {
+        return "/x/web-interface/popular?ps=" + SHORT_PAGE_SIZE + "&pn=" + page;
+      }
+      const slot = page - SHORT_POPULAR_PAGE_LIMIT - 1;
+      const rid = SHORT_RANK_IDS[slot % SHORT_RANK_IDS.length];
+      const rankPage = Math.floor(slot / SHORT_RANK_IDS.length) + 1;
+      return "/x/web-interface/newlist?rid=" + rid + "&pn=" + rankPage + "&ps=" + SHORT_PAGE_SIZE;
+    }
+
+    function shortRawList(json) {
+      const data = json && json.data;
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.list)) return data.list;
+      return [];
+    }
+
+    function appendShortItems(rawList) {
+      const added = [];
+      for (const raw of rawList) {
+        const dimension = raw.dimension || {};
+        const width = Number(dimension.width || raw.width) || 0;
+        const height = Number(dimension.height || raw.height) || 0;
+        const video = normalizeItem(raw);
+        if (!video.bvid || state.shortSeen.has(video.bvid) || !video.duration || video.duration > SHORT_MAX_DURATION || height <= width) continue;
+        state.shortSeen.add(video.bvid);
+        video.shortWidth = width;
+        video.shortHeight = height;
+        added.push(video);
+      }
+      state.shorts.push(...added);
+      return added;
+    }
+
+    function updateShortsMeta() {
+      const loaded = state.shorts.length;
+      if (!loaded) {
+        shortsViewMeta.textContent = state.shortLoading ? "正在加载短视频…" : "暂时没有找到竖版短视频";
+      } else {
+        shortsViewMeta.textContent = (state.shortIndex + 1) + " / " + loaded + (state.shortLoading ? " · 正在加载更多" : " · 向上或向下切换");
+      }
+      shortsQueueCount.textContent = state.shortLoading ? loaded + " · 加载中" : loaded + " 条";
+    }
+
+    async function loadMoreShorts({ initial = false } = {}) {
+      if (state.shortLoading || !state.shortHasMore) return;
+      const page = state.shortPage + 1;
+      const requestId = ++state.shortRequestId;
+      state.shortLoading = true;
+      updateShortsMeta();
+      try {
+        const json = await proxyFetch(shortFeedPath(page), 10000);
+        if (requestId !== state.shortRequestId) return;
+        const rawList = shortRawList(json);
+        const added = appendShortItems(rawList);
+        state.shortPage = page;
+        state.shortEmptyPages = added.length ? 0 : state.shortEmptyPages + 1;
+        state.shortHasMore = state.shortEmptyPages < 8;
+
+        const pending = state.shortPendingNavigation;
+        if (pending !== null && pending < state.shorts.length) {
+          state.shortPendingNavigation = null;
+          state.shortIndex = Math.max(0, pending);
+          state.shortDanmaku.clear();
+        }
+        if (state.shortOpen) {
+          if (initial || !shortsFeed.querySelector('.short-card') || pending !== null) renderShorts();
+          else renderShortQueue();
+        }
+        updateShortsMeta();
+
+        if (pending !== null && pending >= state.shorts.length && state.shortHasMore) {
+          setTimeout(() => loadMoreShorts(), 0);
+        } else if (state.shortHasMore && state.shorts.length - state.shortIndex <= SHORT_LOAD_AHEAD && !added.length && state.shortEmptyPages < 8) {
+          setTimeout(() => loadMoreShorts(), 0);
+        }
+      } catch (error) {
+        if (requestId !== state.shortRequestId) return;
+        console.warn("short feed page failed", error);
+        state.shortHasMore = true;
+        shortsViewMeta.textContent = "加载下一批失败 · 继续下滑重试";
+      } finally {
+        if (requestId === state.shortRequestId) {
+          state.shortLoading = false;
+          updateShortsMeta();
+        }
+      }
+    }
+
+    function requestShortsIfNeeded(index = state.shortIndex) {
+      if (state.shortHasMore && state.shorts.length - index <= SHORT_LOAD_AHEAD) {
+        loadMoreShorts();
+      }
+      preloadShortSources(index + 1);
+    }
+
+    function scrollToShort(index) {
+      if (index < 0) return;
+      if (!state.shorts.length) {
+        state.shortPendingNavigation = index;
+        loadMoreShorts({ initial: true });
+        return;
+      }
+      if (index >= state.shorts.length) {
+        state.shortPendingNavigation = index;
+        updateShortsMeta();
+        loadMoreShorts();
+        return;
+      }
+      const target = index;
+      if (target === state.shortIndex && shortsFeed.querySelector('.short-card')) return;
+      state.shortIndex = target;
+      state.shortPendingNavigation = null;
+      state.shortDanmaku.clear();
+      renderShorts();
+      requestShortsIfNeeded(target);
+    }
+
+    function shortOwnerInitial(owner) {
+      const text = String(owner || "UP").trim();
+      return text ? text.slice(0, 1).toUpperCase() : "U";
+    }
+
+    function formatShortTime(value) {
+      const seconds = Number(value) || 0;
+      return formatDuration(seconds);
+    }
+
+    function syncShortUi(index) {
+      const element = shortVideoElement(index);
+      const card = shortsFeed.querySelector('.short-card');
+      const playButton = shortsFeed.querySelector('[data-short-play="' + index + '"]');
+      const time = shortsFeed.querySelector('[data-short-time="' + index + '"]');
+      if (!element || !card) return;
+      const paused = element.paused;
+      card.classList.toggle('is-paused', paused);
+      if (playButton) {
+        playButton.textContent = paused ? '▶' : 'Ⅱ';
+        playButton.setAttribute('aria-label', paused ? '播放短视频' : '暂停短视频');
+        playButton.title = paused ? '播放' : '暂停';
+      }
+      if (time) time.textContent = formatShortTime(element.currentTime) + ' / ' + formatShortTime(element.duration || state.shorts[index]?.duration);
+    }
+
+    function renderShortQueue() {
+      shortsQueueCount.textContent = state.shorts.length + ' 条';
+      shortsQueue.innerHTML = state.shorts.map((item, index) => {
+        const active = index === state.shortIndex;
+        return '<button type="button" class="short-queue-card' + (active ? ' is-current' : '') + '" data-short-queue-index="' + index + '" aria-label="播放短视频：' + escapeHtml(item.title) + '">' +
+          '<span class="short-queue-thumb"><img src="' + escapeHtml(item.pic || '') + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" /><span class="short-queue-duration">' + formatDuration(item.duration) + '</span></span>' +
+          '<span class="short-queue-copy"><h4>' + escapeHtml(item.title) + '</h4><p>' + escapeHtml(item.owner) + '</p></span>' +
+        '</button>';
+      }).join('');
+    }
+
+    function renderShorts() {
+      const video = state.shorts[state.shortIndex];
+      if (!video) {
+        shortsFeed.innerHTML = '<div class="short-loading-state"><i aria-hidden="true"></i><span>暂时没有找到竖版短视频</span></div>';
+        shortsQueue.replaceChildren();
+        shortsQueueCount.textContent = '0 条';
+        return;
+      }
+      const index = state.shortIndex;
+      shortsFeed.innerHTML =
+        '<article class="short-card is-paused" data-short-index="' + index + '">' +
+          '<video muted playsinline preload="metadata" data-short-video="' + index + '" poster="' + escapeHtml(video.pic || '') + '"></video>' +
+          '<div class="short-topline"><span class="short-category">' + escapeHtml(video.tname || '热门短视频') + '</span><span class="short-index">' + (index + 1) + ' / ' + state.shorts.length + '</span></div>' +
+          '<div class="short-danmaku-layer" data-short-danmaku="' + index + '" aria-hidden="true"></div>' +
+          '<div class="short-info"><div class="short-owner"><span class="short-owner-avatar">' + escapeHtml(shortOwnerInitial(video.owner)) + '</span><span class="short-owner-name">' + escapeHtml(video.owner || 'UP主') + '</span></div><h3>' + escapeHtml(video.title) + '</h3><p><span>' + formatCount(video.play) + ' 播放</span><span data-short-time="' + index + '">0:00 / ' + formatDuration(video.duration) + '</span></p><span class="short-danmaku-status" data-short-danmaku-status="' + index + '">弹幕正在准备</span></div>' +
+          '<div class="short-card-actions"><button class="short-action" type="button" data-short-danmaku-toggle="' + index + '" aria-label="切换弹幕" title="切换弹幕">弹</button><button class="short-action" type="button" data-short-play="' + index + '" aria-label="播放短视频" title="播放">▶</button></div>' +
+        '</article>';
+      updateShortsMeta();
+      renderShortQueue();
+      preloadShortSources(index + 1);
+      setTimeout(() => loadShortSource(index, true), 0);
+    }
+
+
+    function setShortDanmakuStatus(index, text) {
+      const status = shortsFeed.querySelector('[data-short-danmaku-status="' + index + '"]');
+      if (status) status.textContent = text;
+    }
+
+    function clearShortDanmaku(index) {
+      const layer = shortsFeed.querySelector('[data-short-danmaku="' + index + '"]');
+      if (layer) layer.replaceChildren();
+      const runtime = state.shortDanmaku.get(index);
+      if (runtime) {
+        runtime.cursor = 0;
+        runtime.lastTime = -1;
+      }
+    }
+
+    function spawnShortDanmaku(index, item, itemIndex) {
+      const runtime = state.shortDanmaku.get(index);
+      const layer = shortsFeed.querySelector('[data-short-danmaku="' + index + '"]');
+      const video = shortVideoElement(index);
+      if (!runtime || !runtime.enabled || !layer || !video) return;
+      const element = document.createElement('span');
+      const fixed = item.mode === 4 || item.mode === 5;
+      element.className = 'short-danmaku-item' + (fixed ? (item.mode === 5 ? ' is-top' : ' is-bottom') : '');
+      element.textContent = item.text;
+      element.style.color = item.color;
+      element.style.fontSize = Math.max(14, Math.min(24, item.fontSize)) + 'px';
+      if (!fixed) {
+        const lanes = Math.max(4, Math.floor(video.clientHeight / 32));
+        element.style.top = 8 + (itemIndex % lanes) * Math.min(32, video.clientHeight / lanes) + 'px';
+        element.style.setProperty('--short-dm-duration', Math.max(6, Math.min(11, 7 + item.text.length * 0.04)) + 's');
+        element.style.setProperty('--short-dm-travel', (-video.clientWidth - 320) + 'px');
+      }
+      layer.appendChild(element);
+      element.addEventListener('animationend', () => element.remove(), { once: true });
+    }
+
+    function syncShortDanmaku(index) {
+      const runtime = state.shortDanmaku.get(index);
+      const video = shortVideoElement(index);
+      if (!runtime || !runtime.enabled || !video || !runtime.items.length || video.readyState < 1) return;
+      const now = Number(video.currentTime);
+      if (!Number.isFinite(now)) return;
+      if (runtime.lastTime >= 0 && (now + 0.5 < runtime.lastTime || now - runtime.lastTime > 1.5)) {
+        clearShortDanmaku(index);
+        runtime.cursor = lowerBoundShortDanmaku(runtime.items, Math.max(0, now - 0.2));
+      }
+      runtime.lastTime = now;
+      const cutoff = now + 0.15;
+      let spawned = 0;
+      while (runtime.cursor < runtime.items.length && runtime.items[runtime.cursor].time <= cutoff) {
+        const item = runtime.items[runtime.cursor];
+        if (item.time >= now - 0.8 && spawned < 8) {
+          spawnShortDanmaku(index, item, runtime.cursor);
+          spawned += 1;
+        }
+        runtime.cursor += 1;
+      }
+    }
+
+    function lowerBoundShortDanmaku(items, time) {
+      let low = 0;
+      let high = items.length;
+      while (low < high) {
+        const middle = (low + high) >> 1;
+        if (items[middle].time < time) low = middle + 1;
+        else high = middle;
+      }
+      return low;
+    }
+
+    async function loadShortDanmaku(index) {
+      const video = state.shorts[index];
+      const player = shortVideoElement(index);
+      if (!video || !player) return;
+      let runtime = state.shortDanmaku.get(index);
+      if (runtime && (runtime.loading || runtime.items.length)) return;
+      runtime = { items: [], cursor: 0, lastTime: -1, enabled: true, loading: true };
+      state.shortDanmaku.set(index, runtime);
+      setShortDanmakuStatus(index, '正在加载真实弹幕…');
+      try {
+        if (!video.cid) await ensureCid(video);
+        const source = await fetchDanmakuXml(video.cid);
+        const items = source.includes('<d p=') ? parseDanmakuXml(source) : parseJinaDanmaku(source);
+        if (!items.length) throw new Error('没有可用弹幕');
+        runtime.items = items;
+        runtime.cursor = lowerBoundShortDanmaku(items, Number(player.currentTime) || 0);
+        runtime.lastTime = Number(player.currentTime) || 0;
+        runtime.loading = false;
+        setShortDanmakuStatus(index, '已加载 ' + items.length + ' 条真实弹幕');
+        syncShortDanmaku(index);
+      } catch (error) {
+        runtime.loading = false;
+        setShortDanmakuStatus(index, '弹幕暂时不可用');
+        console.warn('short danmaku failed', error);
+      }
+    }
+
+    function toggleShortDanmaku(index) {
+      const runtime = state.shortDanmaku.get(index);
+      const layer = shortsFeed.querySelector('[data-short-danmaku="' + index + '"]');
+      const button = shortsFeed.querySelector('[data-short-danmaku-toggle="' + index + '"]');
+      if (!runtime) {
+        loadShortDanmaku(index);
+        return;
+      }
+      runtime.enabled = !runtime.enabled;
+      if (layer) {
+        layer.hidden = !runtime.enabled;
+        if (!runtime.enabled) layer.replaceChildren();
+      }
+      if (button) button.classList.toggle('is-off', !runtime.enabled);
+      setShortDanmakuStatus(index, runtime.enabled ? '弹幕已开启' : '弹幕已关闭');
+      if (runtime.enabled) syncShortDanmaku(index);
+    }
+
+    function shortSourceKey(video) {
+      return String(video.bvid || "") + "@" + String(state.quality);
+    }
+
+    function rememberShortSource(key, stream) {
+      state.shortSourceCache.set(key, stream);
+      while (state.shortSourceCache.size > 80) {
+        state.shortSourceCache.delete(state.shortSourceCache.keys().next().value);
+      }
+      return stream;
+    }
+
+    function getShortStream(video) {
+      const key = shortSourceKey(video);
+      const cached = state.shortSourceCache.get(key);
+      if (cached) return Promise.resolve(cached);
+      const pending = state.shortSourcePromises.get(key);
+      if (pending) return pending;
+      const promise = extractPlayUrl(video, state.quality)
+        .then((stream) => rememberShortSource(key, stream))
+        .finally(() => state.shortSourcePromises.delete(key));
+      state.shortSourcePromises.set(key, promise);
+      return promise;
+    }
+
+    function preloadShortSources(startIndex) {
+      const first = Math.max(0, Number(startIndex) || 0);
+      for (let offset = 0; offset < SHORT_SOURCE_PREFETCH_AHEAD; offset += 1) {
+        const video = state.shorts[first + offset];
+        if (video) getShortStream(video).catch((error) => console.warn("short source prefetch failed", error));
+      }
+      if (state.shortHasMore && state.shorts.length - first <= SHORT_LOAD_AHEAD) loadMoreShorts();
+    }
+
+    async function loadShortSource(index, autoplay = false) {
+      const video = state.shorts[index];
+      const element = shortVideoElement(index);
+      if (!video || !element) return;
+      if (element.dataset.loaded) {
+        if (autoplay) element.play().catch(() => {});
+        loadShortDanmaku(index);
+        syncShortUi(index);
+        return;
+      }
+      if (element.dataset.loading) return;
+      element.dataset.loading = '1';
+      setShortDanmakuStatus(index, '正在加载视频…');
+      try {
+        element.preload = 'auto';
+        const stream = await getShortStream(video);
+        if (shortVideoElement(index) !== element) return;
+        for (const url of [stream.url, ...stream.backups]) {
+          try {
+            await attemptElementPlay(element, url, 9000);
+            element.dataset.loaded = '1';
+            delete element.dataset.loading;
+            element.addEventListener('timeupdate', () => { syncShortDanmaku(index); syncShortUi(index); });
+            element.addEventListener('loadedmetadata', () => syncShortUi(index));
+            element.addEventListener('seeking', () => clearShortDanmaku(index));
+            element.addEventListener('play', () => { shortsFeed.querySelector('[data-short-danmaku="' + index + '"]')?.classList.remove('paused'); syncShortUi(index); });
+            element.addEventListener('pause', () => { shortsFeed.querySelector('[data-short-danmaku="' + index + '"]')?.classList.add('paused'); syncShortUi(index); });
+            element.addEventListener('ended', () => { syncShortUi(index); if (index < state.shorts.length - 1) setTimeout(() => scrollToShort(index + 1), 350); });
+            if (!autoplay) element.pause();
+            loadShortDanmaku(index);
+            syncShortUi(index);
+            return;
+          } catch (_) { }
+        }
+        throw new Error('short source unavailable');
+      } catch (error) {
+        delete element.dataset.loading;
+        setShortDanmakuStatus(index, '短视频暂时不可用');
+        console.warn('short source failed', error);
+        syncShortUi(index);
+      }
+    }
+
+
+    function openShorts() {
+      state.shortOpen = true;
+      shortsView.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      if (!state.shorts.length) loadMoreShorts({ initial: true });
+      else { renderShorts(); requestShortsIfNeeded(state.shortIndex); }
+    }
+
+    function closeShorts() {
+      state.shortOpen = false;
+      shortsView.classList.remove('open');
+      document.body.style.overflow = '';
+      shortsFeed.querySelectorAll('video').forEach((video) => video.pause());
+    }
+
+
+    function setLoadMoreStatus(text = "", loading = false) {
+      loadMoreStatus.hidden = !text;
+      loadMoreStatus.classList.toggle("is-loading", loading);
+      loadMoreStatus.innerHTML = loading
+        ? `<span class="mini-spinner" aria-hidden="true"></span>${escapeHtml(text)}`
+        : escapeHtml(text);
+    }
+
+    function canLoadMore() {
+      return state.feedHasMore && ["popular","rank","search"].includes(state.category.type);
+    }
+
+    function feedListFromResponse(json) {
+      const data = json && json.data ? json.data : {};
+      if (Array.isArray(data.list)) return data.list;
+      if (Array.isArray(data.archives)) return data.archives;
+      return [];
+    }
+
+    async function loadMoreFeed() {
+      if (!canLoadMore() || state.feedLoading) return;
+      const requestId = state.feedRequestId;
+      const cat = state.category;
+      const nextPage = state.feedPage + 1;
+      state.feedLoading = true;
+      setLoadMoreStatus(`正在加载第 ${nextPage} 页${cat.label}…`, true);
+
+      try {
+        let list = [];
+        let hasMore = true;
+        if (cat.type === "search") {
+          const result = await searchVideos(cat.keyword, nextPage);
+          list = result.list;
+          hasMore = result.hasMore !== false;
+        } else if (cat.type === "popular") {
+          list = feedListFromResponse(await proxyFetch(`/x/web-interface/popular?ps=30&pn=${nextPage}`, 12000));
+        } else if (cat.type === "rank") {
+          list = feedListFromResponse(await proxyFetch(`/x/web-interface/newlist?rid=${cat.rid}&pn=${nextPage}&ps=30`, 12000));
+        }
+        if (requestId !== state.feedRequestId || state.category !== cat) return;
+
+        const known = new Set(state.videos.map((video) => video.bvid));
+        const incoming = list.map(normalizeItem).filter((video) => video.bvid && !known.has(video.bvid));
+        state.feedPage = nextPage;
+        state.videos.push(...incoming);
+        state.feedHasMore = hasMore && incoming.length > 0 && list.length > 0;
+        renderGrid();
+        feedMeta.textContent = `${cat.label} · ${state.videos.length} 条 · ${new Date().toLocaleTimeString()}`;
+        setLoadMoreStatus(state.feedHasMore ? "继续下滑加载更多" : "已经到底了", false);
+      } catch (error) {
+        if (requestId !== state.feedRequestId) return;
+        console.warn("load more feed failed", error);
+        setLoadMoreStatus("加载失败，继续下滑可重试", false);
+      } finally {
+        if (requestId === state.feedRequestId) state.feedLoading = false;
+      }
+    }
+
+    function setupLoadMoreObserver() {
+      if (loadMoreObserver) loadMoreObserver.disconnect();
+      if (!canLoadMore() || typeof IntersectionObserver !== "function") return;
+      loadMoreObserver = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMoreFeed();
+      }, { rootMargin: "600px 0px" });
+      loadMoreObserver.observe(loadMoreStatus);
+    }
+
+    async function loadFeed() {
+      const cat = state.category;
+      const requestId = (state.requestId = (state.requestId || 0) + 1);
+      state.feedRequestId += 1;
+      state.feedPage = 1;
+      state.feedLoading = false;
+      state.feedHasMore = ["popular","rank","search"].includes(cat.type);
+      if (loadMoreObserver) loadMoreObserver.disconnect();
+      setLoadMoreStatus(["popular", "rank", "search"].includes(cat.type) ? "继续下滑加载更多" : "", false);
+      showStatus(true, cat.type === "search" ? `正在搜索「${escapeHtml(cat.keyword)}」…` : "正在实时抓取 Bilibili 列表…");
+      grid.innerHTML = "";
+
+      try {
+        let videos = [];
+        let note = "";
+
+        if (cat.type === "search") {
+          const result = await searchVideos(cat.keyword,1);
+          videos = result.list;
+          state.feedHasMore = result.hasMore !== false && videos.length > 0;
+          note = result.source === "fallback" ? "（热门池匹配）" : "";
+        } else {
+          const path =
+            cat.type === "popular"
+              ? "/x/web-interface/popular?ps=30&pn=1"
+              : `/x/web-interface/ranking/v2?rid=${cat.rid}&type=all`;
+          const json = await proxyFetch(path);
+          const list = feedListFromResponse(json);
+          videos = list.map(normalizeItem).filter((v) => v.bvid);
+        }
+
+        if (requestId !== state.requestId) return;
+        state.videos = videos;
+        state.feedHasMore = ["popular","rank","search"].includes(cat.type) && videos.length > 0 && state.feedHasMore;
+        renderGrid();
+        const now = new Date();
+        feedMeta.textContent = `${cat.label} · ${state.videos.length} 条${note} · ${now.toLocaleTimeString()}`;
+        showStatus(false);
+        setupLoadMoreObserver();
+
+        if (state.videos[0]) {
+          const featured = state.videos[0];
+          $("heroBg").style.setProperty("--hero-image", `url("${featured.pic}")`);
+          featuredTitle.textContent = featured.title;
+          featuredMeta.textContent = `${featured.owner} · ${formatCount(featured.play)} 播放 · ${formatDuration(featured.duration)}`;
+          featuredPlayBtn.disabled = false;
+        }
+      } catch (err) {
+        if (requestId !== state.requestId) return;
+        console.error(err);
+        setLoadMoreStatus("加载失败，点击刷新重试", false);
+        const msg = err && err.name === "AbortError" ? "请求超时" : err.message || err;
+        showStatus(true, `抓取失败：${escapeHtml(String(msg))}<br/><small>可点击「立即刷新」或换个关键词重试</small>`);
+        feedMeta.textContent = "连接中断，等待重试";
+        featuredTitle.textContent = "暂时无法连接热门流";
+        featuredMeta.textContent = "请稍后刷新重试";
+        featuredPlayBtn.disabled = true;
+      }
+    }
+
+    function showStatus(on, html = "") {
+      statusEl.hidden = !on;
+      if (on) {
+        statusEl.innerHTML = `<div class="spinner"></div><div>${html}</div>`;
+      }
+    }
+
+    function renderGrid() {
+      if (!state.videos.length) {
+        showStatus(true, "这一分区暂时没有稿件");
+        return;
+      }
+      grid.innerHTML = state.videos.map((v, i) => {
+        const lock = state.locks[v.bvid];
+        const locked = !!(lock && lock.moe_girl);
+        const scanned = !!lock;
+        const badge = !scanned
+          ? ""
+          : locked
+            ? `<span class="scan-dot danger">LOCKED</span>`
+            : `<span class="scan-dot safe">SAFE</span>`;
+        const lockUi = locked
+          ? `<div class="cover-lock" aria-hidden="true">
+              <div class="lock-badge">
+                <div class="lock-ring">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </div>
+                <strong>Cover Locked</strong>
+                <em>${escapeHtml(lock.reason || "Moe anime girl cover erased")}</em>
+              </div>
+            </div>`
+          : "";
+        return `
+        <button class="card${locked ? " locked-card" : ""}" type="button" data-index="${i}" data-bvid="${escapeHtml(v.bvid)}" aria-label="播放 ${escapeHtml(v.title)}" style="animation-delay:${Math.min(i, 12) * 40}ms">
+          <div class="thumb${locked ? " locked" : ""}">
+            <img src="${v.pic}" alt="${escapeHtml(v.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+            <span class="rank-badge">${String(i + 1).padStart(2, "0")}</span>
+            ${badge}
+            ${lockUi}
+            <div class="play-hint"><span>▶</span></div>
+            <div class="thumb-meta">
+              <span>${formatCount(v.play)} 播放</span>
+              <span>${formatDuration(v.duration)}</span>
+            </div>
+          </div>
+          <div class="card-title">${escapeHtml(v.title)}</div>
+          <div class="card-sub">
+            <span>${escapeHtml(v.owner)}</span>
+            ${v.tname ? `<span>${escapeHtml(v.tname)}</span>` : ""}
+          </div>
+        </button>`;
+      }).join("");
+
+      updateAiStats();
+      scheduleAutoDetect();
+    }
+
+    function applyLockToCard(card, lock) {
+      if (!card || !lock) return;
+      const thumb = card.querySelector(".thumb");
+      if (!thumb) return;
+      card.classList.toggle("locked-card", !!lock.moe_girl);
+      thumb.classList.toggle("locked", !!lock.moe_girl);
+      thumb.querySelectorAll(".scan-dot, .cover-lock").forEach((el) => el.remove());
+      const badge = document.createElement("span");
+      badge.className = `scan-dot ${lock.moe_girl ? "danger" : "safe"}`;
+      badge.textContent = lock.moe_girl ? "LOCKED" : "SAFE";
+      thumb.appendChild(badge);
+      if (lock.moe_girl) {
+        const overlay = document.createElement("div");
+        overlay.className = "cover-lock";
+        overlay.innerHTML = `<div class="lock-badge">
+          <div class="lock-ring"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <strong>Cover Locked</strong>
+          <em>${escapeHtml(lock.reason || "Moe anime girl cover erased")}</em>
+        </div>`;
+        thumb.appendChild(overlay);
+      }
+    }
+
+    function patchLocksInDom(bvids) {
+      const need = bvids ? new Set(bvids) : null;
+      grid.querySelectorAll(".card[data-bvid]").forEach((card) => {
+        const bvid = card.dataset.bvid;
+        if (need && !need.has(bvid)) return;
+        const lock = state.locks[bvid];
+        if (lock) applyLockToCard(card, lock);
+      });
+      updateAiStats();
+    }
+
+    function scheduleAutoDetect() {
+      if (!state.autoDetect) return;
+      if (!getOpenRouterKey()) return;
+      clearTimeout(state.autoDetectTimer);
+      state.autoDetectTimer = setTimeout(() => {
+        runEraserScan({ silent: true, reason: "auto" });
+      }, 600);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function refreshCurrentRecommendationTerms(video) {
+      const rec = state.recommendation;
+      if (!rec || rec.video !== video) return;
+      const nextTerms = buildRecommendationTerms(video);
+      if (nextTerms.join("\u0000") === rec.terms.join("\u0000")) return;
+      rec.terms = nextTerms;
+      renderRecommendationContext(nextTerms);
+      if (rec.loading) rec.refreshAfterHydrate = true;
+      else loadMoreRecommendations(rec.token);
+    }
+
+    function hydrateVideoTags(video) {
+      if (!video.aid || video.tagsLoaded || video.tagsPromise) return;
+      video.tagsPromise = proxyFetch("/x/tag/archive/tags?aid=" + encodeURIComponent(video.aid), 9000)
+        .then((json) => {
+          const rows = Array.isArray(json && json.data) ? json.data : [];
+          video.tags = mergeVideoTags(video.tags, rows);
+          video.tagsLoaded = true;
+          refreshCurrentRecommendationTerms(video);
+        })
+        .catch((error) => console.warn("video tag lookup failed", error))
+        .finally(() => { delete video.tagsPromise; });
+    }
+
+    async function hydrateVideoDetail(video) {
+      if (video.detailsLoaded) return video;
+      if (video.detailPromise) return video.detailPromise;
+      video.detailPromise = (async () => {
+        const json = await proxyFetch("/x/web-interface/view?bvid=" + encodeURIComponent(video.bvid), 10000);
+        if (json.code !== 0 || !json.data) throw new Error(json.message || "获取稿件信息失败");
+        const detail = json.data;
+        if (!detail.cid && !video.cid) throw new Error("稿件没有可播放分 P");
+        video.cid = detail.cid || video.cid;
+        video.aid = detail.aid || video.aid;
+        if (detail.owner) video.owner = detail.owner.name || video.owner;
+        if (detail.pic) video.pic = httpsPic(detail.pic);
+        if (detail.title) video.title = stripHtml(detail.title);
+        if (detail.tname) video.tname = detail.tname;
+        if (detail.desc) video.desc = stripHtml(detail.desc);
+        video.tags = mergeVideoTags(video.tags, detail.tag_name, detail.tags, detail.tag);
+        video.detailsLoaded = true;
+        hydrateVideoTags(video);
+        refreshCurrentRecommendationTerms(video);
+        return video;
+      })();
+      try {
+        return await video.detailPromise;
+      } finally {
+        delete video.detailPromise;
+      }
+    }
+
+    async function ensureCid(video) {
+      if (video.cid) {
+        hydrateVideoDetail(video).catch((error) => console.warn("video metadata lookup failed", error));
+        return video.cid;
+      }
+      const detailed = await hydrateVideoDetail(video);
+      return detailed.cid;
+    }
+
+
+    async function extractPlayUrl(video, preferredQuality = state.quality) {
+      const cid = await ensureCid(video);
+      const requested = Number(preferredQuality) || 64;
+      const qualities = [...new Set([requested, 64, 16, 80, 32])];
+      let lastErr;
+      for (const qn of qualities) {
+        try {
+          const path = `/x/player/playurl?bvid=${video.bvid}&cid=${cid}&qn=${qn}&fnval=1&platform=html5&high_quality=1&fourk=1`;
+          const json = await proxyFetch(path, 10000);
+          if (json.code !== 0) throw new Error(json.message || `playurl ${json.code}`);
+          const durl = json.data && json.data.durl && json.data.durl[0];
+          if (!durl || !durl.url) throw new Error("无直链");
+          const candidates = [durl.url, ...(durl.backup_url || [])].map((u) =>
+            u.replace(/^http:\/\//i, "https://")
+          );
+          return {
+            url: candidates[0],
+            backups: candidates.slice(1),
+            quality: json.data.quality || qn,
+            timelength: json.data.timelength,
+          };
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error("直链提取失败");
+    }
+
+    function clearStageExtras() {
+      const iframe = stage.querySelector("iframe");
+      if (iframe) iframe.remove();
+      clearDanmaku();
+      state.danmakuLoading = false;
+      videoEl.style.display = "block";
+      videoEl.removeAttribute("src");
+      videoEl.load();
+    }
+
+
+    function setPlayerLoading(loading, text) {
+      playerLoading.hidden = !loading;
+      playerControlDeck.classList.toggle("is-loading", !!loading);
+      if (text) playerLoadingText.textContent = text;
+    }
+
+    function syncPlayerControls() {
+      const duration = Number(videoEl.duration);
+      const current = Number(videoEl.currentTime) || 0;
+      const hasDuration = Number.isFinite(duration) && duration > 0;
+      playerProgress.max = String(hasDuration ? duration : 0);
+      playerProgress.value = String(hasDuration ? Math.min(current, duration) : 0);
+      playerProgress.disabled = !hasDuration;
+      playerTime.textContent = formatDuration(current) + " / " + formatDuration(hasDuration ? duration : 0);
+      const paused = videoEl.paused;
+      playerPlayBtn.textContent = paused ? "▶" : "Ⅱ";
+      playerPlayBtn.setAttribute("aria-label", paused ? "播放" : "暂停");
+      playerPlayBtn.title = paused ? "播放" : "暂停";
+      const muted = videoEl.muted || !videoEl.volume;
+      playerMuteBtn.textContent = muted ? "◖" : "◕";
+      playerMuteBtn.setAttribute("aria-label", muted ? "取消静音" : "静音");
+      playerMuteBtn.title = muted ? "取消静音" : "静音";
+      playerVolume.value = String(muted ? 0 : videoEl.volume);
+      pictureInPictureBtn.disabled = !document.pictureInPictureEnabled;
+    }
+
+    function togglePlayback() {
+      if (!videoEl.currentSrc && !videoEl.src) return;
+      if (videoEl.paused) videoEl.play().catch(() => {});
+      else videoEl.pause();
+    }
+
+    function jumpPlayback(seconds) {
+      const duration = Number(videoEl.duration);
+      if (!Number.isFinite(duration)) return;
+      videoEl.currentTime = Math.max(0, Math.min(duration, (Number(videoEl.currentTime) || 0) + seconds));
+    }
+
+    function buildRecommendationTerms(video) {
+      const terms = mergeVideoTags(video.tags, video.tname);
+      const title = stripHtml(video.title || "").trim();
+      if (title) terms.push(title.slice(0, 36));
+      const descPieces = stripHtml(video.desc || "").split(/[\n。！？!?；;，,]+/).map((piece) => piece.trim()).filter((piece) => piece.length >= 2 && piece.length <= 32);
+      terms.push(...descPieces.slice(0, 3));
+      return [...new Set(terms.filter((term) => term && term.length >= 2))].slice(0, 8);
+    }
+
+    function renderRecommendationContext(terms) {
+      recommendationContext.hidden = !terms.length;
+      recommendationContext.innerHTML = terms.map((term) => "<span title=\"" + escapeHtml(term) + "\">" + escapeHtml(term) + "</span>").join("");
+    }
+
+    function setRecommendationStatus(text, loading) {
+      recommendationStatus.textContent = text;
+      recommendationStatus.classList.toggle("is-loading", !!loading);
+    }
+
+    function beginRecommendationSession(video) {
+      const token = (state.recommendation.token || 0) + 1;
+      state.recommendation = {
+        token,
+        video,
+        items: [],
+        seen: new Set(video.bvid ? [video.bvid] : []),
+        terms: buildRecommendationTerms(video),
+        termCursor: 0,
+        categoryPage: 1,
+        relatedAttempted: false,
+        loading: false,
+        emptyRuns: 0,
+        refreshAfterHydrate: false,
+      };
+      hydrateVideoDetail(video).catch((error) => console.warn("recommendation metadata lookup failed", error));
+      recommendationList.replaceChildren();
+      recommendationCount.textContent = "0 条";
+      renderRecommendationContext(state.recommendation.terms);
+      setRecommendationStatus("正在读取视频标签与相关稿件…", true);
+      setupRecommendationObserver();
+      return token;
+    }
+
+    function stopRecommendationSession() {
+      if (state.recommendation) state.recommendation.token += 1;
+      if (recommendationObserver) recommendationObserver.disconnect();
+      recommendationObserver = null;
+    }
+
+    function relatedListFromResponse(json) {
+      const data = (json && json.data) || {};
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data.list)) return data.list;
+      if (Array.isArray(data.related)) return data.related;
+      return [];
+    }
+
+    async function fetchRelatedRecommendations(video) {
+      const json = await proxyFetch("/x/web-interface/archive/related?bvid=" + encodeURIComponent(video.bvid), 10000);
+      return relatedListFromResponse(json).map(normalizeItem).filter((item) => item.bvid).map((item) => Object.assign(item, { relatedSource: true }));
+    }
+
+    function categoryForVideo(video) {
+      const category = CATEGORIES.find((candidate) => candidate.type === "rank" && candidate.label === video.tname);
+      return category && category.rid;
+    }
+
+    async function fetchRecommendationCandidates(video, rec) {
+      const jobs = [];
+      if (!rec.relatedAttempted) {
+        rec.relatedAttempted = true;
+        jobs.push(fetchRelatedRecommendations(video));
+      }
+      const terms = rec.terms.length ? rec.terms : [video.tname || video.title || "热门视频"];
+      const cursor = rec.termCursor++;
+      const term = terms[cursor % terms.length];
+      const page = 1 + Math.floor(cursor / terms.length);
+      jobs.push(searchVideos(term, page).then((result) => result.list.map((item) => Object.assign(item, { matchedTerm: term }))));
+      const rid = categoryForVideo(video);
+      if (rid && rec.termCursor % 2 === 0) {
+        const categoryPage = rec.categoryPage++;
+        jobs.push(proxyFetch("/x/web-interface/newlist?rid=" + rid + "&pn=" + categoryPage + "&ps=30", 11000).then((json) => feedListFromResponse(json).map(normalizeItem).filter((item) => item.bvid).map((item) => Object.assign(item, { matchedTerm: video.tname }))));
+      }
+      const settled = await Promise.allSettled(jobs);
+      const candidates = [];
+      let failures = 0;
+      for (const result of settled) {
+        if (result.status === "fulfilled") candidates.push(...result.value);
+        else failures += 1;
+      }
+      if (!candidates.length && failures === settled.length) throw new Error("推荐源暂时不可用");
+      return candidates;
+    }
+
+    function recommendationScore(candidate, video, terms) {
+      const corpus = [candidate.title, candidate.tname, candidate.desc, ...(candidate.tags || [])].join(" ").toLowerCase();
+      let score = candidate.relatedSource ? 80 : 0;
+      if (candidate.tname && candidate.tname === video.tname) score += 24;
+      terms.forEach((term, index) => {
+        if (term.length > 1 && corpus.includes(term.toLowerCase())) score += Math.max(8, 32 - index * 3);
+      });
+      score += Math.min(8, Math.log10((candidate.play || 0) + 1));
+      return score;
+    }
+
+    function recommendationReason(candidate, video, terms) {
+      const corpus = [candidate.title, candidate.tname, candidate.desc, ...(candidate.tags || [])].join(" ").toLowerCase();
+      const matched = terms.find((term) => term.length > 1 && corpus.includes(term.toLowerCase()));
+      if (candidate.relatedSource) return matched ? "相关稿件 · " + matched : "相关稿件";
+      if (matched) return "匹配标签 · " + matched;
+      if (candidate.tname && candidate.tname === video.tname) return "同一分区 · " + candidate.tname;
+      return "参考当前视频";
+    }
+
+    function createRecommendationCard(video, index) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "recommendation-card";
+      card.dataset.recommendationIndex = String(index);
+      card.setAttribute("aria-label", "播放推荐视频：" + (video.title || video.bvid));
+
+      const thumb = document.createElement("div");
+      thumb.className = "recommendation-thumb";
+      const image = document.createElement("img");
+      image.src = video.pic || "";
+      image.alt = "";
+      image.loading = "lazy";
+      image.decoding = "async";
+      image.referrerPolicy = "no-referrer";
+      thumb.appendChild(image);
+      const duration = document.createElement("span");
+      duration.className = "recommendation-duration";
+      duration.textContent = formatDuration(video.duration);
+      thumb.appendChild(duration);
+
+      const copy = document.createElement("div");
+      copy.className = "recommendation-copy";
+      const reason = document.createElement("span");
+      reason.className = "recommendation-reason";
+      reason.textContent = video.recommendationReason || "参考当前视频";
+      const title = document.createElement("h5");
+      title.textContent = video.title || video.bvid;
+      const meta = document.createElement("p");
+      meta.textContent = [video.owner || "UP主", formatCount(video.play) + " 播放", video.tname].filter(Boolean).join(" · ");
+      copy.append(reason, title, meta);
+      card.append(thumb, copy);
+      return card;
+    }
+
+    function appendRecommendations(items) {
+      const rec = state.recommendation;
+      const fragment = document.createDocumentFragment();
+      for (const item of items) {
+        const index = rec.items.length;
+        rec.items.push(item);
+        fragment.appendChild(createRecommendationCard(item, index));
+      }
+      recommendationList.appendChild(fragment);
+      recommendationCount.textContent = rec.items.length + " 条";
+    }
+
+    async function loadMoreRecommendations(expectedToken) {
+      const rec = state.recommendation;
+      if (!rec || rec.loading || rec.token !== expectedToken || !rec.video) return;
+      rec.loading = true;
+      setRecommendationStatus(rec.items.length ? "正在加载更多相似视频…" : "正在依据标签和相关稿件推荐…", true);
+      try {
+        rec.terms = buildRecommendationTerms(rec.video);
+        renderRecommendationContext(rec.terms);
+        const candidates = await fetchRecommendationCandidates(rec.video, rec);
+        if (state.recommendation !== rec || rec.token !== expectedToken) return;
+        const fresh = candidates.filter((candidate) => candidate.bvid && !rec.seen.has(candidate.bvid));
+        fresh.forEach((candidate) => {
+          rec.seen.add(candidate.bvid);
+          candidate.recommendationReason = recommendationReason(candidate, rec.video, rec.terms);
+          candidate.recommendationScore = recommendationScore(candidate, rec.video, rec.terms);
+        });
+        fresh.sort((left, right) => right.recommendationScore - left.recommendationScore);
+        if (fresh.length) {
+          rec.emptyRuns = 0;
+          appendRecommendations(fresh);
+          setRecommendationStatus("继续向下滚动加载更多", false);
+        } else {
+          rec.emptyRuns += 1;
+          setRecommendationStatus("正在换一组参考标签…", true);
+          if (rec.emptyRuns <= 3) setTimeout(() => loadMoreRecommendations(expectedToken), 240);
+          else { rec.emptyRuns = 0; setRecommendationStatus("继续向下滚动加载更多", false); }
+        }
+      } catch (error) {
+        if (state.recommendation === rec && rec.token === expectedToken) {
+          console.warn("recommendation load failed", error);
+          setRecommendationStatus("加载失败，继续向下滚动可重试", false);
+        }
+      } finally {
+        if (state.recommendation === rec && rec.token === expectedToken) {
+          rec.loading = false;
+          if (rec.refreshAfterHydrate) {
+            rec.refreshAfterHydrate = false;
+            setTimeout(() => loadMoreRecommendations(expectedToken), 0);
+          }
+        }
+      }
+    }
+
+    function setupRecommendationObserver() {
+      if (recommendationObserver) recommendationObserver.disconnect();
+      if (typeof IntersectionObserver !== "function") return;
+      recommendationObserver = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMoreRecommendations(state.recommendation.token);
+      }, { root: recommendationScroll, rootMargin: "700px 0px" });
+      recommendationObserver.observe(recommendationStatus);
+    }
+
+    async function playVideo(video) {
+      if (state.extracting) return;
+      const isNewVideo = !state.currentVideo || state.currentVideo.bvid !== video.bvid;
+      state.extracting = true;
+      modal.classList.add("open");
+      document.body.style.overflow = "hidden";
+      state.currentVideo = video;
+      const recommendationToken = isNewVideo ? beginRecommendationSession(video) : state.recommendation.token;
+      playerTitle.textContent = stripHtml(video.title || video.bvid || "加载中…");
+      playerStats.innerHTML = "<span>UP：" + escapeHtml(video.owner || "…") + "</span><span>" + formatCount(video.play) + " 播放</span><span>" + formatCount(video.danmaku) + " 弹幕</span><span>" + escapeHtml(video.bvid || "") + "</span>";
+      streamUrlEl.textContent = "正在提取 playurl 直链…";
+      clearStageExtras();
+      setPlayerLoading(true, "正在提取视频…");
+      danmakuToggle.closest(".switch").hidden = false;
+      danmakuStatus.textContent = "视频优先加载 · 弹幕后台加载";
+      syncPlayerControls();
+
+      try {
+        const danmakuRunToken = ++danmakuToken;
+        const stream = await extractPlayUrl(video, state.quality);
+        if (isNewVideo && state.recommendation.token === recommendationToken) loadMoreRecommendations(recommendationToken);
+        playerTitle.textContent = stripHtml(video.title || video.bvid);
+        streamUrlEl.textContent = stream.url;
+        streamUrlEl.title = stream.url;
+        playerStats.innerHTML += "<span>清晰度 qn=" + stream.quality + "</span><span class=\"chip\">直链已提取</span>";
+
+        const tryUrls = [stream.url, ...stream.backups];
+        let played = false;
+        for (const url of tryUrls) {
+          try {
+            await attemptVideoPlay(url);
+            streamUrlEl.textContent = url;
+            played = true;
+            loadDanmaku(video, danmakuRunToken);
+            break;
+          } catch (_) {
+            /* Try the next CDN endpoint. */
+          }
+        }
+        if (!played) {
+          streamUrlEl.textContent = "视频 CDN 暂时不可用，请关闭后重试";
+          danmakuStatus.textContent = "视频未开始，弹幕已暂停";
+        }
+      } catch (err) {
+        console.error(err);
+        streamUrlEl.textContent = "提取失败：" + (err.message || err);
+        danmakuStatus.textContent = "等待视频成功后加载弹幕";
+        if (isNewVideo && state.recommendation.token === recommendationToken) loadMoreRecommendations(recommendationToken);
+      } finally {
+        state.extracting = false;
+        setPlayerLoading(false);
+        syncPlayerControls();
+      }
+    }
+
+
+
+    function attemptElementPlay(element,url,timeoutMs=12000){return new Promise((resolve,reject)=>{let done=false;const finish=e=>{if(done)return;done=true;element.onloadeddata=null;element.onerror=null;clearTimeout(timer);e?reject(e):resolve()};element.onloadeddata=()=>{element.play().catch(()=>{});finish()};element.onerror=()=>finish(Error('video error'));const timer=setTimeout(()=>finish(Error('video timeout')),timeoutMs);element.src=url;element.load()})}
+    function attemptVideoPlay(url){return attemptElementPlay(videoEl,url)}
+
+    function closeModal() {
+      modal.classList.remove("open");
+      document.body.style.overflow = "";
+      stopRecommendationSession();
+      clearStageExtras();
+      setPlayerLoading(false);
+      streamUrlEl.textContent = "等待提取直链…";
+      danmakuToggle.closest(".switch").hidden = false;
+      state.currentVideo = null;
+      syncPlayerControls();
+    }
+
+
+    function renderTabs() {
+      const cats = [...CATEGORIES];
+      if (state.category && state.category.type === "search") {
+        cats.unshift(state.category);
+      }
+      tabs.innerHTML = cats
+        .map((c) => {
+          const active =
+            state.category &&
+            ((c.type === "search" && state.category.type === "search" && c.keyword === state.category.keyword) ||
+              (c.type !== "search" && c.id === state.category.id));
+          return `
+        <button class="tab${active ? " active" : ""}" type="button" data-id="${c.id}" data-type="${c.type}" role="tab">
+          ${escapeHtml(c.label)}
+        </button>`;
+        })
+        .join("");
+    }
+
+    function scheduleRefresh() {
+      clearInterval(state.timer);
+      // Don't hammer search APIs on auto-refresh
+      if (state.category && state.category.type === "search") return;
+      state.timer = setInterval(() => loadFeed(), REFRESH_MS);
+    }
+
+    function tickClock() {
+      $("clock").textContent = new Date().toLocaleString();
+    }
+
+    function setAiLog(text) {
+      $("aiLog").textContent = text;
+    }
+
+    function updateAiStats() {
+      const vids = state.videos || [];
+      let scanned = 0, locked = 0, safe = 0;
+      for (const v of vids) {
+        const lock = state.locks[v.bvid];
+        if (!lock) continue;
+        scanned += 1;
+        if (lock.moe_girl) locked += 1;
+        else safe += 1;
+      }
+      $("aiScanned").textContent = String(scanned);
+      $("aiLocked").textContent = String(locked);
+      $("aiSafe").textContent = String(safe);
+      const total = Math.max(vids.length, 1);
+      $("aiBar").style.width = `${Math.round((scanned / total) * 100)}%`;
+    }
+
+    function toggleAiPanel(force) {
+      state.eraserOpen = typeof force === "boolean" ? force : !state.eraserOpen;
+      $("aiPanel").classList.toggle("open", state.eraserOpen);
+      $("eraserBtn").classList.toggle("active", state.eraserOpen || state.autoDetect || state.scanning);
+    }
+
+    function getOpenRouterKey() {
+      const input = $("orKeyInput");
+      const fromInput = (input && input.value.trim()) || "";
+      const key = fromInput || localStorage.getItem(OR_KEY_STORAGE) || "";
+      if (key && input && !input.value) input.value = key;
+      return key;
+    }
+
+    function saveOpenRouterKey(key) {
+      if (!key) return;
+      localStorage.setItem(OR_KEY_STORAGE, key);
+      const input = $("orKeyInput");
+      if (input) input.value = key;
+    }
+
+    function parseAiJsonArray(text) {
+      const raw = String(text || "");
+      const start = raw.indexOf("[");
+      const end = raw.lastIndexOf("]");
+      if (start < 0 || end <= start) throw new Error("AI 未返回 JSON 数组");
+      let slice = raw.slice(start, end + 1);
+      try {
+        return JSON.parse(slice);
+      } catch (_) {
+        slice = slice
+          .replace(/,\s*]/g, "]")
+          .replace(/,\s*}/g, "}")
+          .replace(/'/g, '"');
+        return JSON.parse(slice);
+      }
+    }
+
+    async function openRouterClassify(batch) {
+      const apiKey = getOpenRouterKey();
+      if (!apiKey) throw new Error("请先在面板中填写 OpenRouter API Key");
+
+      const lines = batch.map((v, i) => `${i}: bvid=${v.bvid}`).join("\n");
+      const content = [
+        {
+          type: "text",
+          text: `Look at each Bilibili video COVER IMAGE below (in order).
+Decide if the MAIN SUBJECT is a moe-style anime girl (萌系二次元美少女 illustration / character portrait).
+True only when an anime/moe girl dominates the cover. False for real people, animals, memes, landscapes, text posters, UI, mecha-only, etc.
+
+Images:\n${lines}
+
+Return ONLY a JSON array like:
+[{"bvid":"...","moe_girl":true/false,"reason":"short"}]`,
+        },
+      ];
+      for (const v of batch) {
+        content.push({
+          type: "image_url",
+          image_url: { url: httpsPic(v.pic) },
+        });
+      }
+
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": location.origin || "http://127.0.0.1:8765",
+          "X-Title": "BiliFlux Anime Girl Eraser",
+        },
+        body: JSON.stringify({
+          model: OPENROUTER_MODEL,
+          messages: [
+            { role: "system", content: "Vision cover classifier. Output ONLY a JSON array. No markdown." },
+            { role: "user", content },
+          ],
+          max_tokens: 400,
+          temperature: 0,
+          reasoning: { effort: "low" },
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`OpenRouter ${res.status}: ${errText.slice(0, 120)}`);
+      }
+      const data = await res.json();
+      const msg = (data.choices && data.choices[0] && data.choices[0].message) || {};
+      const text = [msg.content, msg.reasoning].filter(Boolean).join("\n");
+      const parsed = parseAiJsonArray(text);
+      saveOpenRouterKey(apiKey);
+      return parsed;
+    }
+
+    async function runEraserScan({ silent = false, reason = "manual" } = {}) {
+      if (state.scanning) return;
+      const targets = state.videos.filter((v) => v.bvid && v.pic && !state.locks[v.bvid]);
+      if (!targets.length) {
+        if (!silent) setAiLog("当前列表封面已全部扫描完毕");
+        updateAiStats();
+        return;
+      }
+      if (!getOpenRouterKey()) {
+        if (!silent) {
+          toggleAiPanel(true);
+          setAiLog("请先填写 OpenRouter API Key，再开启 Auto Detect / 扫描");
+        }
+        return;
+      }
+
+      const token = ++state.scanToken;
+      state.scanning = true;
+      $("eraserBtn").classList.add("active");
+      $("aiScanBtn").disabled = true;
+      if (!silent) toggleAiPanel(true);
+      setAiLog(`Gemini 视觉检测 ${targets.length} 张封面（${reason}）…`);
+      $("aiBar").style.width = "6%";
+
+      try {
+        // Vision batches — Gemini sees the actual cover images
+        const chunkSize = 3;
+        for (let i = 0; i < targets.length; i += chunkSize) {
+          if (token !== state.scanToken) return;
+          const chunk = targets.slice(i, i + chunkSize);
+          setAiLog(`封面识图 ${i + 1}-${Math.min(i + chunkSize, targets.length)} / ${targets.length}`);
+          let results = [];
+          try {
+            results = await openRouterClassify(chunk);
+          } catch (chunkErr) {
+            console.warn("vision chunk failed, retry singles", chunkErr);
+            await yieldToMain();
+            for (const item of chunk) {
+              if (token !== state.scanToken) return;
+              try {
+                const one = await openRouterClassify([item]);
+                results = results.concat(one);
+              } catch (oneErr) {
+                state.locks[item.bvid] = { moe_girl: false, reason: "vision skip" };
+              }
+              await yieldToMain();
+            }
+          }
+          if (token !== state.scanToken) return;
+          const touched = [];
+          for (const row of results) {
+            if (!row || !row.bvid) continue;
+            state.locks[row.bvid] = {
+              moe_girl: !!row.moe_girl,
+              reason: String(row.reason || (row.moe_girl ? "Moe anime girl cover" : "Safe")),
+            };
+            touched.push(row.bvid);
+          }
+          for (const item of chunk) {
+            if (!state.locks[item.bvid]) {
+              state.locks[item.bvid] = { moe_girl: false, reason: "No vision verdict" };
+              touched.push(item.bvid);
+            }
+          }
+          persistLockCache();
+          patchLocksInDom(touched);
+          $("aiBar").style.width = `${Math.round(((i + chunk.length) / targets.length) * 100)}%`;
+          await yieldToMain();
+        }
+
+        const lockedNow = state.videos.filter((v) => state.locks[v.bvid] && state.locks[v.bvid].moe_girl).length;
+        setAiLog(`视觉扫描完成 · 锁定 ${lockedNow} / ${targets.length} · ${OPENROUTER_MODEL}`);
+      } catch (err) {
+        console.error(err);
+        setAiLog(`扫描失败：${err.message || err}`);
+      } finally {
+        if (token === state.scanToken) {
+          state.scanning = false;
+          $("aiScanBtn").disabled = false;
+          updateAiStats();
+          $("eraserBtn").classList.toggle("active", state.eraserOpen || state.autoDetect);
+        }
+      }
+    }
+
+    function clearLocks() {
+      state.scanToken += 1;
+      state.scanning = false;
+      state.locks = {};
+      persistLockCache();
+      $("aiScanBtn").disabled = false;
+      $("eraserBtn").classList.toggle("active", state.eraserOpen || state.autoDetect);
+      updateAiStats();
+      $("aiBar").style.width = "0%";
+      setAiLog("已清除全部封面锁 · 待命");
+      renderGrid();
+    }
+
+    function setAutoDetect(on) {
+      state.autoDetect = !!on;
+      localStorage.setItem(AUTO_DETECT_STORAGE, on ? "1" : "0");
+      const toggle = $("autoDetectToggle");
+      if (toggle) toggle.checked = state.autoDetect;
+      $("eraserBtn").classList.toggle("active", state.eraserOpen || state.autoDetect || state.scanning);
+      if (state.autoDetect) {
+        setAiLog("Auto Detect 已开启 · 列表更新后自动扫描");
+        scheduleAutoDetect();
+      } else {
+        setAiLog("Auto Detect 已关闭");
+      }
+    }
+
+    videoEl.addEventListener("timeupdate", () => { syncDanmaku(); syncPlayerControls(); });
+    videoEl.addEventListener("loadedmetadata", syncPlayerControls);
+    videoEl.addEventListener("durationchange", syncPlayerControls);
+    videoEl.addEventListener("volumechange", syncPlayerControls);
+    videoEl.addEventListener("seeking", () => {
+      danmakuLayer.replaceChildren();
+      danmakuIndex = lowerBoundDanmaku(Number(videoEl.currentTime) || 0);
+      danmakuLastTime = Number(videoEl.currentTime) || 0;
+    });
+    videoEl.addEventListener("play", () => { danmakuLayer.classList.remove("paused"); syncPlayerControls(); });
+    videoEl.addEventListener("pause", () => { danmakuLayer.classList.add("paused"); syncPlayerControls(); });
+    videoEl.addEventListener("ended", syncPlayerControls);
+    danmakuDebugBtn.addEventListener("click", () => {
+      danmakuDebug.hidden = !danmakuDebug.hidden;
+      if (!danmakuDebug.hidden) danmakuLog("diagnostics-opened", { currentCid: state.currentVideo && state.currentVideo.cid });
+    });
+    danmakuToggle.addEventListener("change", () => {
+      danmakuLayer.hidden = !danmakuToggle.checked;
+      if (danmakuToggle.checked) {
+        if (danmakuItems.length) syncDanmaku();
+        else {
+          const current = state.currentVideo;
+          if (current) loadDanmaku(current, danmakuToken);
+        }
+      } else danmakuLayer.replaceChildren();
+    });
+    // Events
+    $("eraserBtn").addEventListener("click", () => {
+      toggleAiPanel();
+      updateAiStats();
+    });
+    $("aiCloseBtn").addEventListener("click", () => toggleAiPanel(false));
+    $("aiScanBtn").addEventListener("click", () => runEraserScan({ reason: "manual" }));
+    $("aiClearBtn").addEventListener("click", clearLocks);
+    $("autoDetectToggle").checked = state.autoDetect;
+    $("autoDetectToggle").addEventListener("change", (e) => setAutoDetect(e.target.checked));
+
+    tabs.addEventListener("click", (e) => {
+      const btn = e.target.closest(".tab");
+      if (!btn) return;
+      let cat;
+      if (btn.dataset.type === "search" && state.category.type === "search") {
+        cat = state.category;
+      } else {
+        cat = CATEGORIES.find((c) => c.id === btn.dataset.id);
+      }
+      if (!cat) return;
+      state.category = cat;
+      renderTabs();
+      loadFeed();
+      scheduleRefresh();
+    });
+
+    window.addEventListener("scroll", () => {
+      if (!loadMoreObserver && canLoadMore() && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 900) {
+        loadMoreFeed();
+      }
+    }, { passive: true });
+
+    shortsOpenBtn.addEventListener('click', openShorts);
+    shortsCloseBtn.addEventListener('click', closeShorts);
+    shortsFeed.addEventListener('click', (event) => {
+      const playButton = event.target.closest('[data-short-play]');
+      const danmakuButton = event.target.closest('[data-short-danmaku-toggle]');
+      if (playButton) { const player = shortVideoElement(Number(playButton.dataset.shortPlay)); if (player) { if (player.paused) player.play().catch(() => {}); else player.pause(); } }
+      if (danmakuButton) toggleShortDanmaku(Number(danmakuButton.dataset.shortDanmakuToggle));
+    });
+    shortsQueue.addEventListener('click', (event) => {
+      const card = event.target.closest('[data-short-queue-index]');
+      if (!card) return;
+      scrollToShort(Number(card.dataset.shortQueueIndex));
+    });
+    shortsSidebar.addEventListener('scroll', () => {
+      if (shortsSidebar.scrollTop + shortsSidebar.clientHeight >= shortsSidebar.scrollHeight - 500) loadMoreShorts();
+    }, { passive: true });
+    shortsFeed.addEventListener('wheel', (event) => {
+      if (!state.shortOpen || !state.shorts.length) return;
+      event.preventDefault();
+      if (state.shortNavigating || Math.abs(event.deltaY) < 8) return;
+      state.shortNavigating = true;
+      scrollToShort(state.shortIndex + (event.deltaY > 0 ? 1 : -1));
+      clearTimeout(shortWheelLock);
+      shortWheelLock = setTimeout(() => { state.shortNavigating = false; }, 520);
+    }, { passive: false });
+    shortsFeed.addEventListener('touchstart', (event) => { state.shortTouchY = event.touches[0]?.clientY ?? null; }, { passive: true });
+    shortsFeed.addEventListener('touchend', (event) => {
+      if (state.shortTouchY === null) return;
+      const endY = event.changedTouches[0]?.clientY ?? state.shortTouchY;
+      const delta = state.shortTouchY - endY;
+      state.shortTouchY = null;
+      if (Math.abs(delta) > 40) scrollToShort(state.shortIndex + (delta > 0 ? 1 : -1));
+    }, { passive: true });
+    document.addEventListener('keydown', (event) => {
+      if (!state.shortOpen || !['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+      event.preventDefault();
+      scrollToShort(state.shortIndex + (event.key === 'ArrowDown' ? 1 : -1));
+    });
+    grid.addEventListener("click", (e) => {
+      const card = e.target.closest(".card");
+      if (!card) return;
+      const video = state.videos[Number(card.dataset.index)];
+      if (video) playVideo(video);
+    });
+
+
+    playerPlayBtn.addEventListener("click", togglePlayback);
+    playerBackBtn.addEventListener("click", () => jumpPlayback(-10));
+    playerForwardBtn.addEventListener("click", () => jumpPlayback(10));
+    playerProgress.addEventListener("input", (event) => {
+      const next = Number(event.target.value);
+      if (Number.isFinite(next)) videoEl.currentTime = next;
+    });
+    playerMuteBtn.addEventListener("click", () => { videoEl.muted = !videoEl.muted; syncPlayerControls(); });
+    playerVolume.addEventListener("input", (event) => {
+      videoEl.volume = Number(event.target.value);
+      videoEl.muted = videoEl.volume === 0;
+      syncPlayerControls();
+    });
+    pictureInPictureBtn.addEventListener("click", async () => {
+      try {
+        if (document.pictureInPictureElement) await document.exitPictureInPicture();
+        else if (document.pictureInPictureEnabled) await videoEl.requestPictureInPicture();
+      } catch (error) { console.warn("picture-in-picture unavailable", error); }
+    });
+    fullscreenBtn.addEventListener("click", async () => {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else if (stage.requestFullscreen) await stage.requestFullscreen();
+      } catch (error) { console.warn("fullscreen unavailable", error); }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      const active = document.fullscreenElement === stage;
+      fullscreenBtn.textContent = active ? "⊡" : "⛶";
+      fullscreenBtn.setAttribute("aria-label", active ? "退出全屏" : "全屏");
+      fullscreenBtn.title = active ? "退出全屏" : "全屏";
+    });
+    stage.addEventListener("dblclick", () => fullscreenBtn.click());
+    stage.addEventListener("click", (event) => { if (event.target === videoEl) togglePlayback(); });
+    recommendationList.addEventListener("click", (event) => {
+      const card = event.target.closest("[data-recommendation-index]");
+      if (!card) return;
+      const item = state.recommendation.items[Number(card.dataset.recommendationIndex)];
+      if (item) playVideo(item);
+    });
+    recommendationScroll.addEventListener("scroll", () => {
+      const nearBottom = recommendationScroll.scrollTop + recommendationScroll.clientHeight >= recommendationScroll.scrollHeight - 700;
+      if (nearBottom) loadMoreRecommendations(state.recommendation.token);
+    }, { passive: true });
+
+    function setQuality(value) {
+      const quality = Number(value);
+      if (![16, 64, 80].includes(quality)) return;
+      state.quality = quality;
+      localStorage.setItem("biliflux_quality", String(quality));
+      qualitySelect.value = String(quality);
+      shortQualitySelect.value = String(quality);
+      state.shortSourceCache.clear();
+      state.shortSourcePromises.clear();
+      if (modal.classList.contains("open") && state.currentVideo) playVideo(state.currentVideo);
+      if (state.shortOpen && state.shorts[state.shortIndex]) {
+        const element = shortVideoElement(state.shortIndex);
+        if (element) { element.dataset.loaded = ""; element.removeAttribute("src"); element.load(); }
+        loadShortSource(state.shortIndex, true);
+        preloadShortSources(state.shortIndex + 1);
+      }
+    }
+    qualitySelect.addEventListener("change", (event) => setQuality(event.target.value));
+    shortQualitySelect.addEventListener("change", (event) => setQuality(event.target.value));
+
+    $("closeBtn").addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (modal.classList.contains("open") && e.key === " " && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) {
+        e.preventDefault();
+        togglePlayback();
+        return;
+      }
+      if (e.key === "Escape") {
+        if (modal.classList.contains("open")) closeModal();
+        else if (state.shortOpen) closeShorts();
+        else if (state.eraserOpen) toggleAiPanel(false);
+      }
+    });
+
+    featuredPlayBtn.addEventListener("click", () => {
+      if (state.videos[0]) playVideo(state.videos[0]);
+    });
+
+    $("refreshBtn").addEventListener("click", () => {
+      loadFeed();
+      scheduleRefresh();
+    });
+
+    $("copyBtn").addEventListener("click", async () => {
+      const text = streamUrlEl.textContent;
+      if (!text || text.includes("等待") || text.includes("正在") || text.includes("提取失败")) return;
+      try {
+        await navigator.clipboard.writeText(text.replace(/\s+（.*）$/, ""));
+        $("copyBtn").textContent = "已复制";
+        setTimeout(() => ($("copyBtn").textContent = "复制"), 1200);
+      } catch (_) {
+        $("copyBtn").textContent = "失败";
+        setTimeout(() => ($("copyBtn").textContent = "复制"), 1200);
+      }
+    });
+
+    $("searchInput").addEventListener("keydown", async (e) => {
+      if (e.key !== "Enter") return;
+      const q = e.target.value.trim();
+      if (!q) return;
+      const bv = q.match(/BV[\w]+/i);
+      if (bv) {
+        playVideo({
+          bvid: bv[0],
+          title: bv[0],
+          owner: "搜索",
+          play: 0,
+          danmaku: 0,
+          pic: "",
+        });
+        return;
+      }
+      state.category = { id: "search", label: `搜索：${q}`, type: "search", keyword: q };
+      renderTabs();
+      loadFeed();
+      scheduleRefresh();
+      document.getElementById("feed").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    // Boot
+    renderTabs();
+    loadFeed();
+    scheduleRefresh();
+    tickClock();
+    setInterval(tickClock, 1000);
+    const savedKey = localStorage.getItem(OR_KEY_STORAGE);
+    if (savedKey) $("orKeyInput").value = savedKey;
+    $("orKeyInput").addEventListener("change", () => {
+      const v = $("orKeyInput").value.trim();
+      if (v) localStorage.setItem(OR_KEY_STORAGE, v);
+    });
+    if (state.autoDetect) {
+      $("eraserBtn").classList.add("active");
+      setAiLog("Auto Detect 已开启 · 等待列表后自动扫描");
+    }
+  </script>
+</body>
+</html>
