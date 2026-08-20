@@ -1,0 +1,17 @@
+{
+  "name": "study-mathematics-G3 (Scratch)",
+  "install": "npm install && npm run build",
+  "terminals": [
+    {
+      "name": "scratch-player",
+      "command": "npm run serve",
+      "description": "Static server hosting the packaged Scratch project at http://localhost:8000"
+    }
+  ],
+  "ports": [
+    {
+      "name": "scratch-player",
+      "port": 8000
+    }
+  ]
+}

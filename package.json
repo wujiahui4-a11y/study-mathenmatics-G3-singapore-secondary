@@ -1,0 +1,17 @@
+{
+  "name": "study-mathematics-g3-singapore-secondary",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tooling to build and run the Scratch 3.0 project stored in project.json",
+  "scripts": {
+    "build:sb3": "node scripts/build-sb3.cjs",
+    "build:html": "node scripts/package.cjs",
+    "build": "npm run build:sb3 && npm run build:html",
+    "serve": "node scripts/serve.cjs",
+    "start": "npm run serve"
+  },
+  "dependencies": {
+    "@turbowarp/packager": "3.13.0",
+    "jszip": "3.10.1"
+  }
+}
