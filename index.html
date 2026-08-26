@@ -1882,7 +1882,7 @@
       ]).finally(() => clearTimeout(timer));
     }
 
-    async function proxyFetch(apiPath, timeoutMs = 12000) {
+    async function proxyFetchRemote(apiPath, timeoutMs = 12000) {
       const absolute = `https://api.bilibili.com${apiPath}`;
       const runners = [
         (signal) =>
@@ -1932,6 +1932,20 @@
             });
         });
       });
+    }
+
+    /* API 结果短缓存:重复打开同一视频零延迟 */
+    var __biliApiCache = new Map();
+    async function proxyFetch(apiPath, timeoutMs = 12000) {
+      if (/^\/x\/(player\/playurl|web-interface\/view)/.test(apiPath)) {
+        const hit = __biliApiCache.get(apiPath);
+        if (hit && Date.now() - hit.at < 90000) return hit.value;
+        const value = await proxyFetchRemote(apiPath, timeoutMs);
+        __biliApiCache.set(apiPath, { at: Date.now(), value });
+        if (__biliApiCache.size > 200) __biliApiCache.delete(__biliApiCache.keys().next().value);
+        return value;
+      }
+      return proxyFetchRemote(apiPath, timeoutMs);
     }
 
     async function inflateRawDeflate(buffer) {
@@ -2902,6 +2916,346 @@
     }
 
 
+    /* ===================== 快速播放引擎:DASH + MSE 流式加载 =====================
+       不再整段下载 durl 文件:向 Bilibili 要 DASH 流(fnval=16),
+       只拉取几 KB 的初始化头 + 分段索引(sidx),随后按需流式加载约 4 秒的小分片。
+       长视频/千小时视频立即起播,拖动进度条即点即播。 */
+    var QUALITY_LABELS = {127:"8K 超高清",126:"杜比视界",125:"HDR 真彩",125:"HDR 真彩",120:"4K 超高清",116:"1080P 60帧",112:"1080P 高码率",80:"1080P 高清",74:"720P 60帧",64:"720P 准高清",32:"480P 标清",16:"360P 流畅"};
+
+    function parseDashRange(value) {
+      const m = /^(\d+)-(\d+)$/.exec(String(value || "").trim());
+      return m ? [Number(m[1]), Number(m[2])] : null;
+    }
+
+    async function extractPlayDash(video, preferredQuality = state.quality) {
+      const cid = await ensureCid(video);
+      const requested = Number(preferredQuality) || 64;
+      const path = "/x/player/playurl?bvid=" + video.bvid + "&cid=" + cid + "&qn=" + requested + "&fnval=16&fourk=1";
+      const json = await proxyFetch(path, 10000);
+      if (json.code !== 0) throw new Error(json.message || ("playurl " + json.code));
+      const dash = json.data && json.data.dash;
+      if (!dash || !Array.isArray(dash.video) || !dash.video.length) throw new Error("无 DASH 流");
+      const normalize = (rep, kind) => {
+        const base = rep.base_url || rep.baseUrl || "";
+        if (!base) throw new Error("流缺少地址");
+        const sb = rep.segment_base || rep.segmentBase || {};
+        const init = parseDashRange(sb.initialization);
+        const index = parseDashRange(sb.index_range || sb.indexRange);
+        return {
+          kind,
+          id: Number(rep.id) || 0,
+          codecs: String(rep.codecs || ""),
+          bandwidth: Number(rep.bandwidth) || 0,
+          url: base.replace(/^http:\/\//i, "https://"),
+          backups: (rep.backup_url || rep.backupUrl || []).map((u) => u.replace(/^http:\/\//i, "https://")),
+          init: init || [0, 0],
+          index
+        };
+      };
+      return {
+        videos: dash.video.map((r) => normalize(r, "video")),
+        audios: (dash.audio || []).map((r) => normalize(r, "audio")),
+        timelength: json.data.timelength || 0,
+        quality: json.data.quality || requested
+      };
+    }
+
+    var BiliFastPlayer = (() => {
+      const AHEAD_SECONDS = 45;
+      const CHUNK_TIMEOUT_MS = 15000;
+      const READY_TIMEOUT_MS = 16000;
+      const INDEX_MARGIN = 16384; /* 官方声明的索引区间常有偏差,多取一点并自行定位 */
+
+      let session = null;
+
+      function once(target, event) {
+        return new Promise((resolve) => target.addEventListener(event, resolve, { once: true }));
+      }
+
+      async function fetchRange(url, start, end, backups) {
+        const targets = [url, ...(backups || [])];
+        let lastErr;
+        for (const target of targets) {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), CHUNK_TIMEOUT_MS);
+          try {
+            const res = await fetch(target, { signal: ctrl.signal, headers: { Range: "bytes=" + start + "-" + end } });
+            if (!res.ok && res.status !== 206) throw new Error("HTTP " + res.status);
+            return await res.arrayBuffer();
+          } catch (err) {
+            lastErr = err;
+          } finally {
+            clearTimeout(timer);
+          }
+        }
+        throw lastErr || new Error("分片获取失败");
+      }
+
+      /* 沿 MP4 盒子结构扫描:返回 sidx 的位置,以及它之前的完整初始化数据 */
+      function locateSidx(buffer) {
+        const view = new DataView(buffer);
+        let pos = 0;
+        while (pos + 8 <= view.byteLength) {
+          let size = view.getUint32(pos);
+          const type = String.fromCharCode(view.getUint8(pos + 4), view.getUint8(pos + 5), view.getUint8(pos + 6), view.getUint8(pos + 7));
+          if (size === 1) {
+            if (pos + 16 > view.byteLength) return null;
+            size = Number(view.getBigUint64(pos + 8));
+          } else if (size === 0) {
+            return null;
+          }
+          if (size < 8 || pos + size > view.byteLength) return null; /* 尾部截断 */
+          if (type === "sidx") return { sidxPos: pos, sidxSize: size, initBuf: buffer.slice(0, pos) };
+          pos += size;
+        }
+        return null;
+      }
+
+      /* 解析位于 base 偏移的 sidx 盒子 -> 时间->字节区间 分段表 */
+      function parseSidxAt(buffer, base, anchorOffset) {
+        const view = new DataView(buffer);
+        if (base + 12 > view.byteLength) return null;
+        const version = view.getUint8(base + 8);
+        let cur = base + 12;
+        cur += 4; /* reference_ID */
+        const timescale = view.getUint32(cur) || 1; cur += 4;
+        let earliest = 0, firstOffset = 0;
+        if (version === 1) {
+          if (cur + 20 > view.byteLength) return null;
+          earliest = Number(view.getBigUint64(cur)); cur += 8;
+          firstOffset = Number(view.getBigUint64(cur)); cur += 8;
+        } else {
+          if (cur + 12 > view.byteLength) return null;
+          earliest = view.getUint32(cur); cur += 4;
+          firstOffset = view.getUint32(cur); cur += 4;
+        }
+        cur += 2; /* reserved 是 uint16 */
+        const count = view.getUint16(cur); cur += 2;
+        if (cur + count * 12 > view.byteLength) return null;
+        const segments = [];
+        let time = earliest;
+        let offset = anchorOffset + firstOffset;
+        for (let i = 0; i < count; i++) {
+          const word = view.getUint32(cur); cur += 4;
+          const duration = view.getUint32(cur); cur += 4;
+          cur += 4; /* SAP */
+          const chunkSize = word & 0x7fffffff;
+          if (!chunkSize) break;
+          segments.push({ start: offset, size: chunkSize, time, duration });
+          time += duration;
+          offset += chunkSize;
+        }
+        return { timescale, segments };
+      }
+
+      function pickVideoRep(reps, requestedQn) {
+        const playable = reps.filter((r) => r.codecs && window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs="' + r.codecs + '"'));
+        const pool = playable.length ? playable : reps;
+        const h264 = pool.filter((r) => r.codecs.indexOf("avc1") === 0);
+        const candidates = h264.length ? h264 : pool;
+        const eligible = candidates.filter((r) => r.id <= requestedQn * 1.34 + 1);
+        if (eligible.length) return eligible.reduce((best, r) => (r.id > best.id || (r.id === best.id && r.bandwidth > best.bandwidth) ? r : best));
+        return candidates.reduce((low, r) => (r.bandwidth < low.bandwidth ? r : low));
+      }
+
+      function pickAudioRep(reps) {
+        const playable = reps.filter((r) => r.codecs && window.MediaSource && MediaSource.isTypeSupported('audio/mp4; codecs="' + r.codecs + '"'));
+        const pool = playable.length ? playable : reps;
+        return pool.reduce((best, r) => ((r.bandwidth || 0) >= (best.bandwidth || 0) ? r : best));
+      }
+
+      function bufferedAheadAfter(sb, time) {
+        const ranges = sb && sb.buffered;
+        if (!ranges || !ranges.length) return 0;
+        let ahead = 0;
+        for (let i = 0; i < ranges.length; i++) {
+          const start = ranges.start(i), end = ranges.end(i);
+          if (end <= time + 0.35) continue;
+          ahead += Math.max(0, Math.min(end, time + AHEAD_SECONDS) - Math.max(start, time));
+        }
+        return ahead;
+      }
+
+      function appendBuffer(track, buffer) {
+        return new Promise((resolve, reject) => {
+          const sb = track.sb;
+          const done = () => { sb.removeEventListener("updateend", done); sb.removeEventListener("error", fail); resolve(); };
+          const fail = () => { sb.removeEventListener("updateend", done); sb.removeEventListener("error", fail); reject(new Error("append 失败")); };
+          sb.addEventListener("updateend", done);
+          sb.addEventListener("error", fail);
+          try { sb.appendBuffer(buffer); } catch (err) { done(); reject(err); }
+        });
+      }
+
+      function noteFail(track, err) {
+        track.fails = (track.fails || 0) + 1;
+        console.warn("[BiliFlux MSE] 分片失败", err);
+      }
+
+      async function appendTask(sess, track, seg) {
+        const myGen = sess.gen;
+        try {
+          if (sess.gen !== myGen || session !== sess) return;
+          const buf = await fetchRange(track.rep.url, seg.start, seg.start + seg.size - 1, track.rep.backups);
+          if (sess.gen !== myGen || session !== sess) return;
+          await appendBuffer(track, buf);
+          pump(sess);
+        } catch (err) {
+          if (err && String(err.name || "").indexOf("Quota") >= 0) {
+            try {
+              const b = track.sb.buffered;
+              if (b.length > 1) {
+                const mid = (b.start(0) + b.end(b.length - 1)) / 2;
+                track.sb.remove(b.start(0), mid);
+                await once(track.sb, "updateend");
+              }
+            } catch (_) {}
+          }
+          noteFail(track, err);
+        }
+      }
+
+      function pump(sess) {
+        if (session !== sess) return;
+        const now = Number(sess.element.currentTime) || 0;
+        for (const track of sess.tracks) {
+          if (track.sb.updating) continue;
+          if (bufferedAheadAfter(track.sb, now) >= AHEAD_SECONDS) continue;
+          const seg = track.segments[track.cursor];
+          if (!seg) { track.eof = true; continue; }
+          track.cursor += 1;
+          track.queue = track.queue.then(() => appendTask(sess, track, seg));
+        }
+        checkEnded(sess);
+      }
+
+      function checkEnded(sess) {
+        if (sess.eosCalled || !sess.tracks.length) return;
+        if (!sess.tracks.every((t) => t.eof)) return;
+        const duration = Number(sess.element.duration);
+        if (!Number.isFinite(duration)) return;
+        let lastEnd = 0;
+        for (const t of sess.tracks) {
+          const b = t.sb.buffered;
+          if (b.length) lastEnd = Math.max(lastEnd, b.end(b.length - 1));
+        }
+        if (lastEnd >= duration - 1.5) {
+          try { sess.mediaSource.endOfStream(); sess.eosCalled = true; } catch (_) {}
+        }
+      }
+
+      async function handleSeek(sess) {
+        if (session !== sess) return;
+        const target = Number(sess.element.currentTime) || 0;
+        let covered = true;
+        for (const track of sess.tracks) {
+          const b = track.sb.buffered;
+          let ok = false;
+          for (let i = 0; i < b.length; i++) {
+            if (target >= b.start(i) - 0.3 && target <= b.end(i)) { ok = true; break; }
+          }
+          if (!ok) { covered = false; break; }
+        }
+        if (covered) return;
+        sess.gen += 1;
+        const idxFor = (track) => {
+          const list = track.segments;
+          if (!list.length) return 0;
+          let lo = 0, hi = list.length - 1, ans = list.length - 1;
+          while (lo <= hi) {
+            const mid = (lo + hi) >> 1;
+            if (list[mid].time / 1000 + list[mid].duration / 1000 > target + 0.25) { ans = mid; hi = mid - 1; }
+            else lo = mid + 1;
+          }
+          return ans;
+        };
+        await Promise.all(sess.tracks.map(async (track) => {
+          try { while (track.sb.updating) await once(track.sb, "updateend"); } catch (_) {}
+          const b = track.sb.buffered;
+          if (b.length) {
+            try { track.sb.remove(b.start(0), b.end(b.length - 1)); await once(track.sb, "updateend"); } catch (_) {}
+          }
+          track.cursor = idxFor(track);
+          track.eof = false;
+        }));
+        if (session === sess) pump(sess);
+      }
+
+      async function buildTrack(sess, rep) {
+        const spanEnd = Math.max(rep.index ? rep.index[1] : 0, rep.init[1]) + INDEX_MARGIN;
+        const combo = await fetchRange(rep.url, rep.init[0], spanEnd, rep.backups);
+        if (session !== sess) throw new Error("已取消");
+        const located = locateSidx(combo);
+        if (!located) throw new Error("无法定位分段索引(sidx)");
+        const anchor = rep.init[0] + located.sidxPos + located.sidxSize;
+        const parsed = parseSidxAt(combo, located.sidxPos, anchor);
+        if (!parsed || !parsed.segments.length) throw new Error("分段索引解析失败");
+        const sb = sess.mediaSource.addSourceBuffer(rep.kind + '/mp4; codecs="' + rep.codecs + '"');
+        sb.mode = "segments";
+        const track = { rep, sb, segments: parsed.segments, cursor: 0, queue: Promise.resolve(), eof: false, fails: 0 };
+        track.queue = track.queue.then(() => appendBuffer(track, located.initBuf)).then(() => pump(sess)).catch((err) => noteFail(track, err));
+        return track;
+      }
+
+      async function mount(element, dash, requestedQn) {
+        if (typeof MediaSource === "undefined" || !window.MediaSource) throw new Error("浏览器不支持 MSE");
+        destroy();
+        const vRep = pickVideoRep(dash.videos, requestedQn);
+        const aRep = dash.audios.length ? pickAudioRep(dash.audios) : null;
+        if (!vRep.index || (aRep && !aRep.index)) throw new Error("DASH 流缺少分段索引");
+
+        const mediaSource = new MediaSource();
+        const objectUrl = URL.createObjectURL(mediaSource);
+        const sess = { mediaSource, objectUrl, element, tracks: [], gen: 0, eosCalled: false, cleanup: [] };
+        session = sess;
+
+        element.src = objectUrl;
+        await once(mediaSource, "sourceopen");
+        if (session !== sess) throw new Error("已取消");
+
+        sess.tracks.push(await buildTrack(sess, vRep));
+        if (aRep) sess.tracks.push(await buildTrack(sess, aRep));
+
+        const seekHandler = () => { handleSeek(sess); };
+        element.addEventListener("seeking", seekHandler);
+        sess.cleanup.push(() => element.removeEventListener("seeking", seekHandler));
+        ["timeupdate", "progress", "playing"].forEach((ev) => {
+          const fn = () => { if (session === sess) pump(sess); };
+          element.addEventListener(ev, fn);
+          sess.cleanup.push(() => element.removeEventListener(ev, fn));
+        });
+
+        await Promise.race([
+          once(element, "loadeddata"),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("MSE 起播超时")), READY_TIMEOUT_MS))
+        ]);
+        if (session !== sess) throw new Error("已取消");
+        pump(sess);
+        element.play().catch(() => {});
+      }
+
+      function destroy() {
+        const sess = session;
+        if (!sess) return;
+        session = null;
+        sess.gen += 1;
+        sess.cleanup.forEach((fn) => { try { fn(); } catch (_) {} });
+        sess.tracks.forEach((t) => { try { t.sb.abort(); } catch (_) {} });
+        try { if (sess.mediaSource.readyState === "open") sess.mediaSource.endOfStream(); } catch (_) {}
+        try { sess.element.pause(); } catch (_) {}
+        try { sess.element.removeAttribute("src"); sess.element.load(); } catch (_) {}
+        setTimeout(() => { try { URL.revokeObjectURL(sess.objectUrl); } catch (_) {} }, 5000);
+      }
+
+      return {
+        async play(element, dash, requestedQn) {
+          await mount(element, dash, requestedQn);
+        },
+        destroy,
+        isActive: () => !!session
+      };
+    })();
+
     async function extractPlayUrl(video, preferredQuality = state.quality) {
       const cid = await ensureCid(video);
       const requested = Number(preferredQuality) || 64;
@@ -2931,6 +3285,7 @@
     }
 
     function clearStageExtras() {
+      if (typeof BiliFastPlayer !== "undefined") BiliFastPlayer.destroy();
       const iframe = stage.querySelector("iframe");
       if (iframe) iframe.remove();
       clearDanmaku();
@@ -3211,24 +3566,44 @@
 
       try {
         const danmakuRunToken = ++danmakuToken;
-        const stream = await extractPlayUrl(video, state.quality);
         if (isNewVideo && state.recommendation.token === recommendationToken) loadMoreRecommendations(recommendationToken);
         playerTitle.textContent = stripHtml(video.title || video.bvid);
-        streamUrlEl.textContent = stream.url;
-        streamUrlEl.title = stream.url;
-        playerStats.innerHTML += "<span>清晰度 qn=" + stream.quality + "</span><span class=\"chip\">直链已提取</span>";
 
-        const tryUrls = [stream.url, ...stream.backups];
         let played = false;
-        for (const url of tryUrls) {
-          try {
-            await attemptVideoPlay(url);
-            streamUrlEl.textContent = url;
-            played = true;
-            loadDanmaku(video, danmakuRunToken);
-            break;
-          } catch (_) {
-            /* Try the next CDN endpoint. */
+        /* —— 快速路径:DASH + MSE 流式播放(无需 iframe,长视频秒开) —— */
+        try {
+          const dash = await extractPlayDash(video, state.quality);
+          const vTop = dash.videos.slice().sort((a, b) => b.bandwidth - a.bandwidth)[0];
+          streamUrlEl.textContent = vTop.url;
+          streamUrlEl.title = vTop.url;
+          await Promise.race([
+            BiliFastPlayer.play(videoEl, dash, Number(state.quality) || 64),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("快速通道超时")), 22000)),
+          ]);
+          played = true;
+          playerStats.innerHTML += "<span>" + escapeHtml(QUALITY_LABELS[vTop.id] || ("清晰度 " + vTop.id)) + "</span><span class=\"chip\">秒开 · 边下边播</span>";
+          loadDanmaku(video, danmakuRunToken);
+        } catch (fastErr) {
+          console.warn("快速播放失败,回退传统直链:", fastErr);
+          BiliFastPlayer.destroy();
+        }
+        /* —— 回退路径:原有 durl 直链 —— */
+        if (!played) {
+          const stream = await extractPlayUrl(video, state.quality);
+          streamUrlEl.textContent = stream.url;
+          streamUrlEl.title = stream.url;
+          playerStats.innerHTML += "<span>清晰度 qn=" + stream.quality + "</span><span class=\"chip\">直链已提取</span>";
+          const tryUrls = [stream.url, ...stream.backups];
+          for (const url of tryUrls) {
+            try {
+              await attemptVideoPlay(url);
+              streamUrlEl.textContent = url;
+              played = true;
+              loadDanmaku(video, danmakuRunToken);
+              break;
+            } catch (_) {
+              /* Try the next CDN endpoint. */
+            }
           }
         }
         if (!played) {
