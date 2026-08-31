@@ -5,8 +5,8 @@ window.SA = window.SA || {};
 
   SA.CFG = {
     TILE: 64,
-    COLS: 50,
-    ROWS: 38,
+    COLS: 44,
+    ROWS: 33,
     PLAYER_R: 17,
     BASE_HP: 100,
     BASE_SPEED: 235,
