@@ -1,0 +1,16 @@
+{
+  "name": "study-mathenmatics-g3-singapore-secondary",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local dev environment to build and run this Scratch 3.0 project with the TurboWarp runtime.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "serve": "node scripts/serve.mjs",
+    "dev": "npm run build && npm run serve"
+  },
+  "dependencies": {
+    "@turbowarp/packager": "3.13.0",
+    "jszip": "^3.10.1"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "study-mathenmatics-G3-singapore-secondary",
+  "install": "npm ci && npm run build",
+  "terminals": [
+    {
+      "name": "scratch-server",
+      "command": "npm run serve",
+      "description": "Serves the packaged Scratch project at http://localhost:8080 (run 'npm run build' first if dist/ is missing)."
+    }
+  ],
+  "ports": [
+    {
+      "name": "Scratch project",
+      "port": 8080
+    }
+  ]
+}
