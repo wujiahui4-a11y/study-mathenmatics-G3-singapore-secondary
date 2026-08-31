@@ -222,10 +222,12 @@
       G.myId = 'p_' + SA.uid();
       G.view.meId = G.myId;
       G.joined = false;
+      /* the silence timer counts from here, not from when the page opened */
+      G.lastSnapAt = SA.now();
       var tries = 0;
       G.joinTimer = setInterval(function () {
         if (G.joined || G.mode !== 'client') { clearInterval(G.joinTimer); return; }
-        if (++tries > 6) {
+        if (++tries > 10) {
           clearInterval(G.joinTimer);
           UI.netStatus('No one is hosting room ' + code + ' right now. Ask your friend to keep their tab open, or create the room yourself.', 'err');
           UI.showScreen('menu');
@@ -241,8 +243,16 @@
     });
   }
 
+  /* keep any query the page was opened with — some networks reach the game
+     through a proxy that carries its own parameters */
   function inviteLink(code) {
-    return location.origin + location.pathname + '?room=' + code;
+    try {
+      var url = new URL(location.href);
+      url.searchParams.set('room', code);
+      return url.toString();
+    } catch (e) {
+      return location.origin + location.pathname + '?room=' + code;
+    }
   }
 
   function shutdown(quiet) {
@@ -257,6 +267,7 @@
     G.snapBuf = []; G.roster = {}; G.pred = null;
     G.pendingEvents = []; G.pongs = [];
     G.shownCards = null; G.pendingPick = null;
+    G.lastSnapAt = 0; G.rejoinAt = 0; G.joined = false;
     G.mode = 'idle';
     if (!quiet) { UI.hideCards(); UI.setDeath(false); }
   }
@@ -325,6 +336,7 @@
       if (msg.id !== G.myId) return;
       if (!G.joined) {
         G.joined = true;
+        G.lastSnapAt = SA.now();
         clearInterval(G.joinTimer);
         if (msg.seed !== G.world.seed) makeWorld(msg.seed >>> 0);
         G.view.meId = G.myId;
@@ -623,9 +635,16 @@
       G.relay.pub(inp);
     }
 
-    if (SA.now() - G.lastSnapAt > 5 && G.joined) {
+    var quiet = SA.now() - G.lastSnapAt;
+    if (quiet > 4) {
       UI.setPing('lost', true);
-      if (SA.now() - G.lastSnapAt > 18) {
+      /* a dropped join or a host hiccup is far more likely than the host
+         actually leaving, so keep announcing ourselves before giving up */
+      if (SA.now() - (G.rejoinAt || 0) > 2) {
+        G.rejoinAt = SA.now();
+        G.relay.pub({ t: 'j', id: G.myId, n: G.myName, c: G.myColor });
+      }
+      if (quiet > 30) {
         UI.toast('Lost contact with the host.', 4000);
         UI.netStatus('Lost contact with the host — their tab may have closed.', 'err');
         shutdown();
