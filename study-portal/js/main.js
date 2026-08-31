@@ -436,7 +436,7 @@
         case 'spawn': fx.ring(e.x, e.y, 48, col); break;
         case 'kill':
           UI.addKillFeed(e);
-          if (e.ai === me) { SA.Sound.kill(); fx.text(e.x || 0, e.y || 0, '', '#fff'); }
+          if (e.ai === me) SA.Sound.kill();
           else if (e.bi === me) SA.Sound.hurt();
           break;
         case 'lvl':
@@ -544,7 +544,8 @@
     }
 
     if (!headless) {
-      setYou(SA.fillYou(sim.playerState(G.myId) || {}));
+      var you = sim.playerState(G.myId);
+      if (you) setYou(SA.fillYou(you));
       buildViewFromSim(sim);
     }
 
@@ -552,7 +553,7 @@
       dropStaleClients();
       G.snapAccum += dt;
       if (G.snapAccum >= 1 / CFG.SNAP_HZ) {
-        G.snapAccum = 0;
+        G.snapAccum = Math.min(G.snapAccum - 1 / CFG.SNAP_HZ, 1 / CFG.SNAP_HZ);
         var snap = sim.snapshot(G.pendingEvents.splice(0, G.pendingEvents.length));
         var ys = {};
         for (var id in sim.players) {
