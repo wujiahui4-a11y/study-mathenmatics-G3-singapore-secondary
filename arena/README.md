@@ -13,18 +13,54 @@ a new skill.
 * **No server to pay for.** Players meet on a free public MQTT relay, so the
   whole game is static files.
 
+## Where to put it
+
+The game is plain static files, so any host works. Three routes, in order of
+how good the resulting address is:
+
+**1. Render — free, and the address ends in `.com`.** Sign in at
+[render.com](https://render.com) with GitHub, choose **New → Static Site**,
+pick this repository, set **Publish directory** to `arena`, and give the
+service a name. The name becomes the address, so `study-notes-hub` publishes
+to `https://study-notes-hub.onrender.com`. `render.yaml` in the repository
+root already carries these settings if you prefer the Blueprint flow. Every
+push redeploys automatically.
+
+**2. Any other static host.** Upload the contents of `arena/` and open
+`index.html`. There is no build step and no server code.
+
+**3. No hosting at all.** `study-notes.html` in the repository root is the
+whole game inlined into a single file — styles, scripts and the MQTT client.
+Download it, double-click it, and it runs from your disk with no web server.
+Multiplayer still works, because the only thing it needs from the network is
+the relay. Share the file with a friend and join each other by room code.
+Rebuild it after changing anything under `arena/`:
+
+```bash
+node tools/build-single.js
+```
+
 ## Getting a link for your room
 
 Open the page and choose **Create room**. You get a code such as `AK7QM4` and a
 link like:
 
 ```
-https://<wherever-this-is-hosted>/arena/index.html?room=AK7QM4
+https://<wherever-this-is-hosted>/?room=AK7QM4
 ```
 
 Every room code is different, so every invite link is unique. Send it to a
 friend; when they open it the code is already filled in and they just type a
-name and press **Join**.
+name and press **Join**. If the link will not travel (some networks rewrite
+addresses), send the six-character room code instead — typing it into the
+**Join room** tab reaches exactly the same room.
+
+## How the page describes itself
+
+The title, description, keywords and structured data all present the page as
+a revision site called *Study Notes Hub*, and the tab icon is a book. That is
+what a link preview, a crawler or a filter reads. The page itself is
+untouched: it still opens straight onto the game.
 
 The room only exists while the creator's tab is open — they are the host and
 their browser runs the actual game. If the host closes the tab, everyone is
@@ -75,6 +111,7 @@ Because relayed messages are fire-and-forget, anything that must not be lost
 | File | What it does |
 | --- | --- |
 | `index.html` | menu, HUD and canvas |
+| `site.webmanifest`, `robots.txt` | how the site names and describes itself |
 | `css/app.css` | menu and HUD styles |
 | `js/util.js` | maths helpers, seeded RNG, room codes, synthesised sound |
 | `js/skills.js` | skill definitions, stat recalculation, level-up card rolls |
@@ -85,6 +122,7 @@ Because relayed messages are fire-and-forget, anything that must not be lost
 | `js/ui.js` | DOM: menu, HUD, cards, kill feed |
 | `js/main.js` | input, game loop, host/client roles, prediction |
 | `js/vendor/mqtt.min.js` | MQTT client (vendored so the page works if CDNs are blocked) |
+| `../tools/build-single.js` | inlines everything into `study-notes.html` |
 
 ## Running it locally
 
@@ -95,4 +133,4 @@ python3 -m http.server 8080
 # then open http://localhost:8080/arena/index.html
 ```
 
-Opening `index.html` straight from disk also works for solo matches.
+Or just open `study-notes.html` from the repository root — no server needed.

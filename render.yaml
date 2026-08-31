@@ -1,0 +1,14 @@
+# Free static hosting on Render. The published address is
+#   https://<name>.onrender.com
+# so pick a name here that reads the way you want the link to read.
+services:
+  - type: web
+    name: study-notes-hub
+    runtime: static
+    staticPublishPath: ./arena
+    pullRequestPreviewsEnabled: false
+    buildCommand: ""
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=300
