@@ -4,7 +4,8 @@ A new **MULTIPLAYER** entry on the mode screen. One player is Baldi and hunts
 the others; the students share one pile of notebooks and have to reach an exit.
 
 * **Baldi** — the room's creator. Moves like a player, cannot pick up
-  notebooks, and has a skill wheel. He wins when every student is caught.
+  notebooks, and has three skills on keys 1, 2 and 3. He wins when every
+  student is caught.
 * **Students** — everyone who joins with the code. They share the notebook
   count; once the class has them all the exit bars lift and *any* student who
   reaches an exit wins it for the whole class.
