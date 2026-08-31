@@ -700,6 +700,7 @@
 
   function applyWorld(m) {
     MP.lastWorld = now();
+    if (typeof m.gr === 'number') MP.graceRemote = m.gr;
     if (typeof m.nb === 'number' && m.nb > MP.teamNb) {
       while (MP.teamNb < m.nb) {
         /* the host already knows which ones; mark the closest untaken */
@@ -750,7 +751,11 @@
       if (MP.caught) caughtN++; else alive++;
     }
     var h = el('mpHud');
-    var grace = Math.max(0, HEAD_START - (now() - (MP.startT || 0)));
+    /* the host owns the clock: students show the number he sends them, so
+       both sides count down together */
+    var grace = MP.isHost
+      ? Math.max(0, HEAD_START - (now() - (MP.startT || 0)))
+      : Math.max(0, MP.graceRemote || 0);
     var grtxt = grace > 0 ? '<span style="color:#ffd76a">HEAD START ' + Math.ceil(grace) + 's</span> · ' : '';
     if (MP.role === 'hunter') {
       h.innerHTML = grtxt + '<span class="tag">YOU ARE BALDI</span> — catch them all · <b>' + alive + '</b> still running' +
@@ -945,6 +950,8 @@
     syncAvatars(dt);
     sendState(dt);
     if (MP.isHost) hostTick(dt);
+    MP.hudAcc = (MP.hudAcc || 0) + dt;
+    if (MP.hudAcc > 0.25) { MP.hudAcc = 0; updateHud(); }
     if (MP.wheelOpen) drawWheel();
     drawSkillBar();
   };
@@ -1030,7 +1037,10 @@
       /* billboard towards the camera */
       av.root.rotation.y = Math.atan2(G.camera.position.x - p.x, G.camera.position.z - p.z);
       var seeThrough = (MP.role === 'hunter' && MP.revealT > 0);
-      av.mat.depthTest = !seeThrough;
+      if (av.mat.depthTest === seeThrough) {          // toggled: three.js needs telling
+        av.mat.depthTest = !seeThrough;
+        av.mat.needsUpdate = true;
+      }
       av.mat.opacity = seeThrough ? 0.85 : 1;
       av.mat.transparent = true;
     }
@@ -1044,6 +1054,7 @@
     if (MP.isHost) {
       MP.relay.pub({
         t: 'w', k: ++MP.tick, p: worldPlayers(), nb: MP.teamNb,
+        gr: Math.round(Math.max(0, HEAD_START - (now() - (MP.startT || 0))) * 10) / 10,
         over: MP.over || 0, why: ''
       });
     } else {
