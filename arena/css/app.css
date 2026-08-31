@@ -119,6 +119,16 @@ kbd{
 .net-status.err{color:#ff8f84}
 .net-status.ok{color:#4bd6a3}
 
+.net-check{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.net-check button{
+  background:none;border:0;color:#7e8bab;font:600 12px var(--font);cursor:pointer;padding:0;text-decoration:underline;
+}
+.net-check button:hover{color:#b9c3dc}
+.net-check-out{margin-top:8px;font-size:12px;line-height:1.7;color:#8b97b5}
+.net-check-out .ok{color:#4bd6a3}
+.net-check-out .no{color:#ff8f84}
+.net-check-out code{font-size:11px;color:#7e8bab}
+
 .controls-help{
   display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-top:22px;
   font-size:12px;color:#8b97b5;

@@ -20,7 +20,7 @@
       'hudXpText', 'hudHpFill', 'hudShieldFill', 'hudHpText', 'hudSkills', 'roomCodeText',
       'roomCopy', 'rcNet', 'scorePanel', 'killFeed', 'abilityBar', 'cardsWrap', 'cards',
       'cardLevel', 'cardTimer', 'deathBox', 'deathBy', 'deathTimer', 'toast', 'soundBtn',
-      'leaveBtn', 'minimap'].forEach(function (id) { e[id] = $(id); });
+      'leaveBtn', 'minimap', 'netCheckBtn', 'netCheckOut'].forEach(function (id) { e[id] = $(id); });
 
     /* colour picker */
     SA.COLORS.forEach(function (c, i) {
@@ -73,6 +73,32 @@
     e.soundBtn.addEventListener('click', function () {
       SA.Sound.set(!SA.Sound.isOn());
       e.soundBtn.textContent = SA.Sound.isOn() ? '🔊' : '🔇';
+    });
+    e.netCheckBtn.addEventListener('click', UI.runNetCheck);
+  };
+
+  /* Tells you which relays this network lets through, so a failure to connect
+     points at something specific instead of "it doesn't work". */
+  UI.runNetCheck = function () {
+    var out = UI.els.netCheckOut;
+    UI.els.netCheckBtn.disabled = true;
+    out.innerHTML = 'Testing ' + SA.BROKERS.length + ' relays…';
+    var lines = [];
+    SA.probeRelays(function (r) {
+      lines.push(r.ok
+        ? '<span class="ok">✓</span> ' + r.name + ' reachable (' + r.ms + ' ms) <code>' + r.host + ':' + r.port + '</code>'
+        : '<span class="no">✕</span> ' + r.name + ' blocked <code>' + r.host + ':' + r.port + '</code>');
+      out.innerHTML = lines.join('<br>');
+    }).then(function (all) {
+      var ok = all.filter(function (r) { return r.ok; }).length;
+      lines.push(ok
+        ? '<b>' + ok + ' of ' + all.length + ' working — multiplayer should connect.</b>'
+        : '<b class="no">All relays blocked on this network. Solo still works; multiplayer needs one of these ports open.</b>');
+      out.innerHTML = lines.join('<br>');
+      UI.els.netCheckBtn.disabled = false;
+    }).catch(function (e) {
+      out.innerHTML = '<span class="no">Could not run the test: ' + escapeHtml(e.message || 'blocked') + '</span>';
+      UI.els.netCheckBtn.disabled = false;
     });
   };
 

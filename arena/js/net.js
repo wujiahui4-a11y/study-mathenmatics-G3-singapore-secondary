@@ -1,19 +1,21 @@
 /* Skill Arena — room networking.
 
-   There is no game server to pay for: peers meet on a free public MQTT
-   broker and relay small JSON messages through two topics.
+   There is no game server to pay for: peers meet on free public MQTT
+   brokers and relay small JSON messages through two topics.
      .../h  host  -> everyone   (world snapshots)
      .../c  client -> host      (inputs, joins, skill picks)
 
-   The first character of a room code says which broker the room lives on,
-   so a shared link always lands everyone on the same relay. */
+   Every peer connects to as many relays as its network allows, so a room
+   works as long as the two sides share any one of them. Messages carry a
+   sender id and a sequence number, and anything already seen on another
+   relay is dropped on arrival. */
 (function (SA) {
   'use strict';
 
   var BROKERS = [
-    { letter: 'A', url: 'wss://broker.emqx.io:8084/mqtt', name: 'relay 1' },
-    { letter: 'B', url: 'wss://broker.hivemq.com:8884/mqtt', name: 'relay 2' },
-    { letter: 'C', url: 'wss://test.mosquitto.org:8081/mqtt', name: 'relay 3' }
+    { url: 'wss://broker.emqx.io:8084/mqtt', name: 'relay 1', host: 'broker.emqx.io', port: 8084 },
+    { url: 'wss://broker.hivemq.com:8884/mqtt', name: 'relay 2', host: 'broker.hivemq.com', port: 8884 },
+    { url: 'wss://test.mosquitto.org:8081/mqtt', name: 'relay 3', host: 'test.mosquitto.org', port: 8081 }
   ];
   var TOPIC_ROOT = 'skillarena/v1/';
   var LIB_SOURCES = [
@@ -40,27 +42,23 @@
     return libPromise;
   }
 
-  function brokerForCode(code) {
-    var letter = (code || '').charAt(0).toUpperCase();
-    for (var i = 0; i < BROKERS.length; i++) if (BROKERS[i].letter === letter) return BROKERS[i];
-    return BROKERS[0];
-  }
-
   function connectBroker(mqtt, broker, timeoutMs) {
     return new Promise(function (resolve, reject) {
       var settled = false;
       var client = mqtt.connect(broker.url, {
-        clientId: 'sp_' + SA.uid(),
+        clientId: 'sa_' + SA.uid(),
         keepalive: 30,
         connectTimeout: timeoutMs || 9000,
-        reconnectPeriod: 3000,
+        reconnectPeriod: 4000,
+        resubscribe: true,
+        queueQoSZero: false,
         clean: true
       });
       var timer = setTimeout(function () {
         if (settled) return;
         settled = true;
         try { client.end(true); } catch (e) {}
-        reject(new Error('timeout'));
+        reject(new Error('no answer'));
       }, (timeoutMs || 9000) + 1500);
       client.on('connect', function () {
         if (settled) return;
@@ -80,13 +78,16 @@
 
   /* ------------------------------------------------------------------ Relay */
   function Relay() {
-    this.client = null;
+    this.conns = [];
     this.code = null;
     this.isHost = false;
-    this.broker = null;
     this.onMsg = null;
     this.onStatus = null;
     this.connected = false;
+    this.selfId = SA.uid();
+    this.outSeq = 0;
+    this.lastSeq = {};
+    this.senderConn = {};
     this.sentBytes = 0;
     this.recvBytes = 0;
   }
@@ -95,95 +96,139 @@
     if (this.onStatus) this.onStatus(state, text);
   };
 
-  /* Host: try brokers in order and keep the first one that answers.
-     Client: use exactly the broker the room code points at. */
+  Relay.prototype.liveNames = function () {
+    var out = [];
+    for (var i = 0; i < this.conns.length; i++) {
+      if (this.conns[i].connected) out.push(this.conns[i].__name);
+    }
+    return out;
+  };
+
+  Relay.prototype.reportStatus = function () {
+    var live = this.liveNames();
+    if (!live.length) this.status('reconnecting', 'Reconnecting…');
+    else this.status('online', 'Connected via ' + live.join(' + '));
+  };
+
   Relay.prototype.start = function (opts) {
     var self = this;
     this.isHost = !!opts.isHost;
     this.onMsg = opts.onMsg;
     this.onStatus = opts.onStatus;
+    this.code = opts.code;
+    var base = TOPIC_ROOT + this.code + '/';
+    this.pubTopic = base + (this.isHost ? 'h' : 'c');
+    this.subTopic = base + (this.isHost ? 'c' : 'h');
 
     return loadLib().then(function (mqtt) {
-      var order = self.isHost ? BROKERS.slice() : [brokerForCode(opts.code)];
-      if (opts.brokerIndex != null && BROKERS[opts.brokerIndex]) order = [BROKERS[opts.brokerIndex]];
-
-      var lastErr = null;
-      function attempt(i) {
-        if (i >= order.length) throw (lastErr || new Error('No relay could be reached.'));
-        var b = order[i];
-        self.status('connecting', 'Connecting to ' + b.name + '…');
-        return connectBroker(mqtt, b, 9000).then(function (client) {
-          self.client = client;
-          self.broker = b;
-          return b;
-        }).catch(function (e) {
-          lastErr = e;
-          return attempt(i + 1);
-        });
-      }
-
-      return attempt(0).then(function (broker) {
-        self.code = self.isHost ? (broker.letter + (opts.code || SA.roomCode()).slice(1)) : opts.code;
-        var base = TOPIC_ROOT + self.code + '/';
-        self.pubTopic = base + (self.isHost ? 'h' : 'c');
-        self.subTopic = base + (self.isHost ? 'c' : 'h');
-        self.connected = true;
-
-        self.client.on('message', function (topic, payload) {
-          self.recvBytes += payload.length;
-          var text = payload.toString();
-          var msg;
-          try { msg = JSON.parse(text); } catch (e) { return; }
-          if (self.onMsg) self.onMsg(msg);
-        });
-        self.client.on('close', function () {
-          if (!self.connected) return;
-          self.status('reconnecting', 'Relay dropped — reconnecting…');
-        });
-        self.client.on('reconnect', function () { self.status('reconnecting', 'Reconnecting…'); });
-        self.client.on('connect', function () {
-          if (self.connected) self.status('online', 'Connected');
-        });
-
-        return new Promise(function (resolve, reject) {
-          self.client.subscribe(self.subTopic, { qos: 0 }, function (err) {
-            if (err) return reject(err);
-            self.status('online', 'Connected via ' + broker.name);
-            resolve(self.code);
+      self.status('connecting', 'Connecting…');
+      return new Promise(function (resolve, reject) {
+        var pending = BROKERS.length, done = false, errs = [];
+        BROKERS.forEach(function (b) {
+          connectBroker(mqtt, b, 9000).then(function (client) {
+            self.attach(client, b);
+            pending--;
+            if (!done) { done = true; self.connected = true; resolve(self.code); }
+          }).catch(function (e) {
+            errs.push(b.name + ' ' + ((e && e.message) || 'blocked'));
+            pending--;
+            if (!pending && !done) reject(new Error(errs.join(', ')));
           });
         });
       });
     });
   };
 
+  Relay.prototype.attach = function (client, broker) {
+    var self = this;
+    client.__name = broker.name;
+    this.conns.push(client);
+    client.subscribe(this.subTopic, { qos: 0 }, function () {});
+    client.on('message', function (topic, payload) { self.handle(payload, client); });
+    client.on('connect', function () {
+      client.subscribe(self.subTopic, { qos: 0 }, function () {});
+      self.reportStatus();
+    });
+    client.on('close', function () { self.reportStatus(); });
+    this.reportStatus();
+  };
+
+  Relay.prototype.handle = function (payload, client) {
+    this.recvBytes += payload.length;
+    var msg;
+    try { msg = JSON.parse(payload.toString()); } catch (e) { return; }
+    if (msg.__s) {
+      if (msg.__s === this.selfId) return;
+      var last = this.lastSeq[msg.__s] || 0;
+      if (msg.__q <= last) return;          // already arrived on another relay
+      this.lastSeq[msg.__s] = msg.__q;
+      this.senderConn[msg.__s] = client;    // this relay reaches them
+    }
+    if (this.onMsg) this.onMsg(msg);
+  };
+
+  /* Once we have heard from someone we know which relay reaches them, so we
+     stop shouting down the others. Until then, announce on everything. */
+  Relay.prototype.targets = function () {
+    var list = [];
+    for (var k in this.senderConn) {
+      var c = this.senderConn[k];
+      if (c && c.connected && list.indexOf(c) < 0) list.push(c);
+    }
+    return list.length ? list : this.conns;
+  };
+
   Relay.prototype.pub = function (obj) {
-    if (!this.client || !this.connected) return;
+    if (!this.conns.length) return;
+    obj.__s = this.selfId;
+    obj.__q = ++this.outSeq;
     var text = JSON.stringify(obj);
-    this.sentBytes += text.length;
-    try { this.client.publish(this.pubTopic, text, { qos: 0 }); } catch (e) { /* dropped frame */ }
+    var to = this.targets();
+    for (var i = 0; i < to.length; i++) {
+      if (!to[i].connected) continue;
+      this.sentBytes += text.length;
+      try { to[i].publish(this.pubTopic, text, { qos: 0 }); } catch (e) { /* dropped frame */ }
+    }
   };
 
   /* end(false) lets the last "I'm leaving" frame reach the broker before the
      socket closes; the forced close is only a safety net. */
   Relay.prototype.stop = function () {
     this.connected = false;
-    var client = this.client;
-    this.client = null;
-    if (!client) return;
-    try {
-      client.end(false);
-      setTimeout(function () { try { client.end(true); } catch (e) {} }, 1200);
-    } catch (e) {
-      try { client.end(true); } catch (e2) {}
-    }
+    var conns = this.conns;
+    this.conns = [];
+    conns.forEach(function (client) {
+      try {
+        client.end(false);
+        setTimeout(function () { try { client.end(true); } catch (e) {} }, 1200);
+      } catch (e) {
+        try { client.end(true); } catch (e2) {}
+      }
+    });
+  };
+
+  /* Used by the "check my network" button: which relays does this network let
+     through? Runs the same connection the game would make. */
+  SA.probeRelays = function (onEach) {
+    return loadLib().then(function (mqtt) {
+      return Promise.all(BROKERS.map(function (b) {
+        var t0 = Date.now();
+        return connectBroker(mqtt, b, 8000).then(function (c) {
+          try { c.end(true); } catch (e) {}
+          var r = { name: b.name, host: b.host, port: b.port, ok: true, ms: Date.now() - t0 };
+          if (onEach) onEach(r);
+          return r;
+        }).catch(function (e) {
+          var r = { name: b.name, host: b.host, port: b.port, ok: false, err: (e && e.message) || 'blocked' };
+          if (onEach) onEach(r);
+          return r;
+        });
+      }));
+    });
   };
 
   SA.Relay = Relay;
   SA.BROKERS = BROKERS;
-  SA.brokerForCode = brokerForCode;
-  SA.newRoomCode = function () {
-    /* letter is replaced once we know which relay accepted the host */
-    return BROKERS[0].letter + SA.roomCode().slice(1);
-  };
+  SA.newRoomCode = function () { return SA.roomCode(); };
 
 })(window.SA);

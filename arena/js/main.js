@@ -175,7 +175,10 @@
     G.relay.start({
       isHost: true,
       code: code || SA.newRoomCode(),
-      onStatus: function (s, text) { UI.netStatus(text, s === 'online' ? 'ok' : ''); UI.setPing(s === 'online' ? 'live' : s, s !== 'online'); },
+      onStatus: function (s, text) {
+        UI.setPing(s === 'online' ? 'live' : s, s !== 'online');
+        if (!G.code) UI.netStatus(text, s === 'online' ? 'ok' : '');
+      },
       onMsg: hostOnMessage
     }).then(function (finalCode) {
       G.code = finalCode;

@@ -91,20 +91,29 @@ publishes ~15 snapshots per second. Everyone else sends their input and
 renders the interpolated result, with local prediction for their own movement
 so it still feels immediate at 150–250 ms of relay latency.
 
-Messages travel through a public MQTT broker over WebSocket:
+Messages travel through public MQTT brokers over WebSocket:
 
 ```
 skillarena/v1/<ROOM>/h    host -> everyone (snapshots, events)
 skillarena/v1/<ROOM>/c    everyone -> host (input, joins, skill picks)
 ```
 
-The first letter of the room code selects the relay (`A` = EMQX,
-`B` = HiveMQ, `C` = Mosquitto), so a shared link always lands everyone on the
-same broker. When a room is created the relays are tried in order and the code
-is stamped with whichever one answered.
+Every peer connects to all three relays its network allows — EMQX
+(`broker.emqx.io:8084`), HiveMQ (`broker.hivemq.com:8884`) and Mosquitto
+(`test.mosquitto.org:8081`) — so a room works as long as the two sides share
+any one of them. Each message carries a sender id and a sequence number;
+anything that already arrived on another relay is dropped when it turns up
+again. Once a peer has been heard from, we know which relay reaches them and
+stop publishing to the others, so the usual case costs one relay's worth of
+traffic. Tested with one side firewalled off the first relay, off the first
+two, and both sides sharing only the third.
 
 Because relayed messages are fire-and-forget, anything that must not be lost
 (joining, choosing a skill) is repeated until the host acknowledges it.
+
+**Check my network** on the menu tries each relay and reports which ones this
+network lets through — useful on school or office wifi, where the blocked
+thing is usually the port rather than the game.
 
 ## Files
 
