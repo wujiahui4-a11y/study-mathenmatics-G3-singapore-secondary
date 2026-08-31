@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Study Portal · G3 Mathematics Revision Hub</title>
+<meta name="description" content="Revision hub for Grade 3 / Secondary mathematics: practice sets, timed drills and group study rooms." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%98%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+
+<!-- ============================ HOME (the "study website") ============================ -->
+<div id="siteScreen" class="screen">
+  <header class="site-head">
+    <div class="wrap head-row">
+      <div class="brand"><span class="brand-mark">SP</span> Study Portal</div>
+      <nav class="site-nav">
+        <a class="active" href="#home">Dashboard</a>
+        <a href="#practice">Practice</a>
+        <a href="#notes" data-action="open-notes">Notes</a>
+        <a href="#progress">Progress</a>
+      </nav>
+      <div class="head-user"><span class="dot-on"></span> Term 3 · Week 9</div>
+    </div>
+  </header>
+
+  <main class="wrap site-main">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Welcome back</p>
+        <h1>Grade&nbsp;3 Mathematics — Revision Hub</h1>
+        <p class="lede">Pick up where you left off. You have <strong>3 practice sets</strong> due this week
+          and a group revision session scheduled.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" data-action="open-arena">Enter Group Study Room</button>
+          <button class="btn btn-ghost" data-action="open-notes">Open Revision Notes</button>
+        </div>
+      </div>
+      <div class="streak-card">
+        <div class="streak-num">17</div>
+        <div class="streak-label">day study streak</div>
+        <div class="streak-bars" id="streakBars"></div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <h2 class="sec-title">Continue practising</h2>
+      <div class="card-grid">
+        <article class="subject-card">
+          <div class="sc-top"><span class="sc-icon">➗</span><span class="sc-tag">Chapter 5</span></div>
+          <h3>Fractions &amp; Decimals</h3>
+          <p>Equivalent fractions, ordering, and converting to decimals.</p>
+          <div class="progress"><span style="width:78%"></span></div><small>78% complete</small>
+        </article>
+        <article class="subject-card">
+          <div class="sc-top"><span class="sc-icon">📐</span><span class="sc-tag">Chapter 6</span></div>
+          <h3>Angles &amp; Geometry</h3>
+          <p>Measuring angles, parallel lines and properties of triangles.</p>
+          <div class="progress"><span style="width:52%"></span></div><small>52% complete</small>
+        </article>
+        <article class="subject-card">
+          <div class="sc-top"><span class="sc-icon">📊</span><span class="sc-tag">Chapter 7</span></div>
+          <h3>Data &amp; Statistics</h3>
+          <p>Bar graphs, line graphs, mean, median and mode.</p>
+          <div class="progress"><span style="width:31%"></span></div><small>31% complete</small>
+        </article>
+        <article class="subject-card highlight" data-action="open-arena" role="button" tabindex="0">
+          <div class="sc-top"><span class="sc-icon">👥</span><span class="sc-tag live">Live now</span></div>
+          <h3>Group Study Room</h3>
+          <p>Join a shared revision room with your classmates using a room code.</p>
+          <div class="progress"><span style="width:100%"></span></div><small>Room is open · click to enter</small>
+        </article>
+      </div>
+    </section>
+
+    <section id="progress" class="notice">
+      <strong>Tip:</strong> press <kbd>Esc</kbd> at any time to jump straight back to your revision notes.
+    </section>
+  </main>
+
+  <footer class="site-foot wrap">© Study Portal · Mathematics revision resources for lower secondary.</footer>
+</div>
+
+<!-- ============================ LOBBY ============================ -->
+<div id="lobbyScreen" class="screen hidden">
+  <div class="lobby-bg"></div>
+  <div class="lobby">
+    <button class="lobby-back" data-action="go-home">← Back to portal</button>
+    <h1 class="lobby-title">Group Study Room</h1>
+    <p class="lobby-sub">A shared 2D arena. Start with one weapon, level up by defeating other players, and pick a new
+      skill every level.</p>
+
+    <div class="lobby-row">
+      <label class="field">
+        <span>Your name</span>
+        <input id="nameInput" maxlength="12" placeholder="Player" autocomplete="off" />
+      </label>
+      <label class="field small">
+        <span>Colour</span>
+        <div id="colorPicker" class="color-picker"></div>
+      </label>
+    </div>
+
+    <div class="lobby-tabs">
+      <button class="tab active" data-tab="create">Create room</button>
+      <button class="tab" data-tab="join">Join room</button>
+      <button class="tab" data-tab="solo">Solo practice</button>
+    </div>
+
+    <div class="tab-panel" data-panel="create">
+      <p class="panel-hint">Create a room and send the link to your friends. Everyone who opens it joins the same map.</p>
+      <label class="field">
+        <span>Practice bots in the room</span>
+        <input id="botRange" type="range" min="0" max="8" value="4" />
+        <output id="botOut">4 bots</output>
+      </label>
+      <button class="btn btn-primary btn-lg" id="createBtn">Create room &amp; get link</button>
+      <div id="shareBox" class="share-box hidden">
+        <span>Share this link:</span>
+        <input id="shareLink" readonly />
+        <button class="btn btn-ghost" id="copyBtn">Copy</button>
+      </div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="join">
+      <p class="panel-hint">Paste the room code your friend sent you.</p>
+      <label class="field">
+        <span>Room code</span>
+        <input id="joinCode" maxlength="8" placeholder="e.g. K4RM2P" autocomplete="off" />
+      </label>
+      <button class="btn btn-primary btn-lg" id="joinBtn">Join room</button>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="solo">
+      <p class="panel-hint">Play offline against practice bots — no internet room needed. Great for learning the skills.</p>
+      <label class="field">
+        <span>Practice bots</span>
+        <input id="botRangeSolo" type="range" min="1" max="9" value="5" />
+        <output id="botOutSolo">5 bots</output>
+      </label>
+      <button class="btn btn-primary btn-lg" id="soloBtn">Start solo practice</button>
+    </div>
+
+    <div id="netStatus" class="net-status"></div>
+
+    <div class="controls-help">
+      <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</div>
+      <div><span class="mouse">🖱</span> aim · <b>hold click</b> shoot</div>
+      <div><kbd>Shift</kbd> dash <small>(skill)</small></div>
+      <div><kbd>Q</kbd><kbd>E</kbd><kbd>R</kbd> abilities</div>
+      <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> choose skill</div>
+      <div><kbd>Esc</kbd> instantly hide the game</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ GAME ============================ -->
+<div id="gameScreen" class="screen hidden">
+  <canvas id="game"></canvas>
+
+  <div class="hud">
+    <!-- top left: level + xp -->
+    <div class="hud-left">
+      <div class="lvl-box">
+        <div class="lvl-badge"><span id="hudLevel">1</span></div>
+        <div class="lvl-info">
+          <div class="lvl-bar"><span id="hudXpFill"></span></div>
+          <div class="lvl-text"><span id="hudXpText">0 / 1 kills to level 2</span></div>
+        </div>
+      </div>
+      <div class="hp-box">
+        <div class="hp-bar"><span id="hudHpFill"></span><i id="hudShieldFill"></i></div>
+        <div class="hp-text" id="hudHpText">100</div>
+      </div>
+      <div class="skill-list" id="hudSkills"></div>
+    </div>
+
+    <!-- top center: room chip -->
+    <div class="hud-top">
+      <div class="room-chip" id="roomChip">
+        <span class="rc-label">Room</span>
+        <b id="roomCodeText">SOLO</b>
+        <button id="roomCopy" title="Copy invite link">copy link</button>
+        <span class="rc-net" id="rcNet">·</span>
+      </div>
+    </div>
+
+    <!-- top right: scoreboard -->
+    <div class="hud-right">
+      <div class="score-panel" id="scorePanel"></div>
+      <canvas id="minimap" width="180" height="135"></canvas>
+    </div>
+
+    <!-- bottom left: kill feed -->
+    <div class="kill-feed" id="killFeed"></div>
+
+    <!-- bottom center: abilities -->
+    <div class="ability-bar" id="abilityBar"></div>
+
+    <!-- level up cards -->
+    <div class="cards-wrap hidden" id="cardsWrap">
+      <div class="cards-title">Level <span id="cardLevel">2</span> — choose a skill <small id="cardTimer">10</small></div>
+      <div class="cards" id="cards"></div>
+    </div>
+
+    <!-- death -->
+    <div class="death hidden" id="deathBox">
+      <div class="death-title">You were defeated</div>
+      <div class="death-sub">by <span id="deathBy">someone</span></div>
+      <div class="death-timer">respawning in <span id="deathTimer">3</span></div>
+    </div>
+
+    <!-- toast / connection -->
+    <div class="toast hidden" id="toast"></div>
+  </div>
+
+  <div class="hud-buttons">
+    <button id="soundBtn" title="Sound on/off">🔇</button>
+    <button id="notesBtn" title="Hide game (Esc)">📓</button>
+    <button id="leaveBtn" title="Leave room">✕</button>
+  </div>
+</div>
+
+<!-- ============================ BOSS KEY: revision notes ============================ -->
+<div id="notesOverlay" class="hidden">
+  <div class="wrap notes">
+    <header class="notes-head">
+      <div class="brand"><span class="brand-mark">SP</span> Study Portal</div>
+      <div class="notes-crumb">Mathematics › Chapter 5 › Fractions &amp; Decimals</div>
+    </header>
+    <h1>Chapter 5 — Fractions and Decimals</h1>
+    <p class="notes-meta">Revision notes · last edited 2 days ago · 6 min read</p>
+
+    <h2>5.1 Equivalent fractions</h2>
+    <p>Two fractions are <em>equivalent</em> when they represent the same value. Multiply or divide the numerator and
+      the denominator by the same non-zero number:</p>
+    <div class="eq">3/4 = (3 × 5)/(4 × 5) = 15/20</div>
+    <p>To simplify a fraction, divide both parts by their highest common factor (HCF).</p>
+
+    <h2>5.2 Comparing and ordering</h2>
+    <p>Rewrite the fractions with a common denominator, then compare numerators.</p>
+    <div class="eq">2/3 and 3/5 → 10/15 and 9/15 → 2/3 &gt; 3/5</div>
+
+    <h2>5.3 Converting to decimals</h2>
+    <table class="notes-table">
+      <tr><th>Fraction</th><th>Decimal</th><th>Percentage</th></tr>
+      <tr><td>1/2</td><td>0.5</td><td>50%</td></tr>
+      <tr><td>1/4</td><td>0.25</td><td>25%</td></tr>
+      <tr><td>3/5</td><td>0.6</td><td>60%</td></tr>
+      <tr><td>7/8</td><td>0.875</td><td>87.5%</td></tr>
+    </table>
+
+    <h2>5.4 Worked example</h2>
+    <p>A tank is 5/8 full and holds 320 litres when full. How much water is in the tank?</p>
+    <div class="eq">320 × 5/8 = (320 ÷ 8) × 5 = 40 × 5 = <strong>200 litres</strong></div>
+
+    <h2>5.5 Practice questions</h2>
+    <ol class="notes-list">
+      <li>Simplify 42/56.</li>
+      <li>Order from smallest: 5/6, 7/9, 4/5.</li>
+      <li>Write 0.375 as a fraction in its simplest form.</li>
+      <li>A recipe needs 3/4 cup of sugar. How much is needed for 2 1/2 batches?</li>
+    </ol>
+    <p class="notes-foot">Press <kbd>Esc</kbd> to return to the previous page.</p>
+  </div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/skills.js"></script>
+<script src="js/world.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/net.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
