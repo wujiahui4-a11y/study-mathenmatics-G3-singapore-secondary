@@ -1,4 +1,4 @@
-/* Study Portal — shared helpers (math, rng, ids, audio) */
+/* Skill Arena — shared helpers (math, rng, ids, audio) */
 window.SA = window.SA || {};
 (function (SA) {
   'use strict';

@@ -1,4 +1,4 @@
-/* Study Portal — room networking.
+/* Skill Arena — room networking.
 
    There is no game server to pay for: peers meet on a free public MQTT
    broker and relay small JSON messages through two topics.
@@ -15,7 +15,7 @@
     { letter: 'B', url: 'wss://broker.hivemq.com:8884/mqtt', name: 'relay 2' },
     { letter: 'C', url: 'wss://test.mosquitto.org:8081/mqtt', name: 'relay 3' }
   ];
-  var TOPIC_ROOT = 'studyportal/arena3/';
+  var TOPIC_ROOT = 'skillarena/v1/';
   var LIB_SOURCES = [
     'js/vendor/mqtt.min.js',
     'https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js',

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Skill Arena — 2D multiplayer shooter</title>
+<meta name="description" content="A 2D top-down multiplayer arena. Start with one bullet, level up for every kill and pick a new skill each level." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+
+<!-- ============================ MENU ============================ -->
+<div id="menuScreen" class="screen">
+  <div class="menu-bg"></div>
+  <div class="menu">
+    <header class="menu-head">
+      <h1 class="logo">SKILL<span>ARENA</span></h1>
+      <p class="tagline">Everyone starts with one bullet. Every kill is a level.
+        Every level is a new skill.</p>
+      <div class="rule-strip">
+        <span><b>1</b> kill → level 2</span>
+        <span><b>2</b> kills → level 3</span>
+        <span><b>4</b> kills → level 4</span>
+        <span><b>8</b> kills → level 5</span>
+        <span class="dots">…</span>
+      </div>
+    </header>
+
+    <div class="panel">
+      <div class="menu-row">
+        <label class="field">
+          <span>Your name</span>
+          <input id="nameInput" maxlength="12" placeholder="Player" autocomplete="off" />
+        </label>
+        <label class="field small">
+          <span>Colour</span>
+          <div id="colorPicker" class="color-picker"></div>
+        </label>
+      </div>
+
+      <div class="menu-tabs">
+        <button class="tab active" data-tab="create">Create room</button>
+        <button class="tab" data-tab="join">Join room</button>
+        <button class="tab" data-tab="solo">Solo</button>
+      </div>
+
+      <div class="tab-panel" data-panel="create">
+        <p class="panel-hint">Create a room and send the link to your friends. Everyone who opens it drops into the
+          same map.</p>
+        <label class="field">
+          <span>Bots in the arena</span>
+          <input id="botRange" type="range" min="0" max="8" value="4" />
+          <output id="botOut">4 bots</output>
+        </label>
+        <button class="btn btn-primary btn-lg" id="createBtn">Create room &amp; get link</button>
+        <div id="shareBox" class="share-box hidden">
+          <span>Share this link:</span>
+          <input id="shareLink" readonly />
+          <button class="btn btn-ghost" id="copyBtn">Copy</button>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="join">
+        <p class="panel-hint">Paste the room code a friend sent you.</p>
+        <label class="field">
+          <span>Room code</span>
+          <input id="joinCode" maxlength="8" placeholder="e.g. K4RM2P" autocomplete="off" />
+        </label>
+        <button class="btn btn-primary btn-lg" id="joinBtn">Join room</button>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="solo">
+        <p class="panel-hint">Play offline against bots — no room, no internet needed. Good for learning the skills.</p>
+        <label class="field">
+          <span>Bots</span>
+          <input id="botRangeSolo" type="range" min="1" max="9" value="5" />
+          <output id="botOutSolo">5 bots</output>
+        </label>
+        <button class="btn btn-primary btn-lg" id="soloBtn">Start solo match</button>
+      </div>
+
+      <div id="netStatus" class="net-status"></div>
+    </div>
+
+    <div class="controls-help">
+      <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</div>
+      <div><span class="mouse">🖱</span> aim · <b>hold click</b> shoot</div>
+      <div><kbd>Shift</kbd> dash <small>(skill)</small></div>
+      <div><kbd>Q</kbd><kbd>E</kbd><kbd>R</kbd> abilities</div>
+      <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> choose skill</div>
+      <div>Touch: left half moves, right half shoots</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ GAME ============================ -->
+<div id="gameScreen" class="screen hidden">
+  <canvas id="game"></canvas>
+
+  <div class="hud">
+    <!-- top left: level + xp -->
+    <div class="hud-left">
+      <div class="lvl-box">
+        <div class="lvl-badge"><span id="hudLevel">1</span></div>
+        <div class="lvl-info">
+          <div class="lvl-bar"><span id="hudXpFill"></span></div>
+          <div class="lvl-text"><span id="hudXpText">0 / 1 kills to level 2</span></div>
+        </div>
+      </div>
+      <div class="hp-box">
+        <div class="hp-bar"><span id="hudHpFill"></span><i id="hudShieldFill"></i></div>
+        <div class="hp-text" id="hudHpText">100</div>
+      </div>
+      <div class="skill-list" id="hudSkills"></div>
+    </div>
+
+    <!-- top center: room chip -->
+    <div class="hud-top">
+      <div class="room-chip" id="roomChip">
+        <span class="rc-label">Room</span>
+        <b id="roomCodeText">SOLO</b>
+        <button id="roomCopy" title="Copy invite link">copy link</button>
+        <span class="rc-net" id="rcNet">·</span>
+      </div>
+    </div>
+
+    <!-- top right: scoreboard -->
+    <div class="hud-right">
+      <div class="score-panel" id="scorePanel"></div>
+      <canvas id="minimap" width="180" height="135"></canvas>
+    </div>
+
+    <!-- bottom left: kill feed -->
+    <div class="kill-feed" id="killFeed"></div>
+
+    <!-- bottom center: abilities -->
+    <div class="ability-bar" id="abilityBar"></div>
+
+    <!-- level up cards -->
+    <div class="cards-wrap hidden" id="cardsWrap">
+      <div class="cards-title">Level <span id="cardLevel">2</span> — choose a skill <small id="cardTimer">10</small></div>
+      <div class="cards" id="cards"></div>
+    </div>
+
+    <!-- death -->
+    <div class="death hidden" id="deathBox">
+      <div class="death-title">You were killed</div>
+      <div class="death-sub">by <span id="deathBy">someone</span></div>
+      <div class="death-timer">respawning in <span id="deathTimer">3</span></div>
+    </div>
+
+    <!-- toast / connection -->
+    <div class="toast hidden" id="toast"></div>
+  </div>
+
+  <div class="hud-buttons">
+    <button id="soundBtn" title="Sound on/off">🔇</button>
+    <button id="leaveBtn" title="Leave room">✕</button>
+  </div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/skills.js"></script>
+<script src="js/world.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/net.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

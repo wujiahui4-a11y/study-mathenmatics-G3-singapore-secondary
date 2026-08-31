@@ -1,4 +1,4 @@
-/* Study Portal — canvas renderer and particle effects. */
+/* Skill Arena — canvas renderer and particle effects. */
 (function (SA) {
   'use strict';
 

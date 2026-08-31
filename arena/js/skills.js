@@ -1,4 +1,4 @@
-/* Study Portal — skill tree.
+/* Skill Arena — skill tree.
    Every player starts with the plain bullet. Each level grants one pick.
    Passives change the stat block, actives add a button ability. */
 (function (SA) {

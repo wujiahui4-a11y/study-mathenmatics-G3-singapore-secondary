@@ -1,5 +1,5 @@
-/* Study Portal — authoritative arena simulation.
-   Exactly one peer (the room host, or you in solo practice) runs this.
+/* Skill Arena — authoritative arena simulation.
+   Exactly one peer (the room host, or you in a solo match) runs this.
    Everyone else just renders the snapshots it produces. */
 (function (SA) {
   'use strict';

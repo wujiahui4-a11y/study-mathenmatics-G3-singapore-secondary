@@ -1,4 +1,4 @@
-/* Study Portal — DOM glue: lobby, HUD, level-up cards, kill feed. */
+/* Skill Arena — DOM glue: menu, HUD, level-up cards, kill feed. */
 (function (SA) {
   'use strict';
 
@@ -7,39 +7,20 @@
   var UI = {
     els: {},
     handlers: {},
-    notesOpen: false,
-    lastScreen: 'site',
+    lastScreen: 'menu',
     cardIds: []
   };
 
   UI.init = function (handlers) {
     UI.handlers = handlers || {};
     var e = UI.els;
-    ['siteScreen', 'lobbyScreen', 'gameScreen', 'notesOverlay', 'nameInput', 'colorPicker',
+    ['menuScreen', 'gameScreen', 'nameInput', 'colorPicker',
       'botRange', 'botOut', 'botRangeSolo', 'botOutSolo', 'createBtn', 'joinBtn', 'soloBtn',
       'joinCode', 'shareBox', 'shareLink', 'copyBtn', 'netStatus', 'hudLevel', 'hudXpFill',
       'hudXpText', 'hudHpFill', 'hudShieldFill', 'hudHpText', 'hudSkills', 'roomCodeText',
       'roomCopy', 'rcNet', 'scorePanel', 'killFeed', 'abilityBar', 'cardsWrap', 'cards',
       'cardLevel', 'cardTimer', 'deathBox', 'deathBy', 'deathTimer', 'toast', 'soundBtn',
-      'notesBtn', 'leaveBtn', 'streakBars', 'minimap'].forEach(function (id) { e[id] = $(id); });
-
-    /* fake activity graph on the landing page */
-    var bars = '';
-    for (var i = 0; i < 14; i++) {
-      var h = 8 + Math.round(Math.abs(Math.sin(i * 1.7)) * 26);
-      bars += '<i class="' + (i > 3 ? 'on' : '') + '" style="height:' + h + 'px"></i>';
-    }
-    e.streakBars.innerHTML = bars;
-
-    document.querySelectorAll('[data-action="open-arena"]').forEach(function (b) {
-      b.addEventListener('click', function () { UI.showScreen('lobby'); });
-    });
-    document.querySelectorAll('[data-action="open-notes"]').forEach(function (b) {
-      b.addEventListener('click', function (ev) { ev.preventDefault(); UI.setNotes(true); });
-    });
-    document.querySelectorAll('[data-action="go-home"]').forEach(function (b) {
-      b.addEventListener('click', function () { UI.showScreen('site'); });
-    });
+      'leaveBtn', 'minimap'].forEach(function (id) { e[id] = $(id); });
 
     /* colour picker */
     SA.COLORS.forEach(function (c, i) {
@@ -50,20 +31,20 @@
         UI.colorIdx = i;
         Array.prototype.forEach.call(e.colorPicker.children, function (n) { n.classList.remove('sel'); });
         b.classList.add('sel');
-        try { localStorage.setItem('sp_color', String(i)); } catch (err) {}
+        try { localStorage.setItem('sa_color', String(i)); } catch (err) {}
       });
       e.colorPicker.appendChild(b);
     });
     var savedColor = 0, savedName = '';
     try {
-      savedColor = parseInt(localStorage.getItem('sp_color') || '0', 10) || 0;
-      savedName = localStorage.getItem('sp_name') || '';
+      savedColor = parseInt(localStorage.getItem('sa_color') || '0', 10) || 0;
+      savedName = localStorage.getItem('sa_name') || '';
     } catch (err) {}
     UI.colorIdx = savedColor % SA.COLORS.length;
     e.colorPicker.children[UI.colorIdx].classList.add('sel');
     e.nameInput.value = savedName;
     e.nameInput.addEventListener('input', function () {
-      try { localStorage.setItem('sp_name', e.nameInput.value); } catch (err) {}
+      try { localStorage.setItem('sa_name', e.nameInput.value); } catch (err) {}
     });
 
     /* tabs */
@@ -89,7 +70,6 @@
     e.copyBtn.addEventListener('click', function () { UI.copy(e.shareLink.value, e.copyBtn); });
     e.roomCopy.addEventListener('click', function () { UI.copy(UI.inviteLink || location.href, e.roomCopy); });
     e.leaveBtn.addEventListener('click', function () { UI.handlers.leave && UI.handlers.leave(); });
-    e.notesBtn.addEventListener('click', function () { UI.setNotes(true); });
     e.soundBtn.addEventListener('click', function () {
       SA.Sound.set(!SA.Sound.isOn());
       e.soundBtn.textContent = SA.Sound.isOn() ? '🔊' : '🔇';
@@ -119,17 +99,10 @@
 
   UI.showScreen = function (name) {
     UI.lastScreen = name;
-    UI.els.siteScreen.classList.toggle('hidden', name !== 'site');
-    UI.els.lobbyScreen.classList.toggle('hidden', name !== 'lobby');
+    UI.els.menuScreen.classList.toggle('hidden', name !== 'menu');
     UI.els.gameScreen.classList.toggle('hidden', name !== 'game');
     document.body.style.overflow = name === 'game' ? 'hidden' : '';
     if (name === 'game' && UI.handlers.resize) UI.handlers.resize();
-  };
-
-  UI.setNotes = function (on) {
-    UI.notesOpen = on;
-    UI.els.notesOverlay.classList.toggle('hidden', !on);
-    if (on) window.scrollTo(0, 0);
   };
 
   UI.playerName = function () {
@@ -229,7 +202,7 @@
   };
 
   UI.setScores = function (rows) {
-    var html = '<div class="score-head">Study group</div>';
+    var html = '<div class="score-head">Players</div>';
     rows.slice(0, 8).forEach(function (r) {
       html += '<div class="score-row' + (r.me ? ' me' : '') + '">' +
         '<span class="score-dot" style="background:' + SA.COLORS[r.c % SA.COLORS.length] +
@@ -248,7 +221,7 @@
     var col = function (i) { return SA.COLORS[(i || 0) % SA.COLORS.length]; };
     if (ev.a) {
       el.innerHTML = '<b style="color:' + col(ev.ca) + '">' + escapeHtml(ev.a) + '</b> ' +
-        '<span style="opacity:.6">defeated</span> <b style="color:' + col(ev.cb) + '">' + escapeHtml(ev.b) + '</b>';
+        '<span style="opacity:.6">killed</span> <b style="color:' + col(ev.cb) + '">' + escapeHtml(ev.b) + '</b>';
     } else {
       el.innerHTML = '<b style="color:' + col(ev.cb) + '">' + escapeHtml(ev.b) + '</b> <span style="opacity:.6">was eliminated</span>';
     }

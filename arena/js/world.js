@@ -1,4 +1,4 @@
-/* Study Portal — arena map: generation, collision, line of sight.
+/* Skill Arena — arena map: generation, collision, line of sight.
    The map is generated from the room code, so every player builds the
    identical arena without anyone having to download it. */
 (function (SA) {

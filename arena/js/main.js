@@ -1,4 +1,4 @@
-/* Study Portal — wiring: input, game loop, host/client roles. */
+/* Skill Arena — wiring: input, game loop, host/client roles. */
 (function (SA) {
   'use strict';
 
@@ -63,13 +63,6 @@
   function bindInput() {
     window.addEventListener('keydown', function (e) {
       var k = e.key.toLowerCase();
-
-      if (k === 'escape') {
-        e.preventDefault();
-        UI.setNotes(!UI.notesOpen);
-        return;
-      }
-      if (UI.notesOpen) return;
       if (document.activeElement && /input|textarea/i.test(document.activeElement.tagName)) return;
 
       keys[k] = true;
@@ -167,7 +160,7 @@
     UI.setPing('offline');
     ensureRenderer();
     UI.showScreen('game');
-    UI.toast('Solo practice — defeat 1 opponent to reach level 2');
+    UI.toast('Solo match — kill 1 opponent to reach level 2');
     startLoop();
   }
 
@@ -205,7 +198,7 @@
       startKeepAlive();
     }).catch(function (err) {
       UI.netStatus('Could not reach a relay (' + (err && err.message ? err.message : 'network blocked') +
-        '). You can still play solo practice.', 'err');
+        '). You can still play a solo match.', 'err');
       G.mode = 'idle';
     });
   }
@@ -235,7 +228,7 @@
         if (++tries > 6) {
           clearInterval(G.joinTimer);
           UI.netStatus('No one is hosting room ' + code + ' right now. Ask your friend to keep their tab open, or create the room yourself.', 'err');
-          UI.showScreen('lobby');
+          UI.showScreen('menu');
           shutdown();
           return;
         }
@@ -346,7 +339,7 @@
     } else if (msg.t === 'full') {
       if (msg.id !== G.myId) return;
       UI.netStatus('That room is full.', 'err');
-      UI.showScreen('lobby');
+      UI.showScreen('menu');
       shutdown();
     } else if (msg.t === 'r') {
       G.roster = {};
@@ -370,7 +363,7 @@
       UI.toast('The host closed the room.', 4000);
       UI.netStatus('The host closed the room.', 'err');
       shutdown();
-      UI.showScreen('lobby');
+      UI.showScreen('menu');
     }
   }
 
@@ -636,7 +629,7 @@
         UI.toast('Lost contact with the host.', 4000);
         UI.netStatus('Lost contact with the host — their tab may have closed.', 'err');
         shutdown();
-        UI.showScreen('lobby');
+        UI.showScreen('menu');
         return;
       }
     } else {
@@ -746,7 +739,7 @@
       join: function (code) { startClient(code); },
       solo: function () { startSolo(parseInt(document.getElementById('botRangeSolo').value, 10)); },
       pick: pickSkill,
-      leave: function () { shutdown(); UI.showScreen('lobby'); UI.netStatus(''); },
+      leave: function () { shutdown(); UI.showScreen('menu'); UI.netStatus(''); },
       resize: function () { if (G.renderer) G.renderer.resize(); }
     });
     bindInput();
@@ -754,7 +747,7 @@
     var params = new URLSearchParams(location.search);
     var room = (params.get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (room) {
-      UI.showScreen('lobby');
+      UI.showScreen('menu');
       document.querySelector('.tab[data-tab="join"]').click();
       document.getElementById('joinCode').value = room;
       UI.netStatus('You were invited to room ' + room + '. Enter a name and press Join.', 'ok');
