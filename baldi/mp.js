@@ -166,14 +166,57 @@
   var CATCH_R = 2.3;
   var RAGE_CATCH_R = 3.6;
   var HEAD_START = 10;      // seconds before Baldi can catch anyone
+  var RING = 2 * Math.PI * 27;   // circumference of the cooldown ring
 
   var SKILLS = [
-    { id: 'sprint', icon: '⚡', name: 'SPRINT', cd: 14, desc: '4s of speed' },
-    { id: 'listen', icon: '👂', name: 'LISTEN', cd: 20, desc: 'see them for 5s' },
-    { id: 'ruler', icon: '📏', name: 'RULER', cd: 12, desc: 'throw, stuns 2.5s' },
-    { id: 'warp', icon: '🌀', name: 'WARP', cd: 30, desc: 'jump to a notebook' },
-    { id: 'rage', icon: '😡', name: 'RAGE', cd: 26, desc: '6s, longer reach' }
+    { id: 'sprint', name: 'SPRINT', cd: 14, desc: '4s of speed' },
+    { id: 'listen', name: 'LISTEN', cd: 20, desc: 'see them for 5s' },
+    { id: 'ruler', name: 'RULER', cd: 12, desc: 'throw, stuns 2.5s' },
+    { id: 'warp', name: 'WARP', cd: 30, desc: 'jump to a notebook' },
+    { id: 'rage', name: 'RAGE', cd: 26, desc: '6s, longer reach' }
   ];
+
+  /* drawn icons, not emoji: each is a set of 24x24 paths used both as inline
+     SVG on the buttons and as Path2D on the wheel canvas */
+  var ICONS = {
+    sprint: [{ d: 'M13.4 2.2 5 13.4h5.1l-1.1 8.4L19 10.2h-5.2z', fill: true }],
+    listen: [{ d: 'M7.4 9.6a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4z', fill: true },
+             { d: 'M12.2 8.1a5.6 5.6 0 0 1 0 8.4' },
+             { d: 'M15.9 5a10.2 10.2 0 0 1 0 14.6' }],
+    ruler: [{ d: 'M3.2 14.9 14.9 3.2l5.9 5.9L9.1 20.8z' },
+            { d: 'M6.7 11.5 8.9 13.7' }, { d: 'M9.7 8.5 11.9 10.7' }, { d: 'M12.7 5.5 14.9 7.7' }],
+    warp: [{ d: 'M12 3.6a8.4 8.4 0 1 1-7.8 11.5' },
+           { d: 'M12 7.9a4.2 4.2 0 1 0 3.9 5.7' },
+           { d: 'M4.2 15.1 2.4 12.2M4.2 15.1 7.5 14.6' }],
+    rage: [{ d: 'M4.6 8.1 10.2 11' }, { d: 'M19.4 8.1 13.8 11' },
+           { d: 'M8.8 13.9v2.1' }, { d: 'M15.2 13.9v2.1' },
+           { d: 'M8.2 19.5q3.8-2.9 7.6 0' }]
+  };
+
+  function iconSvg(id, cls) {
+    var d = ICONS[id] || [];
+    var inner = '';
+    for (var i = 0; i < d.length; i++) {
+      inner += '<path d="' + d[i].d + '"' + (d[i].fill ? ' fill="currentColor" stroke="none"' : '') + '/>';
+    }
+    return '<svg class="' + (cls || 'ico') + '" viewBox="0 0 24 24" aria-hidden="true">' + inner + '</svg>';
+  }
+
+  /* the same paths, painted onto the wheel canvas */
+  function iconOnCanvas(x, id, cx, cy, size, color) {
+    var defs = ICONS[id];
+    if (!defs || typeof Path2D === 'undefined') return;
+    x.save();
+    x.translate(cx - size / 2, cy - size / 2);
+    x.scale(size / 24, size / 24);
+    x.lineWidth = 2; x.lineCap = 'round'; x.lineJoin = 'round';
+    x.strokeStyle = color; x.fillStyle = color;
+    for (var i = 0; i < defs.length; i++) {
+      var p = new Path2D(defs[i].d);
+      if (defs[i].fill) x.fill(p); else x.stroke(p);
+    }
+    x.restore();
+  }
 
   /* deterministic worlds: every peer builds the same school from the code */
   function withSeed(seed, fn) {
@@ -220,12 +263,23 @@
       'font-family:inherit;color:#e8ecf6;font-size:13px;letter-spacing:.5px;pointer-events:none;text-align:center}',
       '#mpHud b{color:#ffd76a}',
       '#mpHud .tag{color:#7fd7ff;font-weight:700}',
-      '#mpSkills{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:40;display:none;gap:8px}',
-      '#mpSkills .sk{width:52px;height:52px;border-radius:10px;background:rgba(8,12,20,.8);',
-      'border:1px solid rgba(255,255,255,.16);position:relative;overflow:hidden;display:grid;place-items:center}',
-      '#mpSkills .sk .i{font-size:20px}',
-      '#mpSkills .sk .n{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:8px;color:#a9b6d3}',
-      '#mpSkills .sk .cd{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.66)}',
+      '#mpSkills{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);z-index:40;display:none;gap:16px}',
+      '#mpSkills .sk{position:relative;width:60px;height:60px}',
+      '#mpSkills .sk .ring{position:absolute;inset:0;width:60px;height:60px;transform:rotate(-90deg)}',
+      '#mpSkills .sk .ring .track{fill:rgba(9,13,22,.82);stroke:rgba(255,255,255,.15);stroke-width:3}',
+      '#mpSkills .sk .ring .sweep{fill:none;stroke:#7fd7ff;stroke-width:3;stroke-linecap:round}',
+      '#mpSkills .sk .ico{position:absolute;left:50%;top:50%;width:27px;height:27px;',
+      'transform:translate(-50%,-50%);color:#dbe6ff;fill:none;stroke:currentColor;stroke-width:2;',
+      'stroke-linecap:round;stroke-linejoin:round}',
+      '#mpSkills .sk .num{position:absolute;inset:0;display:none;place-items:center;',
+      'font:800 18px system-ui,sans-serif;color:#fff;text-shadow:0 2px 6px #000}',
+      '#mpSkills .sk .nm{position:absolute;left:50%;top:64px;transform:translateX(-50%);',
+      'font:700 9px system-ui,sans-serif;letter-spacing:.7px;color:#8f9dbd;white-space:nowrap}',
+      '#mpSkills .sk.ready .ring .track{stroke:rgba(127,215,255,.5)}',
+      '#mpSkills .sk.ready .ico{color:#fff}',
+      '#mpSkills .sk.cooling .ico{opacity:.25}',
+      '#mpSkills .sk.cooling .num{display:grid}',
+      '#mpSkills .sk.cooling .ring .sweep{stroke:#4d6cf5}',
       '#mpWheel{position:fixed;inset:0;z-index:60;display:none;pointer-events:none}',
       '#mpResult{position:fixed;inset:0;z-index:75;display:none;align-items:center;justify-content:center;',
       'background:rgba(4,8,14,.9);color:#fff;font-family:inherit;text-align:center}',
@@ -234,7 +288,14 @@
       '#mpResult p{color:#a9b6d3;font-size:14px;line-height:1.6;margin:0 0 18px}',
       '#mpResult button{background:#4d6cf5;border:0;color:#fff;border-radius:8px;padding:12px 26px;',
       'font:inherit;font-size:14px;font-weight:700;cursor:pointer}',
-      '#mpFlash{position:fixed;inset:0;z-index:55;background:#c0392b;opacity:0;pointer-events:none;transition:opacity .18s}'
+      '#mpFlash{position:fixed;inset:0;z-index:55;background:#c0392b;opacity:0;pointer-events:none;transition:opacity .18s}',
+      '#mpCaught{position:fixed;inset:0;z-index:74;display:none;align-items:center;justify-content:center;',
+      'background:rgba(4,8,14,.9);color:#fff;font-family:inherit;text-align:center}',
+      '#mpCaught .r{max-width:440px}',
+      '#mpCaught h2{font-size:34px;margin:0 0 10px;letter-spacing:2px}',
+      '#mpCaught p{color:#a9b6d3;font-size:14px;line-height:1.6;margin:0 0 18px}',
+      '#mpCaught button{background:#222c46;border:0;color:#dfe5f4;border-radius:8px;padding:11px 22px;',
+      'font:inherit;font-size:13px;font-weight:700;cursor:pointer}'
     ].join('');
     document.head.appendChild(css);
 
@@ -273,7 +334,10 @@
       '<canvas id="mpWheel"></canvas>',
       '<div id="mpFlash"></div>',
       '<div id="mpResult"><div class="r"><h2 id="mpResultTitle">—</h2><p id="mpResultText"></p>',
-      '<button id="mpResultBtn">BACK TO THE MENU</button></div></div>'
+      '<button id="mpResultBtn">BACK TO THE MENU</button></div></div>',
+      '<div id="mpCaught"><div class="r"><h2 style="color:#ff8f84">BALDI CAUGHT YOU</h2>',
+      '<p>Sit tight — the rest of the class is still in there.</p>',
+      '<button id="mpCaughtBtn">LEAVE THE ROOM</button></div></div>'
     ].join('');
     while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
 
@@ -297,17 +361,28 @@
     el('mpStart').addEventListener('click', function () { hostStart(); });
     el('mpResultBtn').addEventListener('click', function () {
       el('mpResult').style.display = 'none';
+      el('mpCaught').style.display = 'none';
+      leaveRoom();
+      if (typeof returnToTitle === 'function') returnToTitle();
+    });
+    el('mpCaughtBtn').addEventListener('click', function () {
+      el('mpCaught').style.display = 'none';
       leaveRoom();
       if (typeof returnToTitle === 'function') returnToTitle();
     });
     el('mpCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') joinRoom(); });
 
     var skills = el('mpSkills');
-    SKILLS.forEach(function (s, i) {
+    SKILLS.forEach(function (s) {
       var d = document.createElement('div');
       d.className = 'sk';
       d.id = 'mpsk_' + s.id;
-      d.innerHTML = '<span class="i">' + s.icon + '</span><span class="n">' + s.name + '</span><span class="cd"></span>';
+      d.innerHTML =
+        '<svg class="ring" viewBox="0 0 60 60">' +
+        '<circle class="track" cx="30" cy="30" r="27"/>' +
+        '<circle class="sweep" cx="30" cy="30" r="27" stroke-dasharray="' + RING + '" stroke-dashoffset="0"/>' +
+        '</svg>' + iconSvg(s.id) +
+        '<span class="num"></span><span class="nm">' + s.name + '</span>';
       skills.appendChild(d);
     });
   }
@@ -408,6 +483,10 @@
     el('mpHud').style.display = 'none';
     el('mpSkills').style.display = 'none';
     el('mpWheel').style.display = 'none';
+    el('mpCaught').style.display = 'none';
+    MP.inScare = false;
+    MP.pendingResult = null;
+    try { UI.el('staminaWrap').style.display = ''; UI.el('nbCount').style.display = ''; } catch (e) {}
   }
 
   function renderList() {
@@ -507,6 +586,9 @@
     MP.sprintT = MP.revealT = MP.rageT = MP.stunT = 0; MP.rulers = [];
     el('mpLobby').style.display = 'none';
     el('mpLobby').classList.add('hidden');
+    el('mpCaught').style.display = 'none';
+    el('mpResult').style.display = 'none';
+    MP.inScare = false;
     if (el('modeSelect')) el('modeSelect').classList.add('hidden');
     if (typeof Audio1 !== 'undefined') { Audio1.init(); Audio1.resume(); }
 
@@ -524,6 +606,7 @@
       if (b) { b.disabled = 1; b.active = false; if (b.model && b.model.root) b.model.root.visible = false; }
       G.loadFactor = 1.18;
       UI.el('nbCount').style.display = 'none';
+      UI.el('staminaWrap').style.display = 'none';   // he never runs out, and it sat on the skill row
       el('mpSkills').style.display = 'flex';
       /* start away from the class, the same way the AI Baldi would */
       var spot = null;
@@ -654,18 +737,27 @@
   function finish(winner, why) {
     if (MP.over) return;
     MP.over = winner || 'none';
+    if (MP.isHost && MP.relay) {
+      MP.relay.pub({ t: 'w', k: ++MP.tick, p: worldPlayers(), nb: MP.teamNb, over: winner || 'none', why: why || '' });
+    }
+    /* if the jumpscare is on screen, let it finish before covering it up */
+    if (MP.inScare) { MP.pendingResult = { w: winner, why: why }; return; }
+    showResult(winner, why);
+  }
+
+  function showResult(winner, why) {
     var won = (winner === 'hunter' && MP.role === 'hunter') || (winner === 'runners' && MP.role === 'runner');
     el('mpResultTitle').textContent = winner === 'hunter' ? 'BALDI WINS' : (winner === 'runners' ? 'THE STUDENTS WIN' : 'MATCH OVER');
     el('mpResultTitle').style.color = won ? '#7dfa9a' : '#ff8f84';
     el('mpResultText').textContent = why || '';
+    el('mpCaught').style.display = 'none';
     el('mpResult').style.display = 'flex';
     el('mpWheel').style.display = 'none';
+    el('mpHud').style.display = 'none';
+    el('mpSkills').style.display = 'none';
     G.mode = 'over';
     G.running = false;
     document.exitPointerLock && document.exitPointerLock();
-    if (MP.isHost && MP.relay) {
-      MP.relay.pub({ t: 'w', k: ++MP.tick, p: worldPlayers(), nb: MP.teamNb, over: winner || 'none', why: why || '' });
-    }
   }
 
   function flashRed() {
@@ -674,14 +766,34 @@
     setTimeout(function () { f.style.opacity = '0'; }, 220);
   }
 
-  function getCaught(byName) {
+  /* the real thing: hand over to the game's own jumpscare, then land on our
+     own screen instead of the title */
+  function getCaught() {
     if (MP.caught) return;
     MP.caught = true;
     MP.spectating = true;
+    el('mpHud').style.display = 'none';
+    el('mpSkills').style.display = 'none';
+    el('mpWheel').style.display = 'none';
+    var b = G.ents && G.ents.baldi;
+    if (b && b.model && G.mode !== 'over') {
+      var hunter = null;
+      for (var id in MP.players) if (MP.players[id].role === 'hunter') hunter = MP.players[id];
+      if (hunter && hunter.x !== null) { b.x = hunter.x; b.z = hunter.z; }
+      if (b.model.root) b.model.root.visible = true;
+      MP.inScare = true;
+      try { origCaught(b); return; } catch (e) { MP.inScare = false; }
+    }
     flashRed();
-    if (typeof Audio1 !== 'undefined') { try { Audio1.slap(); Audio1.jumpscare(false); } catch (e) {} }
-    if (UI) UI.say('BALDI CAUGHT YOU', 4000);
-    updateHud();
+    if (typeof Audio1 !== 'undefined') { try { Audio1.slap(); } catch (e) {} }
+    showCaughtScreen();
+  }
+
+  function showCaughtScreen() {
+    if (MP.over) return;
+    el('mpCaught').style.display = 'flex';
+    el('mpHud').style.display = 'none';
+    el('mpSkills').style.display = 'none';
   }
 
   /* ------------------------------------------------------ world snapshots */
@@ -813,9 +925,7 @@
       var tx = cx + Math.cos(am) * rm, ty = cy + Math.sin(am) * rm;
       x.textAlign = 'center';
       x.globalAlpha = ready ? 1 : 0.45;
-      x.font = '26px system-ui';
-      x.fillStyle = '#fff';
-      x.fillText(s.icon, tx, ty - 2);
+      iconOnCanvas(x, s.id, tx, ty - 8, 30, '#ffffff');
       x.font = 'bold 12px system-ui';
       x.fillStyle = i === pick ? '#fff' : '#b9c3dc';
       x.fillText(s.name, tx, ty + 20);
@@ -907,13 +1017,19 @@
     if (typeof Audio1 !== 'undefined') { try { Audio1.bell(); } catch (e) {} }
   }
 
+  /* the ring draws itself back in as the skill recharges */
   function drawSkillBar() {
     for (var i = 0; i < SKILLS.length; i++) {
       var s = SKILLS[i];
       var d = el('mpsk_' + s.id);
       if (!d) continue;
       var cd = MP.cds[s.id] || 0;
-      d.querySelector('.cd').style.height = (clamp01(cd / s.cd) * 100) + '%';
+      var frac = clamp01(cd / s.cd);
+      var sweep = d.querySelector('.sweep');
+      if (sweep) sweep.setAttribute('stroke-dashoffset', (RING * frac).toFixed(1));
+      var num = d.querySelector('.num');
+      if (num) num.textContent = cd > 0 ? String(Math.ceil(cd)) : '';
+      d.className = 'sk ' + (cd > 0 ? 'cooling' : 'ready');
     }
   }
 
@@ -1067,9 +1183,11 @@
   }
 
   function hostTick() {
-    /* drop players who stopped talking to us */
+    /* drop players who stopped talking to us — but a caught one has gone quiet
+       on purpose, they are sitting on the jumpscare screen watching */
     for (var id in MP.players) {
       var p = MP.players[id];
+      if (p.caught) continue;
       if (now() - p.seen > 12) { removeAvatar(p); delete MP.players[id]; renderList(); }
     }
   }
@@ -1160,6 +1278,20 @@
   };
 
   window.returnToTitle = function () {
+    /* the jumpscare finishes by going to the title screen — in a match we stay
+       in the room instead and watch the rest of it */
+    if (MP.active && MP.inScare) {
+      MP.inScare = false;
+      var r = origReturnToTitle();
+      if (MP.pendingResult) {
+        var pr = MP.pendingResult;
+        MP.pendingResult = null;
+        showResult(pr.w, pr.why);
+      } else {
+        showCaughtScreen();
+      }
+      return r;
+    }
     if (MP.active) leaveRoom();
     return origReturnToTitle();
   };
