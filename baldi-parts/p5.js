@@ -158,39 +158,31 @@
     caught: false, escaped: false, spectating: false,
     sendAcc: 0, tick: 0,
     lastWorld: 0,
-    cds: {}, sprintT: 0, revealT: 0, rageT: 0, stunT: 0,
-    rulers: [], wheelOpen: false, wheelVec: { x: 0, y: 0 }, wheelPick: -1
+    cds: {}, revealT: 0, rageT: 0, stunT: 0, rulers: []
   };
 
   var SEND_HZ = 12;
   var CATCH_R = 2.3;
   var RAGE_CATCH_R = 3.6;
   var HEAD_START = 10;      // seconds before Baldi can catch anyone
-  var RING = 2 * Math.PI * 27;   // circumference of the cooldown ring
 
+  /* Three things Baldi can do, one key each. */
   var SKILLS = [
-    { id: 'sprint', name: 'SPRINT', cd: 14, desc: '4s of speed' },
-    { id: 'listen', name: 'LISTEN', cd: 20, desc: 'see them for 5s' },
-    { id: 'ruler', name: 'RULER', cd: 12, desc: 'throw, stuns 2.5s' },
-    { id: 'warp', name: 'WARP', cd: 30, desc: 'jump to a notebook' },
-    { id: 'rage', name: 'RAGE', cd: 26, desc: '6s, longer reach' }
+    { id: 'ruler', key: '1', code: 'Digit1', name: 'RULER', chalk: '#3fe0ff', cd: 10, desc: 'throw it — they freeze' },
+    { id: 'listen', key: '2', code: 'Digit2', name: 'LISTEN', chalk: '#5cff5c', cd: 18, desc: 'hear them through walls' },
+    { id: 'anger', key: '3', code: 'Digit3', name: 'ANGER', chalk: '#ffd84a', cd: 22, desc: 'faster, longer reach' }
   ];
 
-  /* drawn icons, not emoji: each is a set of 24x24 paths used both as inline
-     SVG on the buttons and as Path2D on the wheel canvas */
+  /* chalk drawings, not emoji — 24x24 paths */
   var ICONS = {
-    sprint: [{ d: 'M13.4 2.2 5 13.4h5.1l-1.1 8.4L19 10.2h-5.2z', fill: true }],
+    ruler: [{ d: 'M3.2 14.9 14.9 3.2l5.9 5.9L9.1 20.8z' },
+            { d: 'M6.7 11.5 8.9 13.7' }, { d: 'M9.7 8.5 11.9 10.7' }, { d: 'M12.7 5.5 14.9 7.7' }],
     listen: [{ d: 'M7.4 9.6a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4z', fill: true },
              { d: 'M12.2 8.1a5.6 5.6 0 0 1 0 8.4' },
              { d: 'M15.9 5a10.2 10.2 0 0 1 0 14.6' }],
-    ruler: [{ d: 'M3.2 14.9 14.9 3.2l5.9 5.9L9.1 20.8z' },
-            { d: 'M6.7 11.5 8.9 13.7' }, { d: 'M9.7 8.5 11.9 10.7' }, { d: 'M12.7 5.5 14.9 7.7' }],
-    warp: [{ d: 'M12 3.6a8.4 8.4 0 1 1-7.8 11.5' },
-           { d: 'M12 7.9a4.2 4.2 0 1 0 3.9 5.7' },
-           { d: 'M4.2 15.1 2.4 12.2M4.2 15.1 7.5 14.6' }],
-    rage: [{ d: 'M4.6 8.1 10.2 11' }, { d: 'M19.4 8.1 13.8 11' },
-           { d: 'M8.8 13.9v2.1' }, { d: 'M15.2 13.9v2.1' },
-           { d: 'M8.2 19.5q3.8-2.9 7.6 0' }]
+    anger: [{ d: 'M4.6 8.1 10.2 11' }, { d: 'M19.4 8.1 13.8 11' },
+            { d: 'M8.8 13.9v2.1' }, { d: 'M15.2 13.9v2.1' },
+            { d: 'M8.2 19.5q3.8-2.9 7.6 0' }]
   };
 
   function iconSvg(id, cls) {
@@ -199,23 +191,8 @@
     for (var i = 0; i < d.length; i++) {
       inner += '<path d="' + d[i].d + '"' + (d[i].fill ? ' fill="currentColor" stroke="none"' : '') + '/>';
     }
-    return '<svg class="' + (cls || 'ico') + '" viewBox="0 0 24 24" aria-hidden="true">' + inner + '</svg>';
-  }
-
-  /* the same paths, painted onto the wheel canvas */
-  function iconOnCanvas(x, id, cx, cy, size, color) {
-    var defs = ICONS[id];
-    if (!defs || typeof Path2D === 'undefined') return;
-    x.save();
-    x.translate(cx - size / 2, cy - size / 2);
-    x.scale(size / 24, size / 24);
-    x.lineWidth = 2; x.lineCap = 'round'; x.lineJoin = 'round';
-    x.strokeStyle = color; x.fillStyle = color;
-    for (var i = 0; i < defs.length; i++) {
-      var p = new Path2D(defs[i].d);
-      if (defs[i].fill) x.fill(p); else x.stroke(p);
-    }
-    x.restore();
+    return '<svg class="' + (cls || 'ico') + '" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<g filter="url(#mpChalk)">' + inner + '</g></svg>';
   }
 
   /* deterministic worlds: every peer builds the same school from the code */
@@ -263,24 +240,33 @@
       'font-family:inherit;color:#e8ecf6;font-size:13px;letter-spacing:.5px;pointer-events:none;text-align:center}',
       '#mpHud b{color:#ffd76a}',
       '#mpHud .tag{color:#7fd7ff;font-weight:700}',
-      '#mpSkills{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);z-index:40;display:none;gap:16px}',
-      '#mpSkills .sk{position:relative;width:60px;height:60px}',
-      '#mpSkills .sk .ring{position:absolute;inset:0;width:60px;height:60px;transform:rotate(-90deg)}',
-      '#mpSkills .sk .ring .track{fill:rgba(9,13,22,.82);stroke:rgba(255,255,255,.15);stroke-width:3}',
-      '#mpSkills .sk .ring .sweep{fill:none;stroke:#7fd7ff;stroke-width:3;stroke-linecap:round}',
-      '#mpSkills .sk .ico{position:absolute;left:50%;top:50%;width:27px;height:27px;',
-      'transform:translate(-50%,-50%);color:#dbe6ff;fill:none;stroke:currentColor;stroke-width:2;',
-      'stroke-linecap:round;stroke-linejoin:round}',
-      '#mpSkills .sk .num{position:absolute;inset:0;display:none;place-items:center;',
-      'font:800 18px system-ui,sans-serif;color:#fff;text-shadow:0 2px 6px #000}',
-      '#mpSkills .sk .nm{position:absolute;left:50%;top:64px;transform:translateX(-50%);',
-      'font:700 9px system-ui,sans-serif;letter-spacing:.7px;color:#8f9dbd;white-space:nowrap}',
-      '#mpSkills .sk.ready .ring .track{stroke:rgba(127,215,255,.5)}',
-      '#mpSkills .sk.ready .ico{color:#fff}',
-      '#mpSkills .sk.cooling .ico{opacity:.25}',
+      /* three little chalkboards, propped up like the one on the title screen */
+      '#mpSkills{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:40;',
+      'display:none;gap:22px;align-items:flex-end;font-family:"Comic Sans MS","Chalkboard SE",cursive}',
+      '#mpSkills .sk{position:relative;width:106px;height:92px;background:#0d0d0d;',
+      'border:6px solid #e08a2e;border-radius:6px;box-shadow:0 8px 0 rgba(0,0,0,.4),',
+      'inset 0 0 34px rgba(255,255,255,.05);transition:transform .12s,filter .12s}',
+      '#mpSkills .sk:nth-child(1){transform:rotate(-3deg)}',
+      '#mpSkills .sk:nth-child(2){transform:rotate(1.5deg)}',
+      '#mpSkills .sk:nth-child(3){transform:rotate(-1.5deg)}',
+      '#mpSkills .sk .ico{position:absolute;left:50%;top:14px;width:34px;height:34px;',
+      'transform:translateX(-50%);color:#fff;fill:none;stroke:currentColor;stroke-width:2.2;',
+      'stroke-linecap:round;stroke-linejoin:round;opacity:.95}',
+      '#mpSkills .sk .nm{position:absolute;left:0;right:0;bottom:7px;text-align:center;',
+      'font-size:16px;line-height:1;-webkit-text-stroke:1px rgba(0,0,0,.85);',
+      'text-shadow:2px 2px 0 rgba(0,0,0,.75)}',
+      '#mpSkills .sk .key{position:absolute;left:-11px;top:-13px;width:26px;height:26px;',
+      'border-radius:50%;background:#fdf6e0;border:3px solid #000;color:#111;font-size:14px;',
+      'display:grid;place-items:center;transform:rotate(-8deg);box-shadow:2px 3px 0 rgba(0,0,0,.45)}',
+      '#mpSkills .sk .num{position:absolute;inset:0;display:none;place-items:center;font-size:40px;',
+      'color:#ff7b6b;-webkit-text-stroke:1px #000;text-shadow:2px 3px 0 rgba(0,0,0,.7)}',
+      '#mpSkills .sk .line{position:absolute;left:9%;right:9%;bottom:29px;height:3px;',
+      'background:#fff;opacity:.55;transform-origin:left center;border-radius:2px}',
+      '#mpSkills .sk.cooling{filter:grayscale(.7) brightness(.78)}',
+      '#mpSkills .sk.cooling .ico{opacity:.35}',
+      '#mpSkills .sk.cooling .nm{opacity:.45}',
       '#mpSkills .sk.cooling .num{display:grid}',
-      '#mpSkills .sk.cooling .ring .sweep{stroke:#4d6cf5}',
-      '#mpWheel{position:fixed;inset:0;z-index:60;display:none;pointer-events:none}',
+      '#mpSkills .sk.fire{transform:scale(1.14) rotate(0deg) !important}',
       '#mpResult{position:fixed;inset:0;z-index:75;display:none;align-items:center;justify-content:center;',
       'background:rgba(4,8,14,.9);color:#fff;font-family:inherit;text-align:center}',
       '#mpResult .r{max-width:460px}',
@@ -331,7 +317,9 @@
       '</div>',
       '<div id="mpHud"></div>',
       '<div id="mpSkills"></div>',
-      '<canvas id="mpWheel"></canvas>',
+      '<svg width="0" height="0" style="position:absolute"><filter id="mpChalk">',
+      '<feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" result="n"/>',
+      '<feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/></filter></svg>',
       '<div id="mpFlash"></div>',
       '<div id="mpResult"><div class="r"><h2 id="mpResultTitle">—</h2><p id="mpResultText"></p>',
       '<button id="mpResultBtn">BACK TO THE MENU</button></div></div>',
@@ -377,14 +365,15 @@
       var d = document.createElement('div');
       d.className = 'sk';
       d.id = 'mpsk_' + s.id;
-      d.innerHTML =
-        '<svg class="ring" viewBox="0 0 60 60">' +
-        '<circle class="track" cx="30" cy="30" r="27"/>' +
-        '<circle class="sweep" cx="30" cy="30" r="27" stroke-dasharray="' + RING + '" stroke-dashoffset="0"/>' +
-        '</svg>' + iconSvg(s.id) +
-        '<span class="num"></span><span class="nm">' + s.name + '</span>';
+      d.title = s.name + ' — ' + s.desc;
+      d.innerHTML = iconSvg(s.id) +
+        '<span class="line"></span>' +
+        '<span class="num"></span>' +
+        '<span class="nm" style="color:' + s.chalk + '">' + s.name + '</span>' +
+        '<span class="key">' + s.key + '</span>';
       skills.appendChild(d);
     });
+    bindSkillClicks();
   }
 
   function status(text, bad) {
@@ -478,15 +467,19 @@
     clearAvatars();
     MP.relay = null; MP.active = false; MP.joined = false; MP.players = {};
     MP.over = null; MP.caught = false; MP.escaped = false; MP.spectating = false;
-    MP.teamNb = 0; MP.cds = {}; MP.sprintT = MP.revealT = MP.rageT = MP.stunT = 0;
+    MP.teamNb = 0; MP.cds = {}; MP.revealT = MP.rageT = MP.stunT = 0;
     MP.rulers = [];
     el('mpHud').style.display = 'none';
     el('mpSkills').style.display = 'none';
-    el('mpWheel').style.display = 'none';
     el('mpCaught').style.display = 'none';
     MP.inScare = false;
     MP.pendingResult = null;
-    try { UI.el('staminaWrap').style.display = ''; UI.el('nbCount').style.display = ''; } catch (e) {}
+    try {
+      UI.el('staminaWrap').style.display = '';
+      UI.el('nbCount').style.display = '';
+      UI.el('items').style.display = '';
+      UI.el('subtitle').style.bottom = '';
+    } catch (e) {}
   }
 
   function renderList() {
@@ -583,7 +576,7 @@
   function startMatch() {
     MP.active = true; MP.over = null; MP.caught = false; MP.escaped = false;
     MP.spectating = false; MP.teamNb = 0; MP.cds = {};
-    MP.sprintT = MP.revealT = MP.rageT = MP.stunT = 0; MP.rulers = [];
+    MP.revealT = MP.rageT = MP.stunT = 0; MP.rulers = [];
     el('mpLobby').style.display = 'none';
     el('mpLobby').classList.add('hidden');
     el('mpCaught').style.display = 'none';
@@ -607,6 +600,8 @@
       G.loadFactor = 1.18;
       UI.el('nbCount').style.display = 'none';
       UI.el('staminaWrap').style.display = 'none';   // he never runs out, and it sat on the skill row
+      UI.el('items').style.display = 'none';         // and he carries nothing, so 1/2/3 are his
+      UI.el('subtitle').style.bottom = '24%';        // clear of the chalkboards
       el('mpSkills').style.display = 'flex';
       /* start away from the class, the same way the AI Baldi would */
       var spot = null;
@@ -752,7 +747,6 @@
     el('mpResultText').textContent = why || '';
     el('mpCaught').style.display = 'none';
     el('mpResult').style.display = 'flex';
-    el('mpWheel').style.display = 'none';
     el('mpHud').style.display = 'none';
     el('mpSkills').style.display = 'none';
     G.mode = 'over';
@@ -774,7 +768,6 @@
     MP.spectating = true;
     el('mpHud').style.display = 'none';
     el('mpSkills').style.display = 'none';
-    el('mpWheel').style.display = 'none';
     var b = G.ents && G.ents.baldi;
     if (b && b.model && G.mode !== 'over') {
       var hunter = null;
@@ -848,7 +841,7 @@
     updateHud();
   }
 
-  /* ----------------------------------------------------------- HUD + wheel */
+  /* ------------------------------------------------------------- HUD + skills */
   function updateHud() {
     if (!MP.active) return;
     var alive = 0, total = 0, caughtN = 0;
@@ -872,7 +865,7 @@
     if (MP.role === 'hunter') {
       h.innerHTML = grtxt + '<span class="tag">YOU ARE BALDI</span> — catch them all · <b>' + alive + '</b> still running' +
         (caughtN ? ' · ' + caughtN + ' caught' : '') + ' · notebooks <b>' + MP.teamNb + '/' + G.total + '</b>' +
-        '<br><span style="font-size:11px;color:#94a3c4">hold Q or right mouse, draw to a skill, let go</span>';
+        '<br><span style="font-size:11px;color:#94a3c4">press 1, 2 or 3 to use a skill</span>';
     } else {
       h.innerHTML = grtxt + '<span class="tag">STUDENT</span> · team notebooks <b>' + MP.teamNb + '/' + G.total + '</b>' +
         ' · <b>' + alive + '</b> still running' +
@@ -888,106 +881,21 @@
   };
   MP.SKILLS = SKILLS;
 
-  function drawWheel() {
-    var cv = el('mpWheel');
-    if (cv.width !== window.innerWidth) { cv.width = window.innerWidth; cv.height = window.innerHeight; }
-    var x = cv.getContext('2d');
-    x.clearRect(0, 0, cv.width, cv.height);
-    var cx = cv.width / 2, cy = cv.height / 2, R = 168, r0 = 58;
-    var n = SKILLS.length;
-    var vx = MP.wheelVec.x, vy = MP.wheelVec.y;
-    var len = Math.hypot(vx, vy);
-    var ang = Math.atan2(vy, vx);
-    var pick = -1;
-    if (len > 42) {
-      var a = (ang + Math.PI * 2.5) % (Math.PI * 2);      // 0 at the top
-      pick = Math.floor(a / (Math.PI * 2 / n)) % n;
-    }
-    MP.wheelPick = pick;
-
-    for (var i = 0; i < n; i++) {
-      var s = SKILLS[i];
-      var a0 = -Math.PI / 2 + (i / n) * Math.PI * 2;
-      var a1 = -Math.PI / 2 + ((i + 1) / n) * Math.PI * 2;
-      var ready = skillReady(s.id);
-      x.beginPath();
-      x.arc(cx, cy, R, a0, a1);
-      x.arc(cx, cy, r0, a1, a0, true);
-      x.closePath();
-      x.fillStyle = i === pick ? (ready ? 'rgba(77,108,245,.92)' : 'rgba(120,60,60,.9)')
-        : (ready ? 'rgba(16,22,38,.86)' : 'rgba(16,22,38,.55)');
-      x.fill();
-      x.strokeStyle = 'rgba(255,255,255,.18)';
-      x.lineWidth = 2;
-      x.stroke();
-
-      var am = (a0 + a1) / 2, rm = (R + r0) / 2;
-      var tx = cx + Math.cos(am) * rm, ty = cy + Math.sin(am) * rm;
-      x.textAlign = 'center';
-      x.globalAlpha = ready ? 1 : 0.45;
-      iconOnCanvas(x, s.id, tx, ty - 8, 30, '#ffffff');
-      x.font = 'bold 12px system-ui';
-      x.fillStyle = i === pick ? '#fff' : '#b9c3dc';
-      x.fillText(s.name, tx, ty + 20);
-      x.font = '10px system-ui';
-      x.fillStyle = '#94a3c4';
-      x.fillText(ready ? s.desc : Math.ceil(MP.cds[s.id]) + 's', tx, ty + 34);
-      x.globalAlpha = 1;
-    }
-
-    /* the line you draw */
-    x.strokeStyle = '#7fd7ff';
-    x.lineWidth = 5;
-    x.lineCap = 'round';
-    x.beginPath();
-    x.moveTo(cx, cy);
-    x.lineTo(cx + vx, cy + vy);
-    x.stroke();
-    x.fillStyle = '#7fd7ff';
-    x.beginPath(); x.arc(cx + vx, cy + vy, 7, 0, Math.PI * 2); x.fill();
-    x.fillStyle = 'rgba(16,22,38,.9)';
-    x.beginPath(); x.arc(cx, cy, r0 - 6, 0, Math.PI * 2); x.fill();
-    x.fillStyle = '#cfd8ee';
-    x.font = 'bold 13px system-ui';
-    x.textAlign = 'center';
-    x.fillText('DRAW', cx, cy - 2);
-    x.font = '11px system-ui';
-    x.fillStyle = '#8b97b5';
-    x.fillText('then let go', cx, cy + 14);
-  }
-
-  function openWheel() {
-    if (!MP.active || MP.role !== 'hunter' || MP.over) return;
-    MP.wheelOpen = true;
-    MP.wheelVec.x = MP.wheelVec.y = 0;
-    el('mpWheel').style.display = 'block';
-    drawWheel();
-  }
-  function closeWheel(cast) {
-    if (!MP.wheelOpen) return;
-    MP.wheelOpen = false;
-    el('mpWheel').style.display = 'none';
-    if (cast && MP.wheelPick >= 0) useSkill(SKILLS[MP.wheelPick]);
-    MP.wheelPick = -1;
-  }
-
   function useSkill(s) {
-    if (!skillReady(s.id)) { if (UI) UI.say(s.name + ' is not ready', 1200); return; }
+    if (!MP.active || MP.role !== 'hunter' || MP.over || MP.caught) return;
+    if (!skillReady(s.id)) { if (UI) UI.say(s.name + ' is not ready yet!', 1200); return; }
     MP.cds[s.id] = s.cd;
-    if (s.id === 'sprint') {
-      MP.sprintT = 4;
-      if (UI) UI.say('SPRINT!', 1500);
-    } else if (s.id === 'listen') {
+    popSkill(s.id);
+    if (s.id === 'listen') {
       MP.revealT = 5;
-      if (UI) UI.say('LISTENING…', 1500);
+      if (UI) UI.say('I HEAR YOU…', 1600);
       if (typeof Audio1 !== 'undefined') { try { Audio1.bell(); } catch (e) {} }
     } else if (s.id === 'ruler') {
       throwRuler();
-    } else if (s.id === 'warp') {
-      warpToNotebook();
-    } else if (s.id === 'rage') {
+      if (UI) UI.say('CATCH!', 1200);
+    } else if (s.id === 'anger') {
       MP.rageT = 6;
-      if (UI) UI.say('BALDI IS FURIOUS', 2000);
+      if (UI) UI.say('YOU MADE ME ANGRY!', 2000);
       if (typeof Audio1 !== 'undefined') { try { Audio1.slap(); } catch (e) {} }
     }
     drawSkillBar();
@@ -1007,30 +915,29 @@
     if (typeof Audio1 !== 'undefined') { try { Audio1.slap(); } catch (e) {} }
   }
 
-  function warpToNotebook() {
-    var open = [];
-    for (var i = 0; i < G.nbList.length; i++) if (!G.nbList[i].mpTaken) open.push(G.nbList[i]);
-    if (!open.length) { if (UI) UI.say('No notebooks left to guard', 1600); return; }
-    var t = open[Math.floor(Math.random() * open.length)];
-    G.player.x = t.x; G.player.z = t.z;
-    if (UI) UI.say('WARPED TO A NOTEBOOK', 1800);
-    if (typeof Audio1 !== 'undefined') { try { Audio1.bell(); } catch (e) {} }
-  }
 
-  /* the ring draws itself back in as the skill recharges */
+  /* the chalk line under the drawing fills back in as the skill recharges */
   function drawSkillBar() {
     for (var i = 0; i < SKILLS.length; i++) {
       var s = SKILLS[i];
       var d = el('mpsk_' + s.id);
       if (!d) continue;
       var cd = MP.cds[s.id] || 0;
-      var frac = clamp01(cd / s.cd);
-      var sweep = d.querySelector('.sweep');
-      if (sweep) sweep.setAttribute('stroke-dashoffset', (RING * frac).toFixed(1));
+      var line = d.querySelector('.line');
+      if (line) line.style.transform = 'scaleX(' + (1 - clamp01(cd / s.cd)).toFixed(3) + ')';
       var num = d.querySelector('.num');
       if (num) num.textContent = cd > 0 ? String(Math.ceil(cd)) : '';
-      d.className = 'sk ' + (cd > 0 ? 'cooling' : 'ready');
+      var cooling = cd > 0;
+      if (d.classList.contains('cooling') !== cooling) d.classList.toggle('cooling', cooling);
     }
+  }
+
+  /* a quick chalk squeak of a pop when one goes off */
+  function popSkill(id) {
+    var d = el('mpsk_' + id);
+    if (!d) return;
+    d.classList.add('fire');
+    setTimeout(function () { d.classList.remove('fire'); }, 130);
   }
 
   /* -------------------------------------------------------------- patches */
@@ -1055,7 +962,7 @@
 
     if (MP.role === 'hunter') {
       p.energy = 5;                                    // Baldi never runs out of breath
-      G.loadFactor = 1.18 * (MP.sprintT > 0 ? 1.75 : 1) * (MP.rageT > 0 ? 1.35 : 1);
+      G.loadFactor = 1.18 * (MP.rageT > 0 ? 1.62 : 1);
     }
 
     origUpdatePlayer(dt);
@@ -1068,13 +975,11 @@
     if (MP.isHost) hostTick(dt);
     MP.hudAcc = (MP.hudAcc || 0) + dt;
     if (MP.hudAcc > 0.25) { MP.hudAcc = 0; updateHud(); }
-    if (MP.wheelOpen) drawWheel();
     drawSkillBar();
   };
 
   function tickTimers(dt) {
     for (var k in MP.cds) if (MP.cds[k] > 0) MP.cds[k] = Math.max(0, MP.cds[k] - dt);
-    if (MP.sprintT > 0) MP.sprintT -= dt;
     if (MP.revealT > 0) MP.revealT -= dt;
     if (MP.rageT > 0) MP.rageT -= dt;
   }
@@ -1317,33 +1222,30 @@
   };
 
   /* ---------------------------------------------------------------- input */
+  /* one key per skill, and the tiles are clickable too when the mouse is free */
   function bindInput() {
     window.addEventListener('keydown', function (e) {
-      if (!MP.active || MP.role !== 'hunter') return;
-      if (e.code === 'KeyQ' && !MP.wheelOpen && !e.repeat) { openWheel(); e.preventDefault(); }
+      if (!MP.active || MP.role !== 'hunter' || e.repeat) return;
+      if (document.activeElement && /input|textarea/i.test(document.activeElement.tagName)) return;
+      for (var i = 0; i < SKILLS.length; i++) {
+        if (e.code === SKILLS[i].code || e.code === 'Numpad' + SKILLS[i].key) {
+          useSkill(SKILLS[i]);
+          e.preventDefault();
+          e.stopImmediatePropagation();   // keep it off the game's item slots
+          return;
+        }
+      }
     }, true);
-    window.addEventListener('keyup', function (e) {
-      if (e.code === 'KeyQ' && MP.wheelOpen) { closeWheel(true); e.preventDefault(); }
-    }, true);
-    window.addEventListener('mousedown', function (e) {
-      if (!MP.active || MP.role !== 'hunter') return;
-      if (e.button === 2) { openWheel(); e.preventDefault(); e.stopImmediatePropagation(); }
-    }, true);
-    window.addEventListener('mouseup', function (e) {
-      if (e.button === 2 && MP.wheelOpen) { closeWheel(true); e.preventDefault(); e.stopImmediatePropagation(); }
-    }, true);
-    /* while the wheel is up the mouse draws instead of looking around */
-    window.addEventListener('mousemove', function (e) {
-      if (!MP.wheelOpen) return;
-      MP.wheelVec.x += (e.movementX || 0);
-      MP.wheelVec.y += (e.movementY || 0);
-      var len = Math.hypot(MP.wheelVec.x, MP.wheelVec.y);
-      if (len > 168) { MP.wheelVec.x *= 168 / len; MP.wheelVec.y *= 168 / len; }
-      drawWheel();
-      e.stopImmediatePropagation();
-      e.preventDefault();
-    }, true);
-    window.addEventListener('contextmenu', function (e) { if (MP.active) e.preventDefault(); });
+  }
+
+  function bindSkillClicks() {
+    SKILLS.forEach(function (s) {
+      var d = el('mpsk_' + s.id);
+      if (!d) return;
+      d.style.pointerEvents = 'auto';
+      d.style.cursor = 'pointer';
+      d.addEventListener('click', function () { useSkill(s); });
+    });
   }
 
   /* ----------------------------------------------------------------- boot */
