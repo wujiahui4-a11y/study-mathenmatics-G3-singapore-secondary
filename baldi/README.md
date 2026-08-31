@@ -10,18 +10,19 @@ the others; the students share one pile of notebooks and have to reach an exit.
   reaches an exit wins it for the whole class.
 * Students get a **10 second head start** before Baldi can catch anybody.
 
-## Baldi's skill wheel
+## Baldi's skills
 
-Hold **Q** or the **right mouse button**, draw outwards towards the skill you
-want, and let go.
+Three of them, one key each, shown as three little chalkboards along the
+bottom of the screen.
 
-| Skill | Effect | Cooldown |
-| --- | --- | --- |
-| ⚡ Sprint | 4 seconds of extra speed | 14 s |
-| 👂 Listen | see every student through walls and on the minimap for 5 s | 20 s |
-| 📏 Ruler | throw a ruler; a hit freezes that student for 2.5 s | 12 s |
-| 🌀 Warp | jump to a notebook nobody has taken yet | 30 s |
-| 😡 Rage | 6 seconds of speed and a much longer reach | 26 s |
+| Key | Skill | Effect | Cooldown |
+| --- | --- | --- | --- |
+| `1` | Ruler | throw it; a hit freezes that student for 2.5 s | 10 s |
+| `2` | Listen | see every student through walls and on the minimap for 5 s | 18 s |
+| `3` | Anger | 6 seconds of speed and a much longer reach | 22 s |
+
+A board greys out while it recharges, with the seconds left written across it
+and the chalk line under the drawing filling back in.
 
 ## Playing
 
