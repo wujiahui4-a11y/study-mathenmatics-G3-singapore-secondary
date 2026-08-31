@@ -65,10 +65,59 @@ positions and publishes the world 12 times a second on
 
 ## Building
 
-`baldi-multiplayer.html` in the repository root is generated — the game, the
-MQTT client and `mp.js` inlined into one file you can host anywhere or open
-straight from disk:
+Two builds come out of the same sources.
+
+**One file** — `baldi-multiplayer.html` in the repository root: the game, the
+MQTT client and `mp.js` inlined, 2.2 MB. Host it anywhere or open it straight
+from disk.
 
 ```bash
 node tools/build-baldi.js
 ```
+
+**Split** — `baldi-parts/`: a 45 kB shell plus five separate scripts. Some
+hosts cannot serve a 2.2 MB document in one piece; Google Apps Script for
+instance truncates it, which leaves a script block cut in half and the page
+dies with `SyntaxError: Unexpected end of input`. This build keeps the
+document small and loads each script on its own.
+
+```bash
+node tools/build-baldi-parts.js
+```
+
+`baldi-parts/index.html` references its scripts as `__PART_BASE__?p=N`, so
+whoever serves it substitutes its own address. `index.local.html` is the same
+shell with plain filenames, for opening from disk.
+
+### Serving the split build from Google Apps Script
+
+Useful when the network blocks ordinary hosting but allows `google.com`.
+New project at script.google.com, paste this, then Deploy → Web app →
+Execute as **Me**, Access **Anyone**:
+
+```javascript
+const BASE = 'https://raw.githubusercontent.com/wujiahui4-a11y/'
+  + 'study-mathenmatics-G3-singapore-secondary/'
+  + 'cursor/baldi-multiplayer-mode-9b82/baldi-parts/';
+
+function doGet(e) {
+  if (e.parameter.p) {
+    return ContentService
+      .createTextOutput(UrlFetchApp.fetch(BASE + 'p' + e.parameter.p + '.js').getContentText())
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  const html = UrlFetchApp.fetch(BASE + 'index.html').getContentText()
+    .replace(/__PART_BASE__/g, ScriptApp.getService().getUrl());
+  return HtmlService.createHtmlOutput(html).setTitle('Study Notes Hub');
+}
+```
+
+The page then asks the same web app for each script in turn, so nothing bigger
+than 900 kB is ever served in one response.
+
+### If it does not start
+
+The built pages carry a small probe. If the 3D never appears it waits, retries
+start-up once, and then says which of three things went wrong: the file did
+not arrive in full, the browser refused a WebGL canvas, or start-up threw —
+in which case it prints the exception.

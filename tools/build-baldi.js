@@ -17,76 +17,8 @@ const mp = fs.readFileSync(path.join(src, 'mp.js'), 'utf8');
 
 const guard = (js) => js.replace(/<\/script/gi, '<\\/script');
 
-/* A tiny checker placed near the top of the file, so it still runs even if the
-   page arrives truncated. If the 3D never starts it says why instead of
-   leaving a black screen. */
-const probe = `<script>
-(function(){
-  window.__bbProbe = true;
-  /* remember the first thing that blew up, whatever it was */
-  window.__bbErr = null;
-  window.addEventListener('error', function(e){
-    if (window.__bbErr) return;
-    window.__bbErr = (e.message || 'error') +
-      (e.filename ? ' — ' + String(e.filename).split('/').pop() : '') +
-      (e.lineno ? ':' + e.lineno : '');
-  }, true);
-  window.addEventListener('unhandledrejection', function(e){
-    if (window.__bbErr) return;
-    var r = e.reason;
-    window.__bbErr = 'promise rejected: ' + ((r && r.message) || r);
-  });
-  function webglOk(){
-    try {
-      var c = document.createElement('canvas');
-      return !!(c.getContext('webgl2') || c.getContext('webgl') || c.getContext('experimental-webgl'));
-    } catch (e) { return false; }
-  }
-  function show(title, lines){
-    var d = document.createElement('div');
-    d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:#161b26;color:#e8ecf6;'
-      + 'font:14px/1.6 system-ui,sans-serif;padding:16px 20px;border-bottom:3px solid #ff8f84';
-    d.innerHTML = '<b style="color:#ff8f84">' + title + '</b><br>' + lines.join('<br>');
-    document.body.appendChild(d);
-  }
-  /* G is a top level const, so it lives in the global lexical scope and is
-     not a property of window — it has to be read as a bare identifier. */
-  function gameRunning(){ try { return !!(G && G.renderer); } catch (e) { return false; } }
-  setTimeout(function(){
-    if (gameRunning()) return;                          // all good
-    if (!window.__bbGameLoaded) {
-      show('The page did not finish loading.', [
-        'Only part of the file arrived, so the game never started.',
-        'This usually means whatever is serving the page cut it off — it is about 2.2 MB.',
-        'Try opening the file directly, or from a host that can serve the whole thing.'
-      ]);
-    } else if (!webglOk()) {
-      show('3D is switched off in this browser.', [
-        'The page loaded, but this device will not give the game a WebGL canvas.',
-        'In Chrome: Settings &rarr; System &rarr; turn on "Use graphics acceleration when available", then restart the browser.',
-        'On a school-managed device this may be blocked by policy.'
-      ]);
-    } else {
-      /* run start-up again inside a try/catch: it either tells us exactly what
-         throws, or it quietly fixes a one-off timing failure */
-      var msg = window.__bbErr;
-      try {
-        if (typeof boot === 'function') boot();
-        else msg = msg || 'the game script never defined boot() — it stopped early';
-      } catch (err) {
-        msg = (err && (err.message || err.name)) || String(err);
-      }
-      if (gameRunning()) return;
-      show('The game failed to start.', [
-        'WebGL works and the whole file loaded, so something threw during start-up:',
-        '<code style="color:#ffd76a">' + (msg || 'no error was reported') + '</code>',
-        'Send that line over and it can be fixed.'
-      ]);
-    }
-  }, 6000);
-})();
-</script>
-`;
+const probe = fs.readFileSync(path.join(__dirname, 'baldi-probe.html'), 'utf8');
+
 
 const marker = '</body>';
 const at = base.lastIndexOf(marker);
