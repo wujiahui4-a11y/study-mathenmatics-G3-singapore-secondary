@@ -524,6 +524,19 @@
 <script>
 (function(){
   window.__bbProbe = true;
+  /* remember the first thing that blew up, whatever it was */
+  window.__bbErr = null;
+  window.addEventListener('error', function(e){
+    if (window.__bbErr) return;
+    window.__bbErr = (e.message || 'error') +
+      (e.filename ? ' — ' + String(e.filename).split('/').pop() : '') +
+      (e.lineno ? ':' + e.lineno : '');
+  }, true);
+  window.addEventListener('unhandledrejection', function(e){
+    if (window.__bbErr) return;
+    var r = e.reason;
+    window.__bbErr = 'promise rejected: ' + ((r && r.message) || r);
+  });
   function webglOk(){
     try {
       var c = document.createElement('canvas');
@@ -555,7 +568,21 @@
         'On a school-managed device this may be blocked by policy.'
       ]);
     } else {
-      show('The game failed to start.', ['WebGL works and the file loaded, so something else threw during start-up.']);
+      /* run start-up again inside a try/catch: it either tells us exactly what
+         throws, or it quietly fixes a one-off timing failure */
+      var msg = window.__bbErr;
+      try {
+        if (typeof boot === 'function') boot();
+        else msg = msg || 'the game script never defined boot() — it stopped early';
+      } catch (err) {
+        msg = (err && (err.message || err.name)) || String(err);
+      }
+      if (gameRunning()) return;
+      show('The game failed to start.', [
+        'WebGL works and the whole file loaded, so something threw during start-up:',
+        '<code style="color:#ffd76a">' + (msg || 'no error was reported') + '</code>',
+        'Send that line over and it can be fixed.'
+      ]);
     }
   }, 6000);
 })();
