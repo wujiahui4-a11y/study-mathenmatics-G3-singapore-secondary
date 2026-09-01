@@ -25,7 +25,7 @@ time cancels. You cannot switch at all while awakened.
 
 ## Gojo's awakening
 
-A meter under the ability bar fills while Gojo fights — fastest from hits you
+A meter under the ability bar fills while either fighter fights — fastest from hits you
 land and hits you take, slowly the rest of the time. At full it lights up and
 `F` takes the blindfold off.
 
@@ -54,7 +54,56 @@ anyone standing inside it on their own screen, and each technique is announced
 so the other clients play the matching effect from the right place, facing the
 right way.
 
+## Naoya's awakening
+
+The same meter, spent differently. `F` starts a **twenty second run**: you
+steer it with the mouse and A/D, it leaves fog, mud, rubble and afterimages
+behind, and anything it touches is thrown and goes limp. It softens people up
+rather than killing them — it always leaves one health — because the run has
+to end on somebody still standing.
+
+It ends with a drift, a hand dragged through the floor, and a punch into
+whoever was left hanging. That punch opens a cut only the two of them see.
+
+The cut is played on a stage built nine hundred units above the city, so the
+arena is never taken apart and every other player carries on watching the pair
+of them stand still. It runs through eleven beats:
+
+1. a green room full of branches, the victim held in a frame, and one punch
+   taken as slowly as it can be taken
+2. the frame goes, the gut folds, three rings leave the belly
+3. one second of a still ink panel, cut in with nothing either side
+4. a wall of packed earth with colour blooming out of it, faster and faster,
+   until it bursts
+5. a slab of ground hanging in the air, boot on the belly, the mountain
+   coming apart behind
+6. off, run, and put them down through the slab — which loses its middle
+   plate, so there is a hole and rubble where the strike landed
+7. down after them, and the ground goes too
+8. they get up into a circle of speed with nobody in it
+9. the uppercut, and the frame in the sky
+10. twenty four passes and one fist through the middle of it
+11. white, and back to the arena
+
+The victim's client plays the same eleven beats from the other end of the
+fist, driven by one message; the finisher's damage is applied by the victim at
+the end of their own copy, because a hit arriving while a cut is running would
+be thrown away.
+
+## Dying
+
+Dying used to burst the body into loose boxes. The rig goes limp instead: the
+hips carry the momentum of whatever killed you, the body tumbles, the joints
+swing on springs with nothing driving them and lag behind the body when it
+turns, and it lands and settles into a heap that stays there until the
+respawn. Anything the rush catches gets the same treatment and picks itself up
+a couple of seconds after it stops rolling.
+
 ## Getting hit
+
+**No techniques while you are being hit.** Every cast is refused for as long
+as the flinch or the throw lasts; the punch and the dash stay available, so
+there is still a way out.
 
 A hit hard enough to move you — anything over an impulse of seventeen —
 throws you rather than making you flinch. The throw is an *action*, not a
@@ -271,8 +320,10 @@ disk.
 | --- | --- |
 | `base.html` | the original game, untouched |
 | `vfx.js` | the effects kit: impact frames, rings, slashes, beams, domes |
+| `ragdoll.js` | limp bodies, and the heaps they settle into |
 | `combat.js` | the longer dash, the throw, and the eight second fighter swap |
-| `gojo.js` | the awakening meter, its entrance and the four techniques |
+| `gojo.js` | the awakening meter, Gojo's entrance and his four techniques |
+| `naoya.js` | Naoya's run, and the cut it ends in |
 | `mp.js` | the online mode, appended inside the game's module |
 | `three.module.min.js` | vendored three.js 0.160.0 |
 | `mqtt.min.js` | vendored MQTT client |
