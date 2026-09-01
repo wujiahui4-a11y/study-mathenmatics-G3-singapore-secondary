@@ -21582,6 +21582,13 @@ else boot();
       '#mpResult button{background:#4d6cf5;border:0;color:#fff;border-radius:8px;padding:12px 26px;',
       'font:inherit;font-size:14px;font-weight:700;cursor:pointer}',
       '#mpFlash{position:fixed;inset:0;z-index:55;background:#c0392b;opacity:0;pointer-events:none;transition:opacity .18s}',
+      '#mpClick{position:fixed;inset:0;z-index:58;display:none;align-items:center;justify-content:center;',
+      'background:rgba(0,0,0,.45);cursor:pointer;font-family:"Comic Sans MS","Chalkboard SE",cursive}',
+      '#mpClick .card{background:#0d0d0d;border:9px solid #e08a2e;border-radius:6px;padding:26px 40px;',
+      'text-align:center;transform:rotate(-1.6deg);box-shadow:0 10px 0 rgba(0,0,0,.4)}',
+      '#mpClick b{display:block;font-size:30px;color:#3fe0ff;-webkit-text-stroke:1px rgba(0,0,0,.8);',
+      'text-shadow:3px 3px 0 rgba(0,0,0,.6)}',
+      '#mpClick span{display:block;margin-top:10px;font-size:14px;color:#ffe98a;text-shadow:2px 2px 0 #000}',
       '#mpCaught{position:fixed;inset:0;z-index:74;display:none;align-items:center;justify-content:center;',
       'background:rgba(4,8,14,.9);color:#fff;font-family:inherit;text-align:center}',
       '#mpCaught .r{max-width:440px}',
@@ -21628,6 +21635,8 @@ else boot();
       '<feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" result="n"/>',
       '<feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/></filter></svg>',
       '<div id="mpFlash"></div>',
+      '<div id="mpClick"><div class="card"><b>CLICK TO LOOK AROUND</b>',
+      '<span>move the mouse to look · Esc lets it go</span></div></div>',
       '<div id="mpResult"><div class="r"><h2 id="mpResultTitle">—</h2><p id="mpResultText"></p>',
       '<button id="mpResultBtn">BACK TO THE MENU</button></div></div>',
       '<div id="mpCaught"><div class="r"><h2 style="color:#ff8f84">BALDI CAUGHT YOU</h2>',
@@ -21771,6 +21780,8 @@ else boot();
       MP.relay.stop();
     }
     if (MP.joinTimer) clearInterval(MP.joinTimer);
+    if (MP.lockTimer) { clearInterval(MP.lockTimer); MP.lockTimer = null; }
+    el('mpClick').style.display = 'none';
     clearAvatars();
     MP.relay = null; MP.active = false; MP.joined = false; MP.players = {};
     MP.over = null; MP.caught = false; MP.escaped = false; MP.spectating = false;
@@ -21932,6 +21943,12 @@ else boot();
     el('mpHud').style.display = 'block';
     updateHud();
     ensureAvatars();
+
+    MP.lockFails = 0; MP.lockGaveUp = false; MP.triedFullscreen = false;
+    try { lockDenied = false; } catch (e) {}
+    if (MP.lockTimer) clearInterval(MP.lockTimer);
+    MP.lockTimer = setInterval(lockWatch, 200);
+    lockWatch();
   }
 
   /* ------------------------------------------------------------- avatars */
@@ -22529,6 +22546,101 @@ else boot();
   };
 
   /* ---------------------------------------------------------------- input */
+  /* ------------------------------------------------------------ mouse look
+     The game asks for pointer lock once, programmatically, right after a level
+     loads. A browser refuses a lock that is not tied to a click, and the game
+     then latches lockDenied and never asks again — which leaves you turning by
+     shoving the cursor at the edge of the screen for the rest of the match.
+     Here it is asked for properly on a click, retried, and only given up on
+     after a few genuine refusals. */
+  function pointerIsLocked() {
+    var v = document.getElementById('view');
+    return document.pointerLockElement === v || !!document.pointerLockElement;
+  }
+
+  function grabMouse() {
+    var view = document.getElementById('view');
+    if (!view || !view.requestPointerLock) return;
+    try { lockDenied = false; } catch (e) {}
+    G.paused = false;
+    var pr = null;
+    /* unadjustedMovement skips the desktop's mouse acceleration curve, which
+       is what makes a browser FPS feel right */
+    try { pr = view.requestPointerLock({ unadjustedMovement: true }); } catch (e) { pr = null; }
+    if (pr === undefined) return;                       // old API, events will tell us
+    if (!pr) { try { view.requestPointerLock(); } catch (e2) {} return; }
+    if (pr.catch) {
+      pr.catch(function () {
+        var p2;
+        try { p2 = view.requestPointerLock(); } catch (e) { fullscreenRetry(); return; }
+        if (p2 && p2.catch) p2.catch(function () { fullscreenRetry(); });
+      });
+    }
+  }
+
+  /* Inside an iframe a lock can be refused with "the root document of this
+     element is not valid" — going fullscreen first makes it the root. */
+  function fullscreenRetry() {
+    if (MP.triedFullscreen) return;
+    MP.triedFullscreen = true;
+    var root = document.documentElement;
+    var fs = root.requestFullscreen || root.webkitRequestFullscreen || root.mozRequestFullScreen;
+    if (!fs || document.fullscreenElement) return;
+    var again = function () {
+      setTimeout(function () {
+        var view = document.getElementById('view');
+        try { lockDenied = false; view.requestPointerLock(); } catch (e) {}
+      }, 260);
+    };
+    var r;
+    try { r = fs.call(root); } catch (e) { return; }
+    if (r && r.then) r.then(again, function () {}); else again();
+  }
+
+  /* keep the click-to-look card in step with the real lock state, and never
+     let the single player pause screen freeze a live match */
+  function lockWatch() {
+    if (!MP.active) { el('mpClick').style.display = 'none'; return; }
+    if (G.paused) {
+      G.paused = false;
+      var ph = UI.el('pauseHint');
+      if (ph) ph.classList.add('hidden');
+    }
+    var playing = G.mode === 'play' && !MP.over && !MP.caught;
+    if (!playing || MP.lockGaveUp) { el('mpClick').style.display = 'none'; return; }
+    var locked = pointerIsLocked();
+    if (!locked) { try { lockDenied = false; } catch (e) {} }
+    var lh = UI.el('lookHint');
+    if (lh) lh.classList.add('hidden');
+    el('mpClick').style.display = locked ? 'none' : 'flex';
+  }
+
+  function bindLook() {
+    el('mpClick').addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      grabMouse();
+    });
+    document.addEventListener('pointerlockchange', function () {
+      if (pointerIsLocked()) { MP.lockFails = 0; MP.lockGaveUp = false; }
+      lockWatch();
+    });
+    document.addEventListener('pointerlockerror', function () {
+      if (!MP.active) return;
+      MP.lockFails = (MP.lockFails || 0) + 1;
+      /* three real refusals: stop fighting it and hand back the game's own
+         look-by-moving fallback so the player is never stuck */
+      if (MP.lockFails >= 3) {
+        MP.lockGaveUp = true;
+        try { lockDenied = true; } catch (e) {}
+        var lh = UI.el('lookHint');
+        if (lh) lh.classList.remove('hidden');
+        if (UI) UI.say('This page will not lock the mouse — move it to look instead.', 5000);
+      }
+      lockWatch();
+    });
+  }
+
   /* one key per skill, and the tiles are clickable too when the mouse is free */
   function bindInput() {
     window.addEventListener('keydown', function (e) {
@@ -22560,6 +22672,7 @@ else boot();
     if (!document.getElementById('modeCards')) { setTimeout(start, 200); return; }
     injectUI();
     bindInput();
+    bindLook();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();

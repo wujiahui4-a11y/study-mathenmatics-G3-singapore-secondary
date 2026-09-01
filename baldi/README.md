@@ -25,6 +25,22 @@ bottom of the screen.
 A board greys out while it recharges, with the seconds left written across it
 and the chalk line under the drawing filling back in.
 
+## Mouse look
+
+A match asks for pointer lock on a click, the way any first person game does,
+and puts a **CLICK TO LOOK AROUND** card up whenever the mouse is loose. Press
+`Esc` to get the cursor back, click to take it again.
+
+The single player code asks for the lock once, programmatically, as soon as a
+level loads. Browsers refuse a lock that is not tied to a click, and the game
+then latches that refusal and never asks again, which leaves you turning by
+pushing the cursor into the edge of the screen. In a match the lock is asked
+for again on the click, with `unadjustedMovement` so the desktop's mouse
+acceleration is out of the way, and if a page really will not allow it — an
+iframe without `allow-pointer-lock`, for instance — it retries in fullscreen
+before giving up and handing back the game's own look-by-moving fallback. The
+single player pause card is also kept from freezing a live match.
+
 ## Playing
 
 Mode screen → **MULTIPLAYER**.
