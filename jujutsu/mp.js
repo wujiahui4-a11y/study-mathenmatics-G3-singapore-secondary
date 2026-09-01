@@ -548,6 +548,12 @@
       g.visYaw = (m.vy || 0) / 100;
       g.attack = m.at || 0;
       g.action = m.ac ? { type: m.ac, t: (m.ap || 0) / 100, dur: (m.ad || 1) / 100 } : null;
+      /* a flinch they are already playing: start ours from the same point.
+         One that is already running is left alone — applyReact expires it on
+         its own, so a packet that arrives mid-flinch cannot cut it short. */
+      if (m.rk && (!g.e.react || g.e.react.type !== m.rk)) {
+        g.e.react = { type: m.rk, t: (m.rt || 0) / 100, dur: (m.rd || 50) / 100, side: m.rs || 1 };
+      }
       g.e.drawBars();
       return;
     }
@@ -561,6 +567,11 @@
       var k = null;
       if (m.kx || m.ky || m.kz) k = new THREE.Vector3(m.kx || 0, m.ky || 0, m.kz || 0);
       hurtPlayer(m.d, k);
+      /* the same flinch the dummies play, on us — but not while the hit is
+         being shrugged off by spawn protection */
+      if (m.rk && !player.dead && player.iframes <= 0) {
+        player.react = { type: m.rk, t: 0, dur: m.rd || .5, side: m.rs || 1 };
+      }
       MP.lastHitBy = m.id;
       if (player.dead) {
         MP.deaths++;
@@ -649,7 +660,6 @@
     CS.orbit = player.facing + Math.PI;
     var d = CUT[CS.char] || CUT.gojo;
     player.vel.set(0, 0, 0);
-    player.iframes = Math.max(player.iframes, CS.dur + 3.2);
     el('jjCine').style.display = 'block';
     el('jjCine').classList.add('on');
     hudDuring(false);                          // a cutscene wants a clean frame
@@ -880,9 +890,22 @@
 
   /* --------------------------------------------------------------- hooks */
   var _updatePlayer = updatePlayer;
+  /* Enemy.applyReact only ever touches rig, react and animT, so the dummies'
+     flinch animations can be run on the player with a stand-in object. */
+  var selfReact = { rig: null, react: null, animT: 0 };
+  function stepSelfReact(dt) {
+    if (!player.react) return;
+    if (player.dead || CS.active) { player.react = null; return; }
+    selfReact.rig = player.rig;
+    selfReact.animT = player.animT;
+    selfReact.react = player.react;
+    Enemy.prototype.applyReact.call(selfReact, dt);
+    player.react = selfReact.react;           // cleared for us when it finishes
+  }
+
   updatePlayer = function (dt) {
     if (CS.active) stepCutscene(dt);          // you stand still and pose
-    else _updatePlayer(dt);
+    else { _updatePlayer(dt); stepSelfReact(dt); }
     if (!MP.active) return;
     announceCasts();
     stepFighters(dt);
@@ -926,9 +949,21 @@
   Enemy.prototype.damage = function (amount, knock, opts) {
     if (!this.net) return _enemyDamage.call(this, amount, knock, opts);
     if (this.dead) return;
+    opts = opts || {};
     var msg = { t: 'hit', id: MP.id, to: this.net.id, d: amount };
     if (knock) { msg.kx = round2(knock.x); msg.ky = round2(knock.y); msg.kz = round2(knock.z); }
+    /* carry the reaction the attack asked for, so they flinch the same way a
+       dummy would have */
+    if (opts.react) {
+      msg.rk = opts.react;
+      msg.rd = opts.reactDur == null ? .5 : opts.reactDur;
+      msg.rs = opts.side == null ? (Math.random() < .5 ? -1 : 1) : opts.side;
+    }
     if (MP.relay) MP.relay.pub(msg);
+    /* show it on them straight away; their own broadcast confirms it */
+    if (opts.react) {
+      this.react = { type: opts.react, t: 0, dur: msg.rd, side: msg.rs };
+    }
     /* local feedback right away, their broadcast corrects the bar */
     this.hp = Math.max(0, this.hp - amount);
     this.drawBars();
@@ -999,6 +1034,8 @@
       player.visYaw = savedVis;
     }
 
+    if (e.react) { try { e.applyReact(dt); } catch (err) { e.react = null; } }
+
     r.root.rotation.y = e.facing + (f.visYaw || 0);
     r.root.position.copy(e.pos);
   }
@@ -1021,7 +1058,11 @@
       at: player.attackT > 0 ? (player.attackArm + 1) : 0,
       ac: player.action ? player.action.type : 0,
       ap: player.action ? Math.round(player.action.t * 100) : 0,
-      ad: player.action ? Math.round(player.action.dur * 100) : 0
+      ad: player.action ? Math.round(player.action.dur * 100) : 0,
+      rk: player.react ? player.react.type : 0,
+      rt: player.react ? Math.round(player.react.t * 100) : 0,
+      rd: player.react ? Math.round(player.react.dur * 100) : 0,
+      rs: player.react ? player.react.side : 0
     });
   }
 

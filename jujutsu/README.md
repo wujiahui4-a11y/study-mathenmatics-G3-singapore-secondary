@@ -85,6 +85,16 @@ clock keeps ticking between packets so the pose plays smoothly at 14 updates
 a second. (`poseAction` clears the local player's `visYaw` as a side effect,
 so that is saved and put back around the call.)
 
+**Hit reactions.** The dummies already had a set of flinches — head snapped
+back by a jab, doubled over by a gut punch, clutching a stab, jerked around by
+a barrage — and `Enemy.applyReact` only ever touches `rig`, `react` and
+`animT`, so the same animations now run on players through a small stand-in
+object. The reaction an attack asks for travels with the hit, the victim plays
+it, and it goes out in their state so everyone else sees the same flinch. The
+attacker starts it locally the moment they connect, and a packet arriving
+mid-flinch will not cut it short. No flinch plays while spawn protection is
+shrugging the hit off.
+
 Ability *visuals* are made by the caster's client, so they would never appear
 on anybody else's screen. Each cast announces itself — watching
 `player.action` and `attackT` catches all nine abilities without patching a
