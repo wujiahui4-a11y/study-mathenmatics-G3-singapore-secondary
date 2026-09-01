@@ -535,7 +535,7 @@
     e.name = name;
     e.kind = 'remote';
     scene.remove(e.rig.root);
-    e.rig = makeAnimeRig(char === 'naoya' ? NAOYA_CFG : GOJO_CFG);
+    e.rig = makeAnimeRig((CHARS[char] && CHARS[char].cfg) || GOJO_CFG);
     e.rig.root.add(e.hpSpr);
     scene.add(e.rig.root);
     e.maxHp = 100; e.hp = 100;
@@ -1306,6 +1306,65 @@
         }, 750);
         break;
 
+      case 'y1':
+        setTimeout(function () {
+          var at = mid.clone().addScaledVector(fwd, 2.6);
+          FX.impact(at, 0xffd9a8, 1.5);
+          FX.slash(at, fwd, 0xffe0c0, 4, .18);
+        }, 400);
+        setTimeout(function () {
+          var at = mid.clone().addScaledVector(fwd, 2.6);
+          FX.cross(at, 0xffb37a, 7, .3);
+          FX.impact(at, 0xff8a5c, 2.4);
+          FX.rings(at, 0xff9a6a, 3, { maxR: 11, life: .45, ground: false, gap: 38 });
+          FX.ring(new THREE.Vector3(at.x, .1, at.z), 0xffc79a, { maxR: 12, life: .5 });
+          if (near) addShake(.6);
+        }, 620);
+        break;
+      case 'y2':
+        setTimeout(function () {
+          if (window.JJYUJI) window.JJYUJI.blackFlash(mid.clone().addScaledVector(fwd, 2.7));
+          else FX.impact(mid, 0xd4143c, 3);
+        }, 740);
+        break;
+      case 'y3':
+        setTimeout(function () {
+          var at = mid.clone().addScaledVector(fwd, 2.4);
+          FX.slash(at, fwd, 0xffd0da, 6.5, .22);
+          FX.impact(at, 0xff9fb0, 1.9);
+          FX.ring(new THREE.Vector3(at.x, .1, at.z), 0xff9fb0, { maxR: 9, life: .45 });
+          if (near) addShake(.5);
+        }, 420);
+        break;
+      case 'y4':
+        setTimeout(function () {
+          var at = pos.clone().addScaledVector(fwd, 1.6);
+          FX.cross(at.clone().add(new THREE.Vector3(0, 1.4, 0)), 0xffffff, 7, .3);
+          FX.impact(at.clone().add(new THREE.Vector3(0, 1, 0)), 0xff9fb0, 3);
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), 0xffb0bd, 4, { maxR: 17, life: .65, gap: 45 });
+          FX.cracks(new THREE.Vector3(at.x, 0, at.z), 12, 17, 0x241016);
+          FX.debris(new THREE.Vector3(at.x, 0, at.z), 14, 18, 0x5a4a44);
+          FX.dust(new THREE.Vector3(at.x, 0, at.z), 10, 0xd8cbc4, 13, 4.2);
+          if (close) addShake(1.2);
+        }, 740);
+        break;
+      case 'yr':
+        setTimeout(function () {
+          FX.speedRing(mid, 0xff7f9a, 11, .4);
+          FX.rings(mid, 0xff9fb0, 3, { maxR: 14, life: .5, ground: false, gap: 40 });
+          FX.ring(new THREE.Vector3(pos.x, .1, pos.z), 0xff7f9a, { maxR: 15, life: .55 });
+          FX.streaks(mid, 0xffd0da, 14, 18, 1.4);
+        }, 220);
+        break;
+      case 'yaw':
+        setTimeout(function () {
+          FX.rings(new THREE.Vector3(pos.x, .12, pos.z), 0xd4143c, 4, { maxR: 20, life: .75, gap: 60 });
+          FX.beam(pos.clone(), new THREE.Vector3(0, 1, 0), 46, 0x8b0f2a, { radius: 1.5, life: 1 });
+          FX.debris(pos.clone(), 10, 14, 0x2a1218);
+          FX.cracks(pos.clone(), 9, 12, 0x120309);
+          if (close) addShake(1);
+        }, 1500);
+        break;
       case 'nrush':
         FX.rings(pos, 0x9fd8ff, 3, { maxR: 15, life: .6, gap: 55 });
         FX.cracks(pos.clone(), 7, 10, 0x2a2018);
