@@ -69,8 +69,9 @@
 
   /* blindfold off, eyes lit — or back again */
   function setLook(rig, on) {
-    if (!rig) return;
+    if (!rig || !rig.head) return;
     findBlindfold(rig);
+    if (!rig.blindfold && !rig.sixEyes) return;      // not a Gojo
     addSixEyes(rig);
     if (rig.blindfold) rig.blindfold.visible = !on;
     if (rig.sixEyes) rig.sixEyes.visible = !!on;
@@ -148,9 +149,9 @@
 
   function renderBar() {
     buildBar();
-    var gojo = player.char === 'gojo';
-    bar.style.display = gojo && started ? 'block' : 'none';
-    if (!gojo) return;
+    var running = window.JJNAOYA && window.JJNAOYA.busy();
+    bar.style.display = started && !running ? 'block' : 'none';
+    if (!started || running) return;
     var frac = AW.active ? (1 - AW.t / AW.dur) : (AW.charge / AW.max);
     bar.querySelector('.fill').style.width = Math.max(0, Math.min(1, frac)) * 100 + '%';
     bar.classList.toggle('ready', AW.ready && !AW.active);
@@ -162,7 +163,8 @@
   }
 
   function gain(n) {
-    if (AW.active || player.char !== 'gojo' || AW.cine) return;
+    if (AW.active || AW.cine) return;
+    if (window.JJNAOYA && window.JJNAOYA.busy()) return;
     var was = AW.ready;
     AW.charge = Math.min(AW.max, AW.charge + n);
     AW.ready = AW.charge >= AW.max;
@@ -184,10 +186,16 @@
   ];
 
   function awaken() {
-    if (!AW.ready || AW.active || AW.cine || player.char !== 'gojo' || player.dead) return;
+    if (!AW.ready || AW.active || AW.cine || player.dead) return;
     if (typeof started !== 'undefined' && !started) return;
     /* the spawn entrance owns the camera, and this one needs it */
     if (window.MPJJ && window.MPJJ.cs && window.MPJJ.cs.active) return;
+    /* Naoya's awakening is a run and a finish, not a state to sit in */
+    if (player.char === 'naoya') {
+      if (window.JJNAOYA && window.JJNAOYA.awaken()) { AW.charge = 0; AW.ready = false; }
+      return;
+    }
+    if (player.char !== 'gojo') return;
     AW.cine = true;
     AW.ct = 0;
     AW.cineStage = 0;
@@ -341,6 +349,13 @@
     player.iframes = Math.max(player.iframes, .6);
     showSplash('AWAKENED', 'SIX EYES \u00b7 LIMITLESS', '#3a7dff');
   }
+
+  /* Naoya's side calls this when his run and its finish are over */
+  AW.finish = function () {
+    AW.charge = 0;
+    AW.ready = false;
+    renderBar();
+  };
 
   function endAwake() {
     AW.active = false;

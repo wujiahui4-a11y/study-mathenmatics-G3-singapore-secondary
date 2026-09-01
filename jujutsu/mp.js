@@ -649,6 +649,10 @@
       return;
     }
     if (m.t === 'proj' && m.to === MP.id) { applyProjPlayer(m.a); return; }
+    if (m.t === 'ncine' && m.to === MP.id) {             // their rush caught us
+      if (window.JJNAOYA) window.JJNAOYA.remoteCine(m.id);
+      return;
+    }
     if (m.t === 'dom') {                                // a domain opened near us
       var who = MP.fighters[m.id];
       feed('<b>' + esc(who ? who.name : '???') + '</b> expanded a domain');
@@ -1081,6 +1085,7 @@
       var f = MP.fighters[id];
       if (nowS() - f.seen > 12) { dropFighter(id); renderList(); updateScore(); continue; }
       var e = f.e;
+      if (e.cineHold || e.rag) continue;             // posed by a cutscene, or dead
       e.pos.x += (f.tx - e.pos.x) * k;
       e.pos.z += (f.tz - e.pos.z) * k;
       if (f.ty != null) e.pos.y += (f.ty - e.pos.y) * k;
@@ -1281,6 +1286,13 @@
         }, 750);
         break;
 
+      case 'nrush':
+        FX.rings(pos, 0x9fd8ff, 3, { maxR: 15, life: .6, gap: 55 });
+        FX.cracks(pos.clone(), 7, 10, 0x2a2018);
+        FX.dust(pos.clone(), 7, 0xbfae95, 8, 3);
+        FX.speedRing(mid, 0xbfe6ff, 8, .35);
+        if (close) addShake(.5);
+        break;
       case 'kb': case 'void':
         break;                                        // these animate themselves
       case 'n1': case 'n2': case 'n3': case 'nr': case 'nrf':
