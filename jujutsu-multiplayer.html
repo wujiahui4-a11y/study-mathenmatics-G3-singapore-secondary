@@ -6559,12 +6559,18 @@ window.__game = {
       g.fillStyle = haze;
       g.fillRect(0, H * .38, W, H * .3);
     });
-    var g = new THREE.Mesh(new THREE.BoxGeometry(13, 2.2, 150),
-      new THREE.MeshStandardMaterial({ color: 0x8a6f4f, roughness: 1 }));
-    g.geometry.__own = true;
-    g.position.set(STAGE.x, STAGE.y, STAGE.z);
-    g.rotation.set(0, 0, .05);
-    keep(g);
+    function plate(len, z) {
+      var m = new THREE.Mesh(new THREE.BoxGeometry(13, 2.2, len),
+        new THREE.MeshStandardMaterial({ color: 0x8a6f4f, roughness: 1 }));
+      m.geometry.__own = true;
+      m.position.set(STAGE.x, STAGE.y, STAGE.z + z);
+      m.rotation.set(0, 0, .05);
+      return keep(m);
+    }
+    /* in three pieces: the middle one is what he puts them through */
+    var g = plate(64, 43);
+    CINE.slabBridge = plate(7, 7.5);
+    plate(79, -35.5);
     CINE.slab = g;
     return g;
   }
@@ -6901,7 +6907,7 @@ window.__game = {
       A.rig.root.position.set(STAGE.x - .2, STAGE.y + 1.9, STAGE.z + 5.6);
       A.rig.root.rotation.set(0, Math.PI * .96, 0);
 
-      if (CINE.slab) CINE.slab.rotation.x = -t * .006;      // drifting as it falls
+      if (CINE.slab) CINE.slab.rotation.x = -t * .004;      // drifting as it falls
       /* along the slab, so it runs off into the haze behind them */
       shot(t, [
         { t: 0, p: [-13.5, 5.6, 19], l: [0, 2.2, 5] },
@@ -6971,9 +6977,10 @@ window.__game = {
           FX.flash('#fff3e0', .5, .3);
           FX.cross(sp(0, 2.2, 6), 0xffffff, 7, .3);
           FX.impact(sp(0, 2.2, 6), 0xffd9a8, 2.4);
-          FX.debris(sp(0, 1, 6), 18, 20, 0x6b5642);
-          FX.cracks(sp(0, 1.15, 6), 11, 15, 0x2a2018);
-          rockFan(sp(0, 0, 6), new THREE.Vector3(0, -.4, .2), 16, 10);
+          FX.debris(sp(0, 1, 7.4), 22, 20, 0x8a6f4f);
+          FX.debris(sp(0, 0, 7.4), 14, 14, 0x6b5642);
+          rockFan(sp(0, 0, 7.4), new THREE.Vector3(0, -.5, .1), 18, 9);
+          if (CINE.slabBridge) CINE.slabBridge.visible = false;   // the hole
           addShake(1.2);
           hitstop(.1);
           try { sfx.hit(); } catch (e) {}
@@ -6995,10 +7002,17 @@ window.__game = {
       var f = Math.min(1, t / 2.1);
       var vy = 46 - f * f * 46;
       var ay = 58 - Math.min(1, t / 1.9) * Math.min(1, t / 1.9) * 52;
-      poseFly(V.rig, 1);
-      V.rig.root.position.set(STAGE.x, STAGE.y + Math.max(1.4, vy), STAGE.z);
+      if (f < 1) {
+        poseFly(V.rig, 1);
+        V.rig.root.rotation.set(0, 0, 0);
+        V.rig.root.position.set(STAGE.x, STAGE.y + vy, STAGE.z);
+      } else {
+        poseDown(V.rig);                              // flat out on the floor
+        V.rig.root.rotation.set(-Math.PI / 2, 0, 0);
+        V.rig.root.position.set(STAGE.x, STAGE.y + .45, STAGE.z + 2.2);
+      }
       poseStamp(A.rig, 1);
-      A.rig.root.position.set(STAGE.x, STAGE.y + Math.max(3.4, ay), STAGE.z);
+      A.rig.root.position.set(STAGE.x, STAGE.y + Math.max(1.5, ay), STAGE.z + 1.6);
       A.rig.root.rotation.set(0, Math.PI, 0);
       /* the camera falls with them */
       var camY = 30 - f * 24;
@@ -7033,14 +7047,25 @@ window.__game = {
     },
     step: function (t) {
       var A = CINE.A, V = CINE.V;
-      /* the victim getting back up, slowly */
-      var up = Math.min(1, t / 1.5);
-      poseLimp(V.rig, t);
-      V.rig.spine.rotation.x = .55 - .35 * up;
-      V.rig.neck.rotation.x = .45 - .3 * up;
-      V.rig.hips.position.y = V.rig.hipsBaseY - .3 + .3 * up;
-      V.rig.root.position.set(STAGE.x, STAGE.y, STAGE.z);
-      V.rig.root.rotation.y = t * .35;
+      /* they push themselves off the floor and stand, from exactly where
+         the last beat left them lying */
+      var up = E.out(Math.min(1, t / 1.6));
+      if (up < 1) {
+        poseDown(V.rig);
+        V.rig.spine.rotation.x = -.18 + .7 * up;
+        V.rig.neck.rotation.x = -.3 + .6 * up;
+        V.rig.shoulderL.rotation.z = -.85 + .5 * up;
+        V.rig.shoulderR.rotation.z = .7 - .35 * up;
+        V.rig.kneeL.rotation.x = .5 + .5 * up;
+        V.rig.root.rotation.set(-Math.PI / 2 * (1 - up), t * .35 * up, 0);
+        V.rig.root.position.set(STAGE.x, STAGE.y + .45 * (1 - up), STAGE.z + 2.2 * (1 - up));
+      } else {
+        poseLimp(V.rig, t);
+        V.rig.spine.rotation.x = .2;
+        V.rig.neck.rotation.x = .15;
+        V.rig.root.position.set(STAGE.x, STAGE.y, STAGE.z);
+        V.rig.root.rotation.set(0, t * .35, 0);
+      }
 
       /* only the trail — three arcs whipping around them */
       var spin = t * 9;
@@ -7141,7 +7166,7 @@ window.__game = {
         A.rig.root.visible = true;
         var pk = Math.min(1, (t - 1.6) / .5);
         posePunch(A.rig, pk, 1);
-        A.rig.root.position.set(vp.x, vp.y + .4, vp.z + 6.6 - E.out(pk) * 3.9);
+        A.rig.root.position.set(vp.x, vp.y + .4, vp.z + 7.2 - E.out(pk) * 3.6);
         A.rig.root.rotation.set(0, Math.PI, 0);
         /* over the victim's shoulder, so the fist arrives down the lens */
         cam(3.6, 35.9, -11, 0, 34.7, 1.6);
