@@ -3192,6 +3192,13 @@ window.__game = {
       'background:rgba(8,12,22,.8);border:1px solid rgba(127,212,255,.35);border-radius:8px;',
       'padding:6px 14px;font:13px "Segoe UI",Arial,sans-serif;color:#cfe6ff;pointer-events:none}',
       '#jjDragHint b{color:#7fd4ff}',
+      '#jjPopOut{display:none;margin-top:14px;background:#123a2c;border:1px solid #2f7d5c;',
+      'border-radius:10px;padding:12px 14px;font-size:13px;color:#bff0d8;line-height:1.5}',
+      '#jjPopOut button{width:100%;margin-top:10px;background:#2f9d6a;border:0;color:#fff;',
+      'border-radius:8px;padding:11px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}',
+      '#jjPopBtn2{position:fixed;left:50%;transform:translateX(-50%);bottom:104px;z-index:23;display:none;',
+      'background:#2f9d6a;border:0;color:#fff;border-radius:8px;padding:9px 18px;cursor:pointer;',
+      'font:700 13px "Segoe UI",Arial,sans-serif}',
 
       /* ---- spawn cutscene ---- */
       '#jjCine{position:fixed;inset:0;z-index:45;display:none;pointer-events:none;opacity:0;',
@@ -3248,6 +3255,9 @@ window.__game = {
       '    <div class="row"><button id="jjFight">ENTER THE ARENA</button>',
       '    <button id="jjLeave" class="ghost">LEAVE</button></div>',
       '  </div>',
+      '  <div id="jjPopOut">This page is embedded, so the browser will not let the game hold',
+      '    the mouse. Opening it in its own window fixes that.',
+      '    <button id="jjPopBtn">OPEN IN A FULL WINDOW</button></div>',
       '  <div id="jjStatus"></div>',
       '  <div class="row"><button id="jjBack" class="ghost">BACK</button></div>',
       '</div></div>',
@@ -3256,6 +3266,7 @@ window.__game = {
       '<div id="jjLook"><div class="c"><b>CLICK TO LOOK AROUND</b>',
       '<span>mouse looks · Esc frees the cursor</span></div></div>',
       '<div id="jjDragHint">hold <b>RIGHT MOUSE</b> and move to look around</div>',
+      '<button id="jjPopBtn2">open in a full window for proper mouse look</button>',
       '<div id="jjCine">',
       '  <div class="bar t"></div><div class="bar b"></div>',
       '  <div class="lines"></div>',
@@ -3284,6 +3295,13 @@ window.__game = {
     el('jjLeave').addEventListener('click', function () { leaveRoom(); openLobby(); });
     el('jjFight').addEventListener('click', function () { enterArena(); });
     el('jjCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') joinRoom(); });
+
+    /* An embedded page cannot be granted pointer lock, but a pop-up opened
+       from it is a fresh top level window that is not sandboxed — and there
+       the mouse locks normally. */
+    if (window.top !== window.self) el('jjPopOut').style.display = 'block';
+    el('jjPopBtn').addEventListener('click', popOut);
+    el('jjPopBtn2').addEventListener('click', popOut);
 
     /* The game drops back to its title screen whenever pointer lock is lost.
        During a match that reads as "you left the room", so it is kept shut and
@@ -3329,7 +3347,9 @@ window.__game = {
     /* three states: locked and playing, able to lock but loose, or a page
        that will never grant it — the last one gets drag-look */
     el('jjLook').style.display = (isLocked || MP.lockBlocked) ? 'none' : 'flex';
-    el('jjDragHint').style.display = (!isLocked && MP.lockBlocked && !MP.dragging) ? 'block' : 'none';
+    var showDrag = !isLocked && MP.lockBlocked && !MP.dragging;
+    el('jjDragHint').style.display = showDrag ? 'block' : 'none';
+    el('jjPopBtn2').style.display = (showDrag && window.top !== window.self) ? 'block' : 'none';
   }
 
   /* Hold the right button and move: the same relative movement drives the
@@ -3359,6 +3379,16 @@ window.__game = {
       e.preventDefault(); e.stopImmediatePropagation();
     }, true);
     window.addEventListener('contextmenu', function (e) { if (MP.active) e.preventDefault(); });
+  }
+
+  function popOut() {
+    var w = null;
+    try { w = window.open(location.href, '_blank', 'width=1280,height=820'); } catch (e) {}
+    if (!w) {
+      status('Your browser blocked the pop-up — allow pop-ups for this page and try again.', true);
+      return;
+    }
+    status('Opened in a new window. Join the room from there.');
   }
 
   function status(text, bad) {
@@ -3429,6 +3459,7 @@ window.__game = {
     el('jjFeed').innerHTML = '';
     el('jjLook').style.display = 'none';
     el('jjDragHint').style.display = 'none';
+    el('jjPopBtn2').style.display = 'none';
     MP.dragging = false;
     document.body.classList.remove('jjLocked');
     CS.active = false;
