@@ -8,8 +8,8 @@ meter and glass frames.
 
 ## Playing
 
-Title screen → **PLAY ONLINE WITH FRIENDS**. Three fighters: Gojo, Naoya and
-Yuji.
+Title screen → **PLAY ONLINE WITH FRIENDS**. Four fighters: Gojo, Naoya, Yuji and
+Hakari.
 
 * **Create a room** gives you a six character code.
 * Everyone else types that code and joins.
@@ -23,6 +23,35 @@ A scoreboard sits on the right and a kill feed on the left.
 wind-down and a timer appears above the ability bar; taking a hit puts you
 back in combat and starts the eight seconds again, and pressing `C` a second
 time cancels. You cannot switch at all while awakened.
+
+## Hakari Kinji
+
+Built from the source rather than invented. His technique is pachinko, and
+outside his domain he can only put out the machine's furniture — shutter doors
+to take an attack, and the balls — so most of what he does he does with his
+hands.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Shutter** | a train door dropped between him and whatever is coming, which blocks anything hitting him from the front, and is then thrown through them |
+| `2` | **Ball Barrage** | the other half of the machine, at speed |
+| `3` | **Gachinko** | three of his own and the floor after them |
+| `4` | **Idle Death Gamble** | the domain |
+| `R` | **Overwhelm** | shoulder first, straight through |
+
+The domain's sure hit is the rules rather than a wound: everything inside is
+held for a moment and told how the game works. Then it runs a machine. Three
+reels land one at a time, and when the first two match the third takes its time
+about it. Three sevens and he is given **unlimited cursed energy and an
+automatic reverse cursed technique** — no cooldowns at all, eleven health a
+second, and a floor of one health that cannot be gone through. Miss and the
+domain simply runs again, which is what it does in the manga.
+
+The real odds are one in two hundred and thirty nine and the real song is four
+minutes and eleven seconds. Neither of those is a game, so the reels open at
+three in ten and improve every time they miss — and that carries across
+domains, the way the increased probability does — and the round is twenty
+eight seconds rather than four minutes.
 
 ## Yuji Itadori
 
@@ -385,6 +414,7 @@ disk.
 | `gojo.js` | the awakening meter, Gojo's entrance and his four techniques |
 | `naoya.js` | Naoya's run, and the cut it ends in |
 | `yuji.js` | Yuji: his rig, his five moves and his transformation |
+| `hakari.js` | Hakari: his rig, his four moves and the machine in his domain |
 | `mp.js` | the online mode, appended inside the game's module |
 | `three.module.min.js` | vendored three.js 0.160.0 |
 | `mqtt.min.js` | vendored MQTT client |
