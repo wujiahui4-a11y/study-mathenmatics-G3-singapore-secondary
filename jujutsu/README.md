@@ -44,6 +44,35 @@ The multiplayer code is appended **inside the game's own module**, which is how
 it can reach `player`, `enemies`, `Enemy`, `scene`, `hurtPlayer` and the rest.
 Everything is behind `MPJJ.active`, so the offline game is unchanged.
 
+## Spawn cutscene
+
+Entering the arena — and every respawn after a defeat — plays a short anime
+entrance for whichever fighter you are. Letterbox bars slide in, speed lines
+sweep across, the camera pushes in close on the face and then sweeps around
+while the fighter moves through their signature pose, cursed energy bursts at
+the turn, and the name card slams in with a shockwave.
+
+| | Gojo | Naoya |
+| --- | --- | --- |
+| card | GOJO SATORU · THE HONORED ONE | NAOYA ZEN'IN · PROJECTION SORCERY |
+| line 1 | "Throughout heaven and earth…" | "Twenty-four frames a second." |
+| line 2 | "I alone am the honored one." | "You will not see a single one of them." |
+| pose | head lifts, hand raises palm-out, settles into the hero shot | arms folded, sweeps one out, chin up |
+
+Naoya's cutscene is deliberately animated **on twos at 24 frames a second** —
+his whole gimmick — while Gojo's runs smooth.
+
+It ends with **two white flashes**, and while they land the health bar turns
+white and reads **∞**: that is real spawn protection, three seconds of
+invulnerability, and the bar returns to normal when it runs out. Any key or
+click skips the whole thing.
+
+The camera hands back cleanly because the cutscene ends exactly where the
+chase camera lives — an offset of `(sin y, cos y)` means `yaw = facing` looks
+the fighter in the face and `yaw = facing + PI` is the normal view, so the
+sweep just eases into it. The HUD is hidden for the duration and the other
+players see a burst of cursed energy where you appeared.
+
 ## Animation and effects
 
 A fighter sends more than a position: speed, whether they are on the ground,

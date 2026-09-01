@@ -3191,7 +3191,40 @@ window.__game = {
       '#jjDragHint{position:fixed;left:50%;transform:translateX(-50%);bottom:66px;z-index:22;display:none;',
       'background:rgba(8,12,22,.8);border:1px solid rgba(127,212,255,.35);border-radius:8px;',
       'padding:6px 14px;font:13px "Segoe UI",Arial,sans-serif;color:#cfe6ff;pointer-events:none}',
-      '#jjDragHint b{color:#7fd4ff}'
+      '#jjDragHint b{color:#7fd4ff}',
+
+      /* ---- spawn cutscene ---- */
+      '#jjCine{position:fixed;inset:0;z-index:45;display:none;pointer-events:none;opacity:0;',
+      'transition:opacity .35s;font-family:"Finger Paint","Segoe UI",cursive}',
+      '#jjCine.on{opacity:1}',
+      '#jjCine .bar{position:absolute;left:0;right:0;height:12vh;background:#000;transition:transform .5s cubic-bezier(.2,.9,.2,1)}',
+      '#jjCine .bar.t{top:0;transform:translateY(-100%)}',
+      '#jjCine .bar.b{bottom:0;transform:translateY(100%)}',
+      '#jjCine.on .bar.t,#jjCine.on .bar.b{transform:translateY(0)}',
+      '#jjCine .lines{position:absolute;inset:0;opacity:.22;background:repeating-linear-gradient(',
+      '100deg,transparent 0 22px,rgba(255,255,255,.75) 22px 24px);animation:jjZip .55s linear infinite}',
+      '@keyframes jjZip{from{background-position:0 0}to{background-position:120px 0}}',
+      '#jjCineCard{position:absolute;left:6vw;bottom:20vh;transform:scale(2.6) rotate(-7deg);opacity:0}',
+      '#jjCineCard.slam{animation:jjSlam .55s cubic-bezier(.15,1.3,.3,1) forwards}',
+      '@keyframes jjSlam{0%{transform:scale(2.6) rotate(-7deg);opacity:0}',
+      '60%{transform:scale(.94) rotate(-2.4deg);opacity:1}100%{transform:scale(1) rotate(-2.4deg);opacity:1}}',
+      '#jjCineName{font-size:clamp(30px,6.4vw,74px);line-height:1;color:#fff;',
+      '-webkit-text-stroke:3px #000;text-shadow:6px 6px 0 rgba(0,0,0,.55)}',
+      '#jjCineSub{margin-top:6px;font-size:clamp(12px,1.7vw,20px);letter-spacing:6px;color:#fff;',
+      '-webkit-text-stroke:1px #000;text-shadow:3px 3px 0 rgba(0,0,0,.5)}',
+      '#jjCineSay{position:absolute;left:0;right:0;bottom:14.5vh;text-align:center;',
+      'font-size:clamp(16px,2.5vw,30px);color:#fff;text-shadow:3px 3px 0 #000,0 0 22px rgba(120,190,255,.7);',
+      'opacity:0}',
+      '#jjCineSay.on{animation:jjSay 2.1s ease forwards}',
+      '@keyframes jjSay{0%{opacity:0;transform:translateY(14px)}12%{opacity:1;transform:translateY(0)}',
+      '78%{opacity:1}100%{opacity:0}}',
+      '#jjCineSkip{position:absolute;right:2vw;bottom:13.5vh;font:12px "Segoe UI",Arial,sans-serif;',
+      'color:rgba(255,255,255,.5);letter-spacing:1px}',
+      '#jjWhite{position:fixed;inset:0;z-index:56;background:#fff;opacity:0;pointer-events:none}',
+      '#jjInf{position:fixed;right:22px;top:64px;z-index:24;display:none;font:700 30px "Segoe UI",Arial;',
+      'color:#7fd4ff;text-shadow:0 0 14px rgba(127,212,255,.9),2px 2px 0 #000}',
+      '.jjInfBar{background:linear-gradient(90deg,#7fd4ff,#ffffff)!important;',
+      'box-shadow:0 0 16px rgba(127,212,255,.9)}'
     ].join('');
     document.head.appendChild(css);
 
@@ -3222,7 +3255,16 @@ window.__game = {
       '<div id="jjFeed"></div>',
       '<div id="jjLook"><div class="c"><b>CLICK TO LOOK AROUND</b>',
       '<span>mouse looks · Esc frees the cursor</span></div></div>',
-      '<div id="jjDragHint">hold <b>RIGHT MOUSE</b> and move to look around</div>'
+      '<div id="jjDragHint">hold <b>RIGHT MOUSE</b> and move to look around</div>',
+      '<div id="jjCine">',
+      '  <div class="bar t"></div><div class="bar b"></div>',
+      '  <div class="lines"></div>',
+      '  <div id="jjCineCard"><div id="jjCineName">—</div><div id="jjCineSub">—</div></div>',
+      '  <div id="jjCineSay"></div>',
+      '  <div id="jjCineSkip">any key to skip</div>',
+      '</div>',
+      '<div id="jjWhite"></div>',
+      '<div id="jjInf">\u221e</div>'
     ].join('');
     while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
 
@@ -3389,6 +3431,11 @@ window.__game = {
     el('jjDragHint').style.display = 'none';
     MP.dragging = false;
     document.body.classList.remove('jjLocked');
+    CS.active = false;
+    el('jjCine').style.display = 'none';
+    el('jjCine').classList.remove('on');
+    hudDuring(true);
+    setInfinite(false);
   }
 
   function renderList() {
@@ -3415,11 +3462,12 @@ window.__game = {
     el('jjScore').style.display = 'block';
     updateScore();
     feed('You entered room ' + MP.code);
-    if (typeof showSplash === 'function') showSplash('FIGHT', MP.code, '#7fd4ff');
     if (window.__game && !window.__game.started) window.__game.start();
     var cv = renderer.domElement;
     if (cv && cv.requestPointerLock) { try { cv.requestPointerLock(); } catch (e) {} }
     MP.relay.pub({ t: 'hi', id: MP.id, n: MP.name, c: player.char });
+    MP.wasDead = false;
+    startCutscene();
   }
 
   /* A remote fighter is a real Enemy, so every punch, Red, palm and frame the
@@ -3560,14 +3608,283 @@ window.__game = {
     });
   }
 
+  /* =======================================================================
+     SPAWN CUTSCENE
+     A short anime entrance for whichever fighter you are: letterbox bars,
+     a close push-in on the face, the signature pose, cursed energy, the name
+     card slamming in, two lines of dialogue — then two white flashes while
+     the health bar reads infinity, because you cannot be touched yet.
+     Skippable with any key or click.
+     ===================================================================== */
+  var CUT = {
+    gojo: {
+      glow: '#3a7dff', aura: 0x3a7dff,
+      name: 'GOJO SATORU', sub: 'THE HONORED ONE',
+      lines: [
+        { t: 0.45, s: 'Throughout heaven and earth\u2026' },
+        { t: 2.60, s: 'I alone am the honored one.' }
+      ]
+    },
+    naoya: {
+      glow: '#9fd8ff', aura: 0x9fd8ff,
+      name: "NAOYA ZEN'IN", sub: 'PROJECTION SORCERY',
+      lines: [
+        { t: 0.45, s: 'Twenty-four frames a second.' },
+        { t: 2.60, s: 'You will not see a single one of them.' }
+      ]
+    }
+  };
+
+  var CS = MP.cs = { active: false, t: 0, dur: 6.0, char: 'gojo', shot: 0, said: 0, framed: 0, orbit: 0 };
+
+  function startCutscene() {
+    if (!MP.active) return;
+    CS.active = true; CS.t = 0; CS.said = 0; CS.framed = 0;
+    CS.char = player.char;
+    CS.orbit = player.facing + Math.PI;
+    var d = CUT[CS.char] || CUT.gojo;
+    player.vel.set(0, 0, 0);
+    player.iframes = Math.max(player.iframes, CS.dur + 3.2);
+    el('jjCine').style.display = 'block';
+    el('jjCine').classList.add('on');
+    hudDuring(false);                          // a cutscene wants a clean frame
+    var card = el('jjCineCard');
+    card.classList.remove('slam');
+    el('jjCineName').textContent = d.name;
+    el('jjCineName').style.color = d.glow;
+    el('jjCineSub').textContent = d.sub;
+    el('jjCineSay').textContent = '';
+    el('jjCineSay').classList.remove('on');
+    if (MP.relay) MP.relay.pub({ t: 'cast', id: MP.id, k: 'spawn' });
+  }
+
+  function endCutscene() {
+    if (!CS.active) return;
+    CS.active = false;
+    el('jjCine').classList.remove('on');
+    hudDuring(true);
+    setTimeout(function () { if (!CS.active) el('jjCine').style.display = 'none'; }, 420);
+    camYaw = CS.orbit;
+    camPitch = .22;
+    flashTwice();
+  }
+
+  /* two white flashes, and while they land the bar reads infinity — the
+     spawn protection the flashes are announcing */
+  function flashTwice() {
+    var f = el('jjWhite');
+    var pop = function (delay) {
+      setTimeout(function () {
+        f.style.transition = 'none'; f.style.opacity = '.92';
+        setTimeout(function () { f.style.transition = 'opacity .22s'; f.style.opacity = '0'; }, 40);
+      }, delay);
+    };
+    pop(0); pop(260);
+    setInfinite(true);
+    player.iframes = Math.max(player.iframes, 3);
+    clearTimeout(CS.infT);
+    CS.infT = setTimeout(function () { setInfinite(false); }, 3000);
+  }
+
+  function setInfinite(on) {
+    var bar = el('hpFill');
+    var mark = el('jjInf');
+    if (mark) mark.style.display = on ? 'block' : 'none';
+    if (bar) {
+      bar.style.width = on ? '100%' : bar.style.width;
+      bar.classList.toggle('jjInfBar', !!on);
+    }
+    MP.infinite = !!on;
+  }
+
+  var EASE = function (x) { return x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x); };
+
+  function hudDuring(show) {
+    ['hud', 'crosshair'].forEach(function (id) {
+      var n = el(id);
+      if (n) n.style.opacity = show ? '' : '0';
+    });
+    el('jjScore').style.opacity = show ? '' : '0';
+    el('jjFeed').style.opacity = show ? '' : '0';
+  }
+
+  function stepCutscene(dt) {
+    CS.t += dt;
+    var d = CUT[CS.char] || CUT.gojo;
+    var t = CS.t;
+
+    /* Naoya is animated on twos — his whole gimmick is 24 frames a second */
+    var gate = CS.char === 'naoya' ? 1 / 24 : 0;
+    CS.framed += dt;
+    var pose = gate === 0 || CS.framed >= gate;
+    if (pose) CS.framed = 0;
+
+    player.pos.y = 0;
+    player.vel.set(0, 0, 0);
+    player.iframes = Math.max(player.iframes, 1);
+
+    if (pose) poseCutscene(t);
+    player.rig.root.position.copy(player.pos);
+
+    /* dialogue */
+    while (CS.said < d.lines.length && t >= d.lines[CS.said].t) {
+      var line = d.lines[CS.said++];
+      var say = el('jjCineSay');
+      say.textContent = line.s;
+      say.classList.remove('on');
+      void say.offsetWidth;                      // restart the animation
+      say.classList.add('on');
+    }
+
+    /* cursed energy at the turn, and again under the name card */
+    if (t >= 2.15 && CS.shot < 1) {
+      CS.shot = 1;
+      ringWave(player.pos.clone(), d.aura, 11, .55, true);
+      spark(player.pos.clone().add(new THREE.Vector3(0, 3, 0)), d.aura, 26, 18, 1.8);
+      addShake(.25);
+    }
+    if (t >= 3.85 && CS.shot < 2) {
+      CS.shot = 2;
+      el('jjCineCard').classList.add('slam');
+      ringWave(player.pos.clone(), d.aura, 17, .6, true);
+      ringWave(player.pos.clone().add(new THREE.Vector3(0, 2, 0)), 0xffffff, 13, .45);
+      spark(player.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0xffffff, 30, 26, 2.2);
+      addShake(.55);
+      if (typeof sfx !== 'undefined' && sfx.raise) { try { sfx.raise(); } catch (e) {} }
+    }
+    /* a steady drip of aura the whole way through */
+    if (Math.random() < .35) {
+      spark(player.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 2.4, .3 + Math.random() * 4.5, (Math.random() - .5) * 2.4)),
+        d.aura, 1, 5, .9);
+    }
+
+    if (t >= CS.dur) endCutscene();
+  }
+
+  /* keyframed signature poses, lerped so they read as one continuous move */
+  function poseCutscene(t) {
+    var r = player.rig;
+    resetPose(r);
+    var gojo = CS.char !== 'naoya';
+    if (gojo) {
+      if (t < 1.8) {
+        var k = EASE(t / 1.8);
+        r.spine.rotation.x = .06 - .1 * k;
+        r.neck.rotation.x = .22 - .3 * k;                 // head lifts
+        r.shoulderL.rotation.x = -.18; r.elbowL.rotation.x = -.30;
+        r.shoulderR.rotation.x = -.18; r.elbowR.rotation.x = -.30;
+        r.spine.rotation.y = -.16 * (1 - k);
+      } else if (t < 3.8) {
+        var k2 = EASE((t - 1.8) / .8);                    // hand up, palm out
+        r.shoulderR.rotation.x = -.18 - 2.05 * k2;
+        r.elbowR.rotation.x = -.30 + .22 * k2;
+        r.shoulderR.rotation.z = -.25 * k2;
+        r.shoulderL.rotation.x = -.5 * k2 - .18;
+        r.elbowL.rotation.x = -1.1 * k2 - .3;
+        r.spine.rotation.y = -.30 * k2;
+        r.neck.rotation.x = -.08 - .08 * k2;
+      } else {
+        var k3 = EASE((t - 3.8) / .7);                    // settle into the hero shot
+        r.shoulderR.rotation.x = -2.23 + 2.0 * k3;
+        r.shoulderR.rotation.z = -.25 + .25 * k3;
+        r.elbowR.rotation.x = -.08 - .2 * k3;
+        r.shoulderL.rotation.x = -.68 + .5 * k3;
+        r.elbowL.rotation.x = -1.4 + 1.1 * k3;
+        r.spine.rotation.y = -.30 + .30 * k3;
+        r.spine.rotation.x = -.04;
+        r.neck.rotation.x = -.16 + .1 * k3;
+      }
+    } else {
+      if (t < 1.8) {                                      // arms folded, chin up
+        var n1 = EASE(t / 1.2);
+        r.shoulderL.rotation.x = -.95 * n1; r.elbowL.rotation.x = -1.45 * n1;
+        r.shoulderR.rotation.x = -.95 * n1; r.elbowR.rotation.x = -1.45 * n1;
+        r.shoulderL.rotation.z = .42 * n1; r.shoulderR.rotation.z = -.42 * n1;
+        r.neck.rotation.x = -.2 * n1;
+        r.spine.rotation.y = .14 * n1;
+      } else if (t < 3.8) {                               // the arm sweeps out
+        var n2 = EASE((t - 1.8) / .7);
+        r.shoulderL.rotation.x = -.95 + .55 * n2; r.elbowL.rotation.x = -1.45 + .9 * n2;
+        r.shoulderR.rotation.x = -.95 - .55 * n2;
+        r.shoulderR.rotation.z = -.42 - .55 * n2;
+        r.elbowR.rotation.x = -1.45 + 1.25 * n2;
+        r.spine.rotation.y = .14 - .5 * n2;
+        r.neck.rotation.x = -.2 + .06 * n2;
+        r.hips.position.y = r.hipsBaseY - .08 * n2;
+      } else {
+        var n3 = EASE((t - 3.8) / .7);
+        r.shoulderR.rotation.x = -1.5 + 1.3 * n3;
+        r.shoulderR.rotation.z = -.97 + .87 * n3;
+        r.elbowR.rotation.x = -.2 - .1 * n3;
+        r.shoulderL.rotation.x = -.4 + .2 * n3;
+        r.elbowL.rotation.x = -.55 + .25 * n3;
+        r.spine.rotation.y = -.36 + .36 * n3;
+        r.neck.rotation.x = -.14;
+        r.hips.position.y = r.hipsBaseY - .08 + .08 * n3;
+      }
+    }
+    r.root.rotation.y = player.facing;
+  }
+
+  /* the camera does the work an anime cut would: close, orbit, hero shot */
+  function cutsceneCamera() {
+    /* An offset of (sin y, cos y) puts the camera along the fighter's own
+       forward, so yaw = facing looks them in the face and yaw = facing + PI is
+       where the normal chase camera lives — which is where this has to end. */
+    var t = CS.t, head = player.pos.clone().add(new THREE.Vector3(0, 4.3, 0));
+    var face = player.facing, back = face + Math.PI;
+    var yaw, dist, height, look;
+    if (t < 2.15) {
+      var k = EASE(t / 2.15);
+      yaw = face + .5;                         // three quarters on, close
+      dist = 3.9 - 1.3 * k;                    // slow push in on the face
+      height = 4.45 + .15 * k;
+      look = head;
+    } else if (t < 3.85) {
+      var k2 = EASE((t - 2.15) / 1.7);
+      yaw = face + .5 + k2 * ((back - 1.25) - (face + .5));  // sweep around
+      dist = 2.6 + 5.1 * k2;
+      height = 4.6 - 1.5 * k2;
+      look = player.pos.clone().add(new THREE.Vector3(0, 3.3, 0));
+    } else {
+      var k3 = EASE((t - 3.85) / (CS.dur - 3.85));
+      yaw = (back - 1.25) + k3 * 1.25;         // settle exactly behind them
+      dist = 7.7 + 1.8 * k3;
+      height = 3.1 + 1.3 * k3;                 // and rise into the chase cam
+      look = player.pos.clone().add(new THREE.Vector3(0, 3.1, 0));
+    }
+    CS.orbit = yaw;
+    var off = new THREE.Vector3(Math.sin(yaw) * dist, height, Math.cos(yaw) * dist);
+    camera.position.copy(player.pos.clone().add(off));
+    if (shakeMag > 0) {
+      camera.position.add(new THREE.Vector3(
+        (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag));
+    }
+    camera.lookAt(look);
+  }
+
+  var _updateCamera = updateCamera;
+  updateCamera = function (dt) {
+    if (CS.active) { cutsceneCamera(); shakeMag = Math.max(0, shakeMag - dt * 2.2); return; }
+    return _updateCamera(dt);
+  };
+
+  function skipCutscene() { if (CS.active) { CS.t = CS.dur; endCutscene(); } }
+  window.addEventListener('keydown', function () { skipCutscene(); }, true);
+  window.addEventListener('mousedown', function () { if (CS.active) skipCutscene(); }, true);
+
   /* --------------------------------------------------------------- hooks */
   var _updatePlayer = updatePlayer;
   updatePlayer = function (dt) {
-    _updatePlayer(dt);
+    if (CS.active) stepCutscene(dt);          // you stand still and pose
+    else _updatePlayer(dt);
     if (!MP.active) return;
     announceCasts();
     stepFighters(dt);
     sendState(dt);
+    /* respawning after a defeat gets the same entrance */
+    if (MP.wasDead && !player.dead) startCutscene();
+    MP.wasDead = player.dead;
   };
 
   /* Watching player.action and attackT means every ability announces itself
@@ -3743,6 +4060,12 @@ window.__game = {
       case 'lim':
         ringWave(pos, 0x6fa8ff, 9, .5, true);
         spark(mid, 0xdfefff, 20, 22, 1.8);
+        break;
+      case 'spawn':
+        ringWave(pos, 0xbfe0ff, 14, .6, true);
+        ringWave(pos.clone().add(new THREE.Vector3(0, 2, 0)), 0xffffff, 10, .45);
+        spark(mid, 0xdfefff, 26, 22, 2);
+        if (near) addShake(.3);
         break;
       case 'n1': case 'n2': case 'n3': case 'nr': case 'nrf':
         ringWave(pos, 0x9be7ff, 8, .4, true);
