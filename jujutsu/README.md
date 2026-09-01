@@ -118,15 +118,33 @@ Blocked pointer lock on an element because the element's frame is sandboxed
 and the 'allow-pointer-lock' permission is not set.
 ```
 
-Nothing on the page can grant it — a popup opened from the frame inherits the
-same restriction, and a nested iframe cannot hold more permissions than its
-parent. So when the refusal is seen, the game switches to **drag-look**: hold
-the **right mouse button** and move, which uses the same relative movement and
-has no screen edge to run into, because letting go and re-gripping works like
-lifting a mouse off the mat. Left click stays as your attack.
+Nothing inside the frame can grant it, and a nested iframe cannot hold more
+permissions than its parent. So when the refusal is seen, the game switches to
+**drag-look**: hold the **right mouse button** and move, which uses the same
+relative movement and has no screen edge to run into, because letting go and
+re-gripping works like lifting a mouse off the mat. Left click stays as your
+attack.
 
 Where the lock *is* available — the file opened from disk, or ordinary hosting
 — nothing changes and the mouse is captured as usual.
+
+### Getting the lock back with **OPEN IN A FULL WINDOW**
+
+The sandbox does carry `allow-popups-to-escape-sandbox`, so a window opened
+from the frame is *not* itself sandboxed and can lock the mouse. What it
+cannot do is reload the page: the address the frame is showing belongs to
+`googleusercontent.com` and renders nothing outside its parent, which is why
+pointing the new window at `location.href` only ever produced a blank page.
+
+Instead the split build carries a copy of its own markup in a
+`<script type="text/plain" id="__selfDoc">`, and the button opens a blank
+window and writes that copy into it. A written `about:blank` window is a fresh
+top level context — not sandboxed, mouse locks normally — and a `<base>` is
+prepended so its scripts still resolve to the same `?p=N` addresses. The copy
+is stored with its closing script tags escaped, so they are restored on the
+way out.
+
+The window is a full second player: it joins by room code like anyone else.
 
 ## Transport
 
