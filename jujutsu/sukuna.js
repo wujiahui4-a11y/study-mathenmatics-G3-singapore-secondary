@@ -231,7 +231,7 @@
         swapBar(true);
       }
       if (window.MPJJ && window.MPJJ.relay) {
-        window.MPJJ.relay.pub({ t: 'fx', id: window.MPJJ.id, k: 'sukuna' });
+        window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'sukuna' });
       }
     }
 

@@ -1418,6 +1418,71 @@
           if (close) addShake(1);
         }, 1500);
         break;
+      /* the four he gets when the thing inside him is out */
+      case 's1':
+        setTimeout(function () {
+          for (var i = 0; i < 6; i++) {
+            (function (n) {
+              setTimeout(function () {
+                var at = mid.clone().addScaledVector(fwd, 4 + n * 1.6)
+                  .add(new THREE.Vector3((n - 3) * 1.2, (n % 2 ? .8 : -.8), 0));
+                FX.slash(at, fwd, n % 2 ? 0xffffff : 0xd4143c, 6, .2);
+                FX.streaks(at, 0xd4143c, 2, 6, 1);
+              }, n * 34);
+            })(i);
+          }
+          FX.cross(mid.clone().addScaledVector(fwd, 4), 0xffffff, 4, .18);
+          if (close) addShake(.6);
+        }, 220);
+        break;
+      case 's2':
+        setTimeout(function () {
+          var at = mid.clone().addScaledVector(fwd, 3.4);
+          FX.slash(at, fwd, 0xffffff, 12, .24);
+          FX.slash(at, fwd, 0xd4143c, 10, .22);
+          FX.cross(at, 0xffffff, 6, .26);
+          FX.impact(at, 0xd4143c, 3);
+          FX.debris(at, 12, 12, 0x2a1218);
+          FX.cracks(new THREE.Vector3(at.x, .1, at.z), 10, 12, 0x14060a);
+          if (close) addShake(1.2);
+        }, 420);
+        break;
+      case 's3':
+        setTimeout(function () {
+          FX.beam(mid.clone(), fwd, 58, 0xff5a2a, { radius: 2.6, life: .8 });
+          FX.beam(mid.clone(), fwd, 58, 0x2a0208, { radius: 3.6, life: .85 });
+          for (var i = 0; i < 10; i++) {
+            var at = mid.clone().addScaledVector(fwd, 5 + i * 5);
+            FX.impact(at, 0xff6a2a, 1.5);
+            FX.cracks(new THREE.Vector3(at.x, .1, at.z), 4, 6, 0x2a1008);
+          }
+          if (close) addShake(1.6);
+        }, 850);
+        break;
+      case 's4':
+        setTimeout(function () {
+          FX.rings(new THREE.Vector3(pos.x, .1, pos.z), 0xd4143c, 6, { maxR: 34, life: 1, gap: 70 });
+          FX.beam(pos.clone(), new THREE.Vector3(0, 1, 0), 70, 0x8b0f2a, { radius: 3, life: 1.2 });
+          FX.cracks(pos.clone(), 16, 22, 0x14060a);
+          FX.debris(pos.clone(), 18, 18, 0x2a1218);
+          if (close) addShake(2);
+          /* and then it keeps cutting, for as long as the shrine is up */
+          var n = 0, iv = setInterval(function () {
+            if (n++ > 44) { clearInterval(iv); return; }
+            var a = Math.random() * Math.PI * 2, rr = Math.random() * 30;
+            var at = new THREE.Vector3(pos.x + Math.cos(a) * rr, .8 + Math.random() * 8,
+              pos.z + Math.sin(a) * rr);
+            FX.slash(at, fwd, Math.random() < .4 ? 0xd4143c : 0xffffff, 5, .18);
+          }, 170);
+        }, 1500);
+        break;
+      case 'sukuna':
+        FX.flash('#2a000e', .4, .3);
+        FX.rings(new THREE.Vector3(pos.x, .1, pos.z), 0xd4143c, 5, { maxR: 26, life: .8, gap: 55 });
+        FX.beam(pos.clone(), new THREE.Vector3(0, 1, 0), 60, 0x8b0f2a, { radius: 2.4, life: 1.2 });
+        FX.cracks(pos.clone(), 14, 16, 0x14060a);
+        if (close) addShake(1.4);
+        break;
       case 'nrush':
         FX.rings(pos, 0x9fd8ff, 3, { maxR: 15, life: .6, gap: 55 });
         FX.cracks(pos.clone(), 7, 10, 0x2a2018);
