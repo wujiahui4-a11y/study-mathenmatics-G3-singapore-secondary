@@ -38,9 +38,22 @@ curve. `Esc` releases the pointer, at which point a **CLICK TO LOOK AROUND**
 card appears; one click captures it again. While it is loose, mouse movement
 is deliberately swallowed, so the old edge-turn behavior cannot come back.
 
-If an iframe refuses pointer lock, the game retries plainly and from
-fullscreen. It does **not** fall back to cursor-position turning. The single
-player pause card is also kept from freezing a live match.
+If a page refuses pointer lock the game retries plainly and from fullscreen.
+Google Apps Script frames its pages with a sandbox that has no
+`allow-pointer-lock`, so the browser refuses outright:
+
+```
+Blocked pointer lock on an element because the element's frame is sandboxed
+and the 'allow-pointer-lock' permission is not set.
+```
+
+Nothing on the page can win that back — a popup opened from the frame inherits
+the restriction and a nested iframe cannot hold more permissions than its
+parent. When the refusal is seen the game switches to **drag-look**: hold the
+**right mouse button** and move. It reads the same relative movement, so there
+is still no cursor position or screen edge involved, and releasing and
+re-gripping works like lifting a mouse off the mat. Left click stays as shoot.
+The single player pause card is also kept from freezing a live match.
 
 ## Playing
 

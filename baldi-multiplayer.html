@@ -21590,6 +21590,11 @@ else boot();
       'text-shadow:3px 3px 0 rgba(0,0,0,.6)}',
       '#mpClick span{display:block;margin-top:10px;font-size:14px;color:#ffe98a;text-shadow:2px 2px 0 #000}',
       'body.mpMouseLocked,body.mpMouseLocked *{cursor:none!important}',
+      '#mpDragHint{position:fixed;left:50%;transform:translateX(-50%);bottom:130px;z-index:42;display:none;',
+      'background:#0d0d0d;border:4px solid #e08a2e;border-radius:6px;padding:6px 16px;',
+      'font:15px "Comic Sans MS","Chalkboard SE",cursive;color:#ffe98a;pointer-events:none;',
+      'text-shadow:2px 2px 0 rgba(0,0,0,.6)}',
+      '#mpDragHint b{color:#3fe0ff}',
       '#mpCaught{position:fixed;inset:0;z-index:74;display:none;align-items:center;justify-content:center;',
       'background:rgba(4,8,14,.9);color:#fff;font-family:inherit;text-align:center}',
       '#mpCaught .r{max-width:440px}',
@@ -21638,6 +21643,7 @@ else boot();
       '<div id="mpFlash"></div>',
       '<div id="mpClick"><div class="card"><b>CLICK TO LOOK AROUND</b>',
       '<span>move the mouse to look · Esc lets it go</span></div></div>',
+      '<div id="mpDragHint">hold <b>RIGHT MOUSE</b> and move to look around</div>',
       '<div id="mpResult"><div class="r"><h2 id="mpResultTitle">—</h2><p id="mpResultText"></p>',
       '<button id="mpResultBtn">BACK TO THE MENU</button></div></div>',
       '<div id="mpCaught"><div class="r"><h2 style="color:#ff8f84">BALDI CAUGHT YOU</h2>',
@@ -21787,6 +21793,8 @@ else boot();
     if (MP.joinTimer) clearInterval(MP.joinTimer);
     if (MP.lockTimer) { clearInterval(MP.lockTimer); MP.lockTimer = null; }
     el('mpClick').style.display = 'none';
+    el('mpDragHint').style.display = 'none';
+    MP.dragging = false;
     document.body.classList.remove('mpMouseLocked');
     if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
     clearAvatars();
@@ -21951,11 +21959,15 @@ else boot();
     updateHud();
     ensureAvatars();
 
-    MP.lockAttempts = 0; MP.triedFullscreen = false;
+    MP.lockAttempts = 0; MP.triedFullscreen = false; MP.lockBlocked = false; MP.dragging = false;
     try { lockDenied = false; } catch (e) {}
     if (MP.lockTimer) clearInterval(MP.lockTimer);
     MP.lockTimer = setInterval(lockWatch, 200);
     lockWatch();
+    /* Ask once now. On an ordinary page this either succeeds (the Start click
+       is still a live gesture) or puts the click-to-look card up. On a page
+       that forbids the lock it throws, and we switch to drag-look. */
+    grabMouse();
   }
 
   /* ------------------------------------------------------------- avatars */
@@ -22575,12 +22587,18 @@ else boot();
       return;
     }
 
-    var pr = null;
+    var pr = null, threw = false;
     /* unadjustedMovement skips the desktop's mouse acceleration curve, which
        is what makes a browser FPS feel right */
-    try { pr = view.requestPointerLock({ unadjustedMovement: true }); } catch (e) { pr = null; }
-    if (pr === undefined) return;                       // old API, events will tell us
-    if (!pr) { try { view.requestPointerLock(); } catch (e2) {} return; }
+    try { pr = view.requestPointerLock({ unadjustedMovement: true }); }
+    catch (e) { pr = null; threw = true; }
+    if (pr === undefined && !threw) return;             // old API, events will tell us
+    if (!pr) {
+      /* a sandboxed frame throws here rather than firing pointerlockerror */
+      try { view.requestPointerLock(); }
+      catch (e2) { MP.lockBlocked = true; lockWatch(); }
+      return;
+    }
     if (pr.catch) {
       pr.catch(function () {
         var p2;
@@ -22593,7 +22611,7 @@ else boot();
   /* Inside an iframe a lock can be refused with "the root document of this
      element is not valid" — going fullscreen first makes it the root. */
   function fullscreenRetry() {
-    if (MP.triedFullscreen) return;
+    if (MP.triedFullscreen) { MP.lockBlocked = true; lockWatch(); return; }
     MP.triedFullscreen = true;
     var root = document.documentElement;
     var fs = root.requestFullscreen || root.webkitRequestFullscreen || root.mozRequestFullScreen;
@@ -22632,11 +22650,39 @@ else boot();
     if (!locked) { try { lockDenied = false; } catch (e) {} }
     var lh = UI.el('lookHint');
     if (lh) lh.classList.add('hidden');
-    document.body.classList.toggle('mpMouseLocked', locked);
-    el('mpClick').style.display = locked ? 'none' : 'flex';
+    document.body.classList.toggle('mpMouseLocked', locked || MP.dragging);
+    /* three states: locked, loose but lockable, or a page that will never
+       grant the lock — the last one gets drag-look instead */
+    el('mpClick').style.display = (locked || MP.lockBlocked) ? 'none' : 'flex';
+    el('mpDragHint').style.display = (!locked && MP.lockBlocked && !MP.dragging) ? 'block' : 'none';
+  }
+
+  /* Hold the right button and move. Same relative movement as a locked mouse,
+     and no screen edge to run into: release and re-grip works like lifting a
+     mouse off the mat. Left click stays as shoot. */
+  function bindDragLook() {
+    var canLook = function () {
+      return MP.active && !MP.over && !MP.caught && G.mode === 'play' && !pointerIsLocked();
+    };
+    window.addEventListener('mousedown', function (e) {
+      if (!canLook() || (e.button !== 2 && e.button !== 1)) return;
+      MP.dragging = true;
+      document.body.classList.add('mpMouseLocked');
+      el('mpDragHint').style.display = 'none';
+      e.preventDefault(); e.stopImmediatePropagation();
+    }, true);
+    window.addEventListener('mouseup', function (e) {
+      if (!MP.dragging || (e.button !== 2 && e.button !== 1)) return;
+      MP.dragging = false;
+      document.body.classList.remove('mpMouseLocked');
+      lockWatch();
+      e.preventDefault(); e.stopImmediatePropagation();
+    }, true);
+    window.addEventListener('contextmenu', function (e) { if (MP.active) e.preventDefault(); });
   }
 
   function bindLook() {
+    bindDragLook();
     el('mpClick').addEventListener('mousedown', function (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -22648,18 +22694,26 @@ else boot();
     });
     document.addEventListener('pointerlockerror', function (e) {
       if (!MP.active) return;
-      /* Stop the original handler from enabling edge-of-screen look. Strict
-         multiplayer look remains blocked until pointer lock succeeds. */
+      /* Apps Script frames the page with a sandbox that has no
+         allow-pointer-lock, so the lock can never be granted there. Stop the
+         original edge-of-screen handler and offer drag-look instead. */
       e.stopImmediatePropagation();
       try { lockDenied = false; } catch (err) {}
       G.paused = false;
+      MP.lockBlocked = true;
       lockWatch();
     }, true);
 
-    /* The original game's unlocked handler rotates from cursor movement and
-       eventually stops at the screen edge. Suppress it completely. */
-    document.addEventListener('mousemove', function (e) {
+    /* The original game's unlocked handler rotates from cursor position and
+       stops at the screen edge. Only a held-button drag may turn the view.
+       On window, so it sees every move before the game's own listener. */
+    window.addEventListener('mousemove', function (e) {
       if (!MP.active || pointerIsLocked()) return;
+      if (MP.dragging && G.mode === 'play' && !MP.over && !MP.caught) {
+        var p = G.player;
+        p.yaw -= (e.movementX || 0) * 0.0026;
+        p.pitch = Math.max(-1.25, Math.min(1.25, p.pitch - (e.movementY || 0) * 0.0026));
+      }
       e.preventDefault();
       e.stopImmediatePropagation();
     }, true);
