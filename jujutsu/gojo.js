@@ -186,6 +186,8 @@
   function awaken() {
     if (!AW.ready || AW.active || AW.cine || player.char !== 'gojo' || player.dead) return;
     if (typeof started !== 'undefined' && !started) return;
+    /* the spawn entrance owns the camera, and this one needs it */
+    if (window.MPJJ && window.MPJJ.cs && window.MPJJ.cs.active) return;
     AW.cine = true;
     AW.ct = 0;
     AW.cineStage = 0;
@@ -621,6 +623,7 @@
 
       FX.beam(from, dir, LEN, 0x9b4dff, { radius: 3.6, life: 1.05 });
       FX.beam(from, dir, LEN, 0xffffff, { radius: 1.25, life: .95 });
+      beamShot(dir);                     // step aside and watch it go
       FX.flash('#f2e6ff', .85, .5);
       FX.mangaLines(true, .55);
       FX.zoom(16, .6);
@@ -910,6 +913,10 @@
     ['orb', 'blue', 'red', 'core'].forEach(function (k) {
       if (a[k] && a[k].dispose) { a[k].dispose(); a[k] = null; }
     });
+    /* Purple and the domain put the bars up on the way in and take them down
+       on the way out; being knocked out of one in between would leave them */
+    FX.letterbox(false);
+    FX.tint('#000000', 0);
   }
 
   /* --------------------------------------------------------- per frame */
@@ -931,14 +938,49 @@
     renderBar();
   };
 
+  /* A beam fired straight away from a chase camera is a bright dot. For the
+     second it is alive the camera steps out to one side, which is where an
+     anime would have put it anyway, and eases back. */
+  var SHOT = { t: 0, dur: 0, dir: null, side: 1, from: null };
+  function beamShot(dir) {
+    SHOT.t = 0; SHOT.dur = 1.35;
+    SHOT.dir = dir.clone();
+    SHOT.side = Math.random() < .5 ? 1 : -1;
+    SHOT.from = player.pos.clone();
+  }
+  function stepShot(dt) {
+    SHOT.t += dt;
+    var k = SHOT.t / SHOT.dur;
+    if (k >= 1) { SHOT.dur = 0; return; }
+    /* in over three frames, hold, out over the last third */
+    var mix = Math.min(1, k / .09) * (k > .66 ? 1 - (k - .66) / .34 : 1);
+    var d = SHOT.dir, right = new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(SHOT.side);
+    var base = SHOT.from;
+    var want = base.clone()
+      .addScaledVector(right, 13)
+      .addScaledVector(d, 7)
+      .add(new THREE.Vector3(0, 5.5 + SHOT.t * 1.2, 0));
+    var look = base.clone().addScaledVector(d, 26).add(new THREE.Vector3(0, 3, 0));
+    camera.position.lerp(want, mix);
+    var here = new THREE.Vector3();
+    camera.getWorldDirection(here);
+    var target = camera.position.clone().addScaledVector(here, 20);
+    camera.lookAt(target.lerp(look, mix));
+  }
+
   /* the entrance runs on real time, off the camera pass, so a hitstop in
      the middle of it cannot stretch it */
   var _updateCamera = updateCamera;
   updateCamera = function (dt) {
-    if (!AW.cine) return _updateCamera(dt);
-    stepCine(dt);
-    cineCamera();
-    shakeMag = Math.max(0, shakeMag - dt * 2.2);
+    if (AW.cine) {
+      stepCine(dt);
+      cineCamera();
+      shakeMag = Math.max(0, shakeMag - dt * 2.2);
+      return;
+    }
+    var r = _updateCamera(dt);
+    if (SHOT.dur > 0) stepShot(dt);
+    return r;
   };
 
   function cineCamera() {

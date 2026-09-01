@@ -1103,6 +1103,9 @@
     var moveAmt = Math.max(0, Math.min(1, sp / 2.2));
     var runAmt = Math.max(0, Math.min(1, (sp - 6.6) / 6.3));   // WALK_SPEED .92 .. RUN_SPEED
     resetPose(r);
+    /* a remote body is driven entirely from here, so the lean a throw puts
+       into it has to be cleared here too */
+    if (r.body) r.body.rotation.set(0, 0, 0);
     applyLocomotion(r, e.animT, f.gait, moveAmt, runAmt, f.onGround !== false, f.vy || 0);
     if (f.char === 'naoya' && !f.action && !f.attack) {
       applyNaoyaFlair(r, e.animT, moveAmt, runAmt, f.onGround !== false);

@@ -26,15 +26,10 @@
     combatT: 0                 // >0 means recently hit
   };
 
-  /* ------------------------------------------------------------ posing
-     resetPose only clears the joints, so anything that leans the whole
-     body has to be cleared too or the lean sticks for the rest of the
-     match. */
-  var _resetPose = resetPose;
-  resetPose = function (r) {
-    _resetPose(r);
-    if (r && r.body) { r.body.rotation.set(0, 0, 0); r.body.position.y = 0; }
-  };
+  /* resetPose only clears the joints. Whatever leans the whole body has to
+     clear it again itself — the enemies already decay it, and the flung
+     ragdoll accumulates into it deliberately, so clearing it here would
+     flatten the tumble the game already had. */
 
   /* =====================================================================
      DASH — a real burst of ground, held for a fraction of a second
@@ -331,8 +326,14 @@
       player.vel.z = player.dashDir.z * C.dash.speed;
     }
     var kb = player.action && player.action.type === 'kb' ? player.vel.clone() : null;
+    var wasThrown = !!kb;
 
     _updatePlayer(dt);
+
+    /* the throw leans the whole body, and nothing else would straighten it */
+    if (wasThrown && !(player.action && player.action.type === 'kb') && player.rig.body) {
+      player.rig.body.rotation.set(0, 0, 0);
+    }
 
     if (dashing && player.dashT > 0) {
       player.vel.x = player.dashDir.x * C.dash.speed;
