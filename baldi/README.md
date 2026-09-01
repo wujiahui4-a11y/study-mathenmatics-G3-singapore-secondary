@@ -27,19 +27,20 @@ and the chalk line under the drawing filling back in.
 
 ## Mouse look
 
-A match asks for pointer lock on a click, the way any first person game does,
-and puts a **CLICK TO LOOK AROUND** card up whenever the mouse is loose. Press
-`Esc` to get the cursor back, click to take it again.
+Strict first-person mouse look. The existing **Join as student** or **Start
+the match** click is used as the browser-required gesture, so there is no extra
+click at the start: the cursor is captured, hidden and held in the centre.
+`movementX` and `movementY` rotate the view directly; cursor position, screen
+edges and mouse buttons are never used.
 
-The single player code asks for the lock once, programmatically, as soon as a
-level loads. Browsers refuse a lock that is not tied to a click, and the game
-then latches that refusal and never asks again, which leaves you turning by
-pushing the cursor into the edge of the screen. In a match the lock is asked
-for again on the click, with `unadjustedMovement` so the desktop's mouse
-acceleration is out of the way, and if a page really will not allow it — an
-iframe without `allow-pointer-lock`, for instance — it retries in fullscreen
-before giving up and handing back the game's own look-by-moving fallback. The
-single player pause card is also kept from freezing a live match.
+`unadjustedMovement` requests raw input without the desktop's acceleration
+curve. `Esc` releases the pointer, at which point a **CLICK TO LOOK AROUND**
+card appears; one click captures it again. While it is loose, mouse movement
+is deliberately swallowed, so the old edge-turn behavior cannot come back.
+
+If an iframe refuses pointer lock, the game retries plainly and from
+fullscreen. It does **not** fall back to cursor-position turning. The single
+player pause card is also kept from freezing a live match.
 
 ## Playing
 
