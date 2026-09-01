@@ -173,6 +173,26 @@
     return tex(c);
   })();
 
+  /* a straight cut: white in the middle, gone at the ends */
+  T.blade = (function () {
+    var c = canvas(256), g = c.getContext('2d');
+    var grad = g.createLinearGradient(0, 0, 256, 0);
+    grad.addColorStop(0, 'rgba(255,255,255,0)');
+    grad.addColorStop(.18, 'rgba(255,255,255,.55)');
+    grad.addColorStop(.5, 'rgba(255,255,255,1)');
+    grad.addColorStop(.82, 'rgba(255,255,255,.55)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 118, 256, 20);
+    var core = g.createLinearGradient(0, 0, 256, 0);
+    core.addColorStop(0, 'rgba(255,255,255,0)');
+    core.addColorStop(.5, 'rgba(255,255,255,1)');
+    core.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = core;
+    g.fillRect(0, 124, 256, 8);
+    return tex(c);
+  })();
+
   /* jagged energy bolt, drawn along the horizontal */
   T.bolt = (function () {
     var c = canvas(256), g = c.getContext('2d');
@@ -503,36 +523,120 @@
     }
   }
 
-  /* dark fracture lines running away from a point of impact */
+  /* a fracture is a web, not a star: each ray forks, and the forks fork */
+  function crackSeg(x, z, y, ang, L, W, color, life) {
+    var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
+      map: T.bolt, color: color, transparent: true, opacity: .92,
+      depthWrite: false, side: THREE.DoubleSide, toneMapped: false
+    }));
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = -ang;
+    m.position.set(x + Math.cos(ang) * L * .5, y, z + Math.sin(ang) * L * .5);
+    m.scale.set(.02, W, 1);
+    m.renderOrder = 3;
+    scene.add(m);
+    addFx({ t: life, update: function (dt) {
+      this.t -= dt;
+      var k = 1 - this.t / life;
+      m.scale.x = L * Math.min(1, k * 14);
+      m.material.opacity = .92 * Math.max(0, 1 - Math.max(0, k - .55) / .45);
+      if (this.t <= 0) { kill(m); return false; }
+      return true;
+    } });
+  }
   function cracks(pos, n, len, color) {
-    n = n || 7; len = len || 9;
+    n = n || 11; len = len || 12;
     color = color == null ? 0x0a0d14 : color;
+    var y = (pos.y || 0) + .07;
+    function ray(ox, oz, ang, L, w, depth) {
+      var segs = depth === 0 ? 4 : 2;
+      var x = ox, z = oz, left = L;
+      for (var i = 0; i < segs && left > .6; i++) {
+        var sl = left / (segs - i) * (.65 + Math.random() * .7);
+        var ja = ang + (Math.random() - .5) * (depth === 0 ? .28 : .7);
+        crackSeg(x, z, y, ja, sl, w, color, 2.1 + Math.random() * .8 - depth * .3);
+        x += Math.cos(ja) * sl;
+        z += Math.sin(ja) * sl;
+        left -= sl;
+        if (depth < 2 && Math.random() < (depth === 0 ? .7 : .45)) {
+          ray(x, z, ja + (Math.random() < .5 ? 1 : -1) * (.5 + Math.random() * .7),
+            sl * (.45 + Math.random() * .35), w * .65, depth + 1);
+        }
+      }
+    }
     for (var i = 0; i < n; i++) {
-      var a = (i / n) * TAU + Math.random() * .4;
-      var l = len * (.5 + Math.random() * .8);
-      var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
-        map: T.bolt, color: color, transparent: true, opacity: .8,
-        depthWrite: false, side: THREE.DoubleSide, toneMapped: false
-      }));
-      m.rotation.x = -Math.PI / 2;
-      m.rotation.z = -a;
-      m.position.set(pos.x + Math.cos(a) * l * .5, pos.y + .07, pos.z + Math.sin(a) * l * .5);
-      /* a fracture is a line: the width stays hairline however long it runs */
-      var w = .5 + Math.random() * .45;
-      m.scale.set(.01, w, 1);
-      m.renderOrder = 3;
-      scene.add(m);
-      (function (m, l) {
-        var life = 1.3 + Math.random() * .7;
-        addFx({ t: life, update: function (dt) {
-          this.t -= dt;
-          var k = 1 - this.t / life;
-          m.scale.x = l * Math.min(1, k * 9);        // races outward
-          m.material.opacity = .8 * Math.max(0, 1 - Math.max(0, k - .45) / .55);
-          if (this.t <= 0) { kill(m); return false; }
-          return true;
-        } });
-      })(m, l);
+      ray(pos.x, pos.z, (i / n) * TAU + (Math.random() - .5) * .25,
+        len * (.55 + Math.random() * .7), .42 + Math.random() * .28, 0);
+    }
+  }
+
+  /* the scar a travelling cut leaves on the floor */
+  function scar(from, dir, len, color) {
+    dir = dir.clone().setY(0);
+    if (dir.lengthSq() < .0001) dir.set(0, 0, 1);
+    dir.normalize();
+    len = len || 28;
+    color = color == null ? 0x0a0d14 : color;
+    var steps = 7;
+    for (var i = 0; i < steps; i++) {
+      var at = from.clone().addScaledVector(dir, (i + .5) * (len / steps));
+      var wob = (Math.random() - .5) * .35;
+      crackSeg(at.x, at.z, (from.y || 0) + .08, Math.atan2(dir.x, dir.z) + wob,
+        len / steps * 1.15, .7 + Math.random() * .4, color, 2.6);
+      if (Math.random() < .55) {
+        crackSeg(at.x, at.z, (from.y || 0) + .08,
+          Math.atan2(dir.x, dir.z) + (Math.random() < .5 ? 1 : -1) * (.8 + Math.random() * .5),
+          3 + Math.random() * 5, .4, color, 2);
+      }
+    }
+  }
+
+  /* a cut that travels: the slash is the thing, and the world is what it
+     happens to pass through */
+  function worldCut(from, dir, opt) {
+    opt = opt || {};
+    dir = dir.clone();
+    if (dir.lengthSq() < .0001) dir.set(0, 0, 1);
+    dir.normalize();
+    var len = opt.len || 42;
+    var h = opt.h || 11;
+    var color = opt.color == null ? 0xffffff : opt.color;
+    var life = opt.life || .38;
+    var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
+      map: T.blade, color: color, transparent: true, opacity: 1,
+      depthWrite: false, side: THREE.DoubleSide, toneMapped: false
+    }));
+    var up = Math.abs(dir.y) > .9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+    var right = new THREE.Vector3().crossVectors(dir, up).normalize();
+    up = new THREE.Vector3().crossVectors(right, dir).normalize();
+    var mid = from.clone().addScaledVector(dir, len * .5);
+    m.position.copy(mid);
+    m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(dir, up, right));
+    m.scale.set(len, h, 1);
+    m.renderOrder = 6;
+    scene.add(m);
+    addFx({ t: life, update: function (dt) {
+      this.t -= dt;
+      var k = 1 - this.t / life;
+      var grow = ease.out(Math.min(1, k * 2.4));
+      m.scale.set(len * grow, h * (.35 + .65 * grow), 1);
+      m.material.opacity = k < .15 ? 1 : Math.max(0, 1 - (k - .15) / .85);
+      if (this.t <= 0) { kill(m); return false; }
+      return true;
+    } });
+    if (opt.scar !== false) {
+      scar(new THREE.Vector3(from.x, .02, from.z), dir, len, opt.scarColor || 0x120309);
+    }
+    if (opt.echo !== false) {
+      var echo = opt.echo === true ? 0xd4143c : opt.echo;
+      if (echo) {
+        setTimeout(function () {
+          worldCut(from.clone().add(new THREE.Vector3(0, .4, 0)), dir, {
+            len: len * .92, h: h * .7, color: echo, life: life * .85,
+            scar: false, echo: false
+          });
+        }, 40);
+      }
     }
   }
 
@@ -988,7 +1092,7 @@
     T: T, tex: T,
     impact: impact, cross: cross, streaks: streaks,
     ring: ring, rings: rings, speedRing: speedRing, slash: slash, wave: wave,
-    dust: dust, cracks: cracks, debris: debris, shockwave: shockwave,
+    dust: dust, cracks: cracks, scar: scar, worldCut: worldCut, debris: debris, shockwave: shockwave,
     beam: beam, orb: orb, mote: mote, converge: converge,
     aura: aura, dome: dome,
     flash: flash, mangaLines: mangaLines, letterbox: letterbox, tint: tint, zoom: zoom,

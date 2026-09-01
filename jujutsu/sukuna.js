@@ -375,13 +375,22 @@
     return out;
   }
 
-  /* the cut itself: a line drawn in the air that leaves a mark */
+  /* a cut that is actually a cut: it travels, it is huge, and it leaves
+     the floor the way it found the air */
   function cut(at, angle, size, color) {
+    var dir = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
+    if (FX.worldCut && size >= 10) {
+      FX.worldCut(at.clone().addScaledVector(dir, -size * .45), dir, {
+        len: size * 1.8, h: size * .38, color: color == null ? 0xffffff : color,
+        echo: color === 0xffffff ? RED : 0xffffff, life: .42
+      });
+      return;
+    }
     var m = FX.billboard(FX.T.slash, color == null ? 0xffffff : color, 1);
     m.position.copy(at);
     m.scale.set(size, size * .5, 1);
     scene.add(m);
-    var life = .22, t = 0;
+    var life = .28, t = 0;
     addFx({ t: life, update: function (d) {
       this.t -= d; t += d;
       FX.faceCam(m, angle);
@@ -393,55 +402,82 @@
     } });
   }
 
-  /* -------------------------------------------------- 1 · DISMANTLE */
+  /* if they are already nearly out, the cut does not wound them — it
+     takes them apart, and the pieces stay */
+  function slashVictim(e, dmg, dir, react) {
+    if (!e || e.dead || e.__gone) return;
+    var max = e.maxHp || 100;
+    var lethal = e.hp - dmg <= 0 || e.hp / max <= .24;
+    if (lethal && window.JJGORE) {
+      window.JJGORE.mark(e, 'cut', dir);
+      e.hp = 0;
+      try { e.die(); } catch (err) {}
+      return;
+    }
+    var kb = dir ? dir.clone().setY(0) : new THREE.Vector3();
+    if (kb.lengthSq() > .001) kb.normalize().multiplyScalar(10);
+    e.damage(dmg, kb, { react: react || 'slice', reactDur: .5, spark: 0xffffff });
+  }
+
+  /* -------------------------------------------------- 1 · DISMANTLE
+     Invisible until it has already gone through. What you see is the
+     world after: a cut that crosses everything in front, and another
+     that crosses that, the way the page itself gets sliced. */
   function castDismantle() {
     if (!ok('s1')) return;
-    begin('s1', .85, 's1', 'DISMANTLE', '\u89e3');
-    player.iframes = Math.max(player.iframes, .2);
+    begin('s1', 1.35, 's1', 'DISMANTLE', '\u89e3');
+    player.iframes = Math.max(player.iframes, .35);
   }
   function stepDismantle(a, dt) {
     var p = player, d = fwd();
-    if (a.t >= .22 && a.stage < 1) {
+    var origin = p.pos.clone().add(new THREE.Vector3(0, 2.8, 0));
+    if (a.t < .32 && Math.random() < .4) {
+      FX.mote(origin.clone().addScaledVector(d, 1.4), 0xffffff, 3, .25);
+    }
+    if (a.t >= .32 && a.stage < 1) {
       a.stage = 1;
-      var base = p.pos.clone().addScaledVector(d, 5).add(new THREE.Vector3(0, 2.6, 0));
-      for (var i = 0; i < 7; i++) {
-        (function (n) {
-          setTimeout(function () {
-            if (!scene) return;
-            var off = (n - 3) * 1.5;
-            var side = new THREE.Vector3(d.z, 0, -d.x).multiplyScalar(off);
-            var at = base.clone().add(side).add(new THREE.Vector3(0, (n % 2 ? .8 : -.9), 0));
-            cut(at, (n % 2 ? .7 : -.7), 7, 0xffffff);
-            cut(at, (n % 2 ? -.7 : .7), 5.5, RED);
-            FX.streaks(at, RED, 2, 6, 1);
-          }, n * 34);
-        })(i);
-      }
-      FX.cross(p.pos.clone().addScaledVector(d, 4).add(new THREE.Vector3(0, 2.6, 0)), 0xffffff, 4, .18);
-      FX.mangaLines(.5, .22);
-      addShake(.7);
-      if (AN) AN.camKick(.7);
-      var hit = targets(15, 6);
-      hit.forEach(function (e) {
-        var kb = e.pos.clone().sub(p.pos).setY(0).normalize().multiplyScalar(9);
-        e.damage(11 + Math.random() * 4, kb, { react: 'flinch', reactDur: .3, spark: RED });
-        FX.cracks(e.pos.clone(), 4, 6, INK);
+      /* three cuts that actually cross the world, not a fan of sparks */
+      var side = new THREE.Vector3(d.z, 0, -d.x);
+      FX.worldCut(origin.clone().addScaledVector(side, -4), d, {
+        len: 48, h: 14, color: 0xffffff, echo: RED, life: .48
       });
-      /* and the ground it passed over */
-      for (var j = 1; j <= 6; j++) {
-        var g = p.pos.clone().addScaledVector(d, j * 2.4);
-        FX.cracks(g, 3 + Math.random() * 3, 5, INK);
-      }
+      setTimeout(function () {
+        if (!scene) return;
+        var o2 = origin.clone().addScaledVector(side, 6).add(new THREE.Vector3(0, 1.2, 0));
+        var d2 = d.clone().addScaledVector(side, -.35).normalize();
+        FX.worldCut(o2, d2, { len: 44, h: 12, color: 0xffffff, echo: RED, life: .42 });
+      }, 90);
+      setTimeout(function () {
+        if (!scene) return;
+        var o3 = origin.clone().addScaledVector(side, -7).add(new THREE.Vector3(0, -1, 0));
+        var d3 = d.clone().addScaledVector(side, .4).normalize();
+        FX.worldCut(o3, d3, { len: 40, h: 11, color: RED, echo: 0xffffff, life: .4 });
+      }, 170);
+      FX.cross(origin.clone().addScaledVector(d, 8), 0xffffff, 7, .22);
+      FX.mangaLines(.85, .3);
+      FX.flash('#ffffff', .35, .12);
+      addShake(1.3);
+      if (AN) AN.camKick(1.2);
+      hitstop(.1);
+      var hit = targets(36, 10);
+      hit.forEach(function (e) {
+        slashVictim(e, 18, e.pos.clone().sub(p.pos), 'slice');
+        FX.cracks(e.pos.clone(), 9, 11, INK);
+      });
       try { sfx.slash(); } catch (e) {}
     }
-    if (a.t >= .5 && a.stage < 2) {
+    if (a.t >= .78 && a.stage < 2) {
       a.stage = 2;
-      var t2 = targets(15, 6);
+      /* the second pass: the ones that were only opened, closed */
+      FX.worldCut(origin.clone().add(new THREE.Vector3(0, -1.2, 0)), d, {
+        len: 46, h: 9, color: 0xffffff, echo: RED, life: .36
+      });
+      var t2 = targets(36, 10);
       t2.forEach(function (e) {
-        var kb = e.pos.clone().sub(p.pos).setY(0).normalize().multiplyScalar(14);
-        e.damage(9, kb, { react: 'flinch', reactDur: .3, spark: 0xffffff });
+        slashVictim(e, 14, e.pos.clone().sub(p.pos), 'twist');
       });
       if (t2.length && window.JJAW) window.JJAW.gain(8);
+      addShake(.8);
     }
   }
 
@@ -491,8 +527,8 @@
       if (tgt) {
         var kb = tgt.pos.clone().sub(p.pos).setY(0).normalize().multiplyScalar(30);
         kb.y = 12;
-        tgt.damage(46, kb, { react: 'blow', reactDur: 1, spark: 0xffffff, ragdoll: true });
-        if (window.JJRAG && tgt.hp > 0) {
+        slashVictim(tgt, 46, kb, 'slice');
+        if (tgt.hp > 0 && window.JJRAG) {
           try { window.JJRAG.start(tgt, kb.clone().multiplyScalar(.5), 1.2); } catch (e) {}
         }
         if (window.JJAW) window.JJAW.gain(14);
@@ -505,58 +541,150 @@
   /* ------------------------------------------------- 3 · DIVINE FLAME */
   function castFlame() {
     if (!ok('s3')) return;
-    begin('s3', 1.9, 's3', 'DIVINE FLAME', '\u958b');
-    player.iframes = Math.max(player.iframes, .8);
+    begin('s3', 3.4, 's3', 'DIVINE FLAME', '\u958b');
+    player.iframes = Math.max(player.iframes, 1.4);
   }
+
+  /* the arrow itself: shaft, head, fletching, and the fire that is all of it */
+  function buildArrow() {
+    var g = new THREE.Group();
+    function bit(w, h, d, c, em) {
+      var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshStandardMaterial({
+          color: c, roughness: .35, emissive: em || c, emissiveIntensity: 1.15
+        }));
+      return m;
+    }
+    var shaft = bit(.11, .11, 2.9, 0x2a0606, 0xff3a10);
+    g.add(shaft);
+    var head = bit(.28, .28, .75, 0xff7a22, 0xff5010);
+    head.position.z = 1.7;
+    g.add(head);
+    var tip = bit(.1, .1, .4, 0xffe8b0, 0xffc060);
+    tip.position.z = 2.2;
+    g.add(tip);
+    for (var i = 0; i < 3; i++) {
+      var f = bit(.05, .42, .55, 0xff2a08, 0xff4010);
+      f.position.z = -1.25;
+      f.rotation.z = i * TAU / 3;
+      g.add(f);
+    }
+    var glow = FX.billboard(FX.T.star, 0xff6a2a, .95);
+    glow.scale.setScalar(3.6);
+    glow.position.z = 1.5;
+    g.add(glow);
+    g.glow = glow;
+    return g;
+  }
+
+  function detonate(at, dir) {
+    FX.flash('#ff8a3a', .85, .45);
+    FX.impact(at, 0xff6a2a, 4.2);
+    FX.cross(at, 0xffe0a0, 8, .32);
+    FX.rings(new THREE.Vector3(at.x, .1, at.z), 0xff6a2a, 5, { maxR: 22, life: .85, gap: 50 });
+    FX.cracks(at.clone(), 16, 18, 0x2a1008);
+    FX.debris(at.clone(), 22, 18, 0x4a2010);
+    FX.dust(at.clone(), 14, 0xffb070, 8, 3);
+    FX.mangaLines(1, .45);
+    FX.zoom(-14, .9);
+    addShake(2.2);
+    if (AN) AN.camKick(2);
+    enemies.forEach(function (e) {
+      if (!e || e.dead || e.__gone) return;
+      var dist = e.pos.distanceTo(at);
+      if (dist > 16) return;
+      var kb = e.pos.clone().sub(at).setY(0);
+      if (kb.lengthSq() < .001) kb.copy(dir || fwd());
+      kb.normalize().multiplyScalar(28 - dist); kb.y = 7;
+      if (dist < 7 || e.hp / (e.maxHp || 100) <= .28) {
+        if (window.JJGORE) {
+          window.JJGORE.mark(e, 'burn', kb);
+          e.hp = 0;
+          try { e.die(); } catch (err) {}
+          return;
+        }
+      }
+      e.damage(38 - dist, kb, { react: 'sear', reactDur: 1, spark: 0xff8a3a });
+    });
+    try { sfx.blast(); } catch (e) {}
+  }
+
   function stepFlame(a, dt) {
     var p = player, d = fwd();
-    var muzzle = p.pos.clone().addScaledVector(d, 1.1).add(new THREE.Vector3(0, 2.7, 0));
-    if (a.t < .85) {                                 // it gathers in the palm
-      if (Math.random() < .95) FX.mote(muzzle, 0xff5a2a, 5, .3);
-      if (!a.orb) {
-        a.orb = FX.billboard(FX.T.star, 0xff7a2a, .9);
-        scene.add(a.orb);
-        SK.stage.push(a.orb);
-        FX.converge(muzzle, 0xff8a3a, 26, 12, .8);
+    var hands = p.pos.clone().addScaledVector(d, 1.3).add(new THREE.Vector3(0, 3.1, 0));
+
+    /* ---- 0.0 fire between closed palms ---- */
+    if (a.t < .75) {
+      if (Math.random() < .95) FX.mote(hands, 0xff5a2a, 6, .3);
+      if (!a.spark) {
+        a.spark = FX.billboard(FX.T.star, 0xff7a2a, .9);
+        scene.add(a.spark);
+        FX.converge(hands, 0xff8a3a, 22, 10, .7);
       }
-      a.orb.position.copy(muzzle);
-      a.orb.scale.setScalar(.6 + E.out(a.t / .85) * 3.4);
-      addShake(.25);
+      a.spark.position.copy(hands);
+      a.spark.scale.setScalar(.4 + E.out(a.t / .75) * 2.2);
+      addShake(.2);
     }
-    if (a.t >= .85 && a.stage < 1) {
+
+    /* ---- 0.75 the hands open and it becomes an arrow ---- */
+    if (a.t >= .75 && a.stage < 1) {
       a.stage = 1;
-      if (a.orb) { scene.remove(a.orb); a.orb.material.dispose(); a.orb = null; }
-      var len = 58;
-      FX.beam(muzzle, d, len, 0xff5a2a, { radius: 2.6, life: .8 });
-      FX.beam(muzzle, d, len, 0x2a0208, { radius: 3.6, life: .85 });
-      FX.beam(muzzle, d, len, 0xffd8a0, { radius: 1.1, life: .75 });
-      for (var i = 0; i < 12; i++) {
-        var at = muzzle.clone().addScaledVector(d, 4 + i * 4.4);
-        FX.impact(at, 0xff6a2a, 1.6 + Math.random());
-        FX.streaks(at, 0xffb070, 3, 7, 1.2);
-        FX.cracks(new THREE.Vector3(at.x, .1, at.z), 5, 7, 0x2a1008);
-      }
-      FX.flash('#ff8a3a', .6, .4);
-      FX.mangaLines(1, .45);
-      FX.zoom(-14, .9);
-      addShake(2);
-      if (AN) AN.camKick(1.8);
-      var hit = targets(len, 5.5);
-      hit.forEach(function (e) {
-        var kb = d.clone().multiplyScalar(34); kb.y = 8;
-        e.damage(52, kb, { react: 'blow', reactDur: 1.1, spark: 0xff8a3a, ragdoll: true });
-      });
-      if (hit.length && window.JJAW) window.JJAW.gain(16);
-      try { sfx.blast(); } catch (e) {}
+      if (a.spark) { scene.remove(a.spark); a.spark.material.dispose(); a.spark = null; }
+      a.arrow = buildArrow();
+      scene.add(a.arrow);
+      try { sfx.raise(); } catch (e) {}
     }
-    if (a.t >= .85 && a.t < 1.5 && Math.random() < .7) {
-      var q = muzzle.clone().addScaledVector(d, 5 + Math.random() * 45);
-      FX.mote(q, 0xff7a2a, 8, .5);
+    if (a.arrow && a.stage < 2) {
+      var grow = E.out(Math.min(1, (a.t - .75) / 1.1));
+      a.arrow.position.copy(hands);
+      a.arrow.lookAt(hands.clone().add(d));
+      a.arrow.scale.setScalar(.4 + grow * 1.1);
+      if (a.arrow.glow) a.arrow.glow.scale.setScalar(2.4 + grow * 2.4);
+      if (Math.random() < .7) FX.mote(hands.clone().addScaledVector(d, 1.2), 0xff8a3a, 5, .3);
+      addShake(.3);
+    }
+
+    /* ---- 2.05 released. It is slow. That is the point. ---- */
+    if (a.t >= 2.05 && a.stage < 2) {
+      a.stage = 2;
+      a.fly = hands.clone();
+      a.vdir = d.clone();
+      FX.flash('#ff8a3a', .4, .16);
+      addShake(.8);
+    }
+    if (a.stage === 2 && a.arrow) {
+      a.fly.addScaledVector(a.vdir, dt * 38);
+      a.arrow.position.copy(a.fly);
+      a.arrow.lookAt(a.fly.clone().add(a.vdir));
+      if (Math.random() < .9) FX.mote(a.fly.clone(), 0xff6a2a, 4, .25);
+      var hit = null, hd = 2.6;
+      enemies.forEach(function (e) {
+        if (!e || e.dead) return;
+        var dd = e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(a.fly);
+        if (dd < hd) { hd = dd; hit = e; }
+      });
+      var gone = a.fly.distanceTo(hands) > 52;
+      if (hit || gone) {
+        a.stage = 3;
+        var at = hit ? hit.pos.clone().add(new THREE.Vector3(0, 2.6, 0)) : a.fly.clone();
+        scene.remove(a.arrow);
+        a.arrow = null;
+        detonate(at, a.vdir);
+        if (window.JJAW) window.JJAW.gain(16);
+      }
+    }
+    if (a.t >= a.dur - .05 && a.arrow) {
+      scene.remove(a.arrow);
+      a.arrow = null;
     }
   }
 
-  /* -------------------------------------------- 4 · MALEVOLENT SHRINE */
-  var SHRINE = { r: 34, dur: 9.6 };
+  /* -------------------------------------------- 4 · MALEVOLENT SHRINE
+     An open Buddhist shrine — a zushi, twisted to enshrine demons.
+     Bovine skulls for a base, a hip-and-gable roof with horns, four
+     mouths for doors, human skulls hanging from the corners, and four
+     gnarled stumps. No barrier. The city stays; the slashes go through it. */
+  var SHRINE = { r: 52, dur: 11.2 };
   function castShrine() {
     if (!ok('s4')) return;
     begin('s4', SHRINE.dur, 's4', 'MALEVOLENT SHRINE', '\u4f0f\u9b54\u5fa1\u5eda\u5b50');
@@ -573,107 +701,147 @@
       m.castShadow = true; m.receiveShadow = true;
       return m;
     }
-    /* the platform it all sits on */
-    var base = bone(46, 1.4, 46, 0x2a2028);
-    base.position.y = -.7;
+    function skull(s, bovine) {
+      var sg = new THREE.Group();
+      sg.add(bone(s * 1.45, s * 1.15, s * 1.25, BONE));
+      for (var i = -1; i <= 1; i += 2) {
+        var sock = new THREE.Mesh(new THREE.BoxGeometry(s * .38, s * .42, s * .12),
+          new THREE.MeshBasicMaterial({ color: 0x180208, toneMapped: false }));
+        sock.position.set(i * s * .34, s * .16, s * .62);
+        sg.add(sock);
+      }
+      if (bovine) {
+        for (var h = -1; h <= 1; h += 2) {
+          var horn = bone(s * .2, s * 1.2, s * .2, 0xd8c9ad);
+          horn.position.set(h * s * .58, s * .9, 0);
+          horn.rotation.z = h * .5;
+          horn.rotation.x = -.25;
+          sg.add(horn);
+        }
+      }
+      var jaw = bone(s * 1.1, s * .35, s * .9, 0xd8c9ad);
+      jaw.position.set(0, -s * .7, s * .15);
+      sg.add(jaw);
+      return sg;
+    }
+
+    /* the platform, ringed with bovine skulls */
+    var base = bone(24, 1.3, 24, 0x2a2028);
+    base.position.y = .65;
     g.add(base);
-    for (var s = 0; s < 3; s++) {
-      var step = bone(46 - s * 6, .7, 46 - s * 6, s % 2 ? 0x3a2c34 : 0x241c22);
-      step.position.y = .35 + s * .7;
-      g.add(step);
+    var i;
+    for (i = 0; i < 8; i++) {
+      var a = (i / 8) * TAU;
+      var sk = skull(1.45, true);
+      sk.position.set(Math.cos(a) * 10.2, 1.7, Math.sin(a) * 10.2);
+      sk.rotation.y = a + Math.PI;
+      g.add(sk);
     }
 
-    /* the skull at the back of it, and the ribs around */
-    var head = new THREE.Group();
-    head.position.set(0, 15, -19);
-    var cranium = bone(11, 9, 9);
-    head.add(cranium);
-    var jaw = bone(9.4, 3, 7.4, 0xd8c9ad);
-    jaw.position.set(0, -5.6, .6);
-    head.add(jaw);
-    for (var e2 = -1; e2 <= 1; e2 += 2) {
-      var socket = new THREE.Mesh(new THREE.BoxGeometry(3, 3.2, .6),
+    /* the cabinet */
+    var body = bone(10.5, 12.4, 10.5, 0x3a2218);
+    body.position.y = 8.2;
+    g.add(body);
+
+    /* four mouths for four doors */
+    function mouth() {
+      var mg = new THREE.Group();
+      var hole = new THREE.Mesh(new THREE.BoxGeometry(5.6, 7.4, .35),
+        new THREE.MeshBasicMaterial({ color: 0x0a0204, toneMapped: false }));
+      mg.add(hole);
+      for (var t = 0; t < 7; t++) {
+        var up = bone(.58, 1.15, .42, 0xf0e6d0);
+        up.position.set(-2.1 + t * .7, 3.15, .28);
+        mg.add(up);
+        var dn = bone(.52, .95, .42, 0xf0e6d0);
+        dn.position.set(-2.1 + t * .7, -3.05, .28);
+        mg.add(dn);
+      }
+      var tongue = bone(2.3, .5, 2.5, 0xa8203c);
+      tongue.position.set(0, -1.7, .9);
+      tongue.rotation.x = .42;
+      mg.add(tongue);
+      for (var c = -1; c <= 1; c += 2) {
+        var fang = bone(.28, .7, .28, 0xf0e6d0);
+        fang.position.set(c * 2.6, 3.5, .2);
+        mg.add(fang);
+      }
+      return mg;
+    }
+    [[0, 0, 5.45, 0], [0, 0, -5.45, Math.PI],
+      [5.45, 0, 0, Math.PI / 2], [-5.45, 0, 0, -Math.PI / 2]].forEach(function (s) {
+      var m = mouth();
+      m.position.set(s[0], 8.2, s[2]);
+      m.rotation.y = s[3];
+      g.add(m);
+    });
+
+    /* hip-and-gable roof */
+    var hip = bone(17, 1.5, 17, 0x5a1a22);
+    hip.position.y = 15;
+    g.add(hip);
+    var hip2 = bone(13, 1.3, 13, 0x4a121c);
+    hip2.position.y = 16.3;
+    g.add(hip2);
+    var gable = bone(7.4, 3.4, 2.6, 0x6a1c28);
+    gable.position.y = 18.6;
+    g.add(gable);
+    var ridge = bone(8.4, .55, 1.3, 0x8b1226);
+    ridge.position.y = 20.4;
+    g.add(ridge);
+    /* a small mouth in each gable */
+    for (var gb = -1; gb <= 1; gb += 2) {
+      var gm = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, .2),
         new THREE.MeshBasicMaterial({ color: 0x180208, toneMapped: false }));
-      socket.position.set(e2 * 2.7, 1.4, 4.6);
-      head.add(socket);
-      var glow = FX.billboard(FX.T.star, RED, .95);
-      glow.scale.setScalar(5.5);
-      glow.position.set(e2 * 2.7, 1.4, 5.2);
-      head.add(glow);
+      gm.position.set(0, 18.2, gb * 1.4);
+      g.add(gm);
     }
-    for (var tth = 0; tth < 7; tth++) {
-      var t2 = bone(.9, 1.6, .8, 0xf0e6d0);
-      t2.position.set(-2.7 + tth * .9, -4.2, 4.2);
-      head.add(t2);
-    }
-    g.add(head);
-    g.skull = head;
 
-    /* ribs, leaning in over the yard */
-    for (var i = 0; i < 10; i++) {
-      var sgn = i % 2 ? 1 : -1, n = Math.floor(i / 2);
-      var rib = bone(1.5, 20 - n * 2.2, 1.5);
-      rib.position.set(sgn * (10 + n * 3.4), 9 - n, -10 + n * 6);
-      rib.rotation.z = sgn * (.32 + n * .06);
-      rib.rotation.x = -.12;
-      g.add(rib);
+    /* crown: bovine skull and horns out of the roof */
+    var crown = skull(1.7, true);
+    crown.position.set(0, 21.6, 0);
+    g.add(crown);
+    for (var hh = -1; hh <= 1; hh += 2) {
+      var rh = bone(.55, 5.2, .55, 0xd8c9ad);
+      rh.position.set(hh * 3.6, 20.2, 0);
+      rh.rotation.z = hh * .58;
+      g.add(rh);
     }
-    /* gate posts at the front */
-    for (var q = -1; q <= 1; q += 2) {
-      var post = bone(2, 22, 2, 0x8b1226);
-      post.position.set(q * 15, 11, 19);
-      g.add(post);
-    }
-    var lintel = bone(34, 2.2, 2.4, 0x8b1226);
-    lintel.position.set(0, 21, 19);
-    lintel.rotation.z = .02;
-    g.add(lintel);
-    var lintel2 = bone(30, 1.6, 1.8, 0x6a0c1c);
-    lintel2.position.set(0, 18, 19);
-    g.add(lintel2);
 
-    /* the sky it happens under */
-    var sky = new THREE.Mesh(new THREE.SphereGeometry(190, 28, 20),
-      new THREE.MeshBasicMaterial({
-        map: FX.T.smoke, color: 0x3a0510, side: THREE.BackSide,
-        depthWrite: false, toneMapped: false, transparent: true, opacity: .95
-      }));
-    sky.material.map = FX.T.smoke.clone();
-    sky.material.map.wrapS = sky.material.map.wrapT = THREE.RepeatWrapping;
-    sky.material.map.repeat.set(6, 3);
-    sky.material.map.needsUpdate = true;
-    g.add(sky);
-    g.sky = sky;
+    /* human skulls hanging from the four corners */
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (c) {
+      var hs = skull(.9, false);
+      hs.position.set(c[0] * 7.6, 13.4, c[1] * 7.6);
+      g.add(hs);
+    });
 
-    var lamp = new THREE.PointLight(0xffe0b0, 3.4, 150, 1.2);
-    lamp.position.set(0, 30, 6);
+    /* gnarled stumps at the corners of the yard */
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (c) {
+      var st = bone(1.8, 4.2, 1.8, 0x3a2a22);
+      st.position.set(c[0] * 13, 2.4, c[1] * 13);
+      st.rotation.z = c[0] * .12;
+      st.rotation.x = c[1] * .08;
+      g.add(st);
+      for (var b = 0; b < 3; b++) {
+        var br = bone(.35, 2.4, .35, 0x4a3428);
+        br.position.set(c[0] * 13 + (b - 1) * .7, 5.2, c[1] * 13);
+        br.rotation.z = (b - 1) * .5 + c[0] * .2;
+        g.add(br);
+      }
+    });
+
+    var lamp = new THREE.PointLight(0xffe0b0, 3.6, 80, 1.2);
+    lamp.position.set(0, 22, 6);
     g.add(lamp);
-    var lamp2 = new THREE.PointLight(0xff6a3a, 2.6, 110, 1.4);
-    lamp2.position.set(0, 10, -22);                  // behind the skull
+    var lamp2 = new THREE.PointLight(0xff6a3a, 2.4, 70, 1.4);
+    lamp2.position.set(0, 10, -8);
     g.add(lamp2);
-    var lamp3 = new THREE.PointLight(0xffb070, 2, 80, 1.5);
-    lamp3.position.set(0, 7, 22);
-    g.add(lamp3);
-    g.add(new THREE.AmbientLight(0x6a5a58, 1.1));
-
-    /* braziers, so the yard has something burning in it */
-    for (var b = 0; b < 4; b++) {
-      var bx = (b % 2 ? 1 : -1) * 17, bz = (b < 2 ? 1 : -1) * 13;
-      var bowl = bone(2.2, 1.6, 2.2, 0x3a2c2c);
-      bowl.position.set(bx, 3, bz);
-      g.add(bowl);
-      var fire = FX.billboard(FX.T.star, 0xff8a3a, .9);
-      fire.scale.setScalar(5);
-      fire.position.set(bx, 5.4, bz);
-      g.add(fire);
-      var fl = new THREE.PointLight(0xff7a3a, 2.2, 34, 1.6);
-      fl.position.set(bx, 5.4, bz);
-      g.add(fl);
-    }
+    g.add(new THREE.AmbientLight(0x6a5a58, 1.15));
+    g.sky = { material: { map: { offset: { x: 0 } } } };
 
     g.position.copy(center);
     g.rotation.y = player.facing;
-    g.position.y -= 30;                              // it comes up out of the ground
+    g.position.y -= 24;
     scene.add(g);
     SK.stage.push(g);
     return g;
@@ -704,12 +872,9 @@
       a.sk = 2;
       a.shrine = buildShrine(a.center);
       SK.shrine = a.shrine;
-      if (window.JJSTAGE) {
-        window.JJSTAGE.hide.sky = 0x1a0308;
-        window.JJSTAGE.hide(SK.stage.slice());
-      }
+      /* no barrier — the shrine stands in the city and the slashes go through it */
       FX.flash('#ff2a4a', .7, .4);
-      FX.rings(new THREE.Vector3(a.center.x, .1, a.center.z), RED, 6, { maxR: 40, life: 1, gap: 70 });
+      FX.rings(new THREE.Vector3(a.center.x, .1, a.center.z), RED, 6, { maxR: 52, life: 1, gap: 70 });
       addShake(2.2);
       hitstop(.14);
       a.locked = [];
@@ -728,33 +893,35 @@
 
     if (a.shrine) {
       var rise = Math.min(1, (t - 1.5) / 1.8);
-      a.shrine.position.y = a.center.y - 30 * (1 - E.out(rise));
-      a.shrine.sky.material.map.offset.x += dt * .01;
+      a.shrine.position.y = a.center.y - 24 * (1 - E.out(rise));
       if (rise >= 1) {
-        /* everything inside gets taken apart, and keeps getting taken apart */
+        /* the slashes that cut the world, not sparks around a dummy */
         a.cut = (a.cut || 0) + dt;
-        if (a.cut > .12) {
+        if (a.cut > .18) {
           a.cut = 0;
-          var ang = Math.random() * TAU, rr = Math.random() * SHRINE.r;
-          var at = new THREE.Vector3(a.center.x + Math.cos(ang) * rr,
-            .8 + Math.random() * 9, a.center.z + Math.sin(ang) * rr);
-          cut(at, Math.random() * TAU, 5 + Math.random() * 8, Math.random() < .4 ? RED : 0xffffff);
-          if (Math.random() < .4) FX.cracks(new THREE.Vector3(at.x, .1, at.z), 4, 6, INK);
+          var ang = Math.random() * TAU;
+          var from = a.center.clone().add(new THREE.Vector3(
+            Math.cos(ang) * -SHRINE.r * .7, 1 + Math.random() * 6,
+            Math.sin(ang) * -SHRINE.r * .7));
+          var dir = new THREE.Vector3(Math.cos(ang + Math.PI), 0, Math.sin(ang + Math.PI));
+          FX.worldCut(from, dir, {
+            len: 38 + Math.random() * 28, h: 8 + Math.random() * 10,
+            color: Math.random() < .35 ? RED : 0xffffff,
+            echo: Math.random() < .5 ? RED : 0xffffff, life: .4
+          });
         }
         a.tick = (a.tick || 0) + dt;
-        if (a.tick > .35) {
+        if (a.tick > .32) {
           a.tick = 0;
           (a.locked || []).forEach(function (e) {
-            if (!e || e.dead) return;
+            if (!e || e.dead || e.__gone) return;
             var at2 = e.pos.clone().add(new THREE.Vector3(
               (Math.random() - .5) * 2, 1.5 + Math.random() * 2.5, (Math.random() - .5) * 2));
-            cut(at2, Math.random() * TAU, 6, 0xffffff);
-            FX.streaks(at2, RED, 2, 5, 1);
+            FX.slash(at2, new THREE.Vector3(1, 0, 0), 0xffffff, 8, .2);
             e.stunT = Math.max(e.stunT || 0, .6);
-            e.hp = Math.max(1, e.hp - 9);            /* quietly; the shrine is the shot */
-            if (e.drawHp) e.drawHp();
+            slashVictim(e, 11, e.pos.clone().sub(a.center), 'slice');
           });
-          addShake(.35);
+          addShake(.4);
         }
       }
     }
@@ -784,11 +951,11 @@
     var marks = [
       { t: 0, yaw: .45, d: 7, h: 4, ly: 3, k: 18 },
       { t: 1.0, yaw: .12, d: 4.2, h: 3.6, ly: 3.4, k: 26 },        // the sign
-      { t: 1.5, yaw: -.25, d: 15, h: 8, ly: 5, k: 12 },
-      { t: 3.4, yaw: -.85, d: 40, h: 24, ly: 11, k: 8 },           // all of it at once
-      { t: 5.6, yaw: -.2, d: 26, h: 13, ly: 6, k: 9 },
-      { t: 7.6, yaw: .5, d: 17, h: 7.5, ly: 4, k: 10 },
-      { t: SHRINE.dur, yaw: .2, d: 13, h: 5.6, ly: 3.4, k: 12 }
+      { t: 1.5, yaw: -.25, d: 16, h: 9, ly: 7, k: 12 },
+      { t: 3.4, yaw: -.7, d: 28, h: 16, ly: 10, k: 8 },            // the shrine, whole
+      { t: 5.6, yaw: -.15, d: 22, h: 12, ly: 7, k: 9 },
+      { t: 8.2, yaw: .55, d: 18, h: 8, ly: 5, k: 10 },
+      { t: SHRINE.dur, yaw: .2, d: 14, h: 6, ly: 4, k: 12 }
     ];
     var i = 0;
     while (i < marks.length - 1 && t >= marks[i + 1].t) i++;
@@ -840,22 +1007,46 @@
         W(r, -.2 * u + .5 * dn);
         return true;
       }
-      case 's3': {                                   // palm forward, holding it
+      case 's3': {                                   // palms together, then spread, then loosed
         rp(r);
-        var c = t < .85 ? E.out(t / .85) : 1;
-        var fire = t >= .85 ? E.out(Math.min(1, (t - .85) / .16)) : 0;
-        r.shoulderR.rotation.x = -.4 - 1.1 * c - .3 * fire;
-        r.shoulderR.rotation.z = -.5 * c + .25 * fire;
-        r.elbowR.rotation.x = -1.4 * c + 1.25 * fire;
-        r.shoulderL.rotation.x = -.4 - .9 * c - .2 * fire;
-        r.shoulderL.rotation.z = .5 * c - .2 * fire;
-        r.elbowL.rotation.x = -1.2 * c + 1 * fire;
-        r.spine.rotation.x = .18 * c - .42 * fire;
-        r.neck.rotation.x = -.1 * c - .12 * fire;
-        r.hips.position.y = r.hipsBaseY - .2 * c + .1 * fire;
-        r.hipL.rotation.x = -.35 * c + .2 * fire;
-        r.kneeL.rotation.x = .5 * c - .3 * fire;
-        W(r, -.35 * c + .55 * fire);
+        if (t < .75) {
+          var c = E.out(t / .75);
+          r.shoulderR.rotation.x = -.4 - 1.15 * c;
+          r.shoulderR.rotation.z = -.72 * c;
+          r.elbowR.rotation.x = -1.55 * c;
+          r.shoulderL.rotation.x = -.4 - 1.15 * c;
+          r.shoulderL.rotation.z = .72 * c;
+          r.elbowL.rotation.x = -1.55 * c;
+          r.spine.rotation.x = .16 * c;
+          r.neck.rotation.x = -.12 * c;
+          r.hips.position.y = r.hipsBaseY - .16 * c;
+          W(r, -.25 * c);
+        } else if (t < 2.05) {                       // the arrow grows between them
+          var s = E.out(Math.min(1, (t - .75) / 1.1));
+          r.shoulderR.rotation.x = -1.55 - .15 * s;
+          r.shoulderR.rotation.z = -.72 + .28 * s;
+          r.elbowR.rotation.x = -1.55 + .85 * s;
+          r.shoulderL.rotation.x = -1.55 - .1 * s;
+          r.shoulderL.rotation.z = .72 - .22 * s;
+          r.elbowL.rotation.x = -1.55 + .7 * s;
+          r.spine.rotation.x = .16 - .08 * s;
+          r.neck.rotation.x = -.12 - .1 * s;
+          W(r, -.15);
+        } else {                                     // one hand forward, loosing it
+          var fire = E.out(Math.min(1, (t - 2.05) / .18));
+          r.shoulderR.rotation.x = -1.7 - .25 * fire;
+          r.shoulderR.rotation.z = -.44 + .2 * fire;
+          r.elbowR.rotation.x = -.7 + .45 * fire;
+          r.shoulderL.rotation.x = -1.65 + .5 * fire;
+          r.shoulderL.rotation.z = .5 - .15 * fire;
+          r.elbowL.rotation.x = -.85 + .4 * fire;
+          r.spine.rotation.x = .08 - .4 * fire;
+          r.neck.rotation.x = -.22;
+          r.hips.position.y = r.hipsBaseY - .16 + .1 * fire;
+          r.hipL.rotation.x = -.35 * fire;
+          r.kneeL.rotation.x = .45 * fire;
+          W(r, .55 * fire);
+        }
         return true;
       }
       case 's4': {                                   // hands together, and held
@@ -945,9 +1136,9 @@
   /* Yuji's own handler may win the keydown, so the swap happens at the
      action instead: while it is out, his four become the other four */
   var SWAP = {
-    y1: ['s1', .85, 'DISMANTLE', '\u89e3'],
+    y1: ['s1', 1.35, 'DISMANTLE', '\u89e3'],
     y2: ['s2', 1.15, 'CLEAVE', '\u634c'],
-    y3: ['s3', 1.9, 'DIVINE FLAME', '\u958b'],
+    y3: ['s3', 3.4, 'DIVINE FLAME', '\u958b'],
     y4: ['s4', SHRINE.dur, 'MALEVOLENT SHRINE', '\u4f0f\u9b54\u5fa1\u5eda\u5b50']
   };
   var _updateAction = null;
@@ -962,7 +1153,7 @@
     cds[sw[0]] = CD[sw[0]];
     try { showSplash(sw[2], sw[3], '#ff2a4a'); } catch (e) {}
     if (sw[0] === 's4') { player.iframes = Math.max(player.iframes, SHRINE.dur); FX.letterbox(true); hud(false); }
-    else player.iframes = Math.max(player.iframes, sw[0] === 's3' ? .8 : .35);
+    else player.iframes = Math.max(player.iframes, sw[0] === 's3' ? 1.4 : .35);
     if (window.MPJJ && window.MPJJ.relay) {
       window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: sw[0] });
     }

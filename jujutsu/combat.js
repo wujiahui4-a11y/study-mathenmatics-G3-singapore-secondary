@@ -106,6 +106,14 @@
     var power = knock ? knock.length() : 0;
     var at = player.pos.clone().add(new THREE.Vector3(0, 2.9, 0));
     if (FX) FX.heavyHit(at, 0xff5f6d, Math.min(1.6, .7 + power / 55));
+    /* the dummy already had these; the player did not */
+    if (!player.dead && !player.react) {
+      var kind = player.__hitKind || (power >= 22 ? 'blow' : amount >= 16 ? 'stagger'
+        : amount >= 10 ? 'gut' : amount >= 6 ? 'head' : 'pummel');
+      player.react = { type: kind, t: 0, dur: kind === 'blow' ? .8 : .45 + amount / 40,
+        side: knock && knock.x + knock.z < 0 ? -1 : 1 };
+      player.__hitKind = null;
+    }
     if (power >= KB_MIN && !player.dead && player.frameT <= 0) {
       launch(power);
       if (FX) {
@@ -134,12 +142,75 @@
   /* the flung pose, for dummies and for other players' rigs */
   var _applyReact = Enemy.prototype.applyReact;
   Enemy.prototype.applyReact = function (dt) {
-    if (!this.react || this.react.type !== 'blow') return _applyReact.call(this, dt);
-    var rc = this.react;
-    rc.t += dt;
-    if (rc.t >= rc.dur) { this.react = null; return; }
-    poseBlown(this.rig, rc.t / rc.dur, rc.side || 1);
+    if (!this.react) return _applyReact.call(this, dt);
+    var extra = this.react.type;
+    if (extra === 'blow') {
+      var rc = this.react;
+      rc.t += dt;
+      if (rc.t >= rc.dur) { this.react = null; return; }
+      poseBlown(this.rig, rc.t / rc.dur, rc.side || 1);
+      return;
+    }
+    if (extra === 'slice' || extra === 'crumple' || extra === 'twist' || extra === 'sear') {
+      var r2 = this.react;
+      r2.t += dt;
+      if (r2.t >= r2.dur) { this.react = null; return; }
+      poseExtra(this.rig, extra, r2.t / r2.dur, r2.side || 1);
+      return;
+    }
+    return _applyReact.call(this, dt);
   };
+
+  /* four more ways to be hit, used by the slashes and the fire */
+  function poseExtra(r, kind, k, side) {
+    if (!r) return;
+    var snap = Math.min(1, k * 16);
+    var env = 1 - k;
+    var e = snap * env;
+    switch (kind) {
+      case 'slice':                                  // the cut has already gone through
+        r.spine.rotation.x = -.15 * e;
+        r.spine.rotation.y = .85 * side * e;
+        r.spine.rotation.z = .25 * side * e;
+        r.neck.rotation.x = -.2 * e;
+        r.neck.rotation.z = .4 * side * e;
+        r.shoulderL.rotation.x = .6 * e; r.shoulderR.rotation.x = -.4 * e;
+        r.shoulderL.rotation.z = -.3 * e; r.shoulderR.rotation.z = .7 * side * e;
+        r.elbowL.rotation.x = -.3 * e; r.elbowR.rotation.x = -1.1 * e;
+        r.hipL.rotation.x = .4 * e; r.hipR.rotation.x = -.2 * e;
+        r.kneeL.rotation.x = .7 * e; r.kneeR.rotation.x = .25 * e;
+        r.hips.position.y = r.hipsBaseY - .18 * e;
+        break;
+      case 'crumple':                                // the knees go first
+        r.spine.rotation.x = .95 * e;
+        r.neck.rotation.x = .7 * e;
+        r.shoulderL.rotation.x = -1.4 * e; r.shoulderR.rotation.x = -1.2 * e;
+        r.elbowL.rotation.x = -1.6 * e; r.elbowR.rotation.x = -1.5 * e;
+        r.hipL.rotation.x = -1.3 * e; r.hipR.rotation.x = -.4 * e;
+        r.kneeL.rotation.x = 2.1 * e; r.kneeR.rotation.x = 1.7 * e;
+        r.hips.position.y = r.hipsBaseY - 1.35 * e;
+        break;
+      case 'twist':                                  // spun by the cut
+        r.spine.rotation.y = (1.6 * side) * e;
+        r.spine.rotation.x = .2 * e;
+        r.neck.rotation.y = .9 * side * e;
+        r.shoulderL.rotation.x = -1.8 * e; r.shoulderR.rotation.x = .4 * e;
+        r.elbowL.rotation.x = -.5 * e; r.elbowR.rotation.x = -1.2 * e;
+        r.hipL.rotation.x = .5 * e; r.hipR.rotation.x = -.6 * e;
+        r.kneeL.rotation.x = .4 * e; r.kneeR.rotation.x = .9 * e;
+        break;
+      case 'sear':                                   // clutching the fire
+        r.spine.rotation.x = .45 * e + Math.sin(k * 40) * .08;
+        r.spine.rotation.z = Math.sin(k * 28) * .12;
+        r.neck.rotation.x = .35 * e;
+        r.shoulderL.rotation.x = -1.5 * e; r.shoulderR.rotation.x = -1.6 * e;
+        r.shoulderL.rotation.z = .45 * e; r.shoulderR.rotation.z = -.45 * e;
+        r.elbowL.rotation.x = -1.7 * e; r.elbowR.rotation.x = -1.7 * e;
+        r.kneeL.rotation.x = .6 * e; r.kneeR.rotation.x = .5 * e;
+        r.hips.position.y = r.hipsBaseY - .35 * e;
+        break;
+    }
+  }
 
   /* Arched over the impact, arms and legs trailing, then a heavy landing
      and a scramble back up. One curve drives all of it so it reads as a

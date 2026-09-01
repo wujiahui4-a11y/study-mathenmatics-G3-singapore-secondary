@@ -1421,19 +1421,18 @@
       /* the four he gets when the thing inside him is out */
       case 's1':
         setTimeout(function () {
-          for (var i = 0; i < 6; i++) {
-            (function (n) {
-              setTimeout(function () {
-                var at = mid.clone().addScaledVector(fwd, 4 + n * 1.6)
-                  .add(new THREE.Vector3((n - 3) * 1.2, (n % 2 ? .8 : -.8), 0));
-                FX.slash(at, fwd, n % 2 ? 0xffffff : 0xd4143c, 6, .2);
-                FX.streaks(at, 0xd4143c, 2, 6, 1);
-              }, n * 34);
-            })(i);
+          if (FX.worldCut) {
+            FX.worldCut(mid.clone(), fwd, { len: 48, h: 14, color: 0xffffff, echo: 0xd4143c, life: .48 });
+            setTimeout(function () {
+              var side = new THREE.Vector3(fwd.z, 0, -fwd.x);
+              FX.worldCut(mid.clone().addScaledVector(side, 6),
+                fwd.clone().addScaledVector(side, -.35).normalize(),
+                { len: 44, h: 12, color: 0xffffff, echo: 0xd4143c, life: .42 });
+            }, 90);
           }
-          FX.cross(mid.clone().addScaledVector(fwd, 4), 0xffffff, 4, .18);
-          if (close) addShake(.6);
-        }, 220);
+          FX.cross(mid.clone().addScaledVector(fwd, 8), 0xffffff, 7, .22);
+          if (close) addShake(1.2);
+        }, 320);
         break;
       case 's2':
         setTimeout(function () {
@@ -1449,31 +1448,45 @@
         break;
       case 's3':
         setTimeout(function () {
-          FX.beam(mid.clone(), fwd, 58, 0xff5a2a, { radius: 2.6, life: .8 });
-          FX.beam(mid.clone(), fwd, 58, 0x2a0208, { radius: 3.6, life: .85 });
-          for (var i = 0; i < 10; i++) {
-            var at = mid.clone().addScaledVector(fwd, 5 + i * 5);
-            FX.impact(at, 0xff6a2a, 1.5);
-            FX.cracks(new THREE.Vector3(at.x, .1, at.z), 4, 6, 0x2a1008);
-          }
-          if (close) addShake(1.6);
-        }, 850);
+          var fly = mid.clone();
+          var glow = FX.billboard(FX.T.star, 0xff6a2a, .95);
+          glow.scale.setScalar(3.4);
+          glow.position.copy(fly);
+          scene.add(glow);
+          var t = 0;
+          addFx({ t: 1.4, update: function (d) {
+            this.t -= d; t += d;
+            fly.addScaledVector(fwd, d * 38);
+            glow.position.copy(fly);
+            if (this.t <= 0) {
+              scene.remove(glow); glow.material.dispose();
+              FX.impact(fly, 0xff6a2a, 4);
+              FX.rings(new THREE.Vector3(fly.x, .1, fly.z), 0xff6a2a, 5, { maxR: 20, life: .8, gap: 50 });
+              FX.cracks(fly.clone(), 14, 16, 0x2a1008);
+              return false;
+            }
+            return true;
+          } });
+          if (close) addShake(1.4);
+        }, 2050);
         break;
       case 's4':
         setTimeout(function () {
-          FX.rings(new THREE.Vector3(pos.x, .1, pos.z), 0xd4143c, 6, { maxR: 34, life: 1, gap: 70 });
-          FX.beam(pos.clone(), new THREE.Vector3(0, 1, 0), 70, 0x8b0f2a, { radius: 3, life: 1.2 });
-          FX.cracks(pos.clone(), 16, 22, 0x14060a);
+          FX.rings(new THREE.Vector3(pos.x, .1, pos.z), 0xd4143c, 6, { maxR: 50, life: 1, gap: 70 });
+          FX.cracks(pos.clone(), 18, 24, 0x14060a);
           FX.debris(pos.clone(), 18, 18, 0x2a1218);
           if (close) addShake(2);
-          /* and then it keeps cutting, for as long as the shrine is up */
           var n = 0, iv = setInterval(function () {
-            if (n++ > 44) { clearInterval(iv); return; }
-            var a = Math.random() * Math.PI * 2, rr = Math.random() * 30;
-            var at = new THREE.Vector3(pos.x + Math.cos(a) * rr, .8 + Math.random() * 8,
-              pos.z + Math.sin(a) * rr);
-            FX.slash(at, fwd, Math.random() < .4 ? 0xd4143c : 0xffffff, 5, .18);
-          }, 170);
+            if (n++ > 40) { clearInterval(iv); return; }
+            if (!FX.worldCut) return;
+            var a = Math.random() * Math.PI * 2;
+            var from = new THREE.Vector3(pos.x + Math.cos(a) * -36, 1 + Math.random() * 6,
+              pos.z + Math.sin(a) * -36);
+            FX.worldCut(from, new THREE.Vector3(Math.cos(a + Math.PI), 0, Math.sin(a + Math.PI)), {
+              len: 40 + Math.random() * 24, h: 9 + Math.random() * 8,
+              color: Math.random() < .35 ? 0xd4143c : 0xffffff, echo: 0xd4143c, life: .38
+            });
+          }, 200);
         }, 1500);
         break;
       case 'sukuna':
