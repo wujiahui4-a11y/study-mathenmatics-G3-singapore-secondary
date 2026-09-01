@@ -3187,7 +3187,11 @@ window.__game = {
       '#jjLook .c{background:#111726;border:1px solid #2b3350;border-radius:12px;padding:22px 34px;text-align:center}',
       '#jjLook b{display:block;font-size:24px;letter-spacing:2px;color:#7fd4ff}',
       '#jjLook span{display:block;margin-top:8px;font-size:13px;color:#93a0be}',
-      'body.jjLocked,body.jjLocked *{cursor:none!important}'
+      'body.jjLocked,body.jjLocked *{cursor:none!important}',
+      '#jjDragHint{position:fixed;left:50%;transform:translateX(-50%);bottom:66px;z-index:22;display:none;',
+      'background:rgba(8,12,22,.8);border:1px solid rgba(127,212,255,.35);border-radius:8px;',
+      'padding:6px 14px;font:13px "Segoe UI",Arial,sans-serif;color:#cfe6ff;pointer-events:none}',
+      '#jjDragHint b{color:#7fd4ff}'
     ].join('');
     document.head.appendChild(css);
 
@@ -3217,7 +3221,8 @@ window.__game = {
       '<div id="jjScore"></div>',
       '<div id="jjFeed"></div>',
       '<div id="jjLook"><div class="c"><b>CLICK TO LOOK AROUND</b>',
-      '<span>mouse looks · Esc frees the cursor</span></div></div>'
+      '<span>mouse looks · Esc frees the cursor</span></div></div>',
+      '<div id="jjDragHint">hold <b>RIGHT MOUSE</b> and move to look around</div>'
     ].join('');
     while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
 
@@ -3247,15 +3252,30 @@ window.__game = {
       grabMouse();
     });
     document.addEventListener('pointerlockchange', lookWatch);
+    document.addEventListener('pointerlockerror', function () {
+      /* Google Apps Script frames the page with a sandbox that has no
+         allow-pointer-lock, so the lock can never be granted there. Rather
+         than leave the player unable to turn, switch to drag-look. */
+      MP.lockBlocked = true;
+      lookWatch();
+    });
+    bindDragLook();
     setInterval(lookWatch, 200);
   }
 
   function grabMouse() {
     var cv = renderer.domElement;
-    if (!cv || !cv.requestPointerLock) return;
+    if (!cv || !cv.requestPointerLock) { MP.lockBlocked = true; lookWatch(); return; }
     var pr = null;
-    try { pr = cv.requestPointerLock({ unadjustedMovement: true }); } catch (e) { pr = null; }
-    if (pr && pr.catch) pr.catch(function () { try { cv.requestPointerLock(); } catch (e2) {} });
+    try { pr = cv.requestPointerLock({ unadjustedMovement: true }); }
+    catch (e) { MP.lockBlocked = true; lookWatch(); return; }
+    if (pr && pr.catch) {
+      pr.catch(function () {
+        var p2;
+        try { p2 = cv.requestPointerLock(); } catch (e2) { MP.lockBlocked = true; lookWatch(); return; }
+        if (p2 && p2.catch) p2.catch(function () { MP.lockBlocked = true; lookWatch(); });
+      });
+    }
   }
 
   function lookWatch() {
@@ -3263,8 +3283,40 @@ window.__game = {
     var m = el('menu');
     if (m && m.style.display !== 'none') m.style.display = 'none';
     var isLocked = document.pointerLockElement === renderer.domElement;
-    document.body.classList.toggle('jjLocked', isLocked);
-    el('jjLook').style.display = isLocked ? 'none' : 'flex';
+    document.body.classList.toggle('jjLocked', isLocked || MP.dragging);
+    /* three states: locked and playing, able to lock but loose, or a page
+       that will never grant it — the last one gets drag-look */
+    el('jjLook').style.display = (isLocked || MP.lockBlocked) ? 'none' : 'flex';
+    el('jjDragHint').style.display = (!isLocked && MP.lockBlocked && !MP.dragging) ? 'block' : 'none';
+  }
+
+  /* Hold the right button and move: the same relative movement drives the
+     camera, and letting go and re-gripping works like lifting a mouse. */
+  function bindDragLook() {
+    var canLook = function () {
+      return MP.active && document.pointerLockElement !== renderer.domElement;
+    };
+    window.addEventListener('mousedown', function (e) {
+      if (!canLook() || (e.button !== 2 && e.button !== 1)) return;
+      MP.dragging = true;
+      document.body.classList.add('jjLocked');
+      el('jjDragHint').style.display = 'none';
+      e.preventDefault(); e.stopImmediatePropagation();
+    }, true);
+    window.addEventListener('mouseup', function (e) {
+      if (!MP.dragging || (e.button !== 2 && e.button !== 1)) return;
+      MP.dragging = false;
+      document.body.classList.remove('jjLocked');
+      lookWatch();
+      e.preventDefault(); e.stopImmediatePropagation();
+    }, true);
+    window.addEventListener('mousemove', function (e) {
+      if (!MP.dragging || !canLook()) return;
+      camYaw -= (e.movementX || 0) * .0032;
+      camPitch = Math.max(-.5, Math.min(1.1, camPitch + (e.movementY || 0) * .0026));
+      e.preventDefault(); e.stopImmediatePropagation();
+    }, true);
+    window.addEventListener('contextmenu', function (e) { if (MP.active) e.preventDefault(); });
   }
 
   function status(text, bad) {
@@ -3334,6 +3386,8 @@ window.__game = {
     el('jjScore').style.display = 'none';
     el('jjFeed').innerHTML = '';
     el('jjLook').style.display = 'none';
+    el('jjDragHint').style.display = 'none';
+    MP.dragging = false;
     document.body.classList.remove('jjLocked');
   }
 
@@ -3581,6 +3635,11 @@ window.__game = {
   window.addEventListener('beforeunload', function () {
     if (MP.relay && MP.relay.connected) MP.relay.pub({ t: 'bye', id: MP.id });
   });
+
+  /* handy for checking the camera from outside, the game only had a setter */
+  if (window.__game) {
+    window.__game.getCam = function () { return { yaw: camYaw, pitch: camPitch }; };
+  }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectUI);
   else injectUI();

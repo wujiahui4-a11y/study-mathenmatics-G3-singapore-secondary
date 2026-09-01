@@ -48,6 +48,26 @@ The title screen normally comes back whenever pointer lock is lost, which in a
 match looks like being thrown out of the room. During a match it is kept shut
 and a small **CLICK TO LOOK AROUND** card offers the mouse back instead.
 
+## Looking around where the mouse cannot be locked
+
+Apps Script frames the page with a sandbox that does not include
+`allow-pointer-lock`, so the browser refuses the lock outright:
+
+```
+Blocked pointer lock on an element because the element's frame is sandboxed
+and the 'allow-pointer-lock' permission is not set.
+```
+
+Nothing on the page can grant it — a popup opened from the frame inherits the
+same restriction, and a nested iframe cannot hold more permissions than its
+parent. So when the refusal is seen, the game switches to **drag-look**: hold
+the **right mouse button** and move, which uses the same relative movement and
+has no screen edge to run into, because letting go and re-gripping works like
+lifting a mouse off the mat. Left click stays as your attack.
+
+Where the lock *is* available — the file opened from disk, or ordinary hosting
+— nothing changes and the mouse is captured as usual.
+
 ## Transport
 
 Free public MQTT brokers over WebSocket, the same arrangement as the other two
