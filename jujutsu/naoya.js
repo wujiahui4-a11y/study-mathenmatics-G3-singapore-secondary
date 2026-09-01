@@ -950,6 +950,25 @@
     r.hips.position.y = r.hipsBaseY - .3;
     if (k != null) { r.spine.rotation.z = Math.sin(k * 6) * .08; }
   }
+  /* brought down from overhead onto something on the floor */
+  function poseSmash(r, k) {
+    rp(r);
+    var up = Math.min(1, k / .55), down = k > .55 ? (k - .55) / .45 : 0;
+    r.shoulderR.rotation.x = -.4 - 2.5 * up + 3.1 * down;
+    r.shoulderR.rotation.z = -.25 * up + .2 * down;
+    r.elbowR.rotation.x = -.5 * up + .45 * down;
+    r.shoulderL.rotation.x = -.5 - .4 * up + .2 * down;
+    r.elbowL.rotation.x = -1.3;
+    r.spine.rotation.x = -.22 * up + 1.05 * down;      // folds over the strike
+    r.spine.rotation.y = -.3 * up + .2 * down;
+    r.neck.rotation.x = -.25 * up + .75 * down;
+    r.hipL.rotation.x = -.2 * up - .5 * down;
+    r.kneeL.rotation.x = .3 * up + .9 * down;
+    r.hipR.rotation.x = .15 * up - .3 * down;
+    r.kneeR.rotation.x = .25 * up + .7 * down;
+    r.hips.position.y = r.hipsBaseY + .18 * up - .85 * down;
+  }
+
   /* flat on their back, arms and knees fallen open */
   function poseDown(r) {
     rp(r);
@@ -1227,13 +1246,13 @@
       } else if (t < 1.75) {                          // runs back at them
         var rk = E.out((t - .75) / 1);
         poseRun(A.rig, (t - .75) * 30, t - .75);
-        A.rig.root.position.set(STAGE.x, STAGE.y + 1.1, STAGE.z + 8.8 - rk * 2.1);
-        A.rig.root.rotation.set(0, Math.PI, 0);
+        A.rig.root.position.set(STAGE.x - 1.4 * rk, STAGE.y + 1.1, STAGE.z + 8.8 - rk * 2.9);
+        A.rig.root.rotation.set(0, Math.PI - rk * Math.PI * .5, 0);
       } else {                                        // and drives them down
         var pk = Math.min(1, (t - 1.75) / .45);
-        posePunch(A.rig, pk, 1);
-        A.rig.root.position.set(STAGE.x, STAGE.y + 1.1, STAGE.z + 6.7 - E.out(pk) * .5);
-        A.rig.root.rotation.set(0, Math.PI, 0);
+        poseSmash(A.rig, pk);
+        A.rig.root.position.set(STAGE.x - 1.4, STAGE.y + 1.1, STAGE.z + 5.9 - E.out(pk) * .3);
+        A.rig.root.rotation.set(0, Math.PI * .5, 0);   // side on to them
       }
 
       /* side on, level with the slab, so the drop through it reads */
@@ -1319,7 +1338,7 @@
       var A = CINE.A, V = CINE.V;
       /* they push themselves off the floor and stand, from exactly where
          the last beat left them lying */
-      var up = E.out(Math.min(1, t / 1.6));
+      var up = E.pop(Math.min(1, t / 2.0));
       if (up < 1) {
         poseDown(V.rig);
         V.rig.spine.rotation.x = -.18 + .7 * up;
@@ -1361,6 +1380,8 @@
       put(A, 0, 0, -3.9, 0);                        // behind them
       A.rig.root.visible = true;
       FX.trail(A.rig, 0x9fd8ff, 4, 35, .45);
+      FX.speedRing(sp(0, 2.6, -3.9), 0x9fd8ff, 7, .3);
+      FX.streaks(sp(0, 2.4, -3.9), 0xdfefff, 8, 14, 1.2);
     },
     step: function (t) {
       var A = CINE.A, V = CINE.V;
@@ -1436,10 +1457,10 @@
         A.rig.root.visible = true;
         var pk = Math.min(1, (t - 1.6) / .5);
         posePunch(A.rig, pk, 1);
-        A.rig.root.position.set(vp.x, vp.y + .4, vp.z + 7.2 - E.out(pk) * 3.6);
+        A.rig.root.position.set(vp.x, vp.y + .4, vp.z + 7.4 - E.out(pk) * 2.6);
         A.rig.root.rotation.set(0, Math.PI, 0);
-        /* over the victim's shoulder, so the fist arrives down the lens */
-        cam(3.6, 35.9, -11, 0, 34.7, 1.6);
+        /* off to one side of the victim, so the gap between them reads */
+        cam(7.5, 36.2, -9.5, 0, 34.8, 2.2);
         if (t > 2.1) shakeCam(.35);
       }
       if (t >= 2.1) once('through', function () {
@@ -1462,7 +1483,7 @@
     step: function (t) {
       white(Math.min(1, t / 1.5));
       if (t > 1.5) hudOff(true);
-      cam(3.6, 35.9, -11, 0, 34.7, 1.6);
+      cam(7.5, 36.2, -9.5, 0, 34.8, 2.2);
     },
     exit: function () {
       white(0);
