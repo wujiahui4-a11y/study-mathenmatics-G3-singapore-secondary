@@ -152,13 +152,18 @@
     var running = window.JJNAOYA && window.JJNAOYA.busy();
     bar.style.display = started && !running ? 'block' : 'none';
     if (!started || running) return;
-    var frac = AW.active ? (1 - AW.t / AW.dur) : (AW.charge / AW.max);
+    var sukunaOut = !!(AW.yuji && player.char === 'yuji');
+    var frac = AW.active ? (1 - AW.t / AW.dur)
+      : sukunaOut ? Math.max(0, (AW.yujiT || 0) / 30)
+      : (AW.charge / AW.max);
     bar.querySelector('.fill').style.width = Math.max(0, Math.min(1, frac)) * 100 + '%';
-    bar.classList.toggle('ready', AW.ready && !AW.active);
-    bar.classList.toggle('on', AW.active);
-    bar.querySelector('.lbl').textContent = AW.active ? 'AWAKENED' : 'AWAKENING';
-    bar.querySelector('.hint').textContent = AW.active
-      ? Math.ceil(AW.dur - AW.t) + 's'
+    bar.classList.toggle('ready', AW.ready && !AW.active && !sukunaOut);
+    bar.classList.toggle('on', AW.active || sukunaOut);
+    bar.querySelector('.lbl').textContent = sukunaOut ? 'SUKUNA'
+      : AW.active ? 'AWAKENED' : 'AWAKENING';
+    bar.querySelector('.hint').textContent = sukunaOut
+      ? Math.max(0, Math.ceil(AW.yujiT || 0)) + 's'
+      : AW.active ? Math.ceil(AW.dur - AW.t) + 's'
       : (AW.ready ? 'PRESS F' : Math.floor(AW.charge) + '%');
   }
 

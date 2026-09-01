@@ -108,10 +108,28 @@
 
   /* a stump: the raw red where the limb used to carry on */
   function stump(parent, size) {
-    var m = new THREE.Mesh(new THREE.BoxGeometry(size, size * .3, size),
-      new THREE.MeshStandardMaterial({ color: 0x7a0c18, roughness: .5, emissive: 0x2a0208 }));
+    var m = new THREE.Mesh(new THREE.BoxGeometry(size * 1.5, size * .5, size * 1.5),
+      new THREE.MeshStandardMaterial({
+        color: 0xb01422, roughness: .35, emissive: 0x6a0810, emissiveIntensity: .9
+      }));
     parent.add(m);
     return m;
+  }
+
+  function bloodPool(pos, r) {
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({
+      color: 0x4a0610, transparent: true, opacity: .84,
+      depthWrite: false, side: THREE.DoubleSide, toneMapped: false
+    }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(pos.x, .09, pos.z);
+    m.scale.set(r, r, 1);
+    m.renderOrder = 2;
+    scene.add(m);
+    G.parts.push({
+      o: m, v: new THREE.Vector3(), av: new THREE.Vector3(),
+      rest: 99, t: 1e9, fade: 0, bounce: 0
+    });
   }
 
   function addPart(group, vel, spin, opt) {
@@ -166,32 +184,38 @@
         cl.castShadow = true;
         g.add(cl);
       }
-      stump(g, L.mass > 1.4 ? .7 : .45);
+      stump(g, L.mass > 1.4 ? .95 : .6);
 
-      /* thrown along the cut, with the pieces near the top going furthest */
+      /* thrown along the cut — short, so the pieces stay where you can see them */
       var here = g.position.clone().sub(centre);
-      var up = 5 + Math.random() * 7 + Math.max(0, here.y) * 1.4;
-      var vel = d.clone().multiplyScalar(4 + Math.random() * 7)
-        .addScaledVector(side, (Math.random() - .5) * 8)
-        .add(new THREE.Vector3(0, up, 0))
-        .addScaledVector(here.clone().normalize(), 3);
+      var up = 2.4 + Math.random() * 3.2 + Math.max(0, here.y) * .25;
+      var vel = d.clone().multiplyScalar(1.4 + Math.random() * 2.6)
+        .addScaledVector(side, (Math.random() - .5) * 3.4)
+        .add(new THREE.Vector3(0, up, 0));
       var spin = new THREE.Vector3(
-        (Math.random() - .5) * 12, (Math.random() - .5) * 12, (Math.random() - .5) * 12);
-      addPart(g, vel, spin, { bounce: .22 });
+        (Math.random() - .5) * 8, (Math.random() - .5) * 8, (Math.random() - .5) * 8);
+      addPart(g, vel, spin, { bounce: .2 });
 
-      FX.impact(g.position.clone(), 0xb01020, .9);
+      FX.impact(g.position.clone(), 0xb01020, 1.1);
     }
 
     finish(ent);
+    bloodPool(ent.pos, 3.6);
+    bloodPool(ent.pos.clone().addScaledVector(d, 1.6), 2.2);
     /* the cut itself, where the body used to be */
+    if (FX.worldCut) {
+      FX.worldCut(centre.clone().addScaledVector(d, -10), d, {
+        len: 24, h: 9, thick: 2, color: 0xffffff, echo: 0xb01020, life: .6
+      });
+    }
     for (var k = 0; k < 4; k++) {
       var at = centre.clone().add(new THREE.Vector3(
         (Math.random() - .5) * 2, (Math.random() - .5) * 3, (Math.random() - .5) * 2));
-      FX.slash(at, d, k % 2 ? 0xffffff : 0xff2a4a, 6, .22);
+      FX.slash(at, d, k % 2 ? 0xffffff : 0xff2a4a, 8, .26);
     }
-    FX.cross(centre, 0xffffff, 4, .22);
-    FX.impact(centre, 0xb01020, 2.4);
-    FX.streaks(centre, 0xb01020, 8, 9, 1.1);
+    FX.cross(centre, 0xffffff, 5, .26);
+    FX.impact(centre, 0xb01020, 2.8);
+    FX.streaks(centre, 0xb01020, 10, 8, 1.2);
     if (!opt.quiet) { addShake(1.2); hitstop(.12); }
   }
   G.dismember = dismember;

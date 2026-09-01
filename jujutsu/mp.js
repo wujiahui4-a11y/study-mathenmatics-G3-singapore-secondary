@@ -1422,16 +1422,20 @@
       case 's1':
         setTimeout(function () {
           if (FX.worldCut) {
-            FX.worldCut(mid.clone(), fwd, { len: 48, h: 14, color: 0xffffff, echo: 0xd4143c, life: .48 });
+            var side = new THREE.Vector3(fwd.z, 0, -fwd.x);
+            FX.worldCut(mid.clone(), fwd, { len: 78, h: 24, thick: 3.2, color: 0xffffff, echo: 0xd4143c, life: .85 });
             setTimeout(function () {
-              var side = new THREE.Vector3(fwd.z, 0, -fwd.x);
-              FX.worldCut(mid.clone().addScaledVector(side, 6),
-                fwd.clone().addScaledVector(side, -.35).normalize(),
-                { len: 44, h: 12, color: 0xffffff, echo: 0xd4143c, life: .42 });
-            }, 90);
+              FX.worldCut(mid.clone().addScaledVector(fwd, 16).addScaledVector(side, -34),
+                side, { len: 70, h: 22, thick: 3, color: 0xd4143c, echo: 0xffffff, life: .75 });
+            }, 70);
+            setTimeout(function () {
+              FX.worldCut(mid.clone().addScaledVector(side, 10),
+                fwd.clone().addScaledVector(side, -.55).normalize(),
+                { len: 72, h: 20, thick: 2.8, color: 0xffffff, echo: 0xd4143c, life: .7 });
+            }, 130);
           }
-          FX.cross(mid.clone().addScaledVector(fwd, 8), 0xffffff, 7, .22);
-          if (close) addShake(1.2);
+          FX.cross(mid.clone().addScaledVector(fwd, 12), 0xffffff, 14, .28);
+          if (close) addShake(1.4);
         }, 320);
         break;
       case 's2':
@@ -1449,17 +1453,29 @@
       case 's3':
         setTimeout(function () {
           var fly = mid.clone();
+          var shaft = new THREE.Mesh(new THREE.BoxGeometry(.35, .35, 7.2),
+            new THREE.MeshBasicMaterial({ color: 0xff4a12, toneMapped: false }));
+          var head = new THREE.Mesh(new THREE.BoxGeometry(.95, .95, 2),
+            new THREE.MeshBasicMaterial({ color: 0xff7a22, toneMapped: false }));
+          head.position.z = 4.4;
+          var arrow = new THREE.Group();
+          arrow.add(shaft); arrow.add(head);
+          arrow.position.copy(fly);
+          arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), fwd);
+          arrow.scale.setScalar(2.8);
+          scene.add(arrow);
           var glow = FX.billboard(FX.T.star, 0xff6a2a, .95);
-          glow.scale.setScalar(3.4);
+          glow.scale.setScalar(8);
           glow.position.copy(fly);
           scene.add(glow);
-          var t = 0;
-          addFx({ t: 1.4, update: function (d) {
-            this.t -= d; t += d;
-            fly.addScaledVector(fwd, d * 38);
+          addFx({ t: 1.5, update: function (d) {
+            this.t -= d;
+            fly.addScaledVector(fwd, d * 34);
+            arrow.position.copy(fly);
             glow.position.copy(fly);
+            if (FX.faceCam) FX.faceCam(glow, 0);
             if (this.t <= 0) {
-              scene.remove(glow); glow.material.dispose();
+              scene.remove(arrow); scene.remove(glow); glow.material.dispose();
               FX.impact(fly, 0xff6a2a, 4);
               FX.rings(new THREE.Vector3(fly.x, .1, fly.z), 0xff6a2a, 5, { maxR: 20, life: .8, gap: 50 });
               FX.cracks(fly.clone(), 14, 16, 0x2a1008);
@@ -1483,8 +1499,8 @@
             var from = new THREE.Vector3(pos.x + Math.cos(a) * -36, 1 + Math.random() * 6,
               pos.z + Math.sin(a) * -36);
             FX.worldCut(from, new THREE.Vector3(Math.cos(a + Math.PI), 0, Math.sin(a + Math.PI)), {
-              len: 40 + Math.random() * 24, h: 9 + Math.random() * 8,
-              color: Math.random() < .35 ? 0xd4143c : 0xffffff, echo: 0xd4143c, life: .38
+              len: 78 + Math.random() * 48, h: 18 + Math.random() * 18, thick: 2.8,
+              color: Math.random() < .35 ? 0xd4143c : 0xffffff, echo: 0xd4143c, life: .65
             });
           }, 200);
         }, 1500);

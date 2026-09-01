@@ -173,37 +173,43 @@
     return tex(c);
   })();
 
-  /* a straight cut: white in the middle, gone at the ends */
+  /* a sheet of a cut: fills the plane, hot in the middle, gone at the rim.
+     The old blade was a 20px strip in 256 — from the camera it vanished. */
   T.blade = (function () {
     var c = canvas(256), g = c.getContext('2d');
-    var grad = g.createLinearGradient(0, 0, 256, 0);
-    grad.addColorStop(0, 'rgba(255,255,255,0)');
-    grad.addColorStop(.18, 'rgba(255,255,255,.55)');
-    grad.addColorStop(.5, 'rgba(255,255,255,1)');
-    grad.addColorStop(.82, 'rgba(255,255,255,.55)');
-    grad.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grad;
-    g.fillRect(0, 118, 256, 20);
-    var core = g.createLinearGradient(0, 0, 256, 0);
-    core.addColorStop(0, 'rgba(255,255,255,0)');
-    core.addColorStop(.5, 'rgba(255,255,255,1)');
-    core.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = core;
-    g.fillRect(0, 124, 256, 8);
+    var v = g.createLinearGradient(0, 0, 0, 256);
+    v.addColorStop(0, 'rgba(255,255,255,0)');
+    v.addColorStop(.18, 'rgba(255,255,255,.7)');
+    v.addColorStop(.5, 'rgba(255,255,255,1)');
+    v.addColorStop(.82, 'rgba(255,255,255,.7)');
+    v.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = v;
+    g.fillRect(0, 0, 256, 256);
+    g.globalCompositeOperation = 'destination-in';
+    var h = g.createLinearGradient(0, 0, 256, 0);
+    h.addColorStop(0, 'rgba(0,0,0,0)');
+    h.addColorStop(.1, 'rgba(0,0,0,1)');
+    h.addColorStop(.9, 'rgba(0,0,0,1)');
+    h.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = h;
+    g.fillRect(0, 0, 256, 256);
+    g.globalCompositeOperation = 'source-over';
     return tex(c);
   })();
 
-  /* jagged energy bolt, drawn along the horizontal */
+  /* a thick jagged fracture — wide enough that a ground quad actually reads */
   T.bolt = (function () {
     var c = canvas(256), g = c.getContext('2d');
     g.lineCap = 'round';
-    for (var pass = 0; pass < 2; pass++) {
-      g.strokeStyle = pass ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,.4)';
-      g.lineWidth = pass ? 5 : 16;
+    g.lineJoin = 'round';
+    for (var pass = 0; pass < 3; pass++) {
+      g.strokeStyle = pass === 2 ? 'rgba(255,255,255,1)'
+        : pass === 1 ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.35)';
+      g.lineWidth = pass === 2 ? 18 : pass === 1 ? 42 : 70;
       g.beginPath();
       g.moveTo(4, 128);
-      for (var x = 4; x < 252; x += 20) {
-        g.lineTo(x, 128 + (Math.random() - .5) * 74);
+      for (var x = 4; x < 252; x += 18) {
+        g.lineTo(x, 128 + (Math.random() - .5) * 48);
       }
       g.lineTo(252, 128);
       g.stroke();
@@ -523,50 +529,65 @@
     }
   }
 
-  /* a fracture is a web, not a star: each ray forks, and the forks fork */
+  /* a fracture is a web, not a star: each ray is a thick dark bar that
+     forks, and the forks fork. boxes, not hairline textures. */
   function crackSeg(x, z, y, ang, L, W, color, life) {
-    var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
-      map: T.bolt, color: color, transparent: true, opacity: .92,
-      depthWrite: false, side: THREE.DoubleSide, toneMapped: false
+    var m = new THREE.Mesh(CHUNK, new THREE.MeshBasicMaterial({
+      color: color, transparent: true, opacity: .96, toneMapped: false, depthWrite: false
     }));
-    m.rotation.x = -Math.PI / 2;
-    m.rotation.z = -ang;
-    m.position.set(x + Math.cos(ang) * L * .5, y, z + Math.sin(ang) * L * .5);
-    m.scale.set(.02, W, 1);
+    m.position.set(x + Math.cos(ang) * L * .5, y + .07, z + Math.sin(ang) * L * .5);
+    m.rotation.y = -ang;
+    m.scale.set(.02, .2, W);
     m.renderOrder = 3;
     scene.add(m);
     addFx({ t: life, update: function (dt) {
       this.t -= dt;
       var k = 1 - this.t / life;
-      m.scale.x = L * Math.min(1, k * 14);
-      m.material.opacity = .92 * Math.max(0, 1 - Math.max(0, k - .55) / .45);
+      m.scale.x = L * Math.min(1, k * 16);
+      m.material.opacity = .96 * Math.max(0, 1 - Math.max(0, k - .5) / .5);
       if (this.t <= 0) { kill(m); return false; }
       return true;
     } });
   }
   function cracks(pos, n, len, color) {
-    n = n || 11; len = len || 12;
-    color = color == null ? 0x0a0d14 : color;
-    var y = (pos.y || 0) + .07;
+    n = n || 14; len = len || 14;
+    color = color == null ? 0x0a0608 : color;
+    var y = (pos.y || 0) + .04;
+    var stain = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
+      color: 0x140308, transparent: true, opacity: .72, depthWrite: false,
+      side: THREE.DoubleSide, toneMapped: false
+    }));
+    stain.rotation.x = -Math.PI / 2;
+    stain.position.set(pos.x, y + .01, pos.z);
+    stain.scale.set(len * .5, len * .5, 1);
+    stain.renderOrder = 2;
+    scene.add(stain);
+    addFx({ t: 3.6, update: function (dt) {
+      this.t -= dt;
+      var k = 1 - this.t / 3.6;
+      stain.material.opacity = .72 * Math.max(0, 1 - Math.max(0, k - .55) / .45);
+      if (this.t <= 0) { kill(stain); return false; }
+      return true;
+    } });
     function ray(ox, oz, ang, L, w, depth) {
       var segs = depth === 0 ? 4 : 2;
       var x = ox, z = oz, left = L;
       for (var i = 0; i < segs && left > .6; i++) {
         var sl = left / (segs - i) * (.65 + Math.random() * .7);
         var ja = ang + (Math.random() - .5) * (depth === 0 ? .28 : .7);
-        crackSeg(x, z, y, ja, sl, w, color, 2.1 + Math.random() * .8 - depth * .3);
+        crackSeg(x, z, y, ja, sl, w, color, 3.2 + Math.random() * .8 - depth * .35);
         x += Math.cos(ja) * sl;
         z += Math.sin(ja) * sl;
         left -= sl;
-        if (depth < 2 && Math.random() < (depth === 0 ? .7 : .45)) {
+        if (depth < 2 && Math.random() < (depth === 0 ? .75 : .5)) {
           ray(x, z, ja + (Math.random() < .5 ? 1 : -1) * (.5 + Math.random() * .7),
-            sl * (.45 + Math.random() * .35), w * .65, depth + 1);
+            sl * (.5 + Math.random() * .35), w * .62, depth + 1);
         }
       }
     }
     for (var i = 0; i < n; i++) {
-      ray(pos.x, pos.z, (i / n) * TAU + (Math.random() - .5) * .25,
-        len * (.55 + Math.random() * .7), .42 + Math.random() * .28, 0);
+      ray(pos.x, pos.z, (i / n) * TAU + (Math.random() - .5) * .2,
+        len * (.6 + Math.random() * .7), 1.2 + Math.random() * .7, 0);
     }
   }
 
@@ -577,51 +598,84 @@
     dir.normalize();
     len = len || 28;
     color = color == null ? 0x0a0d14 : color;
-    var steps = 7;
+    var steps = 8;
+    var ang = Math.atan2(dir.x, dir.z);
     for (var i = 0; i < steps; i++) {
       var at = from.clone().addScaledVector(dir, (i + .5) * (len / steps));
-      var wob = (Math.random() - .5) * .35;
-      crackSeg(at.x, at.z, (from.y || 0) + .08, Math.atan2(dir.x, dir.z) + wob,
-        len / steps * 1.15, .7 + Math.random() * .4, color, 2.6);
-      if (Math.random() < .55) {
+      var wob = (Math.random() - .5) * .28;
+      crackSeg(at.x, at.z, (from.y || 0) + .08, ang + wob,
+        len / steps * 1.2, 1.35 + Math.random() * .55, color, 3.4);
+      if (Math.random() < .6) {
         crackSeg(at.x, at.z, (from.y || 0) + .08,
-          Math.atan2(dir.x, dir.z) + (Math.random() < .5 ? 1 : -1) * (.8 + Math.random() * .5),
-          3 + Math.random() * 5, .4, color, 2);
+          ang + (Math.random() < .5 ? 1 : -1) * (.75 + Math.random() * .5),
+          3.5 + Math.random() * 5, .75, color, 2.6);
       }
     }
   }
 
-  /* a cut that travels: the slash is the thing, and the world is what it
-     happens to pass through */
+  /* a cut that travels: volume + a world sheet + a camera card, because a
+     paper-thin plane down the line of fire is invisible from behind the caster */
   function worldCut(from, dir, opt) {
     opt = opt || {};
     dir = dir.clone();
     if (dir.lengthSq() < .0001) dir.set(0, 0, 1);
     dir.normalize();
-    var len = opt.len || 42;
-    var h = opt.h || 11;
+    var len = opt.len || 56;
+    var h = opt.h || 16;
+    var thick = opt.thick || 2.4;
     var color = opt.color == null ? 0xffffff : opt.color;
-    var life = opt.life || .38;
-    var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
-      map: T.blade, color: color, transparent: true, opacity: 1,
-      depthWrite: false, side: THREE.DoubleSide, toneMapped: false
-    }));
+    var life = opt.life || .72;
     var up = Math.abs(dir.y) > .9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
     var right = new THREE.Vector3().crossVectors(dir, up).normalize();
     up = new THREE.Vector3().crossVectors(right, dir).normalize();
     var mid = from.clone().addScaledVector(dir, len * .5);
-    m.position.copy(mid);
-    m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(dir, up, right));
-    m.scale.set(len, h, 1);
-    m.renderOrder = 6;
-    scene.add(m);
+    var q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(dir, up, right));
+
+    function slab(sx, sy, sz, col) {
+      var m = new THREE.Mesh(CHUNK, new THREE.MeshBasicMaterial({
+        color: col, transparent: true, opacity: 1,
+        blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
+      }));
+      m.position.copy(mid);
+      m.quaternion.copy(q);
+      m.scale.set(sx, sy, sz);
+      m.renderOrder = 8;
+      scene.add(m);
+      return m;
+    }
+    var body = slab(len, h * .55, thick, color);
+    var core = slab(len, h * .16, thick * .32, 0xffffff);
+    var plane = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
+      map: T.blade, color: color, transparent: true, opacity: 1,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+      side: THREE.DoubleSide, toneMapped: false
+    }));
+    plane.position.copy(mid);
+    plane.quaternion.copy(q);
+    plane.scale.set(len, h, 1);
+    plane.renderOrder = 9;
+    scene.add(plane);
+    var card = billboard(T.blade, color, 1);
+    card.position.copy(mid);
+    card.scale.set(len * .95, h * 1.4, 1);
+    scene.add(card);
+    var meshes = [body, core, plane, card];
+
     addFx({ t: life, update: function (dt) {
       this.t -= dt;
       var k = 1 - this.t / life;
-      var grow = ease.out(Math.min(1, k * 2.4));
-      m.scale.set(len * grow, h * (.35 + .65 * grow), 1);
-      m.material.opacity = k < .15 ? 1 : Math.max(0, 1 - (k - .15) / .85);
-      if (this.t <= 0) { kill(m); return false; }
+      var grow = ease.out(Math.min(1, k * 3.4));
+      body.scale.set(len * grow, h * .55 * (.45 + .55 * grow), thick);
+      core.scale.set(len * grow, h * .16 * grow, thick * .32);
+      plane.scale.set(len * grow, h * (.3 + .7 * grow), 1);
+      faceCam(card, 0);
+      card.scale.set(len * grow, h * 1.4 * (.4 + .6 * grow), 1);
+      var op = k < .14 ? 1 : Math.max(0, 1 - (k - .14) / .86);
+      for (var i = 0; i < meshes.length; i++) meshes[i].material.opacity = op;
+      if (this.t <= 0) {
+        for (var j = 0; j < meshes.length; j++) kill(meshes[j]);
+        return false;
+      }
       return true;
     } });
     if (opt.scar !== false) {
@@ -631,11 +685,11 @@
       var echo = opt.echo === true ? 0xd4143c : opt.echo;
       if (echo) {
         setTimeout(function () {
-          worldCut(from.clone().add(new THREE.Vector3(0, .4, 0)), dir, {
-            len: len * .92, h: h * .7, color: echo, life: life * .85,
-            scar: false, echo: false
+          worldCut(from.clone().add(new THREE.Vector3(0, .55, 0)), dir, {
+            len: len * .94, h: h * .72, thick: thick * .7, color: echo,
+            life: life * .8, scar: false, echo: false
           });
-        }, 40);
+        }, 45);
       }
     }
   }

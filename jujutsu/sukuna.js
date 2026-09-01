@@ -380,9 +380,10 @@
   function cut(at, angle, size, color) {
     var dir = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
     if (FX.worldCut && size >= 10) {
-      FX.worldCut(at.clone().addScaledVector(dir, -size * .45), dir, {
-        len: size * 1.8, h: size * .38, color: color == null ? 0xffffff : color,
-        echo: color === 0xffffff ? RED : 0xffffff, life: .42
+      FX.worldCut(at.clone().addScaledVector(dir, -size * .55), dir, {
+        len: size * 2.4, h: size * .55, thick: 2.6,
+        color: color == null ? 0xffffff : color,
+        echo: color === 0xffffff ? RED : 0xffffff, life: .7
       });
       return;
     }
@@ -436,48 +437,57 @@
     }
     if (a.t >= .32 && a.stage < 1) {
       a.stage = 1;
-      /* three cuts that actually cross the world, not a fan of sparks */
+      /* crossing world-cuts: down the line, then across it, then the diagonals.
+         that is what dismantle looks like — the page itself getting sliced. */
       var side = new THREE.Vector3(d.z, 0, -d.x);
-      FX.worldCut(origin.clone().addScaledVector(side, -4), d, {
-        len: 48, h: 14, color: 0xffffff, echo: RED, life: .48
+      FX.worldCut(origin.clone().addScaledVector(side, -5), d, {
+        len: 78, h: 24, thick: 3.2, color: 0xffffff, echo: RED, life: .85
       });
       setTimeout(function () {
         if (!scene) return;
-        var o2 = origin.clone().addScaledVector(side, 6).add(new THREE.Vector3(0, 1.2, 0));
-        var d2 = d.clone().addScaledVector(side, -.35).normalize();
-        FX.worldCut(o2, d2, { len: 44, h: 12, color: 0xffffff, echo: RED, life: .42 });
-      }, 90);
+        FX.worldCut(origin.clone().addScaledVector(d, 16).addScaledVector(side, -34),
+          side, { len: 70, h: 22, thick: 3, color: RED, echo: 0xffffff, life: .75 });
+      }, 70);
       setTimeout(function () {
         if (!scene) return;
-        var o3 = origin.clone().addScaledVector(side, -7).add(new THREE.Vector3(0, -1, 0));
-        var d3 = d.clone().addScaledVector(side, .4).normalize();
-        FX.worldCut(o3, d3, { len: 40, h: 11, color: RED, echo: 0xffffff, life: .4 });
-      }, 170);
-      FX.cross(origin.clone().addScaledVector(d, 8), 0xffffff, 7, .22);
-      FX.mangaLines(.85, .3);
-      FX.flash('#ffffff', .35, .12);
-      addShake(1.3);
-      if (AN) AN.camKick(1.2);
-      hitstop(.1);
-      var hit = targets(36, 10);
+        var d2 = d.clone().addScaledVector(side, -.55).normalize();
+        FX.worldCut(origin.clone().addScaledVector(side, 10).add(new THREE.Vector3(0, 1.4, 0)),
+          d2, { len: 72, h: 20, thick: 2.8, color: 0xffffff, echo: RED, life: .7 });
+      }, 130);
+      setTimeout(function () {
+        if (!scene) return;
+        var d3 = d.clone().addScaledVector(side, .55).normalize();
+        FX.worldCut(origin.clone().addScaledVector(side, -12).add(new THREE.Vector3(0, -1, 0)),
+          d3, { len: 68, h: 18, thick: 2.6, color: RED, echo: 0xffffff, life: .68 });
+      }, 190);
+      FX.cross(origin.clone().addScaledVector(d, 12), 0xffffff, 14, .28);
+      FX.mangaLines(.95, .4);
+      FX.flash('#ffffff', .55, .16);
+      FX.zoom(-10, .45);
+      addShake(1.5);
+      if (AN) AN.camKick(1.5);
+      hitstop(.12);
+      var hit = targets(42, 14);
       hit.forEach(function (e) {
         slashVictim(e, 18, e.pos.clone().sub(p.pos), 'slice');
-        FX.cracks(e.pos.clone(), 9, 11, INK);
+        FX.cracks(e.pos.clone(), 11, 14, INK);
       });
       try { sfx.slash(); } catch (e) {}
     }
     if (a.t >= .78 && a.stage < 2) {
       a.stage = 2;
       /* the second pass: the ones that were only opened, closed */
-      FX.worldCut(origin.clone().add(new THREE.Vector3(0, -1.2, 0)), d, {
-        len: 46, h: 9, color: 0xffffff, echo: RED, life: .36
+      FX.worldCut(origin.clone().add(new THREE.Vector3(0, -1.4, 0)), d, {
+        len: 74, h: 16, thick: 2.8, color: 0xffffff, echo: RED, life: .6
       });
-      var t2 = targets(36, 10);
+      FX.worldCut(origin.clone().addScaledVector(d, 14).addScaledVector(new THREE.Vector3(d.z, 0, -d.x), -28),
+        new THREE.Vector3(d.z, 0, -d.x), { len: 58, h: 14, thick: 2.4, color: RED, echo: 0xffffff, life: .55 });
+      var t2 = targets(42, 14);
       t2.forEach(function (e) {
         slashVictim(e, 14, e.pos.clone().sub(p.pos), 'twist');
       });
       if (t2.length && window.JJAW) window.JJAW.gain(8);
-      addShake(.8);
+      addShake(.9);
     }
   }
 
@@ -545,36 +555,40 @@
     player.iframes = Math.max(player.iframes, 1.4);
   }
 
-  /* the arrow itself: shaft, head, fletching, and the fire that is all of it */
+  /* the arrow itself: shaft, head, fletching, and the fire that is all of it.
+     built along +Z. aim it with setFromUnitVectors — lookAt points -Z. */
   function buildArrow() {
     var g = new THREE.Group();
     function bit(w, h, d, c, em) {
       var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
         new THREE.MeshStandardMaterial({
-          color: c, roughness: .35, emissive: em || c, emissiveIntensity: 1.15
+          color: c, roughness: .28, emissive: em || c, emissiveIntensity: 1.45
         }));
       return m;
     }
-    var shaft = bit(.11, .11, 2.9, 0x2a0606, 0xff3a10);
+    var shaft = bit(.32, .32, 7.4, 0x2a0606, 0xff3a10);
     g.add(shaft);
-    var head = bit(.28, .28, .75, 0xff7a22, 0xff5010);
-    head.position.z = 1.7;
+    var head = bit(.95, .95, 2.1, 0xff7a22, 0xff5010);
+    head.position.z = 4.4;
     g.add(head);
-    var tip = bit(.1, .1, .4, 0xffe8b0, 0xffc060);
-    tip.position.z = 2.2;
+    var tip = bit(.28, .28, 1.1, 0xffe8b0, 0xffc060);
+    tip.position.z = 5.7;
     g.add(tip);
     for (var i = 0; i < 3; i++) {
-      var f = bit(.05, .42, .55, 0xff2a08, 0xff4010);
-      f.position.z = -1.25;
+      var f = bit(.1, 1.25, 1.5, 0xff2a08, 0xff4010);
+      f.position.z = -3.1;
       f.rotation.z = i * TAU / 3;
       g.add(f);
     }
-    var glow = FX.billboard(FX.T.star, 0xff6a2a, .95);
-    glow.scale.setScalar(3.6);
-    glow.position.z = 1.5;
-    g.add(glow);
-    g.glow = glow;
+    var wrap = bit(.55, .55, 7.2, 0xff4a12, 0xff2a08);
+    wrap.material.transparent = true;
+    wrap.material.opacity = .55;
+    g.add(wrap);
     return g;
+  }
+  function aimArrow(g, pos, dir) {
+    g.position.copy(pos);
+    g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.clone().normalize());
   }
 
   function detonate(at, dir) {
@@ -611,18 +625,29 @@
 
   function stepFlame(a, dt) {
     var p = player, d = fwd();
-    var hands = p.pos.clone().addScaledVector(d, 1.3).add(new THREE.Vector3(0, 3.1, 0));
+    var hands = p.pos.clone().addScaledVector(d, 2.4).add(new THREE.Vector3(0, 3.35, 0));
+
+    function followGlow(at, s) {
+      if (!a.glow) {
+        a.glow = FX.billboard(FX.T.star, 0xff6a2a, .95);
+        scene.add(a.glow);
+      }
+      a.glow.position.copy(at);
+      FX.faceCam(a.glow, 0);
+      a.glow.scale.setScalar(s);
+    }
 
     /* ---- 0.0 fire between closed palms ---- */
     if (a.t < .75) {
-      if (Math.random() < .95) FX.mote(hands, 0xff5a2a, 6, .3);
+      if (Math.random() < .95) FX.mote(hands, 0xff5a2a, 8, .35);
       if (!a.spark) {
         a.spark = FX.billboard(FX.T.star, 0xff7a2a, .9);
         scene.add(a.spark);
         FX.converge(hands, 0xff8a3a, 22, 10, .7);
       }
       a.spark.position.copy(hands);
-      a.spark.scale.setScalar(.4 + E.out(a.t / .75) * 2.2);
+      FX.faceCam(a.spark, 0);
+      a.spark.scale.setScalar(1.2 + E.out(a.t / .75) * 4.2);
       addShake(.2);
     }
 
@@ -636,11 +661,10 @@
     }
     if (a.arrow && a.stage < 2) {
       var grow = E.out(Math.min(1, (a.t - .75) / 1.1));
-      a.arrow.position.copy(hands);
-      a.arrow.lookAt(hands.clone().add(d));
-      a.arrow.scale.setScalar(.4 + grow * 1.1);
-      if (a.arrow.glow) a.arrow.glow.scale.setScalar(2.4 + grow * 2.4);
-      if (Math.random() < .7) FX.mote(hands.clone().addScaledVector(d, 1.2), 0xff8a3a, 5, .3);
+      a.arrow.scale.setScalar(1.15 + grow * 2.05);
+      aimArrow(a.arrow, hands, d);
+      followGlow(hands.clone().addScaledVector(d, 3.2 * a.arrow.scale.x), 5 + grow * 6);
+      if (Math.random() < .85) FX.mote(hands.clone().addScaledVector(d, 2.4), 0xff8a3a, 6, .35);
       addShake(.3);
     }
 
@@ -649,15 +673,16 @@
       a.stage = 2;
       a.fly = hands.clone();
       a.vdir = d.clone();
-      FX.flash('#ff8a3a', .4, .16);
+      FX.flash('#ff8a3a', .5, .18);
       addShake(.8);
     }
     if (a.stage === 2 && a.arrow) {
-      a.fly.addScaledVector(a.vdir, dt * 38);
-      a.arrow.position.copy(a.fly);
-      a.arrow.lookAt(a.fly.clone().add(a.vdir));
-      if (Math.random() < .9) FX.mote(a.fly.clone(), 0xff6a2a, 4, .25);
-      var hit = null, hd = 2.6;
+      a.fly.addScaledVector(a.vdir, dt * 34);
+      aimArrow(a.arrow, a.fly, a.vdir);
+      a.arrow.scale.setScalar(3.2);
+      followGlow(a.fly.clone().addScaledVector(a.vdir, 6), 8);
+      if (Math.random() < .95) FX.mote(a.fly.clone(), 0xff6a2a, 6, .3);
+      var hit = null, hd = 3.4;
       enemies.forEach(function (e) {
         if (!e || e.dead) return;
         var dd = e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(a.fly);
@@ -669,13 +694,14 @@
         var at = hit ? hit.pos.clone().add(new THREE.Vector3(0, 2.6, 0)) : a.fly.clone();
         scene.remove(a.arrow);
         a.arrow = null;
+        if (a.glow) { scene.remove(a.glow); a.glow.material.dispose(); a.glow = null; }
         detonate(at, a.vdir);
         if (window.JJAW) window.JJAW.gain(16);
       }
     }
-    if (a.t >= a.dur - .05 && a.arrow) {
-      scene.remove(a.arrow);
-      a.arrow = null;
+    if (a.t >= a.dur - .05) {
+      if (a.arrow) { scene.remove(a.arrow); a.arrow = null; }
+      if (a.glow) { scene.remove(a.glow); a.glow.material.dispose(); a.glow = null; }
     }
   }
 
@@ -726,84 +752,100 @@
     }
 
     /* the platform, ringed with bovine skulls */
-    var base = bone(24, 1.3, 24, 0x2a2028);
-    base.position.y = .65;
+    var base = bone(26, 1.4, 26, 0x2a2028);
+    base.position.y = .7;
     g.add(base);
+    var trim = bone(26.6, .35, 26.6, 0x8a6a2a);
+    trim.position.y = 1.35;
+    g.add(trim);
     var i;
     for (i = 0; i < 8; i++) {
       var a = (i / 8) * TAU;
-      var sk = skull(1.45, true);
-      sk.position.set(Math.cos(a) * 10.2, 1.7, Math.sin(a) * 10.2);
+      var sk = skull(2.15, true);
+      sk.position.set(Math.cos(a) * 11.2, 2.2, Math.sin(a) * 11.2);
       sk.rotation.y = a + Math.PI;
       g.add(sk);
     }
 
     /* the cabinet */
-    var body = bone(10.5, 12.4, 10.5, 0x3a2218);
-    body.position.y = 8.2;
+    var body = bone(11.2, 13.2, 11.2, 0x3a2218);
+    body.position.y = 8.6;
     g.add(body);
+    /* gold fittings at the corners — a zushi is lacquer and metal, not a box */
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (c) {
+      var fit = bone(.45, 13.4, .45, 0xc4a24a);
+      fit.position.set(c[0] * 5.6, 8.6, c[1] * 5.6);
+      g.add(fit);
+    });
 
-    /* four mouths for four doors */
+    /* four mouths for four doors — deep, fanged, tongues out */
     function mouth() {
       var mg = new THREE.Group();
-      var hole = new THREE.Mesh(new THREE.BoxGeometry(5.6, 7.4, .35),
+      var hole = new THREE.Mesh(new THREE.BoxGeometry(7.4, 9.4, 1.4),
         new THREE.MeshBasicMaterial({ color: 0x0a0204, toneMapped: false }));
+      hole.position.z = -.15;
       mg.add(hole);
-      for (var t = 0; t < 7; t++) {
-        var up = bone(.58, 1.15, .42, 0xf0e6d0);
-        up.position.set(-2.1 + t * .7, 3.15, .28);
+      var lipU = bone(7.8, .75, 1.2, 0x6a1824);
+      lipU.position.set(0, 4.85, .4);
+      mg.add(lipU);
+      var lipD = bone(7.8, .75, 1.2, 0x6a1824);
+      lipD.position.set(0, -4.85, .4);
+      mg.add(lipD);
+      for (var t = 0; t < 9; t++) {
+        var up = bone(.64, 1.65, .55, 0xf0e6d0);
+        up.position.set(-2.8 + t * .7, 3.95, .62);
         mg.add(up);
-        var dn = bone(.52, .95, .42, 0xf0e6d0);
-        dn.position.set(-2.1 + t * .7, -3.05, .28);
+        var dn = bone(.58, 1.35, .55, 0xf0e6d0);
+        dn.position.set(-2.8 + t * .7, -3.85, .62);
         mg.add(dn);
       }
-      var tongue = bone(2.3, .5, 2.5, 0xa8203c);
-      tongue.position.set(0, -1.7, .9);
-      tongue.rotation.x = .42;
+      var tongue = bone(3.4, .75, 4.2, 0xa8203c);
+      tongue.position.set(0, -2.2, 1.85);
+      tongue.rotation.x = .52;
       mg.add(tongue);
       for (var c = -1; c <= 1; c += 2) {
-        var fang = bone(.28, .7, .28, 0xf0e6d0);
-        fang.position.set(c * 2.6, 3.5, .2);
+        var fang = bone(.34, 1.1, .34, 0xf0e6d0);
+        fang.position.set(c * 3.4, 4.4, .45);
         mg.add(fang);
       }
       return mg;
     }
-    [[0, 0, 5.45, 0], [0, 0, -5.45, Math.PI],
-      [5.45, 0, 0, Math.PI / 2], [-5.45, 0, 0, -Math.PI / 2]].forEach(function (s) {
+    [[0, 0, 5.85, 0], [0, 0, -5.85, Math.PI],
+      [5.85, 0, 0, Math.PI / 2], [-5.85, 0, 0, -Math.PI / 2]].forEach(function (s) {
       var m = mouth();
-      m.position.set(s[0], 8.2, s[2]);
+      m.position.set(s[0], 8.6, s[2]);
       m.rotation.y = s[3];
       g.add(m);
     });
 
     /* hip-and-gable roof */
-    var hip = bone(17, 1.5, 17, 0x5a1a22);
-    hip.position.y = 15;
+    var hip = bone(17.5, 1.6, 17.5, 0x5a1a22);
+    hip.position.y = 15.8;
     g.add(hip);
-    var hip2 = bone(13, 1.3, 13, 0x4a121c);
-    hip2.position.y = 16.3;
+    var hip2 = bone(13.4, 1.35, 13.4, 0x4a121c);
+    hip2.position.y = 17.2;
     g.add(hip2);
-    var gable = bone(7.4, 3.4, 2.6, 0x6a1c28);
-    gable.position.y = 18.6;
+    var gable = bone(7.8, 3.6, 2.8, 0x6a1c28);
+    gable.position.y = 19.6;
     g.add(gable);
-    var ridge = bone(8.4, .55, 1.3, 0x8b1226);
-    ridge.position.y = 20.4;
+    var ridge = bone(8.8, .6, 1.4, 0x8b1226);
+    ridge.position.y = 21.5;
     g.add(ridge);
     /* a small mouth in each gable */
     for (var gb = -1; gb <= 1; gb += 2) {
       var gm = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, .2),
         new THREE.MeshBasicMaterial({ color: 0x180208, toneMapped: false }));
-      gm.position.set(0, 18.2, gb * 1.4);
+      gm.position.set(0, 19.2, gb * 1.5);
       g.add(gm);
     }
 
     /* crown: bovine skull and horns out of the roof */
-    var crown = skull(1.7, true);
-    crown.position.set(0, 21.6, 0);
+    var crown = skull(2.0, true);
+    crown.position.set(0, 23, 0);
     g.add(crown);
     for (var hh = -1; hh <= 1; hh += 2) {
-      var rh = bone(.55, 5.2, .55, 0xd8c9ad);
-      rh.position.set(hh * 3.6, 20.2, 0);
+      var rh = bone(.6, 5.6, .6, 0xd8c9ad);
+      rh.position.set(hh * 3.8, 21.4, 0);
       rh.rotation.z = hh * .58;
       g.add(rh);
     }
@@ -811,7 +853,7 @@
     /* human skulls hanging from the four corners */
     [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (c) {
       var hs = skull(.9, false);
-      hs.position.set(c[0] * 7.6, 13.4, c[1] * 7.6);
+      hs.position.set(c[0] * 8, 14.2, c[1] * 8);
       g.add(hs);
     });
 
@@ -831,10 +873,10 @@
     });
 
     var lamp = new THREE.PointLight(0xffe0b0, 3.6, 80, 1.2);
-    lamp.position.set(0, 22, 6);
+    lamp.position.set(0, 23.5, 6);
     g.add(lamp);
     var lamp2 = new THREE.PointLight(0xff6a3a, 2.4, 70, 1.4);
-    lamp2.position.set(0, 10, -8);
+    lamp2.position.set(0, 10.5, -8);
     g.add(lamp2);
     g.add(new THREE.AmbientLight(0x6a5a58, 1.15));
     g.sky = { material: { map: { offset: { x: 0 } } } };
@@ -905,9 +947,9 @@
             Math.sin(ang) * -SHRINE.r * .7));
           var dir = new THREE.Vector3(Math.cos(ang + Math.PI), 0, Math.sin(ang + Math.PI));
           FX.worldCut(from, dir, {
-            len: 38 + Math.random() * 28, h: 8 + Math.random() * 10,
+            len: 78 + Math.random() * 52, h: 18 + Math.random() * 20, thick: 2.8,
             color: Math.random() < .35 ? RED : 0xffffff,
-            echo: Math.random() < .5 ? RED : 0xffffff, life: .4
+            echo: Math.random() < .5 ? RED : 0xffffff, life: .7
           });
         }
         a.tick = (a.tick || 0) + dt;
@@ -915,9 +957,10 @@
           a.tick = 0;
           (a.locked || []).forEach(function (e) {
             if (!e || e.dead || e.__gone) return;
-            var at2 = e.pos.clone().add(new THREE.Vector3(
-              (Math.random() - .5) * 2, 1.5 + Math.random() * 2.5, (Math.random() - .5) * 2));
-            FX.slash(at2, new THREE.Vector3(1, 0, 0), 0xffffff, 8, .2);
+            var cutDir = new THREE.Vector3(
+              .7 + Math.random() * .6, (Math.random() - .5) * .15, (Math.random() - .5) * .8).normalize();
+            FX.worldCut(e.pos.clone().addScaledVector(cutDir, -16).add(new THREE.Vector3(0, 1.2, 0)),
+              cutDir, { len: 34, h: 11, thick: 2, color: 0xffffff, echo: RED, life: .4, scar: false });
             e.stunT = Math.max(e.stunT || 0, .6);
             slashVictim(e, 11, e.pos.clone().sub(a.center), 'slice');
           });
@@ -951,10 +994,10 @@
     var marks = [
       { t: 0, yaw: .45, d: 7, h: 4, ly: 3, k: 18 },
       { t: 1.0, yaw: .12, d: 4.2, h: 3.6, ly: 3.4, k: 26 },        // the sign
-      { t: 1.5, yaw: -.25, d: 16, h: 9, ly: 7, k: 12 },
-      { t: 3.4, yaw: -.7, d: 28, h: 16, ly: 10, k: 8 },            // the shrine, whole
-      { t: 5.6, yaw: -.15, d: 22, h: 12, ly: 7, k: 9 },
-      { t: 8.2, yaw: .55, d: 18, h: 8, ly: 5, k: 10 },
+      { t: 1.5, yaw: -.25, d: 18, h: 10, ly: 7, k: 12 },
+      { t: 3.4, yaw: -.75, d: 40, h: 18, ly: 11, k: 8 },           // the shrine, whole
+      { t: 5.6, yaw: -.2, d: 34, h: 15, ly: 8, k: 9 },
+      { t: 8.2, yaw: .55, d: 28, h: 12, ly: 6, k: 10 },
       { t: SHRINE.dur, yaw: .2, d: 14, h: 6, ly: 4, k: 12 }
     ];
     var i = 0;
@@ -1101,6 +1144,22 @@
     if (player.char === 'yuji') { try { buildMovesBar(); } catch (e) {} }
   }
 
+  /* put the kit on without the cinematic — tests, and anything that
+     sets JJAW.yuji without going through the transformation */
+  function wear() {
+    var A = window.JJAW;
+    if (!A || player.char !== 'yuji') return;
+    A.yuji = true;
+    A.sukuna = true;
+    A.yujiT = Math.max(A.yujiT || 0, 28);
+    buildFace(player.rig);
+    setFace(1);
+    if (player.rig && player.rig.marks) player.rig.marks.visible = true;
+    swapBar(true);
+  }
+  SK.wear = wear;
+  SK.swapBar = swapBar;
+
   /* =====================================================================
      WIRING
      ================================================================== */
@@ -1173,9 +1232,13 @@
     if (hit) e.stopImmediatePropagation();
   }, true);
 
-  /* when it goes back in, so does the face */
+  /* when it goes back in, so does the face. if it is already out, keep
+     the bar on his four even if the cinematic never ran. */
   addFx({ t: 1e9, update: function (dt) {
     var A = window.JJAW;
+    if (awake()) {
+      if (CHARS.yuji.moves[2] && CHARS.yuji.moves[2].lbl !== 'Dismantle') swapBar(true);
+    }
     if (A && A.sukuna && !A.yuji) {
       A.sukuna = false;
       setFace(0);
