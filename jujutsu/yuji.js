@@ -744,7 +744,7 @@
        what gives them a follow through. Locomotion is left alone — a
        spring on walking is just input lag. */
     if (!AN) return;
-    var a = player.action, on = a && (a.type.charAt(0) === 'y');
+    var a = player.action, on = a && (a.type.charAt(0) === 'y' || a.type.charAt(0) === 's');
     if (on) {
       if (!SM) { SM = AN.smoother(player.rig, STRIKE); SM.snap(); SMEAR = {}; }
       AN.smear(player.rig, SM.step(dt), SMEAR,

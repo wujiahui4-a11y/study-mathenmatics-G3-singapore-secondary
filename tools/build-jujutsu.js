@@ -28,7 +28,7 @@ const mqtt = fs.readFileSync(path.join(src, 'mqtt.min.js'), 'utf8');
    kit, combat re-points the game's own effects at it and adds the throw,
    gojo builds the awakening on top, and mp shares all of it. */
 const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'combat.js', 'gojo.js', 'naoya.js',
-  'yuji.js', 'hakari.js', 'void.js', 'mp.js']
+  'yuji.js', 'hakari.js', 'void.js', 'sukuna.js', 'mp.js']
   .map(function (f) {
     return { name: f, code: fs.readFileSync(path.join(src, f), 'utf8') };
   });

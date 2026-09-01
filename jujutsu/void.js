@@ -31,6 +31,8 @@
   var V = window.JJVOID = {
     on: false, stage: [], mirrors: [], hand: null, eye: null, center: null, t: 0
   };
+  /* the other domains borrow the staging */
+  var STAGE = window.JJSTAGE = {};
   var DUR = 8.2, R = 40;
 
   /* =====================================================================
@@ -160,31 +162,39 @@
   /* =====================================================================
      THE VOID
      ================================================================== */
-  /* a cutscene wants the frame to itself */
+  /* a cutscene wants the frame to itself — as a class, so the pieces the
+     HUD builds late are covered too */
+  var hudCss = null;
   function hud(show) {
-    ['hud', 'crosshair', 'jjScore', 'jjFeed', 'jjSwap', 'jjAwake', 'jjNotice', 'jjPach', 'jjFever']
-      .forEach(function (id) {
-        var n = document.getElementById(id);
-        if (n) n.style.visibility = show ? '' : 'hidden';
-      });
+    if (!hudCss) {
+      hudCss = document.createElement('style');
+      hudCss.textContent = 'body.jjCine #hud,body.jjCine #crosshair,body.jjCine #jjScore,' +
+        'body.jjCine #jjFeed,body.jjCine #jjSwap,body.jjCine #jjAwake,body.jjCine #jjNotice,' +
+        'body.jjCine #jjPach,body.jjCine #jjFever,body.jjCine #charList,body.jjCine #moves' +
+        '{visibility:hidden!important}';
+      document.head.appendChild(hudCss);
+    }
+    document.body.classList.toggle('jjCine', !show);
   }
 
   /* the city does not come with him */
   var world = null;
-  function hideWorld() {
+  function hideWorld(extra) {
+    if (world) return;
     var keeps = new Set();
     keeps.add(player.rig.root);
     enemies.forEach(function (e) { if (e && e.rig) keeps.add(e.rig.root); });
     V.stage.forEach(function (o) { keeps.add(o); });
     V.mirrors.forEach(function (m) { keeps.add(m.dst); });
-    world = { hidden: [], fog: scene.fog, bg: scene.background };
+    (extra || []).forEach(function (o) { keeps.add(o); });
+    world = { hidden: [], fog: scene.fog, bg: scene.background, sky: hideWorld.sky };
     scene.children.forEach(function (o) {
       if (!o.visible || keeps.has(o) || o.isLight) return;
       o.visible = false;
       world.hidden.push(o);
     });
-    scene.background = new THREE.Color(0x01020a);
-    scene.fog = new THREE.Fog(0x01020a, 60, 340);
+    scene.background = new THREE.Color(world.sky || 0x01020a);
+    scene.fog = new THREE.Fog(world.sky || 0x01020a, 60, 340);
     enemies.forEach(function (e) { if (e && e.hpSpr) e.hpSpr.visible = false; });
   }
   function showWorld() {
@@ -195,6 +205,10 @@
     world = null;
     enemies.forEach(function (e) { if (e && e.hpSpr && !e.dead) e.hpSpr.visible = true; });
   }
+
+  STAGE.hide = hideWorld;
+  STAGE.show = showWorld;
+  STAGE.hud = hud;
 
   function keep(o) { V.stage.push(o); scene.add(o); return o; }
   function clearStage() {
