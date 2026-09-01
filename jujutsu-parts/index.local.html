@@ -3991,9 +3991,9 @@ window.__game = {
      and the extremities are loose, which is what makes a movement travel
      out through the body instead of happening all at once. */
   var K = {
-    hips: 40, spine: 26, neck: 17, head: 15,
-    shoulderL: 21, shoulderR: 21, elbowL: 14, elbowR: 14,
-    hipL: 24, hipR: 24, kneeL: 18, kneeR: 18, ankleL: 12, ankleR: 12
+    hips: 34, spine: 19, neck: 10, head: 9,
+    shoulderL: 12, shoulderR: 12, elbowL: 7, elbowR: 7,
+    hipL: 16, hipR: 16, kneeL: 10, kneeR: 10, ankleL: 6, ankleR: 6
   };
   var AXES = ['x', 'y', 'z'];
 
@@ -4023,7 +4023,7 @@ window.__game = {
           for (name in st) {
             s = st[name];
             k = K[name] || 20;
-            d = 2 * Math.sqrt(k) * .86;            // a little under damped
+            d = 2 * Math.sqrt(k) * .74;            // under damped, so it overshoots
             for (a = 0; a < 3; a++) {
               tgt = targets[name][a];
               var ax = AXES[a], vk = 'v' + ax;
@@ -4064,20 +4064,47 @@ window.__game = {
     if (amt === 0 || !rig.spine) return;
     amt = amt == null ? 1 : amt;
     var b = Math.sin(t * 1.7), b2 = Math.sin(t * 1.7 + .7), sway = Math.sin(t * 1.1);
-    rig.spine.rotation.x += b * .015 * amt;
-    rig.spine.rotation.z += sway * .012 * amt;
-    if (rig.neck) rig.neck.rotation.x += b2 * .012 * amt;
-    if (rig.shoulderL) rig.shoulderL.rotation.z += b2 * .022 * amt;
-    if (rig.shoulderR) rig.shoulderR.rotation.z -= b2 * .022 * amt;
-    if (rig.hips) rig.hips.position.y += b * .022 * amt;
+    rig.spine.rotation.x += b * .05 * amt;
+    rig.spine.rotation.z += sway * .04 * amt;
+    rig.spine.rotation.y += Math.sin(t * .8) * .05 * amt;
+    if (rig.neck) {
+      rig.neck.rotation.x += b2 * .045 * amt;
+      rig.neck.rotation.y += Math.sin(t * .8 + 1.2) * .06 * amt;   // the head drifts
+    }
+    if (rig.shoulderL) rig.shoulderL.rotation.z += b2 * .07 * amt;
+    if (rig.shoulderR) rig.shoulderR.rotation.z -= b2 * .07 * amt;
+    if (rig.elbowL) rig.elbowL.rotation.x += b2 * .05 * amt;
+    if (rig.elbowR) rig.elbowR.rotation.x += Math.sin(t * 1.7 + 1.3) * .05 * amt;
+    if (rig.hips) rig.hips.position.y += b * .07 * amt;
+  }
+
+  /* Weight on one leg. Shift runs -1 (left) to 1 (right); this is the
+     difference between a figure standing and a figure standing on
+     something. */
+  function weight(rig, shift, amt) {
+    amt = amt == null ? 1 : amt;
+    if (!rig.hips) return;
+    rig.hips.position.x = (rig.hips.position.x || 0) + shift * .42 * amt;
+    rig.hips.rotation.z = (rig.hips.rotation.z || 0) - shift * .17 * amt;
+    var loaded = shift > 0 ? 'R' : 'L', free = shift > 0 ? 'L' : 'R';
+    var m = Math.abs(shift) * amt;
+    if (rig['knee' + loaded]) rig['knee' + loaded].rotation.x -= .2 * m;
+    if (rig['knee' + free]) rig['knee' + free].rotation.x += .55 * m;
+    if (rig['hip' + free]) rig['hip' + free].rotation.z += shift * .3 * m;
+    if (rig['hip' + free]) rig['hip' + free].rotation.x -= .18 * m;
+    if (rig.spine) rig.spine.rotation.z -= shift * .13 * amt;
+    if (rig.neck) rig.neck.rotation.z += shift * .08 * amt;
   }
 
   /* a body moving faster than the eye follows leaves one behind */
   function smear(rig, energy, state, dt, color, threshold) {
+    var th = threshold || 3;
     state.acc = (state.acc || 0) + dt;
-    if (energy < (threshold || 26) || state.acc < .045) return;
+    if (energy < th || state.acc < .045) return;
     state.acc = 0;
-    try { ghostAfterimage(rig, color == null ? 0xbfd8ff : color, .22); } catch (e) {}
+    /* the harder it is moving, the more of it is left behind */
+    var a = Math.min(.45, .12 + (energy - th) * .02);
+    try { ghostAfterimage(rig, color == null ? 0xbfd8ff : color, a); } catch (e) {}
   }
 
   /* =====================================================================
@@ -4109,12 +4136,14 @@ window.__game = {
     }
     /* the hand holding it: slow drift, not a rattle */
     var t = CAM.t, hand = CAM.hand;
-    var hx = (Math.sin(t * 1.3) + Math.sin(t * 2.7) * .5) * .045 * hand;
-    var hy = (Math.sin(t * 1.7 + 1) + Math.sin(t * 3.1) * .5) * .038 * hand;
-    var hz = Math.sin(t * .9 + 2) * .04 * hand;
+    var hx = (Math.sin(t * 1.3) + Math.sin(t * 2.7) * .5) * .16 * hand;
+    var hy = (Math.sin(t * 1.7 + 1) + Math.sin(t * 3.1) * .5) * .13 * hand;
+    var hz = Math.sin(t * .9 + 2) * .14 * hand;
 
     camera.position.copy(CAM.pos).add(CAM.kick).add(new THREE.Vector3(hx, hy, hz));
-    camera.lookAt(CAM.look.x + hx * .3, CAM.look.y + hy * .3, CAM.look.z);
+    camera.lookAt(CAM.look.x + hx * .5, CAM.look.y + hy * .5, CAM.look.z);
+    /* a shot is never perfectly level either */
+    camera.rotateZ(Math.sin(t * .7) * .008 * hand + CAM.kick.x * .012);
   }
 
   function camSnap(px, py, pz, lx, ly, lz) {
@@ -4135,6 +4164,7 @@ window.__game = {
   window.JJANIM = {
     smoother: smoother,
     life: life,
+    weight: weight,
     smear: smear,
     camTo: camTo,
     camSnap: camSnap,
@@ -5156,68 +5186,111 @@ window.__game = {
     if (t >= CINE_DUR) endCine();
   }
 
-  /* Head down, hand to the blindfold, the pull, and then open. Written as
-     targets rather than a finished curve — the spring in the animation
-     layer is what carries one into the next. */
+  /* Head down, hand to the blindfold, the pull, and then open.
+
+     The version before this one moved an arm and left the rest of the body
+     standing to attention, which is what made it read as a mannequin with
+     one working joint. Every stage here moves the whole figure: the hips
+     take the weight, the shoulders counter the spine, the head leads or
+     trails, and each stage dips against itself before it goes. */
   function posesCine(r, t) {
     resetPose(r);
-    var E = FX.ease.out;
-    if (t < .85) {                                  // holding it in
+    var E = FX.ease.out, W = AN ? AN.weight : null;
+
+    if (t < .85) {                                  /* holding it in */
       var k = E(t / .85);
-      r.spine.rotation.x = .1 + .06 * k;
-      r.neck.rotation.x = .22 * k;
-      r.shoulderL.rotation.x = -.14 - .1 * k; r.shoulderR.rotation.x = -.14 - .1 * k;
-      r.shoulderL.rotation.z = .06 * k; r.shoulderR.rotation.z = -.06 * k;
-      r.elbowL.rotation.x = -.26 - .2 * k; r.elbowR.rotation.x = -.26 - .2 * k;
-      r.hipL.rotation.x = -.05 * k; r.hipR.rotation.x = -.05 * k;
-      r.kneeL.rotation.x = .16 * k; r.kneeR.rotation.x = .16 * k;
-      r.hips.position.y = r.hipsBaseY - .12 * k;
-    } else if (t < 1.85) {                          // the hand goes up
-      var k2 = E((t - .85) / 1);
-      r.spine.rotation.x = .16 - .1 * k2;
-      r.spine.rotation.y = -.18 * k2;
-      r.neck.rotation.x = .22 - .3 * k2;
-      r.shoulderR.rotation.x = -.24 - 2.2 * k2;
-      r.shoulderR.rotation.z = -.2 * k2;
-      r.elbowR.rotation.x = -.46 - 1.25 * k2;
-      r.shoulderL.rotation.x = -.24 - .06 * k2;
-      r.elbowL.rotation.x = -.46;
-      r.hips.position.y = r.hipsBaseY - .12 + .04 * k2;
-      r.kneeL.rotation.x = .16; r.kneeR.rotation.x = .16;
-    } else if (t < 2.55) {                          // and pulls
+      r.spine.rotation.x = .1 + .3 * k;             // curling over
+      r.spine.rotation.y = -.06 * k;
+      r.neck.rotation.x = .52 * k;
+      r.neck.rotation.y = -.1 * k;
+      r.shoulderL.rotation.x = -.12 - .22 * k; r.shoulderR.rotation.x = -.12 - .2 * k;
+      r.shoulderL.rotation.z = .16 * k; r.shoulderR.rotation.z = -.16 * k;
+      r.elbowL.rotation.x = -.24 - .42 * k; r.elbowR.rotation.x = -.24 - .38 * k;
+      r.hipL.rotation.x = -.1 * k; r.hipR.rotation.x = -.08 * k;
+      r.kneeL.rotation.x = .55 * k; r.kneeR.rotation.x = .48 * k;
+      r.ankleL.rotation.x = -.14 * k; r.ankleR.rotation.x = -.12 * k;
+      r.hips.position.y = r.hipsBaseY - .55 * k;    // sinking into the ground
+      if (W) W(r, -.5 * k, 1);
+
+    } else if (t < 1.85) {                          /* the hand goes up */
+      var u = (t - .85) / 1;
+      /* it dips before it rises: the anticipation that makes it a movement
+         rather than a transition */
+      var dip = u < .22 ? Math.sin(u / .22 * Math.PI) : 0;
+      var k2 = E(Math.max(0, (u - .12) / .88));
+      r.spine.rotation.x = .4 - .5 * k2 + dip * .16;
+      r.hips.rotation.y = -.26 * k2;                // hips lag the shoulders
+      r.spine.rotation.y = -.06 - .6 * k2;          // torso turns into it
+      r.spine.rotation.z = .06 * k2;
+      r.neck.rotation.x = .3 - .44 * k2 + dip * .06;
+      r.neck.rotation.y = -.1 + .34 * k2;           // head follows the hand
+      r.neck.rotation.z = -.1 * k2;
+      r.shoulderR.rotation.x = -.32 + .28 * dip - 2.3 * k2;
+      r.shoulderR.rotation.z = -.16 - .3 * k2;
+      r.elbowR.rotation.x = -.62 + .2 * dip - 1.15 * k2;
+      r.shoulderL.rotation.x = -.34 - .34 * k2;     // the other arm counters
+      r.shoulderL.rotation.z = .16 + .3 * k2;
+      r.elbowL.rotation.x = -.66 - .3 * k2;
+      r.hipL.rotation.x = -.1 - .12 * k2; r.hipR.rotation.x = -.08 + .06 * k2;
+      r.kneeL.rotation.x = .3 - .12 * k2; r.kneeR.rotation.x = .26 - .18 * k2;
+      r.hips.position.y = r.hipsBaseY - .55 + .4 * k2 + dip * -.16;
+      if (W) W(r, -.5 + 1 * k2, 1);                 // weight crosses over
+
+    } else if (t < 2.55) {                          /* and pulls */
       var k3 = E((t - 1.85) / .7);
-      r.spine.rotation.x = .06 - .1 * k3;
-      r.spine.rotation.y = -.18 + .1 * k3;
-      r.neck.rotation.x = -.08 - .14 * k3;
-      r.shoulderR.rotation.x = -2.44 + .34 * k3;
-      r.shoulderR.rotation.z = -.2 + .5 * k3;
-      r.elbowR.rotation.x = -1.71 + .3 * k3;
-      r.shoulderL.rotation.x = -.3 - .3 * k3;
-      r.elbowL.rotation.x = -.46 - .3 * k3;
-      r.hips.position.y = r.hipsBaseY - .08;
-    } else if (t < 3.45) {                          // the hand comes down
-      var k4 = E((t - 2.55) / .9);
-      r.spine.rotation.x = -.04 - .06 * k4;
-      r.spine.rotation.y = -.08 + .08 * k4;
-      r.neck.rotation.x = -.22 - .1 * k4;
-      r.shoulderR.rotation.x = -2.1 + 1.5 * k4;
-      r.shoulderR.rotation.z = .3 - .2 * k4;
-      r.elbowR.rotation.x = -1.41 + 1 * k4;
-      r.shoulderL.rotation.x = -.6 + .2 * k4;
-      r.elbowL.rotation.x = -.76 + .3 * k4;
-      r.hips.position.y = r.hipsBaseY - .04;
-    } else {                                        // open
+      r.spine.rotation.x = -.06 - .16 * k3;         // chest opens
+      r.spine.rotation.y = -.66 + .4 * k3;
+      r.hips.rotation.y = -.26 + .34 * k3;
+      r.spine.rotation.z = .06 - .04 * k3;
+      r.neck.rotation.x = -.14 - .16 * k3;
+      r.neck.rotation.y = .24 - .16 * k3;
+      r.shoulderR.rotation.x = -2.62 + .3 * k3;     // elbow leads the pull
+      r.shoulderR.rotation.z = -.46 + .52 * k3;
+      r.elbowR.rotation.x = -1.77 + .22 * k3;
+      r.shoulderL.rotation.x = -.68 - .3 * k3;
+      r.shoulderL.rotation.z = .46 - .12 * k3;
+      r.elbowL.rotation.x = -.96 - .26 * k3;
+      r.hipL.rotation.x = -.22 + .16 * k3; r.hipR.rotation.x = -.02 - .14 * k3;
+      r.kneeL.rotation.x = .18; r.kneeR.rotation.x = .08;
+      r.hips.position.y = r.hipsBaseY - .12 + .06 * k3;
+      if (W) W(r, .5 - .9 * k3, 1);                 // and forward onto it
+
+    } else if (t < 3.45) {                          /* it comes off */
+      var u4 = (t - 2.55) / .9;
+      /* one hard frame first — chin up, chest out, arm thrown wide — so the
+         hold has a silhouette worth holding */
+      var snap = Math.min(1, u4 / .12);
+      var settle = E(Math.max(0, (u4 - .12) / .88));
+      r.spine.rotation.x = -.42 * snap + .2 * settle;
+      r.spine.rotation.y = -.18 + .18 * settle;
+      r.neck.rotation.x = -.72 * snap + .2 * settle;
+      r.neck.rotation.y = .08 - .08 * settle;
+      r.shoulderR.rotation.x = -2.32 + .5 * snap + 1.2 * settle;
+      r.shoulderR.rotation.z = .06 + .5 * snap - .5 * settle;
+      r.elbowR.rotation.x = -1.55 + .5 * snap + .74 * settle;
+      r.shoulderL.rotation.x = -.98 + .3 * snap + .18 * settle;
+      r.shoulderL.rotation.z = .34 - .2 * snap - .1 * settle;
+      r.elbowL.rotation.x = -1.22 + .4 * snap + .3 * settle;
+      r.hipL.rotation.x = -.06 - .1 * snap; r.hipR.rotation.x = -.16 - .08 * snap;
+      r.kneeL.rotation.x = .18 - .14 * snap; r.kneeR.rotation.x = .08 - .06 * snap;
+      r.hips.position.y = r.hipsBaseY - .06 + .38 * snap - .16 * settle;
+      if (W) W(r, -.45 + .45 * settle, 1);
+
+    } else {                                        /* open */
       var k5 = E(Math.min(1, (t - 3.45) / 1));
-      r.shoulderR.rotation.x = -.6 - .35 * k5;
-      r.shoulderR.rotation.z = .1 - .6 * k5;
-      r.elbowR.rotation.x = -.41 + .25 * k5;
-      r.shoulderL.rotation.x = -.4 - .35 * k5;
-      r.shoulderL.rotation.z = -.1 + .6 * k5;
-      r.elbowL.rotation.x = -.46 + .25 * k5;
-      r.neck.rotation.x = -.32 - .08 * k5;
-      r.spine.rotation.x = -.1 - .08 * k5;
-      r.hipL.rotation.x = -.12 * k5; r.hipR.rotation.x = -.12 * k5;
-      r.hips.position.y = r.hipsBaseY - .04 + .1 * Math.sin(k5 * Math.PI);
+      var rise = Math.sin(Math.min(1, (t - 3.45) / 1.4) * Math.PI);
+      r.spine.rotation.x = -.12 - .16 * k5;         // arching back
+      r.neck.rotation.x = -.34 - .16 * k5;
+      r.shoulderR.rotation.x = -.62 - .5 * k5;
+      r.shoulderR.rotation.z = .06 - .78 * k5;      // arms thrown open
+      r.elbowR.rotation.x = -.81 + .55 * k5;
+      r.shoulderL.rotation.x = -.5 - .5 * k5;
+      r.shoulderL.rotation.z = .04 + .78 * k5;
+      r.elbowL.rotation.x = -.62 + .4 * k5;
+      r.hipL.rotation.x = -.16 * k5; r.hipR.rotation.x = -.16 * k5;
+      r.kneeL.rotation.x = .04; r.kneeR.rotation.x = .02;
+      r.ankleL.rotation.x = .35 * rise; r.ankleR.rotation.x = .35 * rise;
+      r.hips.position.y = r.hipsBaseY + .04 + .45 * rise;   // up onto the toes
     }
   }
 
@@ -6486,8 +6559,11 @@ window.__game = {
     rp(r);
     var s = Math.sin(g), c = Math.cos(g);
     r.spine.rotation.x = .52 + Math.sin(g * 2) * .05;    // folded forward
-    r.spine.rotation.y = s * .18;
+    r.spine.rotation.y = s * .24;
+    r.hips.rotation.y = -s * .16;                       // hips against shoulders
+    r.spine.rotation.z = Math.sin(g) * .06;
     r.neck.rotation.x = -.46;
+    r.neck.rotation.y = -s * .1;
     r.hipL.rotation.x = -.1 + s * 1.35;
     r.hipR.rotation.x = -.1 - s * 1.35;
     r.kneeL.rotation.x = .75 - c * .75;
@@ -6885,7 +6961,9 @@ window.__game = {
     r.shoulderR.rotation.x = -.9; r.elbowR.rotation.x = -1.5; r.shoulderR.rotation.z = -.35;
     r.spine.rotation.x = .12;
   }
-  /* the wind up and the throw, split so it can be taken as slowly as we like */
+  /* The wind up and the throw. A punch is thrown from the floor: the back
+     foot turns, the hips go first, the shoulder follows the hips and the
+     fist is last, and the whole body ends up over the front foot. */
   function posePunch(r, k, arm) {
     rp(r);
     var back = Math.min(1, k / .72), out = k > .72 ? (k - .72) / .28 : 0;
@@ -6893,17 +6971,31 @@ window.__game = {
     var el = arm < 0 ? r.elbowL : r.elbowR;
     var osh = arm < 0 ? r.shoulderR : r.shoulderL;
     var oel = arm < 0 ? r.elbowR : r.elbowL;
-    sh.rotation.x = -.4 + .9 * back - 2.3 * out;
+    var lead = arm < 0 ? 'R' : 'L';                 // the foot he steps onto
+    var rear = arm < 0 ? 'L' : 'R';
+
+    sh.rotation.x = -.4 + .9 * back - 2.35 * out;
     sh.rotation.z = arm * (-.5 * back + .45 * out);
-    el.rotation.x = -1.75 * back + 1.68 * out;
-    osh.rotation.x = -.5 - .5 * back + .3 * out;
-    oel.rotation.x = -1.2 - .4 * back;
-    r.spine.rotation.y = arm * (.6 * back - 1.05 * out);
-    r.spine.rotation.x = .1 + .12 * back - .26 * out;
-    r.hipL.rotation.x = -.2 * back; r.kneeL.rotation.x = .45 * back - .25 * out;
-    r.hipR.rotation.x = .16 * back; r.kneeR.rotation.x = .3 * back;
-    r.hips.position.y = r.hipsBaseY - .35 * back + .2 * out;
-    r.neck.rotation.y = arm * -.2;
+    el.rotation.x = -1.75 * back + 1.7 * out;
+    osh.rotation.x = -.5 - .55 * back + .35 * out;  // the other arm pulls back
+    osh.rotation.z = arm * (.3 * back - .5 * out);
+    oel.rotation.x = -1.2 - .5 * back + .2 * out;
+
+    /* hips lead the shoulders by a good margin */
+    r.hips.rotation.y = arm * (.34 * back - .62 * out);
+    r.spine.rotation.y = arm * (.62 * back - 1.1 * out);
+    r.spine.rotation.x = .1 + .16 * back - .3 * out;
+    r.spine.rotation.z = arm * (-.08 * back + .12 * out);
+    r.neck.rotation.y = arm * (-.34 * back + .5 * out);   // eyes stay on them
+    r.neck.rotation.x = .06 * back - .12 * out;
+
+    r['hip' + rear].rotation.x = -.28 * back + .12 * out;
+    r['knee' + rear].rotation.x = .55 * back - .42 * out;
+    r['ankle' + rear].rotation.x = -.2 * back + .45 * out; // the heel turns out
+    r['hip' + lead].rotation.x = .2 * back - .3 * out;
+    r['knee' + lead].rotation.x = .3 * back + .3 * out;
+    r.hips.position.y = r.hipsBaseY - .38 * back + .16 * out;
+    if (AN) AN.weight(r, (arm < 0 ? 1 : -1) * (.35 * back - .7 * out), 1);
   }
   function poseGut(r, k) {
     rp(r);
@@ -6961,21 +7053,31 @@ window.__game = {
     r.kneeL.rotation.x = .5; r.kneeR.rotation.x = .3;
   }
 
-  /* boot planted on a stomach */
+  /* Boot planted on a stomach, with all of his weight standing on it —
+     the standing leg straight, the hips over it, and the body leaning down
+     the line of the leg. */
   function poseStamp(r, k) {
     rp(r);
     var s = Math.min(1, k * 4);
-    r.spine.rotation.x = .3 * s;
-    r.neck.rotation.x = .3 * s;
-    r.hipR.rotation.x = -1.5 * s;                  // the leg that is down
-    r.kneeR.rotation.x = .35 * s;
-    r.ankleR.rotation.x = .5 * s;
-    r.hipL.rotation.x = .5 * s;
-    r.kneeL.rotation.x = .45 * s;
-    r.shoulderL.rotation.x = -.6 * s; r.shoulderL.rotation.z = .55 * s;
-    r.shoulderR.rotation.x = -1.1 * s; r.shoulderR.rotation.z = -.5 * s;
-    r.elbowR.rotation.x = -1.1 * s;
-    r.hips.position.y = r.hipsBaseY - .1;
+    var breathe = Math.sin(k * 2.2) * .03;
+    r.spine.rotation.x = .34 * s + breathe;
+    r.spine.rotation.y = -.16 * s;
+    r.spine.rotation.z = .1 * s;
+    r.neck.rotation.x = .38 * s;                   // looking down at them
+    r.neck.rotation.y = .14 * s;
+    r.hipR.rotation.x = -1.42 * s;                 // the leg that is down
+    r.hipR.rotation.z = -.16 * s;
+    r.kneeR.rotation.x = .3 * s;
+    r.ankleR.rotation.x = .55 * s;
+    r.hipL.rotation.x = .34 * s;                   // and the one holding him
+    r.kneeL.rotation.x = .2 * s;
+    r.ankleL.rotation.x = -.12 * s;
+    r.shoulderL.rotation.x = -.5 * s; r.shoulderL.rotation.z = .5 * s;
+    r.elbowL.rotation.x = -.5 * s;
+    r.shoulderR.rotation.x = -1.05 * s; r.shoulderR.rotation.z = -.44 * s;
+    r.elbowR.rotation.x = -1.15 * s;
+    r.hips.position.y = r.hipsBaseY - .06 + breathe * .4;
+    if (AN) AN.weight(r, -.5 * s, 1);
   }
   function poseUppercut(r, k) {
     rp(r);
@@ -12919,9 +13021,9 @@ window.__game = {
      and the extremities are loose, which is what makes a movement travel
      out through the body instead of happening all at once. */
   var K = {
-    hips: 40, spine: 26, neck: 17, head: 15,
-    shoulderL: 21, shoulderR: 21, elbowL: 14, elbowR: 14,
-    hipL: 24, hipR: 24, kneeL: 18, kneeR: 18, ankleL: 12, ankleR: 12
+    hips: 34, spine: 19, neck: 10, head: 9,
+    shoulderL: 12, shoulderR: 12, elbowL: 7, elbowR: 7,
+    hipL: 16, hipR: 16, kneeL: 10, kneeR: 10, ankleL: 6, ankleR: 6
   };
   var AXES = ['x', 'y', 'z'];
 
@@ -12951,7 +13053,7 @@ window.__game = {
           for (name in st) {
             s = st[name];
             k = K[name] || 20;
-            d = 2 * Math.sqrt(k) * .86;            // a little under damped
+            d = 2 * Math.sqrt(k) * .74;            // under damped, so it overshoots
             for (a = 0; a < 3; a++) {
               tgt = targets[name][a];
               var ax = AXES[a], vk = 'v' + ax;
@@ -12992,20 +13094,47 @@ window.__game = {
     if (amt === 0 || !rig.spine) return;
     amt = amt == null ? 1 : amt;
     var b = Math.sin(t * 1.7), b2 = Math.sin(t * 1.7 + .7), sway = Math.sin(t * 1.1);
-    rig.spine.rotation.x += b * .015 * amt;
-    rig.spine.rotation.z += sway * .012 * amt;
-    if (rig.neck) rig.neck.rotation.x += b2 * .012 * amt;
-    if (rig.shoulderL) rig.shoulderL.rotation.z += b2 * .022 * amt;
-    if (rig.shoulderR) rig.shoulderR.rotation.z -= b2 * .022 * amt;
-    if (rig.hips) rig.hips.position.y += b * .022 * amt;
+    rig.spine.rotation.x += b * .05 * amt;
+    rig.spine.rotation.z += sway * .04 * amt;
+    rig.spine.rotation.y += Math.sin(t * .8) * .05 * amt;
+    if (rig.neck) {
+      rig.neck.rotation.x += b2 * .045 * amt;
+      rig.neck.rotation.y += Math.sin(t * .8 + 1.2) * .06 * amt;   // the head drifts
+    }
+    if (rig.shoulderL) rig.shoulderL.rotation.z += b2 * .07 * amt;
+    if (rig.shoulderR) rig.shoulderR.rotation.z -= b2 * .07 * amt;
+    if (rig.elbowL) rig.elbowL.rotation.x += b2 * .05 * amt;
+    if (rig.elbowR) rig.elbowR.rotation.x += Math.sin(t * 1.7 + 1.3) * .05 * amt;
+    if (rig.hips) rig.hips.position.y += b * .07 * amt;
+  }
+
+  /* Weight on one leg. Shift runs -1 (left) to 1 (right); this is the
+     difference between a figure standing and a figure standing on
+     something. */
+  function weight(rig, shift, amt) {
+    amt = amt == null ? 1 : amt;
+    if (!rig.hips) return;
+    rig.hips.position.x = (rig.hips.position.x || 0) + shift * .42 * amt;
+    rig.hips.rotation.z = (rig.hips.rotation.z || 0) - shift * .17 * amt;
+    var loaded = shift > 0 ? 'R' : 'L', free = shift > 0 ? 'L' : 'R';
+    var m = Math.abs(shift) * amt;
+    if (rig['knee' + loaded]) rig['knee' + loaded].rotation.x -= .2 * m;
+    if (rig['knee' + free]) rig['knee' + free].rotation.x += .55 * m;
+    if (rig['hip' + free]) rig['hip' + free].rotation.z += shift * .3 * m;
+    if (rig['hip' + free]) rig['hip' + free].rotation.x -= .18 * m;
+    if (rig.spine) rig.spine.rotation.z -= shift * .13 * amt;
+    if (rig.neck) rig.neck.rotation.z += shift * .08 * amt;
   }
 
   /* a body moving faster than the eye follows leaves one behind */
   function smear(rig, energy, state, dt, color, threshold) {
+    var th = threshold || 3;
     state.acc = (state.acc || 0) + dt;
-    if (energy < (threshold || 26) || state.acc < .045) return;
+    if (energy < th || state.acc < .045) return;
     state.acc = 0;
-    try { ghostAfterimage(rig, color == null ? 0xbfd8ff : color, .22); } catch (e) {}
+    /* the harder it is moving, the more of it is left behind */
+    var a = Math.min(.45, .12 + (energy - th) * .02);
+    try { ghostAfterimage(rig, color == null ? 0xbfd8ff : color, a); } catch (e) {}
   }
 
   /* =====================================================================
@@ -13037,12 +13166,14 @@ window.__game = {
     }
     /* the hand holding it: slow drift, not a rattle */
     var t = CAM.t, hand = CAM.hand;
-    var hx = (Math.sin(t * 1.3) + Math.sin(t * 2.7) * .5) * .045 * hand;
-    var hy = (Math.sin(t * 1.7 + 1) + Math.sin(t * 3.1) * .5) * .038 * hand;
-    var hz = Math.sin(t * .9 + 2) * .04 * hand;
+    var hx = (Math.sin(t * 1.3) + Math.sin(t * 2.7) * .5) * .16 * hand;
+    var hy = (Math.sin(t * 1.7 + 1) + Math.sin(t * 3.1) * .5) * .13 * hand;
+    var hz = Math.sin(t * .9 + 2) * .14 * hand;
 
     camera.position.copy(CAM.pos).add(CAM.kick).add(new THREE.Vector3(hx, hy, hz));
-    camera.lookAt(CAM.look.x + hx * .3, CAM.look.y + hy * .3, CAM.look.z);
+    camera.lookAt(CAM.look.x + hx * .5, CAM.look.y + hy * .5, CAM.look.z);
+    /* a shot is never perfectly level either */
+    camera.rotateZ(Math.sin(t * .7) * .008 * hand + CAM.kick.x * .012);
   }
 
   function camSnap(px, py, pz, lx, ly, lz) {
@@ -13063,6 +13194,7 @@ window.__game = {
   window.JJANIM = {
     smoother: smoother,
     life: life,
+    weight: weight,
     smear: smear,
     camTo: camTo,
     camSnap: camSnap,
@@ -14084,68 +14216,111 @@ window.__game = {
     if (t >= CINE_DUR) endCine();
   }
 
-  /* Head down, hand to the blindfold, the pull, and then open. Written as
-     targets rather than a finished curve — the spring in the animation
-     layer is what carries one into the next. */
+  /* Head down, hand to the blindfold, the pull, and then open.
+
+     The version before this one moved an arm and left the rest of the body
+     standing to attention, which is what made it read as a mannequin with
+     one working joint. Every stage here moves the whole figure: the hips
+     take the weight, the shoulders counter the spine, the head leads or
+     trails, and each stage dips against itself before it goes. */
   function posesCine(r, t) {
     resetPose(r);
-    var E = FX.ease.out;
-    if (t < .85) {                                  // holding it in
+    var E = FX.ease.out, W = AN ? AN.weight : null;
+
+    if (t < .85) {                                  /* holding it in */
       var k = E(t / .85);
-      r.spine.rotation.x = .1 + .06 * k;
-      r.neck.rotation.x = .22 * k;
-      r.shoulderL.rotation.x = -.14 - .1 * k; r.shoulderR.rotation.x = -.14 - .1 * k;
-      r.shoulderL.rotation.z = .06 * k; r.shoulderR.rotation.z = -.06 * k;
-      r.elbowL.rotation.x = -.26 - .2 * k; r.elbowR.rotation.x = -.26 - .2 * k;
-      r.hipL.rotation.x = -.05 * k; r.hipR.rotation.x = -.05 * k;
-      r.kneeL.rotation.x = .16 * k; r.kneeR.rotation.x = .16 * k;
-      r.hips.position.y = r.hipsBaseY - .12 * k;
-    } else if (t < 1.85) {                          // the hand goes up
-      var k2 = E((t - .85) / 1);
-      r.spine.rotation.x = .16 - .1 * k2;
-      r.spine.rotation.y = -.18 * k2;
-      r.neck.rotation.x = .22 - .3 * k2;
-      r.shoulderR.rotation.x = -.24 - 2.2 * k2;
-      r.shoulderR.rotation.z = -.2 * k2;
-      r.elbowR.rotation.x = -.46 - 1.25 * k2;
-      r.shoulderL.rotation.x = -.24 - .06 * k2;
-      r.elbowL.rotation.x = -.46;
-      r.hips.position.y = r.hipsBaseY - .12 + .04 * k2;
-      r.kneeL.rotation.x = .16; r.kneeR.rotation.x = .16;
-    } else if (t < 2.55) {                          // and pulls
+      r.spine.rotation.x = .1 + .3 * k;             // curling over
+      r.spine.rotation.y = -.06 * k;
+      r.neck.rotation.x = .52 * k;
+      r.neck.rotation.y = -.1 * k;
+      r.shoulderL.rotation.x = -.12 - .22 * k; r.shoulderR.rotation.x = -.12 - .2 * k;
+      r.shoulderL.rotation.z = .16 * k; r.shoulderR.rotation.z = -.16 * k;
+      r.elbowL.rotation.x = -.24 - .42 * k; r.elbowR.rotation.x = -.24 - .38 * k;
+      r.hipL.rotation.x = -.1 * k; r.hipR.rotation.x = -.08 * k;
+      r.kneeL.rotation.x = .55 * k; r.kneeR.rotation.x = .48 * k;
+      r.ankleL.rotation.x = -.14 * k; r.ankleR.rotation.x = -.12 * k;
+      r.hips.position.y = r.hipsBaseY - .55 * k;    // sinking into the ground
+      if (W) W(r, -.5 * k, 1);
+
+    } else if (t < 1.85) {                          /* the hand goes up */
+      var u = (t - .85) / 1;
+      /* it dips before it rises: the anticipation that makes it a movement
+         rather than a transition */
+      var dip = u < .22 ? Math.sin(u / .22 * Math.PI) : 0;
+      var k2 = E(Math.max(0, (u - .12) / .88));
+      r.spine.rotation.x = .4 - .5 * k2 + dip * .16;
+      r.hips.rotation.y = -.26 * k2;                // hips lag the shoulders
+      r.spine.rotation.y = -.06 - .6 * k2;          // torso turns into it
+      r.spine.rotation.z = .06 * k2;
+      r.neck.rotation.x = .3 - .44 * k2 + dip * .06;
+      r.neck.rotation.y = -.1 + .34 * k2;           // head follows the hand
+      r.neck.rotation.z = -.1 * k2;
+      r.shoulderR.rotation.x = -.32 + .28 * dip - 2.3 * k2;
+      r.shoulderR.rotation.z = -.16 - .3 * k2;
+      r.elbowR.rotation.x = -.62 + .2 * dip - 1.15 * k2;
+      r.shoulderL.rotation.x = -.34 - .34 * k2;     // the other arm counters
+      r.shoulderL.rotation.z = .16 + .3 * k2;
+      r.elbowL.rotation.x = -.66 - .3 * k2;
+      r.hipL.rotation.x = -.1 - .12 * k2; r.hipR.rotation.x = -.08 + .06 * k2;
+      r.kneeL.rotation.x = .3 - .12 * k2; r.kneeR.rotation.x = .26 - .18 * k2;
+      r.hips.position.y = r.hipsBaseY - .55 + .4 * k2 + dip * -.16;
+      if (W) W(r, -.5 + 1 * k2, 1);                 // weight crosses over
+
+    } else if (t < 2.55) {                          /* and pulls */
       var k3 = E((t - 1.85) / .7);
-      r.spine.rotation.x = .06 - .1 * k3;
-      r.spine.rotation.y = -.18 + .1 * k3;
-      r.neck.rotation.x = -.08 - .14 * k3;
-      r.shoulderR.rotation.x = -2.44 + .34 * k3;
-      r.shoulderR.rotation.z = -.2 + .5 * k3;
-      r.elbowR.rotation.x = -1.71 + .3 * k3;
-      r.shoulderL.rotation.x = -.3 - .3 * k3;
-      r.elbowL.rotation.x = -.46 - .3 * k3;
-      r.hips.position.y = r.hipsBaseY - .08;
-    } else if (t < 3.45) {                          // the hand comes down
-      var k4 = E((t - 2.55) / .9);
-      r.spine.rotation.x = -.04 - .06 * k4;
-      r.spine.rotation.y = -.08 + .08 * k4;
-      r.neck.rotation.x = -.22 - .1 * k4;
-      r.shoulderR.rotation.x = -2.1 + 1.5 * k4;
-      r.shoulderR.rotation.z = .3 - .2 * k4;
-      r.elbowR.rotation.x = -1.41 + 1 * k4;
-      r.shoulderL.rotation.x = -.6 + .2 * k4;
-      r.elbowL.rotation.x = -.76 + .3 * k4;
-      r.hips.position.y = r.hipsBaseY - .04;
-    } else {                                        // open
+      r.spine.rotation.x = -.06 - .16 * k3;         // chest opens
+      r.spine.rotation.y = -.66 + .4 * k3;
+      r.hips.rotation.y = -.26 + .34 * k3;
+      r.spine.rotation.z = .06 - .04 * k3;
+      r.neck.rotation.x = -.14 - .16 * k3;
+      r.neck.rotation.y = .24 - .16 * k3;
+      r.shoulderR.rotation.x = -2.62 + .3 * k3;     // elbow leads the pull
+      r.shoulderR.rotation.z = -.46 + .52 * k3;
+      r.elbowR.rotation.x = -1.77 + .22 * k3;
+      r.shoulderL.rotation.x = -.68 - .3 * k3;
+      r.shoulderL.rotation.z = .46 - .12 * k3;
+      r.elbowL.rotation.x = -.96 - .26 * k3;
+      r.hipL.rotation.x = -.22 + .16 * k3; r.hipR.rotation.x = -.02 - .14 * k3;
+      r.kneeL.rotation.x = .18; r.kneeR.rotation.x = .08;
+      r.hips.position.y = r.hipsBaseY - .12 + .06 * k3;
+      if (W) W(r, .5 - .9 * k3, 1);                 // and forward onto it
+
+    } else if (t < 3.45) {                          /* it comes off */
+      var u4 = (t - 2.55) / .9;
+      /* one hard frame first — chin up, chest out, arm thrown wide — so the
+         hold has a silhouette worth holding */
+      var snap = Math.min(1, u4 / .12);
+      var settle = E(Math.max(0, (u4 - .12) / .88));
+      r.spine.rotation.x = -.42 * snap + .2 * settle;
+      r.spine.rotation.y = -.18 + .18 * settle;
+      r.neck.rotation.x = -.72 * snap + .2 * settle;
+      r.neck.rotation.y = .08 - .08 * settle;
+      r.shoulderR.rotation.x = -2.32 + .5 * snap + 1.2 * settle;
+      r.shoulderR.rotation.z = .06 + .5 * snap - .5 * settle;
+      r.elbowR.rotation.x = -1.55 + .5 * snap + .74 * settle;
+      r.shoulderL.rotation.x = -.98 + .3 * snap + .18 * settle;
+      r.shoulderL.rotation.z = .34 - .2 * snap - .1 * settle;
+      r.elbowL.rotation.x = -1.22 + .4 * snap + .3 * settle;
+      r.hipL.rotation.x = -.06 - .1 * snap; r.hipR.rotation.x = -.16 - .08 * snap;
+      r.kneeL.rotation.x = .18 - .14 * snap; r.kneeR.rotation.x = .08 - .06 * snap;
+      r.hips.position.y = r.hipsBaseY - .06 + .38 * snap - .16 * settle;
+      if (W) W(r, -.45 + .45 * settle, 1);
+
+    } else {                                        /* open */
       var k5 = E(Math.min(1, (t - 3.45) / 1));
-      r.shoulderR.rotation.x = -.6 - .35 * k5;
-      r.shoulderR.rotation.z = .1 - .6 * k5;
-      r.elbowR.rotation.x = -.41 + .25 * k5;
-      r.shoulderL.rotation.x = -.4 - .35 * k5;
-      r.shoulderL.rotation.z = -.1 + .6 * k5;
-      r.elbowL.rotation.x = -.46 + .25 * k5;
-      r.neck.rotation.x = -.32 - .08 * k5;
-      r.spine.rotation.x = -.1 - .08 * k5;
-      r.hipL.rotation.x = -.12 * k5; r.hipR.rotation.x = -.12 * k5;
-      r.hips.position.y = r.hipsBaseY - .04 + .1 * Math.sin(k5 * Math.PI);
+      var rise = Math.sin(Math.min(1, (t - 3.45) / 1.4) * Math.PI);
+      r.spine.rotation.x = -.12 - .16 * k5;         // arching back
+      r.neck.rotation.x = -.34 - .16 * k5;
+      r.shoulderR.rotation.x = -.62 - .5 * k5;
+      r.shoulderR.rotation.z = .06 - .78 * k5;      // arms thrown open
+      r.elbowR.rotation.x = -.81 + .55 * k5;
+      r.shoulderL.rotation.x = -.5 - .5 * k5;
+      r.shoulderL.rotation.z = .04 + .78 * k5;
+      r.elbowL.rotation.x = -.62 + .4 * k5;
+      r.hipL.rotation.x = -.16 * k5; r.hipR.rotation.x = -.16 * k5;
+      r.kneeL.rotation.x = .04; r.kneeR.rotation.x = .02;
+      r.ankleL.rotation.x = .35 * rise; r.ankleR.rotation.x = .35 * rise;
+      r.hips.position.y = r.hipsBaseY + .04 + .45 * rise;   // up onto the toes
     }
   }
 
@@ -15414,8 +15589,11 @@ window.__game = {
     rp(r);
     var s = Math.sin(g), c = Math.cos(g);
     r.spine.rotation.x = .52 + Math.sin(g * 2) * .05;    // folded forward
-    r.spine.rotation.y = s * .18;
+    r.spine.rotation.y = s * .24;
+    r.hips.rotation.y = -s * .16;                       // hips against shoulders
+    r.spine.rotation.z = Math.sin(g) * .06;
     r.neck.rotation.x = -.46;
+    r.neck.rotation.y = -s * .1;
     r.hipL.rotation.x = -.1 + s * 1.35;
     r.hipR.rotation.x = -.1 - s * 1.35;
     r.kneeL.rotation.x = .75 - c * .75;
@@ -15813,7 +15991,9 @@ window.__game = {
     r.shoulderR.rotation.x = -.9; r.elbowR.rotation.x = -1.5; r.shoulderR.rotation.z = -.35;
     r.spine.rotation.x = .12;
   }
-  /* the wind up and the throw, split so it can be taken as slowly as we like */
+  /* The wind up and the throw. A punch is thrown from the floor: the back
+     foot turns, the hips go first, the shoulder follows the hips and the
+     fist is last, and the whole body ends up over the front foot. */
   function posePunch(r, k, arm) {
     rp(r);
     var back = Math.min(1, k / .72), out = k > .72 ? (k - .72) / .28 : 0;
@@ -15821,17 +16001,31 @@ window.__game = {
     var el = arm < 0 ? r.elbowL : r.elbowR;
     var osh = arm < 0 ? r.shoulderR : r.shoulderL;
     var oel = arm < 0 ? r.elbowR : r.elbowL;
-    sh.rotation.x = -.4 + .9 * back - 2.3 * out;
+    var lead = arm < 0 ? 'R' : 'L';                 // the foot he steps onto
+    var rear = arm < 0 ? 'L' : 'R';
+
+    sh.rotation.x = -.4 + .9 * back - 2.35 * out;
     sh.rotation.z = arm * (-.5 * back + .45 * out);
-    el.rotation.x = -1.75 * back + 1.68 * out;
-    osh.rotation.x = -.5 - .5 * back + .3 * out;
-    oel.rotation.x = -1.2 - .4 * back;
-    r.spine.rotation.y = arm * (.6 * back - 1.05 * out);
-    r.spine.rotation.x = .1 + .12 * back - .26 * out;
-    r.hipL.rotation.x = -.2 * back; r.kneeL.rotation.x = .45 * back - .25 * out;
-    r.hipR.rotation.x = .16 * back; r.kneeR.rotation.x = .3 * back;
-    r.hips.position.y = r.hipsBaseY - .35 * back + .2 * out;
-    r.neck.rotation.y = arm * -.2;
+    el.rotation.x = -1.75 * back + 1.7 * out;
+    osh.rotation.x = -.5 - .55 * back + .35 * out;  // the other arm pulls back
+    osh.rotation.z = arm * (.3 * back - .5 * out);
+    oel.rotation.x = -1.2 - .5 * back + .2 * out;
+
+    /* hips lead the shoulders by a good margin */
+    r.hips.rotation.y = arm * (.34 * back - .62 * out);
+    r.spine.rotation.y = arm * (.62 * back - 1.1 * out);
+    r.spine.rotation.x = .1 + .16 * back - .3 * out;
+    r.spine.rotation.z = arm * (-.08 * back + .12 * out);
+    r.neck.rotation.y = arm * (-.34 * back + .5 * out);   // eyes stay on them
+    r.neck.rotation.x = .06 * back - .12 * out;
+
+    r['hip' + rear].rotation.x = -.28 * back + .12 * out;
+    r['knee' + rear].rotation.x = .55 * back - .42 * out;
+    r['ankle' + rear].rotation.x = -.2 * back + .45 * out; // the heel turns out
+    r['hip' + lead].rotation.x = .2 * back - .3 * out;
+    r['knee' + lead].rotation.x = .3 * back + .3 * out;
+    r.hips.position.y = r.hipsBaseY - .38 * back + .16 * out;
+    if (AN) AN.weight(r, (arm < 0 ? 1 : -1) * (.35 * back - .7 * out), 1);
   }
   function poseGut(r, k) {
     rp(r);
@@ -15889,21 +16083,31 @@ window.__game = {
     r.kneeL.rotation.x = .5; r.kneeR.rotation.x = .3;
   }
 
-  /* boot planted on a stomach */
+  /* Boot planted on a stomach, with all of his weight standing on it —
+     the standing leg straight, the hips over it, and the body leaning down
+     the line of the leg. */
   function poseStamp(r, k) {
     rp(r);
     var s = Math.min(1, k * 4);
-    r.spine.rotation.x = .3 * s;
-    r.neck.rotation.x = .3 * s;
-    r.hipR.rotation.x = -1.5 * s;                  // the leg that is down
-    r.kneeR.rotation.x = .35 * s;
-    r.ankleR.rotation.x = .5 * s;
-    r.hipL.rotation.x = .5 * s;
-    r.kneeL.rotation.x = .45 * s;
-    r.shoulderL.rotation.x = -.6 * s; r.shoulderL.rotation.z = .55 * s;
-    r.shoulderR.rotation.x = -1.1 * s; r.shoulderR.rotation.z = -.5 * s;
-    r.elbowR.rotation.x = -1.1 * s;
-    r.hips.position.y = r.hipsBaseY - .1;
+    var breathe = Math.sin(k * 2.2) * .03;
+    r.spine.rotation.x = .34 * s + breathe;
+    r.spine.rotation.y = -.16 * s;
+    r.spine.rotation.z = .1 * s;
+    r.neck.rotation.x = .38 * s;                   // looking down at them
+    r.neck.rotation.y = .14 * s;
+    r.hipR.rotation.x = -1.42 * s;                 // the leg that is down
+    r.hipR.rotation.z = -.16 * s;
+    r.kneeR.rotation.x = .3 * s;
+    r.ankleR.rotation.x = .55 * s;
+    r.hipL.rotation.x = .34 * s;                   // and the one holding him
+    r.kneeL.rotation.x = .2 * s;
+    r.ankleL.rotation.x = -.12 * s;
+    r.shoulderL.rotation.x = -.5 * s; r.shoulderL.rotation.z = .5 * s;
+    r.elbowL.rotation.x = -.5 * s;
+    r.shoulderR.rotation.x = -1.05 * s; r.shoulderR.rotation.z = -.44 * s;
+    r.elbowR.rotation.x = -1.15 * s;
+    r.hips.position.y = r.hipsBaseY - .06 + breathe * .4;
+    if (AN) AN.weight(r, -.5 * s, 1);
   }
   function poseUppercut(r, k) {
     rp(r);

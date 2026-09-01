@@ -535,8 +535,11 @@
     rp(r);
     var s = Math.sin(g), c = Math.cos(g);
     r.spine.rotation.x = .52 + Math.sin(g * 2) * .05;    // folded forward
-    r.spine.rotation.y = s * .18;
+    r.spine.rotation.y = s * .24;
+    r.hips.rotation.y = -s * .16;                       // hips against shoulders
+    r.spine.rotation.z = Math.sin(g) * .06;
     r.neck.rotation.x = -.46;
+    r.neck.rotation.y = -s * .1;
     r.hipL.rotation.x = -.1 + s * 1.35;
     r.hipR.rotation.x = -.1 - s * 1.35;
     r.kneeL.rotation.x = .75 - c * .75;
@@ -934,7 +937,9 @@
     r.shoulderR.rotation.x = -.9; r.elbowR.rotation.x = -1.5; r.shoulderR.rotation.z = -.35;
     r.spine.rotation.x = .12;
   }
-  /* the wind up and the throw, split so it can be taken as slowly as we like */
+  /* The wind up and the throw. A punch is thrown from the floor: the back
+     foot turns, the hips go first, the shoulder follows the hips and the
+     fist is last, and the whole body ends up over the front foot. */
   function posePunch(r, k, arm) {
     rp(r);
     var back = Math.min(1, k / .72), out = k > .72 ? (k - .72) / .28 : 0;
@@ -942,17 +947,31 @@
     var el = arm < 0 ? r.elbowL : r.elbowR;
     var osh = arm < 0 ? r.shoulderR : r.shoulderL;
     var oel = arm < 0 ? r.elbowR : r.elbowL;
-    sh.rotation.x = -.4 + .9 * back - 2.3 * out;
+    var lead = arm < 0 ? 'R' : 'L';                 // the foot he steps onto
+    var rear = arm < 0 ? 'L' : 'R';
+
+    sh.rotation.x = -.4 + .9 * back - 2.35 * out;
     sh.rotation.z = arm * (-.5 * back + .45 * out);
-    el.rotation.x = -1.75 * back + 1.68 * out;
-    osh.rotation.x = -.5 - .5 * back + .3 * out;
-    oel.rotation.x = -1.2 - .4 * back;
-    r.spine.rotation.y = arm * (.6 * back - 1.05 * out);
-    r.spine.rotation.x = .1 + .12 * back - .26 * out;
-    r.hipL.rotation.x = -.2 * back; r.kneeL.rotation.x = .45 * back - .25 * out;
-    r.hipR.rotation.x = .16 * back; r.kneeR.rotation.x = .3 * back;
-    r.hips.position.y = r.hipsBaseY - .35 * back + .2 * out;
-    r.neck.rotation.y = arm * -.2;
+    el.rotation.x = -1.75 * back + 1.7 * out;
+    osh.rotation.x = -.5 - .55 * back + .35 * out;  // the other arm pulls back
+    osh.rotation.z = arm * (.3 * back - .5 * out);
+    oel.rotation.x = -1.2 - .5 * back + .2 * out;
+
+    /* hips lead the shoulders by a good margin */
+    r.hips.rotation.y = arm * (.34 * back - .62 * out);
+    r.spine.rotation.y = arm * (.62 * back - 1.1 * out);
+    r.spine.rotation.x = .1 + .16 * back - .3 * out;
+    r.spine.rotation.z = arm * (-.08 * back + .12 * out);
+    r.neck.rotation.y = arm * (-.34 * back + .5 * out);   // eyes stay on them
+    r.neck.rotation.x = .06 * back - .12 * out;
+
+    r['hip' + rear].rotation.x = -.28 * back + .12 * out;
+    r['knee' + rear].rotation.x = .55 * back - .42 * out;
+    r['ankle' + rear].rotation.x = -.2 * back + .45 * out; // the heel turns out
+    r['hip' + lead].rotation.x = .2 * back - .3 * out;
+    r['knee' + lead].rotation.x = .3 * back + .3 * out;
+    r.hips.position.y = r.hipsBaseY - .38 * back + .16 * out;
+    if (AN) AN.weight(r, (arm < 0 ? 1 : -1) * (.35 * back - .7 * out), 1);
   }
   function poseGut(r, k) {
     rp(r);
@@ -1010,21 +1029,31 @@
     r.kneeL.rotation.x = .5; r.kneeR.rotation.x = .3;
   }
 
-  /* boot planted on a stomach */
+  /* Boot planted on a stomach, with all of his weight standing on it —
+     the standing leg straight, the hips over it, and the body leaning down
+     the line of the leg. */
   function poseStamp(r, k) {
     rp(r);
     var s = Math.min(1, k * 4);
-    r.spine.rotation.x = .3 * s;
-    r.neck.rotation.x = .3 * s;
-    r.hipR.rotation.x = -1.5 * s;                  // the leg that is down
-    r.kneeR.rotation.x = .35 * s;
-    r.ankleR.rotation.x = .5 * s;
-    r.hipL.rotation.x = .5 * s;
-    r.kneeL.rotation.x = .45 * s;
-    r.shoulderL.rotation.x = -.6 * s; r.shoulderL.rotation.z = .55 * s;
-    r.shoulderR.rotation.x = -1.1 * s; r.shoulderR.rotation.z = -.5 * s;
-    r.elbowR.rotation.x = -1.1 * s;
-    r.hips.position.y = r.hipsBaseY - .1;
+    var breathe = Math.sin(k * 2.2) * .03;
+    r.spine.rotation.x = .34 * s + breathe;
+    r.spine.rotation.y = -.16 * s;
+    r.spine.rotation.z = .1 * s;
+    r.neck.rotation.x = .38 * s;                   // looking down at them
+    r.neck.rotation.y = .14 * s;
+    r.hipR.rotation.x = -1.42 * s;                 // the leg that is down
+    r.hipR.rotation.z = -.16 * s;
+    r.kneeR.rotation.x = .3 * s;
+    r.ankleR.rotation.x = .55 * s;
+    r.hipL.rotation.x = .34 * s;                   // and the one holding him
+    r.kneeL.rotation.x = .2 * s;
+    r.ankleL.rotation.x = -.12 * s;
+    r.shoulderL.rotation.x = -.5 * s; r.shoulderL.rotation.z = .5 * s;
+    r.elbowL.rotation.x = -.5 * s;
+    r.shoulderR.rotation.x = -1.05 * s; r.shoulderR.rotation.z = -.44 * s;
+    r.elbowR.rotation.x = -1.15 * s;
+    r.hips.position.y = r.hipsBaseY - .06 + breathe * .4;
+    if (AN) AN.weight(r, -.5 * s, 1);
   }
   function poseUppercut(r, k) {
     rp(r);
