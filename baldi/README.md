@@ -48,12 +48,22 @@ and the 'allow-pointer-lock' permission is not set.
 ```
 
 There is one way out. Apps Script's sandbox includes
-`allow-popups-to-escape-sandbox`, so a pop-up opened to a **real URL** is a
-fresh top level window that is not sandboxed — and the mouse locks there
-normally. An embedded page now says so and offers **OPEN IN A FULL WINDOW**,
-both in the lobby and beside the look hint during a match. (A blob pop-up does
-not work: blob URLs inherit the opener's sandbox flags. A nested iframe cannot
-help either, since it can never hold more permissions than its parent.)
+`allow-popups-to-escape-sandbox`, so a window opened from the frame is not
+itself sandboxed — and the mouse locks there normally. An embedded page says so
+and offers **OPEN IN A FULL WINDOW**, both in the lobby and beside the look
+hint during a match.
+
+That window cannot simply reload the page: the address the frame is showing
+belongs to `googleusercontent.com` and renders nothing outside its parent,
+which is why pointing it at `location.href` only ever produced a blank page.
+So the split build carries a copy of its own markup in a
+`<script type="text/plain" id="__selfDoc">`, and the button opens a blank
+window and writes that copy into it. A written `about:blank` window is a fresh
+top level context, and a `<base>` is prepended so its scripts still resolve to
+the same `?p=N` addresses. The copy holds its closing script tags escaped, so
+they are restored on the way out. (A blob pop-up does not work: blob URLs
+inherit the opener's sandbox flags. A nested iframe cannot help either, since
+it can never hold more permissions than its parent.)
 
 For anyone who stays in the frame, the game switches to **drag-look**: hold the
 **right mouse button** and move. It reads the same relative movement, so there
