@@ -32,8 +32,13 @@
   };
   var AXES = ['x', 'y', 'z'];
 
-  function smoother(rig) {
+  /* overrides let a move keep a stiff joint where it needs to snap — a
+     punch that arrives on a loose spring never actually extends */
+  function smoother(rig, over) {
     var st = {}, i, n;
+    var kk = {};
+    for (n in K) kk[n] = K[n];
+    if (over) for (n in over) kk[n] = over[n];
     for (i = 0; i < JOINTS.length; i++) {
       n = JOINTS[i];
       if (!rig[n]) continue;
@@ -57,7 +62,7 @@
         for (s2 = 0; s2 < steps; s2++) {
           for (name in st) {
             s = st[name];
-            k = K[name] || 20;
+            k = kk[name] || 20;
             d = 2 * Math.sqrt(k) * .74;            // under damped, so it overshoots
             for (a = 0; a < 3; a++) {
               tgt = targets[name][a];

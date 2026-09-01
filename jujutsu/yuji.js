@@ -150,6 +150,7 @@
     try { sfx.whoosh(); } catch (e) {}
   }
   function stepDivergent(a, dt) {
+    if (a.t > .28 && a.t < .46) player.pos.addScaledVector(aim(), 15 * dt);
     if (a.t >= .40 && a.stage < 1) {                 // the fist arrives
       a.stage = 1;
       a.at = fistAt(2.6, 2.9);
@@ -212,6 +213,7 @@
       if (AN) AN.camKick(.4);
       FX.trail(p.rig, 0xd4143c, 3, 34, .4);
     }
+    if (a.t > .58 && a.t < .8) player.pos.addScaledVector(aim(), 22 * dt);
     if (a.t >= .74 && a.stage < 2) {
       a.stage = 2;
       if (a.orb) { a.orb.dispose(); a.orb = null; }
@@ -560,6 +562,7 @@
     player.iframes = Math.max(player.iframes, 2.8);
     FX.letterbox(true);
     FX.tint('#12000a', .5, 2.4);
+    if (AN) AN.camRelease();          // this move frames itself
     if (window.MPJJ && window.MPJJ.relay) {
       window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'yaw' });
     }
@@ -680,7 +683,39 @@
     if (awakenYuji()) { A.charge = 0; A.ready = false; }
   });
 
+  /* the game's chase camera watches his back, which is the one thing this
+     move cannot be seen from */
+  var _updateCamera = updateCamera;
+  updateCamera = function (dt) {
+    var a = player.action;
+    if (!AN || !a || a.type !== 'yaw') return _updateCamera(dt);
+    var t = a.t, face = player.facing;
+    var marks = [
+      { t: 0, yaw: .8, d: 8.5, h: 3.4, ly: 3.4, k: 26 },
+      { t: .9, yaw: .3, d: 4.2, h: 4.3, ly: 4.3, k: 34 },   // right on his face
+      { t: 1.5, yaw: .1, d: 3.6, h: 4.3, ly: 4.25, k: 52 },
+      { t: 1.75, yaw: -.7, d: 7.5, h: 4.0, ly: 3.6, k: 24 },
+      { t: 2.4, yaw: Math.PI, d: 11.5, h: 5.2, ly: 3.2, k: 18 }
+    ];
+    var i = 0;
+    while (i < marks.length - 1 && t >= marks[i + 1].t) i++;
+    var m0 = marks[i], m1 = marks[Math.min(i + 1, marks.length - 1)];
+    var kk = m1 === m0 ? 0 : E.out(Math.min(1, (t - m0.t) / Math.max(.001, m1.t - m0.t)));
+    function mix(f) { return m0[f] + (m1[f] - m0[f]) * kk; }
+    var yaw = face + mix('yaw'), d = mix('d');
+    AN.camTo(player.pos.x + Math.sin(yaw) * d, player.pos.y + mix('h'), player.pos.z + Math.cos(yaw) * d,
+      player.pos.x, player.pos.y + mix('ly'), player.pos.z, dt, mix('k'));
+    shakeMag = Math.max(0, shakeMag - dt * 2.2);
+  };
+
   /* --------------------------------------------------------- per frame */
+  /* The arm doing the work has to arrive; the rest of him is what trails.
+     Everything he throws is thrown right handed, so that side is stiff. */
+  var STRIKE = {
+    hips: 48, spine: 30, neck: 13,
+    shoulderR: 62, elbowR: 62, shoulderL: 15, elbowL: 10,
+    hipR: 30, kneeR: 22, hipL: 22, kneeL: 16, ankleR: 20, ankleL: 12
+  };
   var SM = null, SMEAR = {};
   var _updatePlayer = updatePlayer;
   updatePlayer = function (dt) {
@@ -711,7 +746,7 @@
     if (!AN) return;
     var a = player.action, on = a && (a.type.charAt(0) === 'y');
     if (on) {
-      if (!SM) { SM = AN.smoother(player.rig); SM.snap(); SMEAR = {}; }
+      if (!SM) { SM = AN.smoother(player.rig, STRIKE); SM.snap(); SMEAR = {}; }
       AN.smear(player.rig, SM.step(dt), SMEAR,
         dt, (A && A.yuji) ? 0xd4143c : 0xffb0bd, 7);
     } else if (SM) {
