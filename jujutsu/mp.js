@@ -548,6 +548,7 @@
   function dropFighter(id) {
     var f = MP.fighters[id];
     if (!f) return;
+    if (f.aura) { f.aura.stop(); f.aura = null; }
     var i = enemies.indexOf(f.e);
     if (i >= 0) enemies.splice(i, 1);
     scene.remove(f.e.rig.root);
@@ -606,6 +607,12 @@
       if (m.rk && (!g.e.react || g.e.react.type !== m.rk)) {
         g.e.react = { type: m.rk, t: (m.rt || 0) / 100, dur: (m.rd || 50) / 100, side: m.rs || 1 };
       }
+      /* blindfold off, six eyes lit, cursed energy standing off them */
+      if (!!m.aw !== !!g.aw) {
+        g.aw = !!m.aw;
+        if (window.JJAW) window.JJAW.remote(g, g.aw);
+        if (g.aw) feed('<b>' + esc(g.name) + '</b> awakened');
+      }
       g.e.drawBars();
       return;
     }
@@ -620,8 +627,10 @@
       if (m.kx || m.ky || m.kz) k = new THREE.Vector3(m.kx || 0, m.ky || 0, m.kz || 0);
       hurtPlayer(m.d, k);
       /* the same flinch the dummies play, on us — but not while the hit is
-         being shrugged off by spawn protection */
-      if (m.rk && !player.dead && player.iframes <= 0) {
+         being shrugged off by spawn protection, and not on top of a hit
+         heavy enough to have thrown us, which animates itself */
+      var thrown = player.action && player.action.type === 'kb';
+      if (m.rk && !player.dead && player.iframes <= 0 && !thrown) {
         player.react = { type: m.rk, t: 0, dur: m.rd || .5, side: m.rs || 1 };
       }
       MP.lastHitBy = m.id;
@@ -633,6 +642,13 @@
       return;
     }
     if (m.t === 'proj' && m.to === MP.id) { applyProjPlayer(m.a); return; }
+    if (m.t === 'dom') {                                // a domain opened near us
+      var who = MP.fighters[m.id];
+      feed('<b>' + esc(who ? who.name : '???') + '</b> expanded a domain');
+      var inside = Math.hypot(player.pos.x - m.x, player.pos.z - m.z) <= (m.r || 34);
+      if (inside && window.JJAW && !player.dead) window.JJAW.enterVoid(m.d || 2.3);
+      return;
+    }
     if (m.t === 'died') {
       var who = MP.fighters[m.id];
       var killer = m.by === MP.id ? { name: MP.name } : MP.fighters[m.by];
@@ -1019,12 +1035,18 @@
     /* local feedback right away, their broadcast corrects the bar */
     this.hp = Math.max(0, this.hp - amount);
     this.drawBars();
-    if (typeof spark === 'function') {
-      spark(this.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0xff4455, 5, 10);
+    var at = this.pos.clone().add(new THREE.Vector3(0, 2.9, 0));
+    if (window.JJFX) {
+      window.JJFX.heavyHit(at, (opts && opts.spark) || 0xffd76a,
+        Math.min(1.7, .6 + (knock ? knock.length() : 0) / 55));
+    } else if (typeof spark === 'function') {
+      spark(at, 0xff4455, 5, 10);
     }
     if (typeof damageNumber === 'function') {
       damageNumber(this.pos.clone().add(new THREE.Vector3(0, 5.2, 0)), String(Math.round(amount)), '#ffd76a');
     }
+    /* landing one on a real opponent is what fills the meter fastest */
+    if (window.JJAW) window.JJAW.gain(amount * .55);
   };
 
   var _enemyProj = Enemy.prototype.applyProj;
@@ -1114,7 +1136,8 @@
       rk: player.react ? player.react.type : 0,
       rt: player.react ? Math.round(player.react.t * 100) : 0,
       rd: player.react ? Math.round(player.react.dur * 100) : 0,
-      rs: player.react ? player.react.side : 0
+      rs: player.react ? player.react.side : 0,
+      aw: (window.JJAW && window.JJAW.active) ? 1 : 0
     });
   }
 
@@ -1124,73 +1147,137 @@
      effect is played at that fighter's feet — visual only, never damaging,
      because the hit itself already travels as its own message. */
   function remoteFx(kind, pos, yaw) {
-    if (typeof spark !== 'function') return;
+    var FX = window.JJFX;
+    if (!FX) return;
     var fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     var mid = pos.clone().add(new THREE.Vector3(0, 2.6, 0));
-    var near = player.pos.distanceTo(pos) < 26;
+    var d = player.pos.distanceTo(pos);
+    var near = d < 26, close = d < 45;
+    var i;
     switch (kind) {
       case 'red':
         redBlast(mid.clone().addScaledVector(fwd, 6));
         break;
       case 'rapid':
-        for (var i = 0; i < 6; i++) {
+        for (i = 0; i < 7; i++) {
           (function (n) {
             setTimeout(function () {
-              spark(mid.clone().addScaledVector(fwd, 2 + n * .4), 0x9fd8ff, 6, 16, 1.1);
-            }, n * 70);
+              var at = mid.clone().addScaledVector(fwd, 2 + n * .4);
+              FX.impact(at, 0x9fd8ff, .7);
+              FX.slash(at, fwd, 0xdfefff, 2.4, .16);
+            }, n * 65);
           })(i);
         }
         break;
       case 'tf':
-        ringWave(pos.clone().addScaledVector(fwd, 3), 0x8fd0ff, 12, .45, true);
-        spark(mid.clone().addScaledVector(fwd, 3), 0xbfe6ff, 14, 20, 1.6);
+        FX.slash(mid.clone().addScaledVector(fwd, 2.4), fwd, 0xbfe6ff, 5, .22);
+        FX.ring(pos.clone().addScaledVector(fwd, 3), 0x8fd0ff, { maxR: 11, life: .45 });
+        FX.impact(mid.clone().addScaledVector(fwd, 3), 0xbfe6ff, 1.3);
         if (near) addShake(.18);
         break;
       case 'palm':
-        for (var j = 0; j < 5; j++) {
+        for (i = 0; i < 5; i++) {
           (function (n) {
             setTimeout(function () {
-              ringWave(mid.clone().addScaledVector(fwd, 2 + n * 1.6), 0x7fd4ff, 4.5, .3);
+              var at = mid.clone().addScaledVector(fwd, 2 + n * 1.6);
+              FX.ring(at, 0x7fd4ff, { maxR: 4.5, life: .3, ground: false, axis: fwd });
+              FX.streaks(at, 0xcfeaff, 3, 14, 1);
             }, n * 90);
-          })(j);
+          })(i);
         }
         break;
       case 'lim':
-        ringWave(pos, 0x6fa8ff, 9, .5, true);
-        spark(mid, 0xdfefff, 20, 22, 1.8);
+        FX.speedRing(mid, 0x6fa8ff, 7, .3);
+        FX.ring(pos, 0x6fa8ff, { maxR: 9, life: .5 });
+        FX.streaks(mid, 0xdfefff, 12, 20, 1.4);
         break;
       case 'spawn':
-        ringWave(pos, 0xbfe0ff, 14, .6, true);
-        ringWave(pos.clone().add(new THREE.Vector3(0, 2, 0)), 0xffffff, 10, .45);
-        spark(mid, 0xdfefff, 26, 22, 2);
+        FX.rings(pos, 0xbfe0ff, 3, { maxR: 14, life: .6, gap: 60 });
+        FX.cross(mid, 0xffffff, 4, .3);
+        FX.dust(pos.clone(), 6, 0xd7dde8, 7, 3);
         if (near) addShake(.3);
         break;
+
+      /* ---- awakened Gojo, as the rest of the room sees it ---- */
+      case 'awaken':
+        FX.rings(pos, 0x3a7dff, 4, { maxR: 20, life: .8, gap: 70 });
+        FX.beam(pos.clone(), new THREE.Vector3(0, 1, 0), 55, 0x4a8dff, { radius: 1.7, life: 1.1 });
+        FX.cross(mid.clone().add(new THREE.Vector3(0, 1.7, 0)), 0x9fd8ff, 5, .35);
+        FX.debris(pos.clone(), 12, 15);
+        FX.dust(pos.clone(), 9, 0xd6e2f2, 10, 4);
+        FX.cracks(pos.clone(), 10, 13);
+        if (close) { addShake(.8); FX.flash('#bfe0ff', .3, .5); }
+        break;
+      case 'aw_blue':
+        FX.speedRing(mid.clone().addScaledVector(fwd, 1.6), 0x59a8ff, 6, .3);
+        for (i = 0; i < 8; i++) {
+          (function (n) {
+            setTimeout(function () {
+              var at = mid.clone().addScaledVector(fwd, 2 + n * 2.6);
+              FX.ring(at, 0x59a8ff, { maxR: .6, from: 6, life: .3, ground: false, opacity: .8 });
+              FX.mote(at, 0x8fd0ff, 6, .26);
+            }, 380 + n * 55);
+          })(i);
+        }
+        break;
+      case 'aw_red':
+        setTimeout(function () {
+          FX.wave(mid, fwd, 0xff3b4d, { steps: 6, r0: 9, grow: 2.4, reach: 5.5 });
+        }, 450);
+        setTimeout(function () {
+          FX.cross(mid.clone().addScaledVector(fwd, 1.4), 0xffb3ba, 6, .3);
+          FX.dust(pos.clone().addScaledVector(fwd, 4), 8, 0xe4d3d6, 12, 3.4);
+          FX.debris(pos.clone().addScaledVector(fwd, 7), 9, 15);
+          if (close) addShake(.7);
+        }, 450);
+        break;
+      case 'aw_purple':
+        setTimeout(function () {
+          if (close) { FX.flash('#f2e6ff', .45, .5); addShake(1.1); }
+          FX.beam(mid.clone().addScaledVector(fwd, 1.6), fwd, 120, 0x9b4dff, { radius: 3.4, life: 1 });
+          FX.beam(mid.clone().addScaledVector(fwd, 1.6), fwd, 120, 0xffffff, { radius: 1.2, life: .9 });
+          for (var n = 0; n < 12; n++) {
+            (function (n) {
+              setTimeout(function () {
+                var at = pos.clone().addScaledVector(fwd, 6 + n * 8);
+                FX.ring(new THREE.Vector3(at.x, .1, at.z), 0x9b4dff, { maxR: 10, life: .5 });
+                FX.dust(new THREE.Vector3(at.x, 0, at.z), 3, 0xcdbde4, 8, 3);
+              }, n * 16);
+            })(n);
+          }
+        }, 1750);
+        break;
+      case 'aw_domain':
+        setTimeout(function () {
+          FX.dome(new THREE.Vector3(pos.x, 1, pos.z), 34, 0xbfd8ff, 5.2);
+          FX.rings(new THREE.Vector3(pos.x, .15, pos.z), 0xdfefff, 4, { maxR: 37, life: .8, gap: 60 });
+          FX.debris(pos.clone(), 14, 14);
+          if (close) { FX.flash('#ffffff', .6, .6); addShake(1.2); }
+        }, 750);
+        break;
+
+      case 'kb': case 'void':
+        break;                                        // these animate themselves
       case 'n1': case 'n2': case 'n3': case 'nr': case 'nrf':
-        ringWave(pos, 0x9be7ff, 8, .4, true);
-        spark(mid.clone().addScaledVector(fwd, 1.6), 0xcfefff, 12, 18, 1.3);
+        FX.ring(pos, 0x9be7ff, { maxR: 8, life: .4 });
+        FX.slash(mid.clone().addScaledVector(fwd, 1.6), fwd, 0xcfefff, 3, .18);
         break;
       default:
-        spark(mid, 0xffffff, 8, 14, 1.2);
+        FX.impact(mid, 0xffffff, .8);
     }
   }
 
-  /* the red blast, borrowed from the game's own explosion but with no damage */
+  /* the red blast as the other screens see it — no damage, all noise */
   function redBlast(pos) {
-    var blast = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 20),
-      new THREE.MeshBasicMaterial({ color: 0xff4455, transparent: true, opacity: .8, blending: THREE.AdditiveBlending }));
-    blast.position.copy(pos);
-    scene.add(blast);
-    addFx({ t: .4, update: function (dt) {
-      this.t -= dt;
-      var p = 1 - this.t / .4;
-      blast.scale.setScalar(1 + p * 14);
-      blast.material.opacity = .8 * (1 - p);
-      if (this.t <= 0) { scene.remove(blast); blast.material.dispose(); return false; }
-      return true;
-    } });
-    ringWave(pos, 0xff3344, 16, .5, true);
-    spark(pos, 0xff5566, 24, 28, 2.2);
-    if (player.pos.distanceTo(pos) < 30) addShake(.5);
+    var FX = window.JJFX;
+    FX.cross(pos, 0xffd0d4, 7, .3);
+    FX.impact(pos, 0xff3b4d, 2.3);
+    FX.rings(pos, 0xff3344, 3, { maxR: 18, life: .55, ground: false, gap: 45 });
+    FX.ring(new THREE.Vector3(pos.x, .1, pos.z), 0xff5566, { maxR: 17, life: .6 });
+    FX.dust(new THREE.Vector3(pos.x, 0, pos.z), 8, 0xe4d3d6, 11, 3.4);
+    FX.debris(new THREE.Vector3(pos.x, 0, pos.z), 8, 15);
+    FX.cracks(new THREE.Vector3(pos.x, 0, pos.z), 6, 10);
+    if (player.pos.distanceTo(pos) < 30) { addShake(.5); FX.zoom(6, .35); }
   }
 
   window.addEventListener('beforeunload', function () {

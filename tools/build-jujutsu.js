@@ -23,7 +23,14 @@ const src = path.join(root, 'jujutsu');
 const base = fs.readFileSync(path.join(src, 'base.html'), 'utf8');
 const three = fs.readFileSync(path.join(src, 'three.module.min.js'), 'utf8');
 const mqtt = fs.readFileSync(path.join(src, 'mqtt.min.js'), 'utf8');
-const mp = fs.readFileSync(path.join(src, 'mp.js'), 'utf8');
+
+/* Order matters: each of these patches the one before it. vfx defines the
+   kit, combat re-points the game's own effects at it and adds the throw,
+   gojo builds the awakening on top, and mp shares all of it. */
+const addons = ['vfx.js', 'combat.js', 'gojo.js', 'mp.js']
+  .map(function (f) {
+    return { name: f, code: fs.readFileSync(path.join(src, f), 'utf8') };
+  });
 
 const guard = (js) => js.replace(/<\/script/gi, '<\\/script');
 
@@ -44,10 +51,12 @@ function assemble(threeTag, mqttTag) {
   const at = html.indexOf(MODULE_OPEN);
   const end = html.indexOf('</script>', at);
   const body = html.slice(at + MODULE_OPEN.length, end);
+  const extra = addons.map(function (a) {
+    return '\n/* ===== ' + a.name + ' ===== */\n' + guard(a.code) + '\n';
+  }).join('');
   return html.slice(0, at) +
     mqttTag + '\n' +
-    MODULE_OPEN + body +
-    '\n/* ===== online mode ===== */\n' + guard(mp) + '\n' +
+    MODULE_OPEN + body + extra +
     html.slice(end);
 }
 
