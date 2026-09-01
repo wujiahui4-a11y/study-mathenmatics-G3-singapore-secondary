@@ -516,7 +516,7 @@
       }));
       m.rotation.x = -Math.PI / 2;
       m.rotation.z = -a;
-      m.position.set(pos.x + Math.cos(a) * l * .5, .07, pos.z + Math.sin(a) * l * .5);
+      m.position.set(pos.x + Math.cos(a) * l * .5, pos.y + .07, pos.z + Math.sin(a) * l * .5);
       /* a fracture is a line: the width stays hairline however long it runs */
       var w = .5 + Math.random() * .45;
       m.scale.set(.01, w, 1);

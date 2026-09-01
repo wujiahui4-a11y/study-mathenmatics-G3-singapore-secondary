@@ -21,16 +21,16 @@
   /* every joint the sim drives, with how freely it swings and where it
      ends up once there is nothing holding it */
   var JOINTS = [
-    { n: 'spine', k: 26, d: 5.5, x: .22, z: 0, sx: .5 },
-    { n: 'neck', k: 22, d: 4.4, x: .34, z: 0, sx: .9 },
-    { n: 'shoulderL', k: 15, d: 3.4, x: .75, z: .55, sx: 1.5 },
-    { n: 'shoulderR', k: 15, d: 3.4, x: .75, z: -.55, sx: 1.5 },
-    { n: 'elbowL', k: 18, d: 3.0, x: -.62, z: 0, sx: 1.4 },
-    { n: 'elbowR', k: 18, d: 3.0, x: -.62, z: 0, sx: 1.4 },
-    { n: 'hipL', k: 20, d: 4.2, x: -.28, z: .22, sx: 1.1 },
-    { n: 'hipR', k: 20, d: 4.2, x: -.16, z: -.3, sx: 1.1 },
-    { n: 'kneeL', k: 22, d: 3.6, x: .62, z: 0, sx: 1.2 },
-    { n: 'kneeR', k: 22, d: 3.6, x: .48, z: 0, sx: 1.2 }
+    { n: 'spine', k: 13, d: 5.5, x: .22, z: 0, sx: .5, i: .6 },
+    { n: 'neck', k: 9, d: 4.4, x: .34, z: 0, sx: .9, i: 1.5 },
+    { n: 'shoulderL', k: 5, d: 3.4, x: .75, z: .55, sx: 1.5, i: 2.6 },
+    { n: 'shoulderR', k: 5, d: 3.4, x: .75, z: -.55, sx: 1.5, i: 2.6 },
+    { n: 'elbowL', k: 6, d: 3.0, x: -.62, z: 0, sx: 1.4, i: 2.2 },
+    { n: 'elbowR', k: 6, d: 3.0, x: -.62, z: 0, sx: 1.4, i: 2.2 },
+    { n: 'hipL', k: 8, d: 4.2, x: -.28, z: .22, sx: 1.1, i: 1.7 },
+    { n: 'hipR', k: 8, d: 4.2, x: -.16, z: -.3, sx: 1.1, i: 1.7 },
+    { n: 'kneeL', k: 9, d: 3.6, x: .62, z: 0, sx: 1.2, i: 1.9 },
+    { n: 'kneeR', k: 9, d: 3.6, x: .48, z: 0, sx: 1.2, i: 1.9 }
   ];
 
   /* recover: seconds to lie there before getting back up. Left out, the
@@ -143,11 +143,15 @@
       j.vz += (d.z - j.z) * d.k * dt;
       /* gravity pulls the limb toward whichever way is down for the body */
       j.vx += Math.sin(rag.rot.x) * d.sx * 7 * dt;
+      /* and the limb is left behind whenever the body turns under it —
+         this is the part that makes it read as loose rather than carved */
+      j.vx -= rag.av.x * d.i * 2.2 * dt;
+      j.vz -= rag.av.z * d.i * 1.6 * dt;
       if (!rag.down) {
-        j.vx += (Math.random() - .5) * 26 * dt * loose;
-        j.vz += (Math.random() - .5) * 16 * dt * loose;
+        j.vx += (Math.random() - .5) * 34 * dt * loose;
+        j.vz += (Math.random() - .5) * 22 * dt * loose;
       }
-      var damp = Math.pow(rag.down ? .012 : .1, dt);
+      var damp = Math.pow(rag.down ? .02 : .42, dt);
       j.vx *= damp; j.vz *= damp;
       j.x += j.vx * dt;
       j.z += j.vz * dt;

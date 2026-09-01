@@ -192,7 +192,10 @@
     if (window.MPJJ && window.MPJJ.cs && window.MPJJ.cs.active) return;
     /* Naoya's awakening is a run and a finish, not a state to sit in */
     if (player.char === 'naoya') {
-      if (window.JJNAOYA && window.JJNAOYA.awaken()) { AW.charge = 0; AW.ready = false; }
+      if (window.JJNAOYA && window.JJNAOYA.awaken()) {
+        AW.charge = 0; AW.ready = false;
+        renderBar();               // his run owns the frame; the bar steps out
+      }
       return;
     }
     if (player.char !== 'gojo') return;

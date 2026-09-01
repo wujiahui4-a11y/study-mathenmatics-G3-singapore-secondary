@@ -833,8 +833,7 @@
       new THREE.MeshStandardMaterial({ color: 0x8a6f4f, roughness: 1 }));
     g.geometry.__own = true;
     g.position.set(STAGE.x, STAGE.y, STAGE.z);
-    g.rotation.set(0, 0, .18);
-    g.rotation.x = -.1;
+    g.rotation.set(0, 0, .05);
     keep(g);
     CINE.slab = g;
     return g;
@@ -945,6 +944,19 @@
     r.hips.position.y = r.hipsBaseY - .3;
     if (k != null) { r.spine.rotation.z = Math.sin(k * 6) * .08; }
   }
+  /* flat on their back, arms and knees fallen open */
+  function poseDown(r) {
+    rp(r);
+    r.spine.rotation.x = -.18;
+    r.neck.rotation.x = -.3;
+    r.shoulderL.rotation.x = -.35; r.shoulderR.rotation.x = -.2;
+    r.shoulderL.rotation.z = -.85; r.shoulderR.rotation.z = .7;
+    r.elbowL.rotation.x = -.45; r.elbowR.rotation.x = -.3;
+    r.hipL.rotation.x = .1; r.hipR.rotation.x = -.05;
+    r.hipL.rotation.z = .3; r.hipR.rotation.z = -.22;
+    r.kneeL.rotation.x = .5; r.kneeR.rotation.x = .3;
+  }
+
   /* boot planted on a stomach */
   function poseStamp(r, k) {
     rp(r);
@@ -1148,30 +1160,23 @@
     },
     step: function (t) {
       var A = CINE.A, V = CINE.V;
-      /* the victim laid out along the slab, taking the boot */
-      resetPose(V.rig);
-      V.rig.root.rotation.set(0, Math.PI * .5, 0);
-      V.rig.body.rotation.z = -Math.PI * .5;         // on their back
-      V.rig.spine.rotation.x = .35;
-      V.rig.neck.rotation.x = -.25;
-      V.rig.shoulderL.rotation.x = -1.9; V.rig.shoulderR.rotation.x = -1.3;
-      V.rig.shoulderL.rotation.z = -.5; V.rig.shoulderR.rotation.z = .35;
-      V.rig.elbowL.rotation.x = -.7; V.rig.elbowR.rotation.x = -1.5;
-      V.rig.hipL.rotation.x = -.55; V.rig.hipR.rotation.x = -.3;
-      V.rig.kneeL.rotation.x = .95; V.rig.kneeR.rotation.x = .7;
-      V.rig.root.position.set(STAGE.x, STAGE.y + 1.5, STAGE.z + 6);
+      /* on their back along the slab. Tipping the root lays the whole body
+         down on the surface; tipping the torso only buries it in one. */
+      poseDown(V.rig);
+      V.rig.root.rotation.set(-Math.PI / 2, 0, 0);
+      V.rig.root.position.set(STAGE.x, STAGE.y + 1.5, STAGE.z + 7.4);
 
       /* boot planted on the stomach, standing over them */
       poseStamp(A.rig, t);
-      A.rig.root.position.set(STAGE.x - .2, STAGE.y + 3.6, STAGE.z + 5.2);
+      A.rig.root.position.set(STAGE.x - .2, STAGE.y + 1.9, STAGE.z + 5.6);
       A.rig.root.rotation.set(0, Math.PI * .96, 0);
 
-      if (CINE.slab) CINE.slab.rotation.x = -.1 - t * .012;
+      if (CINE.slab) CINE.slab.rotation.x = -t * .006;      // drifting as it falls
       /* along the slab, so it runs off into the haze behind them */
       shot(t, [
-        { t: 0, p: [-15, 9, 22], l: [0, 2.6, 3] },
-        { t: 2.2, p: [-12.5, 7.2, 17], l: [0, 2.6, 2] },
-        { t: 4, p: [-10.5, 6.2, 13.5], l: [0, 2.4, 0] }
+        { t: 0, p: [-13.5, 5.6, 19], l: [0, 2.2, 5] },
+        { t: 2.2, p: [-11.5, 4.4, 15.5], l: [0, 2.1, 5.5] },
+        { t: 4, p: [-10, 3.8, 13], l: [0, 2.0, 5.5] }
       ]);
       shakeCam(.06);
       if (Math.random() < .3) FX.dust(sp((Math.random() - .5) * 20, 2, -8 - Math.random() * 20), 2, 0xbdb3a1, 8, 5);
@@ -1184,40 +1189,61 @@
     } },
 
   /* ---- 6 · off, run, and put them through it ------------------------- */
-  { dur: 3.2, enter: function () {},
+  { dur: 3.4, enter: function () {},
     step: function (t) {
       var A = CINE.A, V = CINE.V;
-      var k = Math.min(1, t / 1.5);
-      /* he steps off and runs down the slab */
-      if (t < 1.5) {
-        poseRun(A.rig, t * 26, t);
-        A.rig.root.position.set(STAGE.x, STAGE.y + 2.2, STAGE.z + 4.2 - E.out(k) * 12);
-        A.rig.root.rotation.set(0, Math.PI, 0);
+      /* The victim stays where the boot left them and the whole beat is
+         one movement of his: off, in, down. Anything that teleports
+         between poses here reads as missing frames. */
+      var vy = STAGE.y + 1.5, fall = 0;
+      if (t > 2.15) {
+        fall = (t - 2.15) / 1.25;
+        vy = STAGE.y + 1.5 - fall * fall * 30;
+        poseFly(V.rig, fall);
+        V.rig.root.rotation.set(-Math.PI / 2 + fall * .6, 0, fall * 1.2);
       } else {
-        var pk = Math.min(1, (t - 1.5) / .7);
+        poseDown(V.rig);
+        V.rig.root.rotation.set(-Math.PI / 2, 0, 0);
+      }
+      V.rig.root.position.set(STAGE.x, vy, STAGE.z + 7.4);
+
+      if (t < .75) {                                  // steps off them
+        var s = E.out(t / .75);
+        rp(A.rig);
+        A.rig.spine.rotation.x = .2 - .1 * s;
+        A.rig.hipR.rotation.x = -1.5 + 1.5 * s;
+        A.rig.kneeR.rotation.x = .35 + .2 * s;
+        A.rig.hipL.rotation.x = .5 - .5 * s;
+        A.rig.shoulderL.rotation.x = -.6 + .3 * s;
+        A.rig.shoulderR.rotation.x = -1.1 + .7 * s;
+        A.rig.root.position.set(STAGE.x - .2, STAGE.y + 1.9 - s * .8, STAGE.z + 5.6 + s * 3.2);
+        A.rig.root.rotation.set(0, Math.PI * .96, 0);
+      } else if (t < 1.75) {                          // runs back at them
+        var rk = E.out((t - .75) / 1);
+        poseRun(A.rig, (t - .75) * 30, t - .75);
+        A.rig.root.position.set(STAGE.x, STAGE.y + 1.1, STAGE.z + 8.8 - rk * 2.1);
+        A.rig.root.rotation.set(0, Math.PI, 0);
+      } else {                                        // and drives them down
+        var pk = Math.min(1, (t - 1.75) / .45);
         posePunch(A.rig, pk, 1);
-        A.rig.root.position.set(STAGE.x, STAGE.y + 2.2, STAGE.z - 7.8 + E.out(pk) * 2);
+        A.rig.root.position.set(STAGE.x, STAGE.y + 1.1, STAGE.z + 6.7 - E.out(pk) * .5);
         A.rig.root.rotation.set(0, Math.PI, 0);
       }
-      /* the victim slides ahead of him and then goes through the slab */
-      var vz = 6 - Math.min(1, t / 1.4) * 14;
-      if (t > 2.2) {
-        var f = (t - 2.2) / 1;
-        V.rig.root.position.set(STAGE.x, STAGE.y + 1.5 - f * f * 26, STAGE.z + vz);
-        poseFly(V.rig, f);
-      } else {
-        V.rig.root.position.set(STAGE.x, STAGE.y + 1.5, STAGE.z + vz);
-      }
-      /* side on, so the crack running through the slab reads */
-      cam(-19, 4.2, -4, 0, 2, -6);
-      if (t > 2.2) {
+
+      /* side on, level with the slab, so the drop through it reads */
+      shot(t, [
+        { t: 0, p: [-17, 5.5, 10], l: [0, 2.6, 6] },
+        { t: 2.1, p: [-15, 4.2, 7.5], l: [0, 2.2, 6] },
+        { t: 3.4, p: [-15, 1.5, 7], l: [0, -4, 6] }
+      ]);
+      if (t > 2.15) {
         once('crack', function () {
           FX.flash('#fff3e0', .5, .3);
-          FX.cross(sp(0, 2.2, -9), 0xffffff, 7, .3);
-          FX.impact(sp(0, 2.2, -9), 0xffd9a8, 2.4);
-          FX.debris(sp(0, 1, -9), 18, 20, 0x6b5642);
-          FX.cracks(sp(0, 1.2, -9), 9, 16, 0x2a2018);
-          rockFan(sp(0, 0, -9), new THREE.Vector3(0, -.2, -1), 14, 12);
+          FX.cross(sp(0, 2.2, 6), 0xffffff, 7, .3);
+          FX.impact(sp(0, 2.2, 6), 0xffd9a8, 2.4);
+          FX.debris(sp(0, 1, 6), 18, 20, 0x6b5642);
+          FX.cracks(sp(0, 1.15, 6), 11, 15, 0x2a2018);
+          rockFan(sp(0, 0, 6), new THREE.Vector3(0, -.4, .2), 16, 10);
           addShake(1.2);
           hitstop(.1);
           try { sfx.hit(); } catch (e) {}
@@ -1307,7 +1333,7 @@
   /* ---- 9 · the uppercut, and the frame in the sky -------------------- */
   { dur: 2.4, enter: function () {
       var A = CINE.A, V = CINE.V;
-      put(A, 0, 0, -2.6, 0);                        // behind them
+      put(A, 0, 0, -3.9, 0);                        // behind them
       A.rig.root.visible = true;
       FX.trail(A.rig, 0x9fd8ff, 4, 35, .45);
     },
@@ -1385,7 +1411,7 @@
         A.rig.root.visible = true;
         var pk = Math.min(1, (t - 1.6) / .5);
         posePunch(A.rig, pk, 1);
-        A.rig.root.position.set(vp.x, vp.y + .4, vp.z + 6.4 - E.out(pk) * 5.6);
+        A.rig.root.position.set(vp.x, vp.y + .4, vp.z + 6.6 - E.out(pk) * 3.9);
         A.rig.root.rotation.set(0, Math.PI, 0);
         /* over the victim's shoulder, so the fist arrives down the lens */
         cam(3.6, 35.9, -11, 0, 34.7, 1.6);
