@@ -51,6 +51,17 @@ shell = shell.slice(0, bodyEnd) + '\n' + probe + shell.slice(bodyEnd);
 const closeAt = shell.lastIndexOf('</body>');
 shell = shell.slice(0, closeAt) + extra + shell.slice(closeAt);
 
+/* A copy of the page, kept as inert text. An embedded page cannot be granted
+   pointer lock, but it can open a blank window and write this into it: that
+   window is a fresh top level context, so the mouse locks there. Whoever
+   serves the shell substitutes __PART_BASE__ inside this copy too, so its
+   script URLs are already absolute. */
+const guard = (html) => html.replace(/<\/script/gi, '<\\/script');
+const closeBody = shell.lastIndexOf('</body>');
+shell = shell.slice(0, closeBody) +
+  '<script type="text/plain" id="__selfDoc">' + guard(shell) + '</script>\n' +
+  shell.slice(closeBody);
+
 fs.writeFileSync(path.join(out, 'index.html'), shell);
 parts.forEach((code, i) => fs.writeFileSync(path.join(out, 'p' + (i + 1) + '.js'), code));
 
