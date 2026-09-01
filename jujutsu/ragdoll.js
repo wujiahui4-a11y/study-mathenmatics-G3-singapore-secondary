@@ -164,6 +164,12 @@
       return;
     }
 
+    /* the body carries its owner's position with it, so the chase camera
+       keeps watching the corpse rather than the spot it died on */
+    ent.pos.x = rag.hips.x;
+    ent.pos.z = rag.hips.z;
+    ent.pos.y = 0;
+
     /* --- write it out --- */
     var q = new THREE.Quaternion().setFromEuler(rag.rot);
     var off = new THREE.Vector3(0, rig.hipsBaseY, 0).applyQuaternion(q);

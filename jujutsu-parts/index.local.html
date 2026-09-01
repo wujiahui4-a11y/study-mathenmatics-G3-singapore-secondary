@@ -4129,6 +4129,12 @@ window.__game = {
       return;
     }
 
+    /* the body carries its owner's position with it, so the chase camera
+       keeps watching the corpse rather than the spot it died on */
+    ent.pos.x = rag.hips.x;
+    ent.pos.z = rag.hips.z;
+    ent.pos.y = 0;
+
     /* --- write it out --- */
     var q = new THREE.Quaternion().setFromEuler(rag.rot);
     var off = new THREE.Vector3(0, rig.hipsBaseY, 0).applyQuaternion(q);
@@ -6181,8 +6187,11 @@ window.__game = {
       RUSH.lastHit = e;
       var kb = RUSH.dir.clone().multiplyScalar(42);
       kb.y = 17;
-      e.damage(14, kb, { react: 'stagger', reactDur: .8, spark: 0x9fd8ff, noFrameBonus: true });
-      if (window.JJRAG && !e.net) window.JJRAG.start(e, kb.clone().multiplyScalar(.5));
+      /* the run softens people up, it does not finish them: there has to be
+         somebody still standing at the end of it to finish */
+      var dmg = Math.max(0, Math.min(14, (e.hp || 0) - 1));
+      e.damage(dmg, kb, { react: 'stagger', reactDur: .8, spark: 0x9fd8ff, noFrameBonus: true });
+      if (window.JJRAG && !e.net && !e.dead) window.JJRAG.start(e, kb.clone().multiplyScalar(.5), 2.6);
       FX.heavyHit(e.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 0x9fd8ff, 1.4);
       FX.slash(p.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), RUSH.dir, 0xdfefff, 5, .2);
       addShake(.4);
@@ -6289,7 +6298,7 @@ window.__game = {
     if (v && (v.dead || !enemies.indexOf || enemies.indexOf(v) < 0)) v = null;
     if (!v) {
       /* nobody left hanging: pick whoever is closest, or just stop */
-      var best = null, bd = 26;
+      var best = null, bd = 70;
       for (var i = 0; i < enemies.length; i++) {
         var e = enemies[i];
         if (!e || e.dead) continue;
@@ -6355,14 +6364,36 @@ window.__game = {
     V.rig.root.rotation.set(0, 0, 0);
     A.release(); V.release();
     CINE.on = false;
-    /* the fist finally arrives */
-    if (A.self && V.ent && V.ent.damage) {
-      var dir = new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing));
-      V.ent.damage(58, dir.multiplyScalar(26).setY(15),
-        { react: 'stagger', reactDur: .9, spark: 0x9fd8ff, noFrameBonus: true });
+
+    /* The fist finally arrives. The victim applies it to themselves rather
+       than being sent it, because a hit arriving while their own copy of
+       the cut is still finishing would be thrown away. */
+    var away = new THREE.Vector3();
+    if (V.self) {
+      away.subVectors(player.pos, A.ent.pos || player.pos);
+      if (away.lengthSq() < .01) away.set(0, 0, 1);
+      away.y = 0; away.normalize().multiplyScalar(30); away.y = 16;
+      player.iframes = 0;
+      _hurtPlayer(58, away);
+      player.iframes = 1.4;
+    } else if (A.self && V.ent && V.ent.damage && !V.ent.net) {
+      away.subVectors(V.ent.pos, player.pos);
+      if (away.lengthSq() < .01) away.set(0, 0, 1);
+      away.y = 0; away.normalize().multiplyScalar(30); away.y = 16;
+      V.ent.damage(58, away, { react: 'stagger', reactDur: .9, spark: 0x9fd8ff, noFrameBonus: true });
     }
+
+    /* both of them arriving back where they were standing */
+    [CINE.homeA, CINE.homeV].forEach(function (h) {
+      FX.ring(new THREE.Vector3(h.x, .1, h.z), 0xbfe6ff, { maxR: 9, life: .5 });
+      FX.dust(new THREE.Vector3(h.x, 0, h.z), 6, 0xc9bda6, 8, 3);
+      FX.streaks(new THREE.Vector3(h.x, 2, h.z), 0xdfefff, 6, 12, 1.2);
+    });
+    FX.flash('#ffffff', .35, .45);
+    addShake(.5);
+    if (A.self) FX.trail(A.rig, 0x9fd8ff, 3, 45, .4);
+
     if (A.self && window.JJAW) window.JJAW.finish();
-    if (V.self) { player.iframes = 1.2; }
   }
 
   /* ------------------------------------------------------------- stage */
@@ -12628,6 +12659,12 @@ window.__game = {
       return;
     }
 
+    /* the body carries its owner's position with it, so the chase camera
+       keeps watching the corpse rather than the spot it died on */
+    ent.pos.x = rag.hips.x;
+    ent.pos.z = rag.hips.z;
+    ent.pos.y = 0;
+
     /* --- write it out --- */
     var q = new THREE.Quaternion().setFromEuler(rag.rot);
     var off = new THREE.Vector3(0, rig.hipsBaseY, 0).applyQuaternion(q);
@@ -14680,8 +14717,11 @@ window.__game = {
       RUSH.lastHit = e;
       var kb = RUSH.dir.clone().multiplyScalar(42);
       kb.y = 17;
-      e.damage(14, kb, { react: 'stagger', reactDur: .8, spark: 0x9fd8ff, noFrameBonus: true });
-      if (window.JJRAG && !e.net) window.JJRAG.start(e, kb.clone().multiplyScalar(.5));
+      /* the run softens people up, it does not finish them: there has to be
+         somebody still standing at the end of it to finish */
+      var dmg = Math.max(0, Math.min(14, (e.hp || 0) - 1));
+      e.damage(dmg, kb, { react: 'stagger', reactDur: .8, spark: 0x9fd8ff, noFrameBonus: true });
+      if (window.JJRAG && !e.net && !e.dead) window.JJRAG.start(e, kb.clone().multiplyScalar(.5), 2.6);
       FX.heavyHit(e.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 0x9fd8ff, 1.4);
       FX.slash(p.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), RUSH.dir, 0xdfefff, 5, .2);
       addShake(.4);
@@ -14788,7 +14828,7 @@ window.__game = {
     if (v && (v.dead || !enemies.indexOf || enemies.indexOf(v) < 0)) v = null;
     if (!v) {
       /* nobody left hanging: pick whoever is closest, or just stop */
-      var best = null, bd = 26;
+      var best = null, bd = 70;
       for (var i = 0; i < enemies.length; i++) {
         var e = enemies[i];
         if (!e || e.dead) continue;
@@ -14854,14 +14894,36 @@ window.__game = {
     V.rig.root.rotation.set(0, 0, 0);
     A.release(); V.release();
     CINE.on = false;
-    /* the fist finally arrives */
-    if (A.self && V.ent && V.ent.damage) {
-      var dir = new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing));
-      V.ent.damage(58, dir.multiplyScalar(26).setY(15),
-        { react: 'stagger', reactDur: .9, spark: 0x9fd8ff, noFrameBonus: true });
+
+    /* The fist finally arrives. The victim applies it to themselves rather
+       than being sent it, because a hit arriving while their own copy of
+       the cut is still finishing would be thrown away. */
+    var away = new THREE.Vector3();
+    if (V.self) {
+      away.subVectors(player.pos, A.ent.pos || player.pos);
+      if (away.lengthSq() < .01) away.set(0, 0, 1);
+      away.y = 0; away.normalize().multiplyScalar(30); away.y = 16;
+      player.iframes = 0;
+      _hurtPlayer(58, away);
+      player.iframes = 1.4;
+    } else if (A.self && V.ent && V.ent.damage && !V.ent.net) {
+      away.subVectors(V.ent.pos, player.pos);
+      if (away.lengthSq() < .01) away.set(0, 0, 1);
+      away.y = 0; away.normalize().multiplyScalar(30); away.y = 16;
+      V.ent.damage(58, away, { react: 'stagger', reactDur: .9, spark: 0x9fd8ff, noFrameBonus: true });
     }
+
+    /* both of them arriving back where they were standing */
+    [CINE.homeA, CINE.homeV].forEach(function (h) {
+      FX.ring(new THREE.Vector3(h.x, .1, h.z), 0xbfe6ff, { maxR: 9, life: .5 });
+      FX.dust(new THREE.Vector3(h.x, 0, h.z), 6, 0xc9bda6, 8, 3);
+      FX.streaks(new THREE.Vector3(h.x, 2, h.z), 0xdfefff, 6, 12, 1.2);
+    });
+    FX.flash('#ffffff', .35, .45);
+    addShake(.5);
+    if (A.self) FX.trail(A.rig, 0x9fd8ff, 3, 45, .4);
+
     if (A.self && window.JJAW) window.JJAW.finish();
-    if (V.self) { player.iframes = 1.2; }
   }
 
   /* ------------------------------------------------------------- stage */
