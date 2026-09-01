@@ -54,6 +54,35 @@ anyone standing inside it on their own screen, and each technique is announced
 so the other clients play the matching effect from the right place, facing the
 right way.
 
+## How the cutscenes are animated
+
+Both entrances were written as a pose per beat, and a pose list played
+straight is a slideshow: every joint arrives on the same frame, nothing leads,
+nothing trails, and the joins between beats are cuts. `anim.js` sits under all
+of it:
+
+* **a spring per joint**, stiff at the hips and loose at the hands, so a
+  movement travels out through the body and carries across a beat change
+  instead of snapping. The extremities are under-damped, so they overshoot
+  and settle rather than stopping dead.
+* **a breathing layer**, so a held pose is never actually still.
+* **a weight helper** — hips over one foot, the free knee bending, the spine
+  and head countering — because a figure with its weight on one leg reads as
+  standing on something and a figure with its weight nowhere reads as a
+  mannequin.
+* **smears**: a ghost of the whole body whenever it moves faster than the eye
+  follows, scaled by how fast.
+* **the camera on its own spring**, with a hand on it and a kick when
+  something lands.
+* **holds**: two or three frames of nothing at the moment of contact, which is
+  where an anime cut spends its weight.
+
+Amplitude matters more than subtlety here. The first version of this layer was
+technically correct and completely invisible — springs that settled inside a
+frame, a breath of a hundredth of a radian, weight shifts of a sixth of a unit
+on a figure five units tall. On an unskinned blocky character none of that can
+be seen. Everything is two to three times larger than felt right on paper.
+
 ## Naoya's awakening
 
 The same meter, spent differently. `F` starts a **twenty second run**: you
@@ -320,6 +349,7 @@ disk.
 | --- | --- |
 | `base.html` | the original game, untouched |
 | `vfx.js` | the effects kit: impact frames, rings, slashes, beams, domes |
+| `anim.js` | joint springs, weight, breath, smears, camera and holds |
 | `ragdoll.js` | limp bodies, and the heaps they settle into |
 | `combat.js` | the longer dash, the throw, and the eight second fighter swap |
 | `gojo.js` | the awakening meter, Gojo's entrance and his four techniques |
