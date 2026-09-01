@@ -38,11 +38,32 @@ special multiplayer case. Three hooks do the whole job:
 | `Enemy.prototype.update` | a remote body follows the network, never the dummy AI |
 | `Enemy.prototype.damage` | our hits are sent to that player instead of applied locally |
 | `Enemy.prototype.applyProj` | same for the projection meter |
-| `updatePlayer` | broadcast our own state after the normal update |
+| `updatePlayer` | broadcast our own state, and announce any ability we start |
 
 The multiplayer code is appended **inside the game's own module**, which is how
 it can reach `player`, `enemies`, `Enemy`, `scene`, `hurtPlayer` and the rest.
 Everything is behind `MPJJ.active`, so the offline game is unchanged.
+
+## Animation and effects
+
+A fighter sends more than a position: speed, whether they are on the ground,
+vertical velocity, which arm is mid-punch, and the current ability as
+`{ type, t, dur }`. The receiving side then runs the game's **own** animation
+on their rig — `resetPose`, `applyLocomotion`, `applyNaoyaFlair`, the punch
+pose and `poseAction` — so a remote fighter walks, runs, jumps, swings and
+holds every ability pose exactly the way it looks on their screen. The action
+clock keeps ticking between packets so the pose plays smoothly at 14 updates
+a second. (`poseAction` clears the local player's `visYaw` as a side effect,
+so that is saved and put back around the call.)
+
+Ability *visuals* are made by the caster's client, so they would never appear
+on anybody else's screen. Each cast announces itself — watching
+`player.action` and `attackT` catches all nine abilities without patching a
+single cast function — and the other clients play a matching effect at that
+fighter's feet: a red blast for Reversal: Red, a flurry for Rapid Punches, a
+shockwave for Twofold Kick, a run of rings for Palm Barrage, a teleport puff
+for Limitless, frame-blue rings for Naoya's kit. These are visual only and
+never damage anything, because the hit already travels as its own message.
 
 The title screen normally comes back whenever pointer lock is lost, which in a
 match looks like being thrown out of the room. During a match it is kept shut

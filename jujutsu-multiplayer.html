@@ -3488,8 +3488,20 @@ window.__game = {
       g.e.dead = !!m.d;
       g.e.rig.root.visible = !m.d;
       g.remoteFramed = !!m.f;
-      g.moving = !!m.mv;
+      /* animation state, replayed on their rig exactly as they see it */
+      g.speed = (m.sp || 0) / 10;
+      g.onGround = m.og !== 0;
+      g.vy = (m.vv || 0) / 10;
+      g.visYaw = (m.vy || 0) / 100;
+      g.attack = m.at || 0;
+      g.action = m.ac ? { type: m.ac, t: (m.ap || 0) / 100, dur: (m.ad || 1) / 100 } : null;
       g.e.drawBars();
+      return;
+    }
+    if (m.t === 'cast') {                               // somebody started a move
+      var cf = MP.fighters[m.id];
+      if (!cf || !cf.e) return;
+      remoteFx(m.k, cf.e.pos.clone(), cf.e.facing);
       return;
     }
     if (m.t === 'hit' && m.to === MP.id) {              // somebody landed one on us
@@ -3553,9 +3565,25 @@ window.__game = {
   updatePlayer = function (dt) {
     _updatePlayer(dt);
     if (!MP.active) return;
+    announceCasts();
     stepFighters(dt);
     sendState(dt);
   };
+
+  /* Watching player.action and attackT means every ability announces itself
+     without having to patch each of the nine cast functions. */
+  function announceCasts() {
+    var type = player.action ? player.action.type : null;
+    if (type && type !== MP.lastCast) {
+      if (MP.relay) MP.relay.pub({ t: 'cast', id: MP.id, k: type });
+    }
+    MP.lastCast = type;
+    var punching = player.attackT > 0;
+    if (punching && !MP.wasPunching && MP.relay) {
+      MP.relay.pub({ t: 'cast', id: MP.id, k: 'm1' });
+    }
+    MP.wasPunching = punching;
+  }
 
   /* remote fighters are driven by the network, never by the dummy AI */
   var _enemyUpdate = Enemy.prototype.update;
@@ -3608,12 +3636,49 @@ window.__game = {
       if (f.ty != null) e.pos.y += (f.ty - e.pos.y) * k;
       var d = ((f.tyaw - e.facing + Math.PI) % (Math.PI * 2)) - Math.PI;
       e.facing += d * k;
-      /* a little walk bob so they do not slide about like a statue */
-      if (e.rig && e.rig.root) {
-        e.rig.root.position.copy(e.pos);
-        e.rig.root.rotation.y = e.facing;
-      }
+      animateFighter(f, dt);
     }
+  }
+
+  /* Run the game's own animation on their rig, from the state they sent, so a
+     remote fighter walks, runs, jumps, punches and poses their abilities
+     exactly the way their own screen shows it. */
+  function animateFighter(f, dt) {
+    var e = f.e, r = e.rig;
+    if (!r) return;
+    var sp = f.speed || 0;
+    e.animT += dt;
+    f.gait = (f.gait || 0) + dt * (2 + sp * .55) * (sp > .2 ? 1 : 0);
+
+    var moveAmt = Math.max(0, Math.min(1, sp / 2.2));
+    var runAmt = Math.max(0, Math.min(1, (sp - 6.6) / 6.3));   // WALK_SPEED .92 .. RUN_SPEED
+    resetPose(r);
+    applyLocomotion(r, e.animT, f.gait, moveAmt, runAmt, f.onGround !== false, f.vy || 0);
+    if (f.char === 'naoya' && !f.action && !f.attack) {
+      applyNaoyaFlair(r, e.animT, moveAmt, runAmt, f.onGround !== false);
+    }
+    if (f.attack) {
+      var L = f.attack === 1;
+      var sh = L ? r.shoulderL : r.shoulderR;
+      var elb = L ? r.elbowL : r.elbowR;
+      var osh = L ? r.shoulderR : r.shoulderL;
+      var oel = L ? r.elbowR : r.elbowL;
+      sh.rotation.x = -1.75; elb.rotation.x = -.08;
+      osh.rotation.x = -.7; oel.rotation.x = -1.35;
+      r.spine.rotation.y = L ? .38 : -.38;
+      r.spine.rotation.x = -.1;
+    }
+    if (f.action) {
+      f.action.t += dt;                       // keep posing between packets
+      /* poseAction zeroes the local player's visYaw as a side effect, so it is
+         put back after posing somebody else's rig */
+      var savedVis = player.visYaw;
+      try { poseAction(r, f.action); } catch (err) {}
+      player.visYaw = savedVis;
+    }
+
+    r.root.rotation.y = e.facing + (f.visYaw || 0);
+    r.root.position.copy(e.pos);
   }
 
   function round2(v) { return Math.round(v * 100) / 100; }
@@ -3622,14 +3687,89 @@ window.__game = {
     MP.sendAcc += dt;
     if (MP.sendAcc < 1 / SEND_HZ || !MP.relay || !MP.relay.connected) return;
     MP.sendAcc = 0;
+    var sp = Math.hypot(player.vel.x, player.vel.z);
     MP.relay.pub({
       t: 's', id: MP.id, n: MP.name, c: player.char,
       x: round2(player.pos.x), z: round2(player.pos.z), h: Math.round(player.pos.y * 10),
-      y: Math.round(player.facing * 100),
+      y: Math.round(player.facing * 100), vy: Math.round(player.visYaw * 100),
       hp: Math.round(player.hp), mx: Math.round(player.maxHp),
       d: player.dead ? 1 : 0, f: player.frameT > 0 ? 1 : 0,
-      mv: (player.vel.x * player.vel.x + player.vel.z * player.vel.z) > 1 ? 1 : 0
+      /* everything the animation needs to be reproduced exactly */
+      sp: Math.round(sp * 10), og: player.onGround ? 1 : 0, vv: Math.round(player.vel.y * 10),
+      at: player.attackT > 0 ? (player.attackArm + 1) : 0,
+      ac: player.action ? player.action.type : 0,
+      ap: player.action ? Math.round(player.action.t * 100) : 0,
+      ad: player.action ? Math.round(player.action.dur * 100) : 0
     });
+  }
+
+  /* ------------------------------------------------------------- remote fx
+     An ability's visuals are made by the caster's own client, so the other
+     screens would show nothing at all. Each cast is announced and a matching
+     effect is played at that fighter's feet — visual only, never damaging,
+     because the hit itself already travels as its own message. */
+  function remoteFx(kind, pos, yaw) {
+    if (typeof spark !== 'function') return;
+    var fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    var mid = pos.clone().add(new THREE.Vector3(0, 2.6, 0));
+    var near = player.pos.distanceTo(pos) < 26;
+    switch (kind) {
+      case 'red':
+        redBlast(mid.clone().addScaledVector(fwd, 6));
+        break;
+      case 'rapid':
+        for (var i = 0; i < 6; i++) {
+          (function (n) {
+            setTimeout(function () {
+              spark(mid.clone().addScaledVector(fwd, 2 + n * .4), 0x9fd8ff, 6, 16, 1.1);
+            }, n * 70);
+          })(i);
+        }
+        break;
+      case 'tf':
+        ringWave(pos.clone().addScaledVector(fwd, 3), 0x8fd0ff, 12, .45, true);
+        spark(mid.clone().addScaledVector(fwd, 3), 0xbfe6ff, 14, 20, 1.6);
+        if (near) addShake(.18);
+        break;
+      case 'palm':
+        for (var j = 0; j < 5; j++) {
+          (function (n) {
+            setTimeout(function () {
+              ringWave(mid.clone().addScaledVector(fwd, 2 + n * 1.6), 0x7fd4ff, 4.5, .3);
+            }, n * 90);
+          })(j);
+        }
+        break;
+      case 'lim':
+        ringWave(pos, 0x6fa8ff, 9, .5, true);
+        spark(mid, 0xdfefff, 20, 22, 1.8);
+        break;
+      case 'n1': case 'n2': case 'n3': case 'nr': case 'nrf':
+        ringWave(pos, 0x9be7ff, 8, .4, true);
+        spark(mid.clone().addScaledVector(fwd, 1.6), 0xcfefff, 12, 18, 1.3);
+        break;
+      default:
+        spark(mid, 0xffffff, 8, 14, 1.2);
+    }
+  }
+
+  /* the red blast, borrowed from the game's own explosion but with no damage */
+  function redBlast(pos) {
+    var blast = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 20),
+      new THREE.MeshBasicMaterial({ color: 0xff4455, transparent: true, opacity: .8, blending: THREE.AdditiveBlending }));
+    blast.position.copy(pos);
+    scene.add(blast);
+    addFx({ t: .4, update: function (dt) {
+      this.t -= dt;
+      var p = 1 - this.t / .4;
+      blast.scale.setScalar(1 + p * 14);
+      blast.material.opacity = .8 * (1 - p);
+      if (this.t <= 0) { scene.remove(blast); blast.material.dispose(); return false; }
+      return true;
+    } });
+    ringWave(pos, 0xff3344, 16, .5, true);
+    spark(pos, 0xff5566, 24, 28, 2.2);
+    if (player.pos.distanceTo(pos) < 30) addShake(.5);
   }
 
   window.addEventListener('beforeunload', function () {
