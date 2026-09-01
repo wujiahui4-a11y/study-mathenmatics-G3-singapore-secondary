@@ -181,9 +181,10 @@
      the energy goes up, the card lands. Untouchable throughout.
      ================================================================== */
   var SAY = [
-    { t: .55, s: 'Stand back.' },
-    { t: 2.15, s: "Nah, I'd win." }
+    { t: .45, s: 'Stand back.' },
+    { t: 3.70, s: "Nah, I'd win." }
   ];
+  var CINE_DUR = 5.4;
 
   function awaken() {
     if (!AW.ready || AW.active || AW.cine || player.dead) return;
@@ -227,7 +228,27 @@
     s.classList.add('on');
   }
 
+  var AN = window.JJANIM;
+
+  /* the camera, given as marks around him rather than absolute points */
+  function gshot(t, marks) {
+    var i = 0;
+    while (i < marks.length - 1 && t >= marks[i + 1].t) i++;
+    var a = marks[i], b = marks[Math.min(i + 1, marks.length - 1)];
+    var k = b === a ? 0 : FX.ease.out(Math.min(1, Math.max(0, (t - a.t) / Math.max(.001, b.t - a.t))));
+    function m(f) { return a[f] + (b[f] - a[f]) * k; }
+    var yaw = player.facing + m('yaw'), dist = m('d'), h = m('h'), ly = m('ly');
+    var px = player.pos.x + Math.sin(yaw) * dist;
+    var pz = player.pos.z + Math.cos(yaw) * dist;
+    if (AN) AN.camTo(px, player.pos.y + h, pz, player.pos.x, player.pos.y + ly, player.pos.z, AW.dt || 1 / 60, m('k'));
+    else { camera.position.set(px, player.pos.y + h, pz); camera.lookAt(player.pos.x, player.pos.y + ly, player.pos.z); }
+    AW.orbit = yaw;
+  }
+
   function stepCine(dt) {
+    AW.dt = dt;
+    /* the reveal is worth a couple of frames of nothing */
+    if (AW.freeze > 0) { AW.freeze -= dt; return; }
     AW.ct += dt;
     var t = AW.ct, p = player, r = p.rig;
     p.vel.set(0, 0, 0);
@@ -236,97 +257,162 @@
 
     while (AW.said < SAY.length && t >= SAY[AW.said].t) say(SAY[AW.said++].s);
 
-    /* --- beats --- */
-    if (AW.cineStage < 1 && t >= 0) {
+    /* ---- the pressure drops ---- */
+    if (AW.cineStage < 1) {
       AW.cineStage = 1;
-      FX.cracks(p.pos.clone(), 9, 11);
-      FX.dust(p.pos.clone(), 8, 0xc3ccdc, 7, 3);
-      FX.ring(new THREE.Vector3(p.pos.x, .1, p.pos.z), 0x3a7dff, { maxR: 13, life: .8 });
+      FX.cracks(p.pos.clone(), 11, 13);
+      FX.dust(p.pos.clone(), 9, 0xc3ccdc, 6, 3);
+      FX.ring(new THREE.Vector3(p.pos.x, .1, p.pos.z), 0x3a7dff, { maxR: 14, life: .9 });
+      FX.tint('#050a18', .3, 2.4);
       addShake(.35);
+      if (AN) { AW.sm = AN.smoother(r); AW.sm.snap(); AW.smear = {}; AN.camRelease(); }
     }
-    /* the air being pulled in around him */
-    if (t < 1.35 && Math.random() < .8) {
-      FX.mote(p.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0x6fb4ff, 9, .5);
+    /* everything in the air being drawn in toward him */
+    if (t < 2.5 && Math.random() < .85) {
+      FX.mote(p.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0x6fb4ff, 7 + Math.sin(t * 3) * 3, .45);
     }
-    if (AW.cineStage < 2 && t >= 1.30) {           // blindfold off
+    if (t > .7 && t < 2.5 && Math.random() < dt * 9) {
+      FX.debris(p.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 9, 0, (Math.random() - .5) * 9)), 1, 5, 0x53596b);
+    }
+
+    /* ---- light leaking out from under it ---- */
+    if (t >= 1.85 && t < 2.55) {
+      var leak = (t - 1.85) / .7;
+      if (r.blindfold) {
+        r.blindfold.position.y = .58 - leak * .1;
+        r.blindfold.rotation.x = leak * .22;
+      }
+      if (Math.random() < .8) {
+        FX.streaks(p.pos.clone().add(new THREE.Vector3((Math.random() - .5) * .9, 4.3, .5)),
+          0x9fd8ff, 1, 4 + leak * 8, .7);
+      }
+      if (Math.random() < .35) {
+        FX.ring(p.pos.clone().add(new THREE.Vector3(0, 4.3, .4)), 0x9fd8ff,
+          { maxR: .8, from: 4, life: .3, ground: false, opacity: .55 });
+      }
+    }
+
+    /* ---- off ---- */
+    if (AW.cineStage < 2 && t >= 2.55) {
       AW.cineStage = 2;
       setLook(r, true);
-      FX.flash('#dff0ff', .8, .3);
-      FX.cross(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x9fd8ff, 5, .35);
-      FX.speedRing(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x6fb4ff, 8, .4);
-      FX.rings(p.pos.clone().add(new THREE.Vector3(0, 2, 0)), 0x3a7dff, 3, { maxR: 15, life: .55, ground: false });
-      FX.debris(p.pos.clone(), 10, 13);
-      addShake(.7);
-      hitstop(.09);
+      if (r.blindfold) { r.blindfold.position.y = .58; r.blindfold.rotation.x = 0; }
+      FX.flash('#ffffff', .95, .32);
+      FX.cross(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0xffffff, 7, .38);
+      FX.impact(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x9fd8ff, 1.9);
+      FX.speedRing(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x6fb4ff, 9, .45);
+      FX.rings(p.pos.clone().add(new THREE.Vector3(0, 2, 0)), 0x3a7dff, 3, { maxR: 16, life: .6, ground: false });
+      FX.debris(p.pos.clone(), 12, 14);
+      FX.mangaLines(true, .35);
+      addShake(.8);
+      AW.freeze = .22;                              // hold the reveal
+      if (AN) AN.camKick(1.4);
       try { sfx.frame(); } catch (e) {}
       if (!AW.aura) AW.aura = FX.aura(function () { return player.pos; }, 0x3a7dff);
     }
-    if (AW.cineStage < 3 && t >= 2.35) {           // the column of energy
+
+    /* ---- the column ---- */
+    if (AW.cineStage < 3 && t >= 3.45) {
       AW.cineStage = 3;
-      FX.beam(p.pos.clone(), new THREE.Vector3(0, 1, 0), 60, 0x4a8dff, { radius: 1.7, life: 1.15 });
-      FX.rings(new THREE.Vector3(p.pos.x, .12, p.pos.z), 0x6fb4ff, 4, { maxR: 22, life: .8, gap: 70 });
-      FX.debris(p.pos.clone(), 14, 17);
-      FX.dust(p.pos.clone(), 10, 0xd6e2f2, 11, 4);
-      FX.flash('#bfe0ff', .5, .45);
-      FX.zoom(-12, .7);
-      addShake(.9);
+      FX.beam(p.pos.clone(), new THREE.Vector3(0, 1, 0), 64, 0x4a8dff, { radius: 1.7, life: 1.3 });
+      FX.beam(p.pos.clone(), new THREE.Vector3(0, 1, 0), 64, 0xffffff, { radius: .55, life: 1.15 });
+      FX.rings(new THREE.Vector3(p.pos.x, .12, p.pos.z), 0x6fb4ff, 4, { maxR: 24, life: .85, gap: 70 });
+      FX.debris(p.pos.clone(), 16, 18);
+      FX.dust(p.pos.clone(), 12, 0xd6e2f2, 12, 4.5);
+      FX.flash('#bfe0ff', .5, .5);
+      FX.zoom(-13, .8);
+      addShake(1);
+      AW.freeze = .12;
+      if (AN) AN.camKick(1.1);
       try { sfx.raise(); } catch (e) {}
     }
-    if (AW.cineStage < 4 && t >= 2.75) {           // the card
+    if (AW.cineStage < 4 && t >= 4.3) {             // the card
       AW.cineStage = 4;
-      var card = document.getElementById('jjAwCard');
-      card.classList.add('on', 'slam');
+      document.getElementById('jjAwCard').classList.add('on', 'slam');
+      if (AN) AN.camKick(.5);
     }
 
-    if (Math.random() < .5) {
-      FX.streaks(p.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 3, .4 + Math.random() * 4.6, (Math.random() - .5) * 3)),
-        0x6fb4ff, 1, 7, 1);
+    /* a steady lift of cursed energy the whole way through */
+    if (Math.random() < .55) {
+      FX.streaks(p.pos.clone().add(new THREE.Vector3(
+        (Math.random() - .5) * 3, .4 + Math.random() * 4.6, (Math.random() - .5) * 3)),
+        0x6fb4ff, 1, 6 + (t > 3.45 ? 9 : 0), 1);
     }
 
     posesCine(r, t);
+    if (AN && AW.sm) {
+      var e = AW.sm.step(dt);
+      AN.life(r, t, .9);
+      AN.smear(r, e, AW.smear, dt, 0x6fb4ff, 26);
+    }
     r.root.position.copy(p.pos);
     r.root.rotation.y = p.facing;
 
-    if (t >= 3.6) endCine();
+    if (t >= CINE_DUR) endCine();
   }
 
-  /* hand to the blindfold, pull, and open up */
+  /* Head down, hand to the blindfold, the pull, and then open. Written as
+     targets rather than a finished curve — the spring in the animation
+     layer is what carries one into the next. */
   function posesCine(r, t) {
     resetPose(r);
     var E = FX.ease.out;
-    if (t < 1.3) {
-      var k = E(Math.min(1, t / 1.3));
-      r.spine.rotation.x = .08 - .06 * k;
-      r.neck.rotation.x = .1 - .26 * k;
-      r.shoulderR.rotation.x = -.2 - 2.3 * k;      // hand up to the face
-      r.shoulderR.rotation.z = -.15 - .35 * k;
-      r.elbowR.rotation.x = -.3 - 1.35 * k;
-      r.shoulderL.rotation.x = -.16 - .1 * k;
-      r.elbowL.rotation.x = -.24;
-      r.hips.position.y = r.hipsBaseY - .1 * k;
-      r.kneeL.rotation.x = .2 * k; r.kneeR.rotation.x = .2 * k;
-    } else if (t < 2.35) {
-      var k2 = E((t - 1.3) / 1.05);                // the pull away
-      r.shoulderR.rotation.x = -2.5 + 1.1 * k2;
-      r.shoulderR.rotation.z = -.5 + 1.05 * k2;
-      r.elbowR.rotation.x = -1.65 + 1.3 * k2;
-      r.shoulderL.rotation.x = -.26 - .5 * k2;
-      r.shoulderL.rotation.z = .1 - .55 * k2;
-      r.elbowL.rotation.x = -.24 - .35 * k2;
-      r.neck.rotation.x = -.16 - .18 * k2;
-      r.spine.rotation.x = .02 - .16 * k2;
-      r.hips.position.y = r.hipsBaseY - .1 + .1 * k2;
-    } else {
-      var k3 = E(Math.min(1, (t - 2.35) / .8));    // arms open, head high
-      r.shoulderR.rotation.x = -1.4 + 1.05 * k3;
-      r.shoulderR.rotation.z = .55 - .95 * k3;
-      r.elbowR.rotation.x = -.35 + .2 * k3;
-      r.shoulderL.rotation.x = -.76 + .45 * k3;
-      r.shoulderL.rotation.z = -.45 + .85 * k3;
-      r.elbowL.rotation.x = -.59 + .35 * k3;
-      r.neck.rotation.x = -.34 + .2 * k3;
-      r.spine.rotation.x = -.14 + .1 * k3;
-      r.hips.position.y = r.hipsBaseY + .05 * Math.sin(k3 * Math.PI);
+    if (t < .85) {                                  // holding it in
+      var k = E(t / .85);
+      r.spine.rotation.x = .1 + .06 * k;
+      r.neck.rotation.x = .22 * k;
+      r.shoulderL.rotation.x = -.14 - .1 * k; r.shoulderR.rotation.x = -.14 - .1 * k;
+      r.shoulderL.rotation.z = .06 * k; r.shoulderR.rotation.z = -.06 * k;
+      r.elbowL.rotation.x = -.26 - .2 * k; r.elbowR.rotation.x = -.26 - .2 * k;
+      r.hipL.rotation.x = -.05 * k; r.hipR.rotation.x = -.05 * k;
+      r.kneeL.rotation.x = .16 * k; r.kneeR.rotation.x = .16 * k;
+      r.hips.position.y = r.hipsBaseY - .12 * k;
+    } else if (t < 1.85) {                          // the hand goes up
+      var k2 = E((t - .85) / 1);
+      r.spine.rotation.x = .16 - .1 * k2;
+      r.spine.rotation.y = -.18 * k2;
+      r.neck.rotation.x = .22 - .3 * k2;
+      r.shoulderR.rotation.x = -.24 - 2.2 * k2;
+      r.shoulderR.rotation.z = -.2 * k2;
+      r.elbowR.rotation.x = -.46 - 1.25 * k2;
+      r.shoulderL.rotation.x = -.24 - .06 * k2;
+      r.elbowL.rotation.x = -.46;
+      r.hips.position.y = r.hipsBaseY - .12 + .04 * k2;
+      r.kneeL.rotation.x = .16; r.kneeR.rotation.x = .16;
+    } else if (t < 2.55) {                          // and pulls
+      var k3 = E((t - 1.85) / .7);
+      r.spine.rotation.x = .06 - .1 * k3;
+      r.spine.rotation.y = -.18 + .1 * k3;
+      r.neck.rotation.x = -.08 - .14 * k3;
+      r.shoulderR.rotation.x = -2.44 + .34 * k3;
+      r.shoulderR.rotation.z = -.2 + .5 * k3;
+      r.elbowR.rotation.x = -1.71 + .3 * k3;
+      r.shoulderL.rotation.x = -.3 - .3 * k3;
+      r.elbowL.rotation.x = -.46 - .3 * k3;
+      r.hips.position.y = r.hipsBaseY - .08;
+    } else if (t < 3.45) {                          // the hand comes down
+      var k4 = E((t - 2.55) / .9);
+      r.spine.rotation.x = -.04 - .06 * k4;
+      r.spine.rotation.y = -.08 + .08 * k4;
+      r.neck.rotation.x = -.22 - .1 * k4;
+      r.shoulderR.rotation.x = -2.1 + 1.5 * k4;
+      r.shoulderR.rotation.z = .3 - .2 * k4;
+      r.elbowR.rotation.x = -1.41 + 1 * k4;
+      r.shoulderL.rotation.x = -.6 + .2 * k4;
+      r.elbowL.rotation.x = -.76 + .3 * k4;
+      r.hips.position.y = r.hipsBaseY - .04;
+    } else {                                        // open
+      var k5 = E(Math.min(1, (t - 3.45) / 1));
+      r.shoulderR.rotation.x = -.6 - .35 * k5;
+      r.shoulderR.rotation.z = .1 - .6 * k5;
+      r.elbowR.rotation.x = -.41 + .25 * k5;
+      r.shoulderL.rotation.x = -.4 - .35 * k5;
+      r.shoulderL.rotation.z = -.1 + .6 * k5;
+      r.elbowL.rotation.x = -.46 + .25 * k5;
+      r.neck.rotation.x = -.32 - .08 * k5;
+      r.spine.rotation.x = -.1 - .08 * k5;
+      r.hipL.rotation.x = -.12 * k5; r.hipR.rotation.x = -.12 * k5;
+      r.hips.position.y = r.hipsBaseY - .04 + .1 * Math.sin(k5 * Math.PI);
     }
   }
 
@@ -1002,37 +1088,20 @@
   };
 
   function cineCamera() {
-    var t = AW.ct, p = player;
-    var face = p.facing, back = face + Math.PI;
-    var yaw, dist, height, look;
-    var E = FX.ease.out;
-    if (t < 1.3) {                                   // low, three quarters on
-      var k = E(t / 1.3);
-      yaw = face + .8 - k * .45;
-      dist = 8.2 - 2.6 * k;
-      height = 1.9 + 2.1 * k;
-      look = p.pos.clone().add(new THREE.Vector3(0, 3.2 + k * 1.1, 0));
-    } else if (t < 2.35) {                           // the eyes, framed head on
-      var k2 = E((t - 1.3) / 1.05);
-      yaw = face + .3 - k2 * .5;
-      dist = 4.4 + .5 * k2;
-      height = 4.5;
-      look = p.pos.clone().add(new THREE.Vector3(0, 4.35, 0));
-    } else {                                         // out and up with the column
-      var k3 = E(Math.min(1, (t - 2.35) / 1.25));
-      yaw = (face - .25) + k3 * (back - (face - .25));
-      dist = 4.9 + 7.2 * k3;
-      height = 4.4 + 1.6 * k3;
-      look = p.pos.clone().add(new THREE.Vector3(0, 3.6 - k3 * .5, 0));
-    }
-    var off = new THREE.Vector3(Math.sin(yaw) * dist, height, Math.cos(yaw) * dist);
-    camera.position.copy(p.pos.clone().add(off));
-    if (shakeMag > 0) {
-      camera.position.add(new THREE.Vector3(
-        (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag));
-    }
-    camera.lookAt(look);
-    if (window.MPJJ && window.MPJJ.cs) window.MPJJ.cs.orbit = yaw;
+    var t = AW.ct;
+    /* Marks are relative to the way he is facing: yaw 0 is nose on, PI is
+       where the chase camera lives, which is where this has to end. */
+    gshot(t, [
+      { t: 0,    yaw: 1.15, d: 11.5, h: 1.6, ly: 3.2, k: 26 },
+      { t: .85,  yaw: .95,  d: 9.0,  h: 2.0, ly: 3.4, k: 30 },
+      { t: 1.85, yaw: .45,  d: 5.2,  h: 4.3, ly: 4.35, k: 36 },
+      { t: 2.55, yaw: .30,  d: 3.9,  h: 4.4, ly: 4.35, k: 60 },
+      { t: 2.9,  yaw: -.15, d: 6.4,  h: 4.2, ly: 4.0, k: 30 },
+      { t: 3.45, yaw: -.55, d: 8.0,  h: 3.4, ly: 3.4, k: 26 },
+      { t: 4.3,  yaw: Math.PI - 1.5, d: 12.5, h: 5.2, ly: 3.2, k: 20 },
+      { t: 5.4,  yaw: Math.PI, d: 12.0, h: 5.6, ly: 3.0, k: 18 }
+    ]);
+    if (window.MPJJ && window.MPJJ.cs) window.MPJJ.cs.orbit = AW.orbit;
   }
 
   /* charge from being hit */

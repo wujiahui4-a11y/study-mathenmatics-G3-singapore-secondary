@@ -3962,6 +3962,189 @@ window.__game = {
 })();
 
 
+/* ===== anim.js ===== */
+/* =======================================================================
+   ANIMATION LAYER
+   The cutscenes were written as a list of poses, one per beat, and a pose
+   list played straight is a slideshow: every joint arrives at the same
+   instant, nothing leads, nothing trails, and the joins between beats are
+   cuts.
+
+   Everything posed by a cutscene now goes through here first:
+
+     · every joint is driven by its own spring, so the hips lead and the
+       hands arrive late — overlap and follow through for free, including
+       across a beat change, which is what stops the joins reading as cuts
+     · a breathing layer on top, so a held pose is never actually still
+     · a smear whenever a body moves faster than the eye can follow
+     · the camera on a spring of its own, with a hand holding it and a
+       kick when something lands
+     · a hold: two or three frames of nothing at the moment of impact,
+       which is where an anime cut spends its weight
+
+   ===================================================================== */
+(function () {
+  'use strict';
+  if (typeof THREE === 'undefined' || typeof JOINTS === 'undefined') return;
+
+  /* How quickly each joint chases the pose it was given. The core is stiff
+     and the extremities are loose, which is what makes a movement travel
+     out through the body instead of happening all at once. */
+  var K = {
+    hips: 40, spine: 26, neck: 17, head: 15,
+    shoulderL: 21, shoulderR: 21, elbowL: 14, elbowR: 14,
+    hipL: 24, hipR: 24, kneeL: 18, kneeR: 18, ankleL: 12, ankleR: 12
+  };
+  var AXES = ['x', 'y', 'z'];
+
+  function smoother(rig) {
+    var st = {}, i, n;
+    for (i = 0; i < JOINTS.length; i++) {
+      n = JOINTS[i];
+      if (!rig[n]) continue;
+      st[n] = { x: rig[n].rotation.x, y: rig[n].rotation.y, z: rig[n].rotation.z, vx: 0, vy: 0, vz: 0 };
+    }
+    var hipY = { v: rig.hipsBaseY, vv: 0 };
+
+    return {
+      energy: 0,
+      /* take the pose that was just written as a target, and write back
+         where the body has actually got to */
+      step: function (dt) {
+        /* springs go unstable on a long frame, so a long frame is several */
+        var steps = Math.max(1, Math.min(4, Math.ceil(dt / (1 / 30))));
+        var h = dt / steps, e = 0, s, part, k, d, a, tgt, s2;
+        var targets = {}, hipTarget = rig.hips ? rig.hips.position.y : 0;
+        for (var name in st) {
+          part = rig[name];
+          targets[name] = [part.rotation.x, part.rotation.y, part.rotation.z];
+        }
+        for (s2 = 0; s2 < steps; s2++) {
+          for (name in st) {
+            s = st[name];
+            k = K[name] || 20;
+            d = 2 * Math.sqrt(k) * .86;            // a little under damped
+            for (a = 0; a < 3; a++) {
+              tgt = targets[name][a];
+              var ax = AXES[a], vk = 'v' + ax;
+              s[vk] += ((tgt - s[ax]) * k - s[vk] * d) * h;
+              s[ax] += s[vk] * h;
+            }
+          }
+          hipY.vv += ((hipTarget - hipY.v) * 34 - hipY.vv * 2 * Math.sqrt(34) * .9) * h;
+          hipY.v += hipY.vv * h;
+        }
+        for (name in st) {
+          s = st[name];
+          part = rig[name];
+          part.rotation.set(s.x, s.y, s.z);
+          e += Math.abs(s.vx) + Math.abs(s.vy) + Math.abs(s.vz);
+        }
+        if (rig.hips) rig.hips.position.y = hipY.v;
+        this.energy = e;
+        return e;
+      },
+      /* land on the pose immediately — for the first frame of a cut, where
+         there is nothing to carry over from */
+      snap: function () {
+        for (var name in st) {
+          var s = st[name], part = rig[name];
+          s.x = part.rotation.x; s.y = part.rotation.y; s.z = part.rotation.z;
+          s.vx = s.vy = s.vz = 0;
+        }
+        hipY.v = rig.hips ? rig.hips.position.y : 0;
+        hipY.vv = 0;
+      }
+    };
+  }
+
+  /* nobody stands perfectly still; this is what stops a held pose looking
+     like a mannequin */
+  function life(rig, t, amt) {
+    if (amt === 0 || !rig.spine) return;
+    amt = amt == null ? 1 : amt;
+    var b = Math.sin(t * 1.7), b2 = Math.sin(t * 1.7 + .7), sway = Math.sin(t * 1.1);
+    rig.spine.rotation.x += b * .015 * amt;
+    rig.spine.rotation.z += sway * .012 * amt;
+    if (rig.neck) rig.neck.rotation.x += b2 * .012 * amt;
+    if (rig.shoulderL) rig.shoulderL.rotation.z += b2 * .022 * amt;
+    if (rig.shoulderR) rig.shoulderR.rotation.z -= b2 * .022 * amt;
+    if (rig.hips) rig.hips.position.y += b * .022 * amt;
+  }
+
+  /* a body moving faster than the eye follows leaves one behind */
+  function smear(rig, energy, state, dt, color, threshold) {
+    state.acc = (state.acc || 0) + dt;
+    if (energy < (threshold || 26) || state.acc < .045) return;
+    state.acc = 0;
+    try { ghostAfterimage(rig, color == null ? 0xbfd8ff : color, .22); } catch (e) {}
+  }
+
+  /* =====================================================================
+     CAMERA
+     A spring, a hand and a kick. Marks are still marks; this is what
+     stops them being a slide projector.
+     ================================================================== */
+  var CAM = {
+    pos: new THREE.Vector3(), look: new THREE.Vector3(),
+    vp: new THREE.Vector3(), vl: new THREE.Vector3(),
+    kickV: new THREE.Vector3(), kick: new THREE.Vector3(),
+    t: 0, hand: 1, live: false
+  };
+
+  function camTo(px, py, pz, lx, ly, lz, dt, stiff) {
+    var tp = new THREE.Vector3(px, py, pz), tl = new THREE.Vector3(lx, ly, lz);
+    if (!CAM.live) { camSnap(px, py, pz, lx, ly, lz); }
+    CAM.t += dt;
+    var k = stiff || 46, d = 2 * Math.sqrt(k) * .95;
+    var steps = Math.max(1, Math.min(4, Math.ceil(dt / (1 / 30)))), h = dt / steps, i;
+    for (i = 0; i < steps; i++) {
+      CAM.vp.addScaledVector(tp.clone().sub(CAM.pos).multiplyScalar(k).addScaledVector(CAM.vp, -d), h);
+      CAM.pos.addScaledVector(CAM.vp, h);
+      CAM.vl.addScaledVector(tl.clone().sub(CAM.look).multiplyScalar(k).addScaledVector(CAM.vl, -d), h);
+      CAM.look.addScaledVector(CAM.vl, h);
+      CAM.kickV.multiplyScalar(Math.pow(.0009, h));
+      CAM.kick.addScaledVector(CAM.kickV, h);
+      CAM.kick.multiplyScalar(Math.pow(.002, h));
+    }
+    /* the hand holding it: slow drift, not a rattle */
+    var t = CAM.t, hand = CAM.hand;
+    var hx = (Math.sin(t * 1.3) + Math.sin(t * 2.7) * .5) * .045 * hand;
+    var hy = (Math.sin(t * 1.7 + 1) + Math.sin(t * 3.1) * .5) * .038 * hand;
+    var hz = Math.sin(t * .9 + 2) * .04 * hand;
+
+    camera.position.copy(CAM.pos).add(CAM.kick).add(new THREE.Vector3(hx, hy, hz));
+    camera.lookAt(CAM.look.x + hx * .3, CAM.look.y + hy * .3, CAM.look.z);
+  }
+
+  function camSnap(px, py, pz, lx, ly, lz) {
+    CAM.pos.set(px, py, pz);
+    CAM.look.set(lx, ly, lz);
+    CAM.vp.set(0, 0, 0); CAM.vl.set(0, 0, 0);
+    CAM.kick.set(0, 0, 0); CAM.kickV.set(0, 0, 0);
+    CAM.live = true;
+  }
+  function camRelease() { CAM.live = false; }
+  function camKick(mag, dir) {
+    var d = dir ? dir.clone().normalize() : new THREE.Vector3(
+      Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize();
+    CAM.kickV.addScaledVector(d, mag * 26);
+  }
+  function camHand(v) { CAM.hand = v; }
+
+  window.JJANIM = {
+    smoother: smoother,
+    life: life,
+    smear: smear,
+    camTo: camTo,
+    camSnap: camSnap,
+    camRelease: camRelease,
+    camKick: camKick,
+    camHand: camHand
+  };
+})();
+
+
 /* ===== ragdoll.js ===== */
 /* =======================================================================
    RAGDOLL
@@ -4803,9 +4986,10 @@ window.__game = {
      the energy goes up, the card lands. Untouchable throughout.
      ================================================================== */
   var SAY = [
-    { t: .55, s: 'Stand back.' },
-    { t: 2.15, s: "Nah, I'd win." }
+    { t: .45, s: 'Stand back.' },
+    { t: 3.70, s: "Nah, I'd win." }
   ];
+  var CINE_DUR = 5.4;
 
   function awaken() {
     if (!AW.ready || AW.active || AW.cine || player.dead) return;
@@ -4849,7 +5033,27 @@ window.__game = {
     s.classList.add('on');
   }
 
+  var AN = window.JJANIM;
+
+  /* the camera, given as marks around him rather than absolute points */
+  function gshot(t, marks) {
+    var i = 0;
+    while (i < marks.length - 1 && t >= marks[i + 1].t) i++;
+    var a = marks[i], b = marks[Math.min(i + 1, marks.length - 1)];
+    var k = b === a ? 0 : FX.ease.out(Math.min(1, Math.max(0, (t - a.t) / Math.max(.001, b.t - a.t))));
+    function m(f) { return a[f] + (b[f] - a[f]) * k; }
+    var yaw = player.facing + m('yaw'), dist = m('d'), h = m('h'), ly = m('ly');
+    var px = player.pos.x + Math.sin(yaw) * dist;
+    var pz = player.pos.z + Math.cos(yaw) * dist;
+    if (AN) AN.camTo(px, player.pos.y + h, pz, player.pos.x, player.pos.y + ly, player.pos.z, AW.dt || 1 / 60, m('k'));
+    else { camera.position.set(px, player.pos.y + h, pz); camera.lookAt(player.pos.x, player.pos.y + ly, player.pos.z); }
+    AW.orbit = yaw;
+  }
+
   function stepCine(dt) {
+    AW.dt = dt;
+    /* the reveal is worth a couple of frames of nothing */
+    if (AW.freeze > 0) { AW.freeze -= dt; return; }
     AW.ct += dt;
     var t = AW.ct, p = player, r = p.rig;
     p.vel.set(0, 0, 0);
@@ -4858,97 +5062,162 @@ window.__game = {
 
     while (AW.said < SAY.length && t >= SAY[AW.said].t) say(SAY[AW.said++].s);
 
-    /* --- beats --- */
-    if (AW.cineStage < 1 && t >= 0) {
+    /* ---- the pressure drops ---- */
+    if (AW.cineStage < 1) {
       AW.cineStage = 1;
-      FX.cracks(p.pos.clone(), 9, 11);
-      FX.dust(p.pos.clone(), 8, 0xc3ccdc, 7, 3);
-      FX.ring(new THREE.Vector3(p.pos.x, .1, p.pos.z), 0x3a7dff, { maxR: 13, life: .8 });
+      FX.cracks(p.pos.clone(), 11, 13);
+      FX.dust(p.pos.clone(), 9, 0xc3ccdc, 6, 3);
+      FX.ring(new THREE.Vector3(p.pos.x, .1, p.pos.z), 0x3a7dff, { maxR: 14, life: .9 });
+      FX.tint('#050a18', .3, 2.4);
       addShake(.35);
+      if (AN) { AW.sm = AN.smoother(r); AW.sm.snap(); AW.smear = {}; AN.camRelease(); }
     }
-    /* the air being pulled in around him */
-    if (t < 1.35 && Math.random() < .8) {
-      FX.mote(p.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0x6fb4ff, 9, .5);
+    /* everything in the air being drawn in toward him */
+    if (t < 2.5 && Math.random() < .85) {
+      FX.mote(p.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0x6fb4ff, 7 + Math.sin(t * 3) * 3, .45);
     }
-    if (AW.cineStage < 2 && t >= 1.30) {           // blindfold off
+    if (t > .7 && t < 2.5 && Math.random() < dt * 9) {
+      FX.debris(p.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 9, 0, (Math.random() - .5) * 9)), 1, 5, 0x53596b);
+    }
+
+    /* ---- light leaking out from under it ---- */
+    if (t >= 1.85 && t < 2.55) {
+      var leak = (t - 1.85) / .7;
+      if (r.blindfold) {
+        r.blindfold.position.y = .58 - leak * .1;
+        r.blindfold.rotation.x = leak * .22;
+      }
+      if (Math.random() < .8) {
+        FX.streaks(p.pos.clone().add(new THREE.Vector3((Math.random() - .5) * .9, 4.3, .5)),
+          0x9fd8ff, 1, 4 + leak * 8, .7);
+      }
+      if (Math.random() < .35) {
+        FX.ring(p.pos.clone().add(new THREE.Vector3(0, 4.3, .4)), 0x9fd8ff,
+          { maxR: .8, from: 4, life: .3, ground: false, opacity: .55 });
+      }
+    }
+
+    /* ---- off ---- */
+    if (AW.cineStage < 2 && t >= 2.55) {
       AW.cineStage = 2;
       setLook(r, true);
-      FX.flash('#dff0ff', .8, .3);
-      FX.cross(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x9fd8ff, 5, .35);
-      FX.speedRing(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x6fb4ff, 8, .4);
-      FX.rings(p.pos.clone().add(new THREE.Vector3(0, 2, 0)), 0x3a7dff, 3, { maxR: 15, life: .55, ground: false });
-      FX.debris(p.pos.clone(), 10, 13);
-      addShake(.7);
-      hitstop(.09);
+      if (r.blindfold) { r.blindfold.position.y = .58; r.blindfold.rotation.x = 0; }
+      FX.flash('#ffffff', .95, .32);
+      FX.cross(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0xffffff, 7, .38);
+      FX.impact(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x9fd8ff, 1.9);
+      FX.speedRing(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x6fb4ff, 9, .45);
+      FX.rings(p.pos.clone().add(new THREE.Vector3(0, 2, 0)), 0x3a7dff, 3, { maxR: 16, life: .6, ground: false });
+      FX.debris(p.pos.clone(), 12, 14);
+      FX.mangaLines(true, .35);
+      addShake(.8);
+      AW.freeze = .22;                              // hold the reveal
+      if (AN) AN.camKick(1.4);
       try { sfx.frame(); } catch (e) {}
       if (!AW.aura) AW.aura = FX.aura(function () { return player.pos; }, 0x3a7dff);
     }
-    if (AW.cineStage < 3 && t >= 2.35) {           // the column of energy
+
+    /* ---- the column ---- */
+    if (AW.cineStage < 3 && t >= 3.45) {
       AW.cineStage = 3;
-      FX.beam(p.pos.clone(), new THREE.Vector3(0, 1, 0), 60, 0x4a8dff, { radius: 1.7, life: 1.15 });
-      FX.rings(new THREE.Vector3(p.pos.x, .12, p.pos.z), 0x6fb4ff, 4, { maxR: 22, life: .8, gap: 70 });
-      FX.debris(p.pos.clone(), 14, 17);
-      FX.dust(p.pos.clone(), 10, 0xd6e2f2, 11, 4);
-      FX.flash('#bfe0ff', .5, .45);
-      FX.zoom(-12, .7);
-      addShake(.9);
+      FX.beam(p.pos.clone(), new THREE.Vector3(0, 1, 0), 64, 0x4a8dff, { radius: 1.7, life: 1.3 });
+      FX.beam(p.pos.clone(), new THREE.Vector3(0, 1, 0), 64, 0xffffff, { radius: .55, life: 1.15 });
+      FX.rings(new THREE.Vector3(p.pos.x, .12, p.pos.z), 0x6fb4ff, 4, { maxR: 24, life: .85, gap: 70 });
+      FX.debris(p.pos.clone(), 16, 18);
+      FX.dust(p.pos.clone(), 12, 0xd6e2f2, 12, 4.5);
+      FX.flash('#bfe0ff', .5, .5);
+      FX.zoom(-13, .8);
+      addShake(1);
+      AW.freeze = .12;
+      if (AN) AN.camKick(1.1);
       try { sfx.raise(); } catch (e) {}
     }
-    if (AW.cineStage < 4 && t >= 2.75) {           // the card
+    if (AW.cineStage < 4 && t >= 4.3) {             // the card
       AW.cineStage = 4;
-      var card = document.getElementById('jjAwCard');
-      card.classList.add('on', 'slam');
+      document.getElementById('jjAwCard').classList.add('on', 'slam');
+      if (AN) AN.camKick(.5);
     }
 
-    if (Math.random() < .5) {
-      FX.streaks(p.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 3, .4 + Math.random() * 4.6, (Math.random() - .5) * 3)),
-        0x6fb4ff, 1, 7, 1);
+    /* a steady lift of cursed energy the whole way through */
+    if (Math.random() < .55) {
+      FX.streaks(p.pos.clone().add(new THREE.Vector3(
+        (Math.random() - .5) * 3, .4 + Math.random() * 4.6, (Math.random() - .5) * 3)),
+        0x6fb4ff, 1, 6 + (t > 3.45 ? 9 : 0), 1);
     }
 
     posesCine(r, t);
+    if (AN && AW.sm) {
+      var e = AW.sm.step(dt);
+      AN.life(r, t, .9);
+      AN.smear(r, e, AW.smear, dt, 0x6fb4ff, 26);
+    }
     r.root.position.copy(p.pos);
     r.root.rotation.y = p.facing;
 
-    if (t >= 3.6) endCine();
+    if (t >= CINE_DUR) endCine();
   }
 
-  /* hand to the blindfold, pull, and open up */
+  /* Head down, hand to the blindfold, the pull, and then open. Written as
+     targets rather than a finished curve — the spring in the animation
+     layer is what carries one into the next. */
   function posesCine(r, t) {
     resetPose(r);
     var E = FX.ease.out;
-    if (t < 1.3) {
-      var k = E(Math.min(1, t / 1.3));
-      r.spine.rotation.x = .08 - .06 * k;
-      r.neck.rotation.x = .1 - .26 * k;
-      r.shoulderR.rotation.x = -.2 - 2.3 * k;      // hand up to the face
-      r.shoulderR.rotation.z = -.15 - .35 * k;
-      r.elbowR.rotation.x = -.3 - 1.35 * k;
-      r.shoulderL.rotation.x = -.16 - .1 * k;
-      r.elbowL.rotation.x = -.24;
-      r.hips.position.y = r.hipsBaseY - .1 * k;
-      r.kneeL.rotation.x = .2 * k; r.kneeR.rotation.x = .2 * k;
-    } else if (t < 2.35) {
-      var k2 = E((t - 1.3) / 1.05);                // the pull away
-      r.shoulderR.rotation.x = -2.5 + 1.1 * k2;
-      r.shoulderR.rotation.z = -.5 + 1.05 * k2;
-      r.elbowR.rotation.x = -1.65 + 1.3 * k2;
-      r.shoulderL.rotation.x = -.26 - .5 * k2;
-      r.shoulderL.rotation.z = .1 - .55 * k2;
-      r.elbowL.rotation.x = -.24 - .35 * k2;
-      r.neck.rotation.x = -.16 - .18 * k2;
-      r.spine.rotation.x = .02 - .16 * k2;
-      r.hips.position.y = r.hipsBaseY - .1 + .1 * k2;
-    } else {
-      var k3 = E(Math.min(1, (t - 2.35) / .8));    // arms open, head high
-      r.shoulderR.rotation.x = -1.4 + 1.05 * k3;
-      r.shoulderR.rotation.z = .55 - .95 * k3;
-      r.elbowR.rotation.x = -.35 + .2 * k3;
-      r.shoulderL.rotation.x = -.76 + .45 * k3;
-      r.shoulderL.rotation.z = -.45 + .85 * k3;
-      r.elbowL.rotation.x = -.59 + .35 * k3;
-      r.neck.rotation.x = -.34 + .2 * k3;
-      r.spine.rotation.x = -.14 + .1 * k3;
-      r.hips.position.y = r.hipsBaseY + .05 * Math.sin(k3 * Math.PI);
+    if (t < .85) {                                  // holding it in
+      var k = E(t / .85);
+      r.spine.rotation.x = .1 + .06 * k;
+      r.neck.rotation.x = .22 * k;
+      r.shoulderL.rotation.x = -.14 - .1 * k; r.shoulderR.rotation.x = -.14 - .1 * k;
+      r.shoulderL.rotation.z = .06 * k; r.shoulderR.rotation.z = -.06 * k;
+      r.elbowL.rotation.x = -.26 - .2 * k; r.elbowR.rotation.x = -.26 - .2 * k;
+      r.hipL.rotation.x = -.05 * k; r.hipR.rotation.x = -.05 * k;
+      r.kneeL.rotation.x = .16 * k; r.kneeR.rotation.x = .16 * k;
+      r.hips.position.y = r.hipsBaseY - .12 * k;
+    } else if (t < 1.85) {                          // the hand goes up
+      var k2 = E((t - .85) / 1);
+      r.spine.rotation.x = .16 - .1 * k2;
+      r.spine.rotation.y = -.18 * k2;
+      r.neck.rotation.x = .22 - .3 * k2;
+      r.shoulderR.rotation.x = -.24 - 2.2 * k2;
+      r.shoulderR.rotation.z = -.2 * k2;
+      r.elbowR.rotation.x = -.46 - 1.25 * k2;
+      r.shoulderL.rotation.x = -.24 - .06 * k2;
+      r.elbowL.rotation.x = -.46;
+      r.hips.position.y = r.hipsBaseY - .12 + .04 * k2;
+      r.kneeL.rotation.x = .16; r.kneeR.rotation.x = .16;
+    } else if (t < 2.55) {                          // and pulls
+      var k3 = E((t - 1.85) / .7);
+      r.spine.rotation.x = .06 - .1 * k3;
+      r.spine.rotation.y = -.18 + .1 * k3;
+      r.neck.rotation.x = -.08 - .14 * k3;
+      r.shoulderR.rotation.x = -2.44 + .34 * k3;
+      r.shoulderR.rotation.z = -.2 + .5 * k3;
+      r.elbowR.rotation.x = -1.71 + .3 * k3;
+      r.shoulderL.rotation.x = -.3 - .3 * k3;
+      r.elbowL.rotation.x = -.46 - .3 * k3;
+      r.hips.position.y = r.hipsBaseY - .08;
+    } else if (t < 3.45) {                          // the hand comes down
+      var k4 = E((t - 2.55) / .9);
+      r.spine.rotation.x = -.04 - .06 * k4;
+      r.spine.rotation.y = -.08 + .08 * k4;
+      r.neck.rotation.x = -.22 - .1 * k4;
+      r.shoulderR.rotation.x = -2.1 + 1.5 * k4;
+      r.shoulderR.rotation.z = .3 - .2 * k4;
+      r.elbowR.rotation.x = -1.41 + 1 * k4;
+      r.shoulderL.rotation.x = -.6 + .2 * k4;
+      r.elbowL.rotation.x = -.76 + .3 * k4;
+      r.hips.position.y = r.hipsBaseY - .04;
+    } else {                                        // open
+      var k5 = E(Math.min(1, (t - 3.45) / 1));
+      r.shoulderR.rotation.x = -.6 - .35 * k5;
+      r.shoulderR.rotation.z = .1 - .6 * k5;
+      r.elbowR.rotation.x = -.41 + .25 * k5;
+      r.shoulderL.rotation.x = -.4 - .35 * k5;
+      r.shoulderL.rotation.z = -.1 + .6 * k5;
+      r.elbowL.rotation.x = -.46 + .25 * k5;
+      r.neck.rotation.x = -.32 - .08 * k5;
+      r.spine.rotation.x = -.1 - .08 * k5;
+      r.hipL.rotation.x = -.12 * k5; r.hipR.rotation.x = -.12 * k5;
+      r.hips.position.y = r.hipsBaseY - .04 + .1 * Math.sin(k5 * Math.PI);
     }
   }
 
@@ -5624,37 +5893,20 @@ window.__game = {
   };
 
   function cineCamera() {
-    var t = AW.ct, p = player;
-    var face = p.facing, back = face + Math.PI;
-    var yaw, dist, height, look;
-    var E = FX.ease.out;
-    if (t < 1.3) {                                   // low, three quarters on
-      var k = E(t / 1.3);
-      yaw = face + .8 - k * .45;
-      dist = 8.2 - 2.6 * k;
-      height = 1.9 + 2.1 * k;
-      look = p.pos.clone().add(new THREE.Vector3(0, 3.2 + k * 1.1, 0));
-    } else if (t < 2.35) {                           // the eyes, framed head on
-      var k2 = E((t - 1.3) / 1.05);
-      yaw = face + .3 - k2 * .5;
-      dist = 4.4 + .5 * k2;
-      height = 4.5;
-      look = p.pos.clone().add(new THREE.Vector3(0, 4.35, 0));
-    } else {                                         // out and up with the column
-      var k3 = E(Math.min(1, (t - 2.35) / 1.25));
-      yaw = (face - .25) + k3 * (back - (face - .25));
-      dist = 4.9 + 7.2 * k3;
-      height = 4.4 + 1.6 * k3;
-      look = p.pos.clone().add(new THREE.Vector3(0, 3.6 - k3 * .5, 0));
-    }
-    var off = new THREE.Vector3(Math.sin(yaw) * dist, height, Math.cos(yaw) * dist);
-    camera.position.copy(p.pos.clone().add(off));
-    if (shakeMag > 0) {
-      camera.position.add(new THREE.Vector3(
-        (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag));
-    }
-    camera.lookAt(look);
-    if (window.MPJJ && window.MPJJ.cs) window.MPJJ.cs.orbit = yaw;
+    var t = AW.ct;
+    /* Marks are relative to the way he is facing: yaw 0 is nose on, PI is
+       where the chase camera lives, which is where this has to end. */
+    gshot(t, [
+      { t: 0,    yaw: 1.15, d: 11.5, h: 1.6, ly: 3.2, k: 26 },
+      { t: .85,  yaw: .95,  d: 9.0,  h: 2.0, ly: 3.4, k: 30 },
+      { t: 1.85, yaw: .45,  d: 5.2,  h: 4.3, ly: 4.35, k: 36 },
+      { t: 2.55, yaw: .30,  d: 3.9,  h: 4.4, ly: 4.35, k: 60 },
+      { t: 2.9,  yaw: -.15, d: 6.4,  h: 4.2, ly: 4.0, k: 30 },
+      { t: 3.45, yaw: -.55, d: 8.0,  h: 3.4, ly: 3.4, k: 26 },
+      { t: 4.3,  yaw: Math.PI - 1.5, d: 12.5, h: 5.2, ly: 3.2, k: 20 },
+      { t: 5.4,  yaw: Math.PI, d: 12.0, h: 5.6, ly: 3.0, k: 18 }
+    ]);
+    if (window.MPJJ && window.MPJJ.cs) window.MPJJ.cs.orbit = AW.orbit;
   }
 
   /* charge from being hit */
@@ -6086,9 +6338,15 @@ window.__game = {
   }
   function at(h) { return h.rig.root.position.clone(); }
 
-  function cam(px, py, pz, lx, ly, lz) {
-    camera.position.set(STAGE.x + px, STAGE.y + py, STAGE.z + pz);
-    camera.lookAt(STAGE.x + lx, STAGE.y + ly, STAGE.z + lz);
+  var AN = window.JJANIM;
+  function cam(px, py, pz, lx, ly, lz, stiff) {
+    if (!AN) {
+      camera.position.set(STAGE.x + px, STAGE.y + py, STAGE.z + pz);
+      camera.lookAt(STAGE.x + lx, STAGE.y + ly, STAGE.z + lz);
+      return;
+    }
+    AN.camTo(STAGE.x + px, STAGE.y + py, STAGE.z + pz,
+      STAGE.x + lx, STAGE.y + ly, STAGE.z + lz, CINE.dt || 1 / 60, stiff);
   }
   /* the shot: a handful of marks, eased between */
   function shot(t, marks) {
@@ -6117,6 +6375,7 @@ window.__game = {
     if (RUSH.on || CINE.on || player.dead) return false;
     if (player.char !== 'naoya') return false;
     RUSH.on = true; RUSH.t = 0; RUSH.lastHit = null; RUSH.wipe = 0; RUSH.gait = 0;
+    RUSH.sm = null;
     RUSH.dir.set(Math.sin(player.facing), 0, Math.cos(player.facing));
     player.action = { type: 'nrush', t: 0, dur: RUSH.dur + 1.4 };
     player.iframes = Math.max(player.iframes, 1.2);
@@ -6208,6 +6467,10 @@ window.__game = {
     /* --- the run itself, on twos --- */
     RUSH.gait += dt * 26;
     poseRun(r, RUSH.gait, RUSH.t);
+    if (AN) {
+      if (!RUSH.sm) { RUSH.sm = AN.smoother(r); RUSH.sm.snap(); RUSH.smear = {}; }
+      AN.smear(r, RUSH.sm.step(dt), RUSH.smear, dt, 0x9fd8ff, 22);
+    }
     r.root.position.copy(p.pos);
     r.root.rotation.set(0, p.facing, 0);
 
@@ -6273,6 +6536,7 @@ window.__game = {
     r.hipR.rotation.x = .5 * lean;
     r.kneeR.rotation.x = .35 * lean;
     r.hips.position.y = r.hipsBaseY - .75 * lean;
+    if (AN && RUSH.sm) RUSH.sm.step(dt);
     r.root.position.copy(p.pos);
     r.root.rotation.set(0, p.facing + .5 * lean, 0);
 
@@ -6339,12 +6603,28 @@ window.__game = {
   /* =====================================================================
      THE CUT
      ================================================================== */
-  var CINE = { on: false, t: 0, beat: -1, bt: 0, A: null, V: null, stage: [], flags: {} };
+  var CINE = { on: false, t: 0, beat: -1, bt: 0, A: null, V: null, stage: [], flags: {},
+    dt: 1 / 60, freeze: 0 };
+
+  /* the two or three frames an anime cut spends on the moment of contact */
+  function hold(sec, kick) {
+    CINE.freeze = Math.max(CINE.freeze, sec);
+    if (AN && kick !== false) AN.camKick(1.1);
+  }
 
   function startCine(V, A) {
     if (CINE.on) return;
     CINE.on = true; CINE.t = 0; CINE.beat = -1; CINE.bt = 0; CINE.flags = {};
+    CINE.freeze = 0;
     CINE.A = A; CINE.V = V;
+    if (AN) {
+      CINE.smA = AN.smoother(A.rig);
+      CINE.smV = AN.smoother(V.rig);
+      CINE.smA.snap(); CINE.smV.snap();
+      CINE.smearA = {}; CINE.smearV = {};
+      AN.camRelease();
+      AN.camHand(1);
+    }
     CINE.homeA = A.rig.root.position.clone();
     CINE.homeV = V.rig.root.position.clone();
     A.hold(); V.hold();
@@ -6798,8 +7078,9 @@ window.__game = {
         FX.flash('#ffffff', .5, .22);
         FX.cross(sp(0, 3, 1.6), 0xffffff, 6, .3);
         FX.impact(sp(0, 3, 1.6), 0x9fd8ff, 2);
+        FX.speedRing(sp(0, 3, 1.6), 0xdfefff, 9, .35);
         addShake(.9);
-        hitstop(.12);
+        hold(.16);
         try { sfx.hit(); } catch (e) {}
       });
     } },
@@ -6809,6 +7090,8 @@ window.__game = {
       frameOn(CINE.V, false);
       FX.flash('#eafff2', .55, .3);
       FX.debris(sp(0, 2, 1), 8, 12, 0x2f4a35);
+      FX.speedRing(sp(0, 2.6, 1.4), 0xeafff2, 8, .3);
+      hold(.1);
       try { sfx.shatter(); } catch (e) {}
     },
     step: function (t) {
@@ -6862,7 +7145,7 @@ window.__game = {
         FX.debris(sp(0, 14, -22), 22, 26, 0x54262f);
         rockFan(sp(0, 16, -24), new THREE.Vector3(0, .3, 1), 16, 26);
         addShake(1.5);
-        hitstop(.14);
+        hold(.18);
         if (CINE.wall) CINE.wall.visible = false;
         try { sfx.redBoom(); } catch (e) {}
       });
@@ -6971,7 +7254,7 @@ window.__game = {
           rockFan(sp(0, 0, 7.4), new THREE.Vector3(0, -.5, .1), 18, 9);
           if (CINE.slabBridge) CINE.slabBridge.visible = false;   // the hole
           addShake(1.2);
-          hitstop(.1);
+          hold(.15);
           try { sfx.hit(); } catch (e) {}
         });
         shakeCam(.4);
@@ -7032,7 +7315,7 @@ window.__game = {
         FX.dust(sp(0, 0, 0), 16, 0xc9bda6, 22, 8);
         rockFan(sp(0, 0, 0), new THREE.Vector3(0, 1, 0), 20, 10);
         addShake(2);
-        hitstop(.16);
+        hold(.2);
         FX.zoom(16, .6);
         try { sfx.redBoom(); } catch (e) {}
       });
@@ -7126,7 +7409,7 @@ window.__game = {
         FX.debris(sp(0, .3, 0), 14, 18, 0x6b5642);
         FX.speedRing(sp(0, 3, 0), 0xdfefff, 10, .4);
         addShake(1.3);
-        hitstop(.12);
+        hold(.17);
         try { sfx.hit(); } catch (e) {}
       });
       if (t > 2.15) once('skyFrame', function () {
@@ -7183,7 +7466,7 @@ window.__game = {
         FX.rings(vp.clone(), 0xdfefff, 4, { maxR: 26, life: .6, ground: false, gap: 40 });
         FX.speedRing(vp.clone(), 0xffffff, 15, .5);
         addShake(1.8);
-        hitstop(.18);
+        hold(.22);
         FX.zoom(18, .6);
         try { sfx.shatter(); } catch (e) {}
       });
@@ -7203,6 +7486,16 @@ window.__game = {
   ];
 
   function stepCine(dt) {
+    CINE.dt = dt;
+    /* a hold stops the clock but not the effects already in the air */
+    if (CINE.freeze > 0) {
+      CINE.freeze -= dt;
+      if (AN) AN.camTo(camera.position.x, camera.position.y, camera.position.z,
+        CINE.lastLook ? CINE.lastLook.x : camera.position.x,
+        CINE.lastLook ? CINE.lastLook.y : camera.position.y,
+        CINE.lastLook ? CINE.lastLook.z : camera.position.z - 1, dt, 90);
+      return;
+    }
     CINE.t += dt;
     CINE.bt += dt;
     if (CINE.beat < 0 || CINE.bt >= BEATS[CINE.beat].dur) {
@@ -7211,11 +7504,24 @@ window.__game = {
       CINE.bt = 0;
       CINE.flags = {};
       if (CINE.beat >= BEATS.length) { endCine(); return; }
+      if (AN) AN.camRelease();                    // every beat frames itself
       if (BEATS[CINE.beat].enter) BEATS[CINE.beat].enter();
     }
     var b = BEATS[CINE.beat];
     b.step(CINE.bt, CINE.bt / b.dur);
-    /* both bodies are ours for the duration */
+
+    /* poses become movement here: springs, breath, and a smear when a body
+       is going faster than the eye can hold */
+    if (AN && CINE.smA) {
+      var eA = CINE.smA.step(dt), eV = CINE.smV.step(dt);
+      AN.life(CINE.A.rig, CINE.t, .8);
+      AN.life(CINE.V.rig, CINE.t * 1.13, .55);
+      AN.smear(CINE.A.rig, eA, CINE.smearA, dt, 0x9fd8ff, 30);
+      AN.smear(CINE.V.rig, eV, CINE.smearV, dt, 0xffb0b8, 34);
+    }
+    CINE.lastLook = camera.position.clone().add(
+      camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(10));
+
     if (CINE.A.self) { player.iframes = 9e9; player.vel.set(0, 0, 0); }
     if (CINE.V.self) { player.iframes = 9e9; player.vel.set(0, 0, 0); }
   }
@@ -12584,6 +12890,189 @@ window.__game = {
 })();
 
 
+/* ===== anim.js ===== */
+/* =======================================================================
+   ANIMATION LAYER
+   The cutscenes were written as a list of poses, one per beat, and a pose
+   list played straight is a slideshow: every joint arrives at the same
+   instant, nothing leads, nothing trails, and the joins between beats are
+   cuts.
+
+   Everything posed by a cutscene now goes through here first:
+
+     · every joint is driven by its own spring, so the hips lead and the
+       hands arrive late — overlap and follow through for free, including
+       across a beat change, which is what stops the joins reading as cuts
+     · a breathing layer on top, so a held pose is never actually still
+     · a smear whenever a body moves faster than the eye can follow
+     · the camera on a spring of its own, with a hand holding it and a
+       kick when something lands
+     · a hold: two or three frames of nothing at the moment of impact,
+       which is where an anime cut spends its weight
+
+   ===================================================================== */
+(function () {
+  'use strict';
+  if (typeof THREE === 'undefined' || typeof JOINTS === 'undefined') return;
+
+  /* How quickly each joint chases the pose it was given. The core is stiff
+     and the extremities are loose, which is what makes a movement travel
+     out through the body instead of happening all at once. */
+  var K = {
+    hips: 40, spine: 26, neck: 17, head: 15,
+    shoulderL: 21, shoulderR: 21, elbowL: 14, elbowR: 14,
+    hipL: 24, hipR: 24, kneeL: 18, kneeR: 18, ankleL: 12, ankleR: 12
+  };
+  var AXES = ['x', 'y', 'z'];
+
+  function smoother(rig) {
+    var st = {}, i, n;
+    for (i = 0; i < JOINTS.length; i++) {
+      n = JOINTS[i];
+      if (!rig[n]) continue;
+      st[n] = { x: rig[n].rotation.x, y: rig[n].rotation.y, z: rig[n].rotation.z, vx: 0, vy: 0, vz: 0 };
+    }
+    var hipY = { v: rig.hipsBaseY, vv: 0 };
+
+    return {
+      energy: 0,
+      /* take the pose that was just written as a target, and write back
+         where the body has actually got to */
+      step: function (dt) {
+        /* springs go unstable on a long frame, so a long frame is several */
+        var steps = Math.max(1, Math.min(4, Math.ceil(dt / (1 / 30))));
+        var h = dt / steps, e = 0, s, part, k, d, a, tgt, s2;
+        var targets = {}, hipTarget = rig.hips ? rig.hips.position.y : 0;
+        for (var name in st) {
+          part = rig[name];
+          targets[name] = [part.rotation.x, part.rotation.y, part.rotation.z];
+        }
+        for (s2 = 0; s2 < steps; s2++) {
+          for (name in st) {
+            s = st[name];
+            k = K[name] || 20;
+            d = 2 * Math.sqrt(k) * .86;            // a little under damped
+            for (a = 0; a < 3; a++) {
+              tgt = targets[name][a];
+              var ax = AXES[a], vk = 'v' + ax;
+              s[vk] += ((tgt - s[ax]) * k - s[vk] * d) * h;
+              s[ax] += s[vk] * h;
+            }
+          }
+          hipY.vv += ((hipTarget - hipY.v) * 34 - hipY.vv * 2 * Math.sqrt(34) * .9) * h;
+          hipY.v += hipY.vv * h;
+        }
+        for (name in st) {
+          s = st[name];
+          part = rig[name];
+          part.rotation.set(s.x, s.y, s.z);
+          e += Math.abs(s.vx) + Math.abs(s.vy) + Math.abs(s.vz);
+        }
+        if (rig.hips) rig.hips.position.y = hipY.v;
+        this.energy = e;
+        return e;
+      },
+      /* land on the pose immediately — for the first frame of a cut, where
+         there is nothing to carry over from */
+      snap: function () {
+        for (var name in st) {
+          var s = st[name], part = rig[name];
+          s.x = part.rotation.x; s.y = part.rotation.y; s.z = part.rotation.z;
+          s.vx = s.vy = s.vz = 0;
+        }
+        hipY.v = rig.hips ? rig.hips.position.y : 0;
+        hipY.vv = 0;
+      }
+    };
+  }
+
+  /* nobody stands perfectly still; this is what stops a held pose looking
+     like a mannequin */
+  function life(rig, t, amt) {
+    if (amt === 0 || !rig.spine) return;
+    amt = amt == null ? 1 : amt;
+    var b = Math.sin(t * 1.7), b2 = Math.sin(t * 1.7 + .7), sway = Math.sin(t * 1.1);
+    rig.spine.rotation.x += b * .015 * amt;
+    rig.spine.rotation.z += sway * .012 * amt;
+    if (rig.neck) rig.neck.rotation.x += b2 * .012 * amt;
+    if (rig.shoulderL) rig.shoulderL.rotation.z += b2 * .022 * amt;
+    if (rig.shoulderR) rig.shoulderR.rotation.z -= b2 * .022 * amt;
+    if (rig.hips) rig.hips.position.y += b * .022 * amt;
+  }
+
+  /* a body moving faster than the eye follows leaves one behind */
+  function smear(rig, energy, state, dt, color, threshold) {
+    state.acc = (state.acc || 0) + dt;
+    if (energy < (threshold || 26) || state.acc < .045) return;
+    state.acc = 0;
+    try { ghostAfterimage(rig, color == null ? 0xbfd8ff : color, .22); } catch (e) {}
+  }
+
+  /* =====================================================================
+     CAMERA
+     A spring, a hand and a kick. Marks are still marks; this is what
+     stops them being a slide projector.
+     ================================================================== */
+  var CAM = {
+    pos: new THREE.Vector3(), look: new THREE.Vector3(),
+    vp: new THREE.Vector3(), vl: new THREE.Vector3(),
+    kickV: new THREE.Vector3(), kick: new THREE.Vector3(),
+    t: 0, hand: 1, live: false
+  };
+
+  function camTo(px, py, pz, lx, ly, lz, dt, stiff) {
+    var tp = new THREE.Vector3(px, py, pz), tl = new THREE.Vector3(lx, ly, lz);
+    if (!CAM.live) { camSnap(px, py, pz, lx, ly, lz); }
+    CAM.t += dt;
+    var k = stiff || 46, d = 2 * Math.sqrt(k) * .95;
+    var steps = Math.max(1, Math.min(4, Math.ceil(dt / (1 / 30)))), h = dt / steps, i;
+    for (i = 0; i < steps; i++) {
+      CAM.vp.addScaledVector(tp.clone().sub(CAM.pos).multiplyScalar(k).addScaledVector(CAM.vp, -d), h);
+      CAM.pos.addScaledVector(CAM.vp, h);
+      CAM.vl.addScaledVector(tl.clone().sub(CAM.look).multiplyScalar(k).addScaledVector(CAM.vl, -d), h);
+      CAM.look.addScaledVector(CAM.vl, h);
+      CAM.kickV.multiplyScalar(Math.pow(.0009, h));
+      CAM.kick.addScaledVector(CAM.kickV, h);
+      CAM.kick.multiplyScalar(Math.pow(.002, h));
+    }
+    /* the hand holding it: slow drift, not a rattle */
+    var t = CAM.t, hand = CAM.hand;
+    var hx = (Math.sin(t * 1.3) + Math.sin(t * 2.7) * .5) * .045 * hand;
+    var hy = (Math.sin(t * 1.7 + 1) + Math.sin(t * 3.1) * .5) * .038 * hand;
+    var hz = Math.sin(t * .9 + 2) * .04 * hand;
+
+    camera.position.copy(CAM.pos).add(CAM.kick).add(new THREE.Vector3(hx, hy, hz));
+    camera.lookAt(CAM.look.x + hx * .3, CAM.look.y + hy * .3, CAM.look.z);
+  }
+
+  function camSnap(px, py, pz, lx, ly, lz) {
+    CAM.pos.set(px, py, pz);
+    CAM.look.set(lx, ly, lz);
+    CAM.vp.set(0, 0, 0); CAM.vl.set(0, 0, 0);
+    CAM.kick.set(0, 0, 0); CAM.kickV.set(0, 0, 0);
+    CAM.live = true;
+  }
+  function camRelease() { CAM.live = false; }
+  function camKick(mag, dir) {
+    var d = dir ? dir.clone().normalize() : new THREE.Vector3(
+      Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize();
+    CAM.kickV.addScaledVector(d, mag * 26);
+  }
+  function camHand(v) { CAM.hand = v; }
+
+  window.JJANIM = {
+    smoother: smoother,
+    life: life,
+    smear: smear,
+    camTo: camTo,
+    camSnap: camSnap,
+    camRelease: camRelease,
+    camKick: camKick,
+    camHand: camHand
+  };
+})();
+
+
 /* ===== ragdoll.js ===== */
 /* =======================================================================
    RAGDOLL
@@ -13425,9 +13914,10 @@ window.__game = {
      the energy goes up, the card lands. Untouchable throughout.
      ================================================================== */
   var SAY = [
-    { t: .55, s: 'Stand back.' },
-    { t: 2.15, s: "Nah, I'd win." }
+    { t: .45, s: 'Stand back.' },
+    { t: 3.70, s: "Nah, I'd win." }
   ];
+  var CINE_DUR = 5.4;
 
   function awaken() {
     if (!AW.ready || AW.active || AW.cine || player.dead) return;
@@ -13471,7 +13961,27 @@ window.__game = {
     s.classList.add('on');
   }
 
+  var AN = window.JJANIM;
+
+  /* the camera, given as marks around him rather than absolute points */
+  function gshot(t, marks) {
+    var i = 0;
+    while (i < marks.length - 1 && t >= marks[i + 1].t) i++;
+    var a = marks[i], b = marks[Math.min(i + 1, marks.length - 1)];
+    var k = b === a ? 0 : FX.ease.out(Math.min(1, Math.max(0, (t - a.t) / Math.max(.001, b.t - a.t))));
+    function m(f) { return a[f] + (b[f] - a[f]) * k; }
+    var yaw = player.facing + m('yaw'), dist = m('d'), h = m('h'), ly = m('ly');
+    var px = player.pos.x + Math.sin(yaw) * dist;
+    var pz = player.pos.z + Math.cos(yaw) * dist;
+    if (AN) AN.camTo(px, player.pos.y + h, pz, player.pos.x, player.pos.y + ly, player.pos.z, AW.dt || 1 / 60, m('k'));
+    else { camera.position.set(px, player.pos.y + h, pz); camera.lookAt(player.pos.x, player.pos.y + ly, player.pos.z); }
+    AW.orbit = yaw;
+  }
+
   function stepCine(dt) {
+    AW.dt = dt;
+    /* the reveal is worth a couple of frames of nothing */
+    if (AW.freeze > 0) { AW.freeze -= dt; return; }
     AW.ct += dt;
     var t = AW.ct, p = player, r = p.rig;
     p.vel.set(0, 0, 0);
@@ -13480,97 +13990,162 @@ window.__game = {
 
     while (AW.said < SAY.length && t >= SAY[AW.said].t) say(SAY[AW.said++].s);
 
-    /* --- beats --- */
-    if (AW.cineStage < 1 && t >= 0) {
+    /* ---- the pressure drops ---- */
+    if (AW.cineStage < 1) {
       AW.cineStage = 1;
-      FX.cracks(p.pos.clone(), 9, 11);
-      FX.dust(p.pos.clone(), 8, 0xc3ccdc, 7, 3);
-      FX.ring(new THREE.Vector3(p.pos.x, .1, p.pos.z), 0x3a7dff, { maxR: 13, life: .8 });
+      FX.cracks(p.pos.clone(), 11, 13);
+      FX.dust(p.pos.clone(), 9, 0xc3ccdc, 6, 3);
+      FX.ring(new THREE.Vector3(p.pos.x, .1, p.pos.z), 0x3a7dff, { maxR: 14, life: .9 });
+      FX.tint('#050a18', .3, 2.4);
       addShake(.35);
+      if (AN) { AW.sm = AN.smoother(r); AW.sm.snap(); AW.smear = {}; AN.camRelease(); }
     }
-    /* the air being pulled in around him */
-    if (t < 1.35 && Math.random() < .8) {
-      FX.mote(p.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0x6fb4ff, 9, .5);
+    /* everything in the air being drawn in toward him */
+    if (t < 2.5 && Math.random() < .85) {
+      FX.mote(p.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0x6fb4ff, 7 + Math.sin(t * 3) * 3, .45);
     }
-    if (AW.cineStage < 2 && t >= 1.30) {           // blindfold off
+    if (t > .7 && t < 2.5 && Math.random() < dt * 9) {
+      FX.debris(p.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 9, 0, (Math.random() - .5) * 9)), 1, 5, 0x53596b);
+    }
+
+    /* ---- light leaking out from under it ---- */
+    if (t >= 1.85 && t < 2.55) {
+      var leak = (t - 1.85) / .7;
+      if (r.blindfold) {
+        r.blindfold.position.y = .58 - leak * .1;
+        r.blindfold.rotation.x = leak * .22;
+      }
+      if (Math.random() < .8) {
+        FX.streaks(p.pos.clone().add(new THREE.Vector3((Math.random() - .5) * .9, 4.3, .5)),
+          0x9fd8ff, 1, 4 + leak * 8, .7);
+      }
+      if (Math.random() < .35) {
+        FX.ring(p.pos.clone().add(new THREE.Vector3(0, 4.3, .4)), 0x9fd8ff,
+          { maxR: .8, from: 4, life: .3, ground: false, opacity: .55 });
+      }
+    }
+
+    /* ---- off ---- */
+    if (AW.cineStage < 2 && t >= 2.55) {
       AW.cineStage = 2;
       setLook(r, true);
-      FX.flash('#dff0ff', .8, .3);
-      FX.cross(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x9fd8ff, 5, .35);
-      FX.speedRing(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x6fb4ff, 8, .4);
-      FX.rings(p.pos.clone().add(new THREE.Vector3(0, 2, 0)), 0x3a7dff, 3, { maxR: 15, life: .55, ground: false });
-      FX.debris(p.pos.clone(), 10, 13);
-      addShake(.7);
-      hitstop(.09);
+      if (r.blindfold) { r.blindfold.position.y = .58; r.blindfold.rotation.x = 0; }
+      FX.flash('#ffffff', .95, .32);
+      FX.cross(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0xffffff, 7, .38);
+      FX.impact(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x9fd8ff, 1.9);
+      FX.speedRing(p.pos.clone().add(new THREE.Vector3(0, 4.3, 0)), 0x6fb4ff, 9, .45);
+      FX.rings(p.pos.clone().add(new THREE.Vector3(0, 2, 0)), 0x3a7dff, 3, { maxR: 16, life: .6, ground: false });
+      FX.debris(p.pos.clone(), 12, 14);
+      FX.mangaLines(true, .35);
+      addShake(.8);
+      AW.freeze = .22;                              // hold the reveal
+      if (AN) AN.camKick(1.4);
       try { sfx.frame(); } catch (e) {}
       if (!AW.aura) AW.aura = FX.aura(function () { return player.pos; }, 0x3a7dff);
     }
-    if (AW.cineStage < 3 && t >= 2.35) {           // the column of energy
+
+    /* ---- the column ---- */
+    if (AW.cineStage < 3 && t >= 3.45) {
       AW.cineStage = 3;
-      FX.beam(p.pos.clone(), new THREE.Vector3(0, 1, 0), 60, 0x4a8dff, { radius: 1.7, life: 1.15 });
-      FX.rings(new THREE.Vector3(p.pos.x, .12, p.pos.z), 0x6fb4ff, 4, { maxR: 22, life: .8, gap: 70 });
-      FX.debris(p.pos.clone(), 14, 17);
-      FX.dust(p.pos.clone(), 10, 0xd6e2f2, 11, 4);
-      FX.flash('#bfe0ff', .5, .45);
-      FX.zoom(-12, .7);
-      addShake(.9);
+      FX.beam(p.pos.clone(), new THREE.Vector3(0, 1, 0), 64, 0x4a8dff, { radius: 1.7, life: 1.3 });
+      FX.beam(p.pos.clone(), new THREE.Vector3(0, 1, 0), 64, 0xffffff, { radius: .55, life: 1.15 });
+      FX.rings(new THREE.Vector3(p.pos.x, .12, p.pos.z), 0x6fb4ff, 4, { maxR: 24, life: .85, gap: 70 });
+      FX.debris(p.pos.clone(), 16, 18);
+      FX.dust(p.pos.clone(), 12, 0xd6e2f2, 12, 4.5);
+      FX.flash('#bfe0ff', .5, .5);
+      FX.zoom(-13, .8);
+      addShake(1);
+      AW.freeze = .12;
+      if (AN) AN.camKick(1.1);
       try { sfx.raise(); } catch (e) {}
     }
-    if (AW.cineStage < 4 && t >= 2.75) {           // the card
+    if (AW.cineStage < 4 && t >= 4.3) {             // the card
       AW.cineStage = 4;
-      var card = document.getElementById('jjAwCard');
-      card.classList.add('on', 'slam');
+      document.getElementById('jjAwCard').classList.add('on', 'slam');
+      if (AN) AN.camKick(.5);
     }
 
-    if (Math.random() < .5) {
-      FX.streaks(p.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 3, .4 + Math.random() * 4.6, (Math.random() - .5) * 3)),
-        0x6fb4ff, 1, 7, 1);
+    /* a steady lift of cursed energy the whole way through */
+    if (Math.random() < .55) {
+      FX.streaks(p.pos.clone().add(new THREE.Vector3(
+        (Math.random() - .5) * 3, .4 + Math.random() * 4.6, (Math.random() - .5) * 3)),
+        0x6fb4ff, 1, 6 + (t > 3.45 ? 9 : 0), 1);
     }
 
     posesCine(r, t);
+    if (AN && AW.sm) {
+      var e = AW.sm.step(dt);
+      AN.life(r, t, .9);
+      AN.smear(r, e, AW.smear, dt, 0x6fb4ff, 26);
+    }
     r.root.position.copy(p.pos);
     r.root.rotation.y = p.facing;
 
-    if (t >= 3.6) endCine();
+    if (t >= CINE_DUR) endCine();
   }
 
-  /* hand to the blindfold, pull, and open up */
+  /* Head down, hand to the blindfold, the pull, and then open. Written as
+     targets rather than a finished curve — the spring in the animation
+     layer is what carries one into the next. */
   function posesCine(r, t) {
     resetPose(r);
     var E = FX.ease.out;
-    if (t < 1.3) {
-      var k = E(Math.min(1, t / 1.3));
-      r.spine.rotation.x = .08 - .06 * k;
-      r.neck.rotation.x = .1 - .26 * k;
-      r.shoulderR.rotation.x = -.2 - 2.3 * k;      // hand up to the face
-      r.shoulderR.rotation.z = -.15 - .35 * k;
-      r.elbowR.rotation.x = -.3 - 1.35 * k;
-      r.shoulderL.rotation.x = -.16 - .1 * k;
-      r.elbowL.rotation.x = -.24;
-      r.hips.position.y = r.hipsBaseY - .1 * k;
-      r.kneeL.rotation.x = .2 * k; r.kneeR.rotation.x = .2 * k;
-    } else if (t < 2.35) {
-      var k2 = E((t - 1.3) / 1.05);                // the pull away
-      r.shoulderR.rotation.x = -2.5 + 1.1 * k2;
-      r.shoulderR.rotation.z = -.5 + 1.05 * k2;
-      r.elbowR.rotation.x = -1.65 + 1.3 * k2;
-      r.shoulderL.rotation.x = -.26 - .5 * k2;
-      r.shoulderL.rotation.z = .1 - .55 * k2;
-      r.elbowL.rotation.x = -.24 - .35 * k2;
-      r.neck.rotation.x = -.16 - .18 * k2;
-      r.spine.rotation.x = .02 - .16 * k2;
-      r.hips.position.y = r.hipsBaseY - .1 + .1 * k2;
-    } else {
-      var k3 = E(Math.min(1, (t - 2.35) / .8));    // arms open, head high
-      r.shoulderR.rotation.x = -1.4 + 1.05 * k3;
-      r.shoulderR.rotation.z = .55 - .95 * k3;
-      r.elbowR.rotation.x = -.35 + .2 * k3;
-      r.shoulderL.rotation.x = -.76 + .45 * k3;
-      r.shoulderL.rotation.z = -.45 + .85 * k3;
-      r.elbowL.rotation.x = -.59 + .35 * k3;
-      r.neck.rotation.x = -.34 + .2 * k3;
-      r.spine.rotation.x = -.14 + .1 * k3;
-      r.hips.position.y = r.hipsBaseY + .05 * Math.sin(k3 * Math.PI);
+    if (t < .85) {                                  // holding it in
+      var k = E(t / .85);
+      r.spine.rotation.x = .1 + .06 * k;
+      r.neck.rotation.x = .22 * k;
+      r.shoulderL.rotation.x = -.14 - .1 * k; r.shoulderR.rotation.x = -.14 - .1 * k;
+      r.shoulderL.rotation.z = .06 * k; r.shoulderR.rotation.z = -.06 * k;
+      r.elbowL.rotation.x = -.26 - .2 * k; r.elbowR.rotation.x = -.26 - .2 * k;
+      r.hipL.rotation.x = -.05 * k; r.hipR.rotation.x = -.05 * k;
+      r.kneeL.rotation.x = .16 * k; r.kneeR.rotation.x = .16 * k;
+      r.hips.position.y = r.hipsBaseY - .12 * k;
+    } else if (t < 1.85) {                          // the hand goes up
+      var k2 = E((t - .85) / 1);
+      r.spine.rotation.x = .16 - .1 * k2;
+      r.spine.rotation.y = -.18 * k2;
+      r.neck.rotation.x = .22 - .3 * k2;
+      r.shoulderR.rotation.x = -.24 - 2.2 * k2;
+      r.shoulderR.rotation.z = -.2 * k2;
+      r.elbowR.rotation.x = -.46 - 1.25 * k2;
+      r.shoulderL.rotation.x = -.24 - .06 * k2;
+      r.elbowL.rotation.x = -.46;
+      r.hips.position.y = r.hipsBaseY - .12 + .04 * k2;
+      r.kneeL.rotation.x = .16; r.kneeR.rotation.x = .16;
+    } else if (t < 2.55) {                          // and pulls
+      var k3 = E((t - 1.85) / .7);
+      r.spine.rotation.x = .06 - .1 * k3;
+      r.spine.rotation.y = -.18 + .1 * k3;
+      r.neck.rotation.x = -.08 - .14 * k3;
+      r.shoulderR.rotation.x = -2.44 + .34 * k3;
+      r.shoulderR.rotation.z = -.2 + .5 * k3;
+      r.elbowR.rotation.x = -1.71 + .3 * k3;
+      r.shoulderL.rotation.x = -.3 - .3 * k3;
+      r.elbowL.rotation.x = -.46 - .3 * k3;
+      r.hips.position.y = r.hipsBaseY - .08;
+    } else if (t < 3.45) {                          // the hand comes down
+      var k4 = E((t - 2.55) / .9);
+      r.spine.rotation.x = -.04 - .06 * k4;
+      r.spine.rotation.y = -.08 + .08 * k4;
+      r.neck.rotation.x = -.22 - .1 * k4;
+      r.shoulderR.rotation.x = -2.1 + 1.5 * k4;
+      r.shoulderR.rotation.z = .3 - .2 * k4;
+      r.elbowR.rotation.x = -1.41 + 1 * k4;
+      r.shoulderL.rotation.x = -.6 + .2 * k4;
+      r.elbowL.rotation.x = -.76 + .3 * k4;
+      r.hips.position.y = r.hipsBaseY - .04;
+    } else {                                        // open
+      var k5 = E(Math.min(1, (t - 3.45) / 1));
+      r.shoulderR.rotation.x = -.6 - .35 * k5;
+      r.shoulderR.rotation.z = .1 - .6 * k5;
+      r.elbowR.rotation.x = -.41 + .25 * k5;
+      r.shoulderL.rotation.x = -.4 - .35 * k5;
+      r.shoulderL.rotation.z = -.1 + .6 * k5;
+      r.elbowL.rotation.x = -.46 + .25 * k5;
+      r.neck.rotation.x = -.32 - .08 * k5;
+      r.spine.rotation.x = -.1 - .08 * k5;
+      r.hipL.rotation.x = -.12 * k5; r.hipR.rotation.x = -.12 * k5;
+      r.hips.position.y = r.hipsBaseY - .04 + .1 * Math.sin(k5 * Math.PI);
     }
   }
 
@@ -14246,37 +14821,20 @@ window.__game = {
   };
 
   function cineCamera() {
-    var t = AW.ct, p = player;
-    var face = p.facing, back = face + Math.PI;
-    var yaw, dist, height, look;
-    var E = FX.ease.out;
-    if (t < 1.3) {                                   // low, three quarters on
-      var k = E(t / 1.3);
-      yaw = face + .8 - k * .45;
-      dist = 8.2 - 2.6 * k;
-      height = 1.9 + 2.1 * k;
-      look = p.pos.clone().add(new THREE.Vector3(0, 3.2 + k * 1.1, 0));
-    } else if (t < 2.35) {                           // the eyes, framed head on
-      var k2 = E((t - 1.3) / 1.05);
-      yaw = face + .3 - k2 * .5;
-      dist = 4.4 + .5 * k2;
-      height = 4.5;
-      look = p.pos.clone().add(new THREE.Vector3(0, 4.35, 0));
-    } else {                                         // out and up with the column
-      var k3 = E(Math.min(1, (t - 2.35) / 1.25));
-      yaw = (face - .25) + k3 * (back - (face - .25));
-      dist = 4.9 + 7.2 * k3;
-      height = 4.4 + 1.6 * k3;
-      look = p.pos.clone().add(new THREE.Vector3(0, 3.6 - k3 * .5, 0));
-    }
-    var off = new THREE.Vector3(Math.sin(yaw) * dist, height, Math.cos(yaw) * dist);
-    camera.position.copy(p.pos.clone().add(off));
-    if (shakeMag > 0) {
-      camera.position.add(new THREE.Vector3(
-        (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag));
-    }
-    camera.lookAt(look);
-    if (window.MPJJ && window.MPJJ.cs) window.MPJJ.cs.orbit = yaw;
+    var t = AW.ct;
+    /* Marks are relative to the way he is facing: yaw 0 is nose on, PI is
+       where the chase camera lives, which is where this has to end. */
+    gshot(t, [
+      { t: 0,    yaw: 1.15, d: 11.5, h: 1.6, ly: 3.2, k: 26 },
+      { t: .85,  yaw: .95,  d: 9.0,  h: 2.0, ly: 3.4, k: 30 },
+      { t: 1.85, yaw: .45,  d: 5.2,  h: 4.3, ly: 4.35, k: 36 },
+      { t: 2.55, yaw: .30,  d: 3.9,  h: 4.4, ly: 4.35, k: 60 },
+      { t: 2.9,  yaw: -.15, d: 6.4,  h: 4.2, ly: 4.0, k: 30 },
+      { t: 3.45, yaw: -.55, d: 8.0,  h: 3.4, ly: 3.4, k: 26 },
+      { t: 4.3,  yaw: Math.PI - 1.5, d: 12.5, h: 5.2, ly: 3.2, k: 20 },
+      { t: 5.4,  yaw: Math.PI, d: 12.0, h: 5.6, ly: 3.0, k: 18 }
+    ]);
+    if (window.MPJJ && window.MPJJ.cs) window.MPJJ.cs.orbit = AW.orbit;
   }
 
   /* charge from being hit */
@@ -14708,9 +15266,15 @@ window.__game = {
   }
   function at(h) { return h.rig.root.position.clone(); }
 
-  function cam(px, py, pz, lx, ly, lz) {
-    camera.position.set(STAGE.x + px, STAGE.y + py, STAGE.z + pz);
-    camera.lookAt(STAGE.x + lx, STAGE.y + ly, STAGE.z + lz);
+  var AN = window.JJANIM;
+  function cam(px, py, pz, lx, ly, lz, stiff) {
+    if (!AN) {
+      camera.position.set(STAGE.x + px, STAGE.y + py, STAGE.z + pz);
+      camera.lookAt(STAGE.x + lx, STAGE.y + ly, STAGE.z + lz);
+      return;
+    }
+    AN.camTo(STAGE.x + px, STAGE.y + py, STAGE.z + pz,
+      STAGE.x + lx, STAGE.y + ly, STAGE.z + lz, CINE.dt || 1 / 60, stiff);
   }
   /* the shot: a handful of marks, eased between */
   function shot(t, marks) {
@@ -14739,6 +15303,7 @@ window.__game = {
     if (RUSH.on || CINE.on || player.dead) return false;
     if (player.char !== 'naoya') return false;
     RUSH.on = true; RUSH.t = 0; RUSH.lastHit = null; RUSH.wipe = 0; RUSH.gait = 0;
+    RUSH.sm = null;
     RUSH.dir.set(Math.sin(player.facing), 0, Math.cos(player.facing));
     player.action = { type: 'nrush', t: 0, dur: RUSH.dur + 1.4 };
     player.iframes = Math.max(player.iframes, 1.2);
@@ -14830,6 +15395,10 @@ window.__game = {
     /* --- the run itself, on twos --- */
     RUSH.gait += dt * 26;
     poseRun(r, RUSH.gait, RUSH.t);
+    if (AN) {
+      if (!RUSH.sm) { RUSH.sm = AN.smoother(r); RUSH.sm.snap(); RUSH.smear = {}; }
+      AN.smear(r, RUSH.sm.step(dt), RUSH.smear, dt, 0x9fd8ff, 22);
+    }
     r.root.position.copy(p.pos);
     r.root.rotation.set(0, p.facing, 0);
 
@@ -14895,6 +15464,7 @@ window.__game = {
     r.hipR.rotation.x = .5 * lean;
     r.kneeR.rotation.x = .35 * lean;
     r.hips.position.y = r.hipsBaseY - .75 * lean;
+    if (AN && RUSH.sm) RUSH.sm.step(dt);
     r.root.position.copy(p.pos);
     r.root.rotation.set(0, p.facing + .5 * lean, 0);
 
@@ -14961,12 +15531,28 @@ window.__game = {
   /* =====================================================================
      THE CUT
      ================================================================== */
-  var CINE = { on: false, t: 0, beat: -1, bt: 0, A: null, V: null, stage: [], flags: {} };
+  var CINE = { on: false, t: 0, beat: -1, bt: 0, A: null, V: null, stage: [], flags: {},
+    dt: 1 / 60, freeze: 0 };
+
+  /* the two or three frames an anime cut spends on the moment of contact */
+  function hold(sec, kick) {
+    CINE.freeze = Math.max(CINE.freeze, sec);
+    if (AN && kick !== false) AN.camKick(1.1);
+  }
 
   function startCine(V, A) {
     if (CINE.on) return;
     CINE.on = true; CINE.t = 0; CINE.beat = -1; CINE.bt = 0; CINE.flags = {};
+    CINE.freeze = 0;
     CINE.A = A; CINE.V = V;
+    if (AN) {
+      CINE.smA = AN.smoother(A.rig);
+      CINE.smV = AN.smoother(V.rig);
+      CINE.smA.snap(); CINE.smV.snap();
+      CINE.smearA = {}; CINE.smearV = {};
+      AN.camRelease();
+      AN.camHand(1);
+    }
     CINE.homeA = A.rig.root.position.clone();
     CINE.homeV = V.rig.root.position.clone();
     A.hold(); V.hold();
@@ -15420,8 +16006,9 @@ window.__game = {
         FX.flash('#ffffff', .5, .22);
         FX.cross(sp(0, 3, 1.6), 0xffffff, 6, .3);
         FX.impact(sp(0, 3, 1.6), 0x9fd8ff, 2);
+        FX.speedRing(sp(0, 3, 1.6), 0xdfefff, 9, .35);
         addShake(.9);
-        hitstop(.12);
+        hold(.16);
         try { sfx.hit(); } catch (e) {}
       });
     } },
@@ -15431,6 +16018,8 @@ window.__game = {
       frameOn(CINE.V, false);
       FX.flash('#eafff2', .55, .3);
       FX.debris(sp(0, 2, 1), 8, 12, 0x2f4a35);
+      FX.speedRing(sp(0, 2.6, 1.4), 0xeafff2, 8, .3);
+      hold(.1);
       try { sfx.shatter(); } catch (e) {}
     },
     step: function (t) {
@@ -15484,7 +16073,7 @@ window.__game = {
         FX.debris(sp(0, 14, -22), 22, 26, 0x54262f);
         rockFan(sp(0, 16, -24), new THREE.Vector3(0, .3, 1), 16, 26);
         addShake(1.5);
-        hitstop(.14);
+        hold(.18);
         if (CINE.wall) CINE.wall.visible = false;
         try { sfx.redBoom(); } catch (e) {}
       });
@@ -15593,7 +16182,7 @@ window.__game = {
           rockFan(sp(0, 0, 7.4), new THREE.Vector3(0, -.5, .1), 18, 9);
           if (CINE.slabBridge) CINE.slabBridge.visible = false;   // the hole
           addShake(1.2);
-          hitstop(.1);
+          hold(.15);
           try { sfx.hit(); } catch (e) {}
         });
         shakeCam(.4);
@@ -15654,7 +16243,7 @@ window.__game = {
         FX.dust(sp(0, 0, 0), 16, 0xc9bda6, 22, 8);
         rockFan(sp(0, 0, 0), new THREE.Vector3(0, 1, 0), 20, 10);
         addShake(2);
-        hitstop(.16);
+        hold(.2);
         FX.zoom(16, .6);
         try { sfx.redBoom(); } catch (e) {}
       });
@@ -15748,7 +16337,7 @@ window.__game = {
         FX.debris(sp(0, .3, 0), 14, 18, 0x6b5642);
         FX.speedRing(sp(0, 3, 0), 0xdfefff, 10, .4);
         addShake(1.3);
-        hitstop(.12);
+        hold(.17);
         try { sfx.hit(); } catch (e) {}
       });
       if (t > 2.15) once('skyFrame', function () {
@@ -15805,7 +16394,7 @@ window.__game = {
         FX.rings(vp.clone(), 0xdfefff, 4, { maxR: 26, life: .6, ground: false, gap: 40 });
         FX.speedRing(vp.clone(), 0xffffff, 15, .5);
         addShake(1.8);
-        hitstop(.18);
+        hold(.22);
         FX.zoom(18, .6);
         try { sfx.shatter(); } catch (e) {}
       });
@@ -15825,6 +16414,16 @@ window.__game = {
   ];
 
   function stepCine(dt) {
+    CINE.dt = dt;
+    /* a hold stops the clock but not the effects already in the air */
+    if (CINE.freeze > 0) {
+      CINE.freeze -= dt;
+      if (AN) AN.camTo(camera.position.x, camera.position.y, camera.position.z,
+        CINE.lastLook ? CINE.lastLook.x : camera.position.x,
+        CINE.lastLook ? CINE.lastLook.y : camera.position.y,
+        CINE.lastLook ? CINE.lastLook.z : camera.position.z - 1, dt, 90);
+      return;
+    }
     CINE.t += dt;
     CINE.bt += dt;
     if (CINE.beat < 0 || CINE.bt >= BEATS[CINE.beat].dur) {
@@ -15833,11 +16432,24 @@ window.__game = {
       CINE.bt = 0;
       CINE.flags = {};
       if (CINE.beat >= BEATS.length) { endCine(); return; }
+      if (AN) AN.camRelease();                    // every beat frames itself
       if (BEATS[CINE.beat].enter) BEATS[CINE.beat].enter();
     }
     var b = BEATS[CINE.beat];
     b.step(CINE.bt, CINE.bt / b.dur);
-    /* both bodies are ours for the duration */
+
+    /* poses become movement here: springs, breath, and a smear when a body
+       is going faster than the eye can hold */
+    if (AN && CINE.smA) {
+      var eA = CINE.smA.step(dt), eV = CINE.smV.step(dt);
+      AN.life(CINE.A.rig, CINE.t, .8);
+      AN.life(CINE.V.rig, CINE.t * 1.13, .55);
+      AN.smear(CINE.A.rig, eA, CINE.smearA, dt, 0x9fd8ff, 30);
+      AN.smear(CINE.V.rig, eV, CINE.smearV, dt, 0xffb0b8, 34);
+    }
+    CINE.lastLook = camera.position.clone().add(
+      camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(10));
+
     if (CINE.A.self) { player.iframes = 9e9; player.vel.set(0, 0, 0); }
     if (CINE.V.self) { player.iframes = 9e9; player.vel.set(0, 0, 0); }
   }

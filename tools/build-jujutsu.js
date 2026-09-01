@@ -27,7 +27,7 @@ const mqtt = fs.readFileSync(path.join(src, 'mqtt.min.js'), 'utf8');
 /* Order matters: each of these patches the one before it. vfx defines the
    kit, combat re-points the game's own effects at it and adds the throw,
    gojo builds the awakening on top, and mp shares all of it. */
-const addons = ['vfx.js', 'ragdoll.js', 'combat.js', 'gojo.js', 'naoya.js', 'mp.js']
+const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'combat.js', 'gojo.js', 'naoya.js', 'mp.js']
   .map(function (f) {
     return { name: f, code: fs.readFileSync(path.join(src, f), 'utf8') };
   });

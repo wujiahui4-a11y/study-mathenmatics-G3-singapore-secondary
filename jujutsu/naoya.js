@@ -387,9 +387,15 @@
   }
   function at(h) { return h.rig.root.position.clone(); }
 
-  function cam(px, py, pz, lx, ly, lz) {
-    camera.position.set(STAGE.x + px, STAGE.y + py, STAGE.z + pz);
-    camera.lookAt(STAGE.x + lx, STAGE.y + ly, STAGE.z + lz);
+  var AN = window.JJANIM;
+  function cam(px, py, pz, lx, ly, lz, stiff) {
+    if (!AN) {
+      camera.position.set(STAGE.x + px, STAGE.y + py, STAGE.z + pz);
+      camera.lookAt(STAGE.x + lx, STAGE.y + ly, STAGE.z + lz);
+      return;
+    }
+    AN.camTo(STAGE.x + px, STAGE.y + py, STAGE.z + pz,
+      STAGE.x + lx, STAGE.y + ly, STAGE.z + lz, CINE.dt || 1 / 60, stiff);
   }
   /* the shot: a handful of marks, eased between */
   function shot(t, marks) {
@@ -418,6 +424,7 @@
     if (RUSH.on || CINE.on || player.dead) return false;
     if (player.char !== 'naoya') return false;
     RUSH.on = true; RUSH.t = 0; RUSH.lastHit = null; RUSH.wipe = 0; RUSH.gait = 0;
+    RUSH.sm = null;
     RUSH.dir.set(Math.sin(player.facing), 0, Math.cos(player.facing));
     player.action = { type: 'nrush', t: 0, dur: RUSH.dur + 1.4 };
     player.iframes = Math.max(player.iframes, 1.2);
@@ -509,6 +516,10 @@
     /* --- the run itself, on twos --- */
     RUSH.gait += dt * 26;
     poseRun(r, RUSH.gait, RUSH.t);
+    if (AN) {
+      if (!RUSH.sm) { RUSH.sm = AN.smoother(r); RUSH.sm.snap(); RUSH.smear = {}; }
+      AN.smear(r, RUSH.sm.step(dt), RUSH.smear, dt, 0x9fd8ff, 22);
+    }
     r.root.position.copy(p.pos);
     r.root.rotation.set(0, p.facing, 0);
 
@@ -574,6 +585,7 @@
     r.hipR.rotation.x = .5 * lean;
     r.kneeR.rotation.x = .35 * lean;
     r.hips.position.y = r.hipsBaseY - .75 * lean;
+    if (AN && RUSH.sm) RUSH.sm.step(dt);
     r.root.position.copy(p.pos);
     r.root.rotation.set(0, p.facing + .5 * lean, 0);
 
@@ -640,12 +652,28 @@
   /* =====================================================================
      THE CUT
      ================================================================== */
-  var CINE = { on: false, t: 0, beat: -1, bt: 0, A: null, V: null, stage: [], flags: {} };
+  var CINE = { on: false, t: 0, beat: -1, bt: 0, A: null, V: null, stage: [], flags: {},
+    dt: 1 / 60, freeze: 0 };
+
+  /* the two or three frames an anime cut spends on the moment of contact */
+  function hold(sec, kick) {
+    CINE.freeze = Math.max(CINE.freeze, sec);
+    if (AN && kick !== false) AN.camKick(1.1);
+  }
 
   function startCine(V, A) {
     if (CINE.on) return;
     CINE.on = true; CINE.t = 0; CINE.beat = -1; CINE.bt = 0; CINE.flags = {};
+    CINE.freeze = 0;
     CINE.A = A; CINE.V = V;
+    if (AN) {
+      CINE.smA = AN.smoother(A.rig);
+      CINE.smV = AN.smoother(V.rig);
+      CINE.smA.snap(); CINE.smV.snap();
+      CINE.smearA = {}; CINE.smearV = {};
+      AN.camRelease();
+      AN.camHand(1);
+    }
     CINE.homeA = A.rig.root.position.clone();
     CINE.homeV = V.rig.root.position.clone();
     A.hold(); V.hold();
@@ -1099,8 +1127,9 @@
         FX.flash('#ffffff', .5, .22);
         FX.cross(sp(0, 3, 1.6), 0xffffff, 6, .3);
         FX.impact(sp(0, 3, 1.6), 0x9fd8ff, 2);
+        FX.speedRing(sp(0, 3, 1.6), 0xdfefff, 9, .35);
         addShake(.9);
-        hitstop(.12);
+        hold(.16);
         try { sfx.hit(); } catch (e) {}
       });
     } },
@@ -1110,6 +1139,8 @@
       frameOn(CINE.V, false);
       FX.flash('#eafff2', .55, .3);
       FX.debris(sp(0, 2, 1), 8, 12, 0x2f4a35);
+      FX.speedRing(sp(0, 2.6, 1.4), 0xeafff2, 8, .3);
+      hold(.1);
       try { sfx.shatter(); } catch (e) {}
     },
     step: function (t) {
@@ -1163,7 +1194,7 @@
         FX.debris(sp(0, 14, -22), 22, 26, 0x54262f);
         rockFan(sp(0, 16, -24), new THREE.Vector3(0, .3, 1), 16, 26);
         addShake(1.5);
-        hitstop(.14);
+        hold(.18);
         if (CINE.wall) CINE.wall.visible = false;
         try { sfx.redBoom(); } catch (e) {}
       });
@@ -1272,7 +1303,7 @@
           rockFan(sp(0, 0, 7.4), new THREE.Vector3(0, -.5, .1), 18, 9);
           if (CINE.slabBridge) CINE.slabBridge.visible = false;   // the hole
           addShake(1.2);
-          hitstop(.1);
+          hold(.15);
           try { sfx.hit(); } catch (e) {}
         });
         shakeCam(.4);
@@ -1333,7 +1364,7 @@
         FX.dust(sp(0, 0, 0), 16, 0xc9bda6, 22, 8);
         rockFan(sp(0, 0, 0), new THREE.Vector3(0, 1, 0), 20, 10);
         addShake(2);
-        hitstop(.16);
+        hold(.2);
         FX.zoom(16, .6);
         try { sfx.redBoom(); } catch (e) {}
       });
@@ -1427,7 +1458,7 @@
         FX.debris(sp(0, .3, 0), 14, 18, 0x6b5642);
         FX.speedRing(sp(0, 3, 0), 0xdfefff, 10, .4);
         addShake(1.3);
-        hitstop(.12);
+        hold(.17);
         try { sfx.hit(); } catch (e) {}
       });
       if (t > 2.15) once('skyFrame', function () {
@@ -1484,7 +1515,7 @@
         FX.rings(vp.clone(), 0xdfefff, 4, { maxR: 26, life: .6, ground: false, gap: 40 });
         FX.speedRing(vp.clone(), 0xffffff, 15, .5);
         addShake(1.8);
-        hitstop(.18);
+        hold(.22);
         FX.zoom(18, .6);
         try { sfx.shatter(); } catch (e) {}
       });
@@ -1504,6 +1535,16 @@
   ];
 
   function stepCine(dt) {
+    CINE.dt = dt;
+    /* a hold stops the clock but not the effects already in the air */
+    if (CINE.freeze > 0) {
+      CINE.freeze -= dt;
+      if (AN) AN.camTo(camera.position.x, camera.position.y, camera.position.z,
+        CINE.lastLook ? CINE.lastLook.x : camera.position.x,
+        CINE.lastLook ? CINE.lastLook.y : camera.position.y,
+        CINE.lastLook ? CINE.lastLook.z : camera.position.z - 1, dt, 90);
+      return;
+    }
     CINE.t += dt;
     CINE.bt += dt;
     if (CINE.beat < 0 || CINE.bt >= BEATS[CINE.beat].dur) {
@@ -1512,11 +1553,24 @@
       CINE.bt = 0;
       CINE.flags = {};
       if (CINE.beat >= BEATS.length) { endCine(); return; }
+      if (AN) AN.camRelease();                    // every beat frames itself
       if (BEATS[CINE.beat].enter) BEATS[CINE.beat].enter();
     }
     var b = BEATS[CINE.beat];
     b.step(CINE.bt, CINE.bt / b.dur);
-    /* both bodies are ours for the duration */
+
+    /* poses become movement here: springs, breath, and a smear when a body
+       is going faster than the eye can hold */
+    if (AN && CINE.smA) {
+      var eA = CINE.smA.step(dt), eV = CINE.smV.step(dt);
+      AN.life(CINE.A.rig, CINE.t, .8);
+      AN.life(CINE.V.rig, CINE.t * 1.13, .55);
+      AN.smear(CINE.A.rig, eA, CINE.smearA, dt, 0x9fd8ff, 30);
+      AN.smear(CINE.V.rig, eV, CINE.smearV, dt, 0xffb0b8, 34);
+    }
+    CINE.lastLook = camera.position.clone().add(
+      camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(10));
+
     if (CINE.A.self) { player.iframes = 9e9; player.vel.set(0, 0, 0); }
     if (CINE.V.self) { player.iframes = 9e9; player.vel.set(0, 0, 0); }
   }
