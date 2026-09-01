@@ -833,6 +833,12 @@
         }
         return;
       }
+      case 'awakening': {
+        /* what the other clients play while somebody is taking the
+           blindfold off in front of them */
+        posesCine(r, a.t);
+        return;
+      }
       case 'void': {
         /* held upright by information, arms slack, head back */
         resetPose(r);

@@ -224,6 +224,37 @@
   var SPHERE = new THREE.SphereGeometry(1, 40, 28);
   var CHUNK = new THREE.BoxGeometry(1, 1, 1);
 
+  /* Three.js bakes the light count into every material's shader, so adding a
+     light mid-fight recompiles all of them and drops frames exactly when the
+     screen is busiest. These are created once, at nothing, and borrowed. */
+  var LIGHTS = (function () {
+    var out = [];
+    for (var i = 0; i < 3; i++) {
+      var l = new THREE.PointLight(0xffffff, 0, 30);
+      l.position.set(0, -60, 0);
+      l.free = true;
+      scene.add(l);
+      out.push(l);
+    }
+    return out;
+  })();
+  function takeLight(color, distance) {
+    for (var i = 0; i < LIGHTS.length; i++) {
+      if (!LIGHTS[i].free) continue;
+      LIGHTS[i].free = false;
+      LIGHTS[i].color.set(color);
+      LIGHTS[i].distance = distance;
+      return LIGHTS[i];
+    }
+    return null;
+  }
+  function dropLight(l) {
+    if (!l) return;
+    l.intensity = 0;
+    l.position.set(0, -60, 0);
+    l.free = true;
+  }
+
   function billboard(texture, color, opacity, blend) {
     var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
       map: texture, color: color, transparent: true, opacity: opacity == null ? 1 : opacity,
@@ -513,7 +544,6 @@
       var m = new THREE.Mesh(CHUNK, new THREE.MeshStandardMaterial({ color: color, roughness: .9 }));
       m.scale.set(s, s * (.5 + Math.random()), s * (.6 + Math.random() * .8));
       m.position.copy(pos).add(new THREE.Vector3((Math.random() - .5) * 3, .4 + Math.random(), (Math.random() - .5) * 3));
-      m.castShadow = true;
       scene.add(m);
       (function (m) {
         var v = new THREE.Vector3((Math.random() - .5) * spd, spd * (.4 + Math.random() * .7), (Math.random() - .5) * spd);
@@ -675,8 +705,7 @@
     g.add(core, shell, halo);
     g.renderOrder = 6;
     scene.add(g);
-    var light = new THREE.PointLight(color, 2.4, r * 22);
-    g.add(light);
+    var light = takeLight(color, r * 22);
 
     var t = 0;
     return {
@@ -691,12 +720,13 @@
         shell.scale.setScalar(r * (1 + Math.sin(t * 13) * .05) * energy);
         faceCam(halo, t * .8);
         halo.scale.setScalar(r * 4 * energy * (1 + Math.sin(t * 17) * .09));
-        light.intensity = 2.4 * energy;
+        if (light) { light.position.copy(g.position); light.intensity = 2.4 * energy; }
         if (Math.random() < .55) mote(g.position, color, r * 3.4, .28);
       },
       flash: function () { faceCam(halo, 0); },
       dispose: function () {
         scene.remove(g);
+        dropLight(light);
         core.material.dispose(); shell.material.dispose(); halo.material.dispose();
       }
     };
@@ -744,12 +774,11 @@
     base.rotation.x = -Math.PI / 2;
     base.scale.set(6, 6, 1);
     scene.add(base);
-    var light = new THREE.PointLight(color, 1.7, 26);
-    scene.add(light);
+    var light = takeLight(color, 26);
 
     addFx({ t: 1, update: function (dt) {
       if (!alive) {
-        kill(column); kill(base); scene.remove(light);
+        kill(column); kill(base); dropLight(light);
         return false;
       }
       t += dt;
@@ -763,8 +792,10 @@
       var s = 6 + Math.sin(t * 6) * .5;
       base.scale.set(s, s, 1);
       base.material.opacity = .45 + Math.sin(t * 8) * .12;
-      light.position.set(p.x, p.y + 3, p.z);
-      light.intensity = 1.6 + Math.sin(t * 12) * .4;
+      if (light) {
+        light.position.set(p.x, p.y + 3, p.z);
+        light.intensity = 1.6 + Math.sin(t * 12) * .4;
+      }
       /* embers rising off them, the standing sign of a raised output */
       acc += dt;
       if (acc > (opt.gap || .055)) {
@@ -933,7 +964,8 @@
   /* a body being hit hard: flash frame, cross, spokes, ring, dust */
   function heavyHit(pos, color, power) {
     power = power || 1;
-    cross(pos, 0xffffff, 2.6 * power, .2);
+    /* the white cross is the frame a heavy hit gets; a jab does not earn it */
+    if (power >= .95) cross(pos, 0xffffff, 2.6 * power, .2);
     impact(pos, color, 1.1 * power);
     ring(pos.clone(), color, { maxR: 5.5 * power, life: .34, ground: false });
     dust(new THREE.Vector3(pos.x, 0, pos.z), 4, 0xd7dde8, 4, 2);

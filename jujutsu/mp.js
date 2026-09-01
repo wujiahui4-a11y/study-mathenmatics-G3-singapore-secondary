@@ -620,6 +620,13 @@
       var cf = MP.fighters[m.id];
       if (!cf || !cf.e) return;
       remoteFx(m.k, cf.e.pos.clone(), cf.e.facing);
+      /* their blindfold comes off partway through their entrance, not at
+         the end of it, so it is applied on the same beat they see */
+      if (m.k === 'awaken' && window.JJAW) {
+        setTimeout(function () {
+          if (MP.fighters[m.id] === cf) { cf.aw = true; window.JJAW.remote(cf, true); }
+        }, 1300);
+      }
       return;
     }
     if (m.t === 'hit' && m.to === MP.id) {              // somebody landed one on us
@@ -820,25 +827,37 @@
     }
 
     /* cursed energy at the turn, and again under the name card */
+    var FX = window.JJFX;
     if (t >= 2.15 && CS.shot < 1) {
       CS.shot = 1;
-      ringWave(player.pos.clone(), d.aura, 11, .55, true);
-      spark(player.pos.clone().add(new THREE.Vector3(0, 3, 0)), d.aura, 26, 18, 1.8);
+      if (FX) {
+        FX.speedRing(player.pos.clone().add(new THREE.Vector3(0, 3, 0)), d.aura, 8, .38);
+        FX.rings(player.pos.clone(), d.aura, 2, { maxR: 12, life: .55, gap: 60 });
+        FX.dust(player.pos.clone(), 6, 0xd3dceb, 6, 2.6);
+        FX.streaks(player.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), d.aura, 14, 16, 1.4);
+      }
       addShake(.25);
     }
     if (t >= 3.85 && CS.shot < 2) {
       CS.shot = 2;
       el('jjCineCard').classList.add('slam');
-      ringWave(player.pos.clone(), d.aura, 17, .6, true);
-      ringWave(player.pos.clone().add(new THREE.Vector3(0, 2, 0)), 0xffffff, 13, .45);
-      spark(player.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0xffffff, 30, 26, 2.2);
+      if (FX) {
+        FX.cross(player.pos.clone().add(new THREE.Vector3(0, 3.4, 0)), 0xffffff, 5, .3);
+        FX.rings(player.pos.clone(), d.aura, 3, { maxR: 18, life: .6, gap: 55 });
+        FX.ring(player.pos.clone().add(new THREE.Vector3(0, 2, 0)), 0xffffff, { maxR: 13, life: .45, ground: false });
+        FX.debris(player.pos.clone(), 8, 12);
+        FX.cracks(player.pos.clone(), 6, 8);
+        FX.mangaLines(true, .3);
+        FX.zoom(-8, .5);
+      }
       addShake(.55);
       if (typeof sfx !== 'undefined' && sfx.raise) { try { sfx.raise(); } catch (e) {} }
     }
     /* a steady drip of aura the whole way through */
-    if (Math.random() < .35) {
-      spark(player.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 2.4, .3 + Math.random() * 4.5, (Math.random() - .5) * 2.4)),
-        d.aura, 1, 5, .9);
+    if (Math.random() < .5) {
+      var at = player.pos.clone().add(new THREE.Vector3(
+        (Math.random() - .5) * 2.4, .3 + Math.random() * 4.2, (Math.random() - .5) * 2.4));
+      if (FX) FX.streaks(at, d.aura, 1, 5, .9); else spark(at, d.aura, 1, 5, .9);
     }
 
     if (t >= CS.dur) endCutscene();
@@ -1115,6 +1134,7 @@
   }
 
   function round2(v) { return Math.round(v * 100) / 100; }
+  function awakening() { return !!(window.JJAW && window.JJAW.cine); }
 
   function sendState(dt) {
     MP.sendAcc += dt;
@@ -1130,9 +1150,11 @@
       /* everything the animation needs to be reproduced exactly */
       sp: Math.round(sp * 10), og: player.onGround ? 1 : 0, vv: Math.round(player.vel.y * 10),
       at: player.attackT > 0 ? (player.attackArm + 1) : 0,
-      ac: player.action ? player.action.type : 0,
-      ap: player.action ? Math.round(player.action.t * 100) : 0,
-      ad: player.action ? Math.round(player.action.dur * 100) : 0,
+      /* the awakening is not an action, but the other screens still have to
+         play the poses, so it travels as one */
+      ac: awakening() ? 'awakening' : (player.action ? player.action.type : 0),
+      ap: awakening() ? Math.round(window.JJAW.ct * 100) : (player.action ? Math.round(player.action.t * 100) : 0),
+      ad: awakening() ? 360 : (player.action ? Math.round(player.action.dur * 100) : 0),
       rk: player.react ? player.react.type : 0,
       rt: player.react ? Math.round(player.react.t * 100) : 0,
       rd: player.react ? Math.round(player.react.dur * 100) : 0,

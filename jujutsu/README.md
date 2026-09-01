@@ -16,8 +16,58 @@ Title screen → **PLAY ONLINE WITH FRIENDS**.
   wait for a countdown.
 
 The training dummies step out when the match starts, so the arena is yours.
-Press `C` to switch between Gojo and Naoya at any time; everyone else sees you
-change. A scoreboard sits on the right and a kill feed on the left.
+A scoreboard sits on the right and a kill feed on the left.
+
+**Switching fighter takes eight seconds out of combat.** `C` starts the
+wind-down and a timer appears above the ability bar; taking a hit puts you
+back in combat and starts the eight seconds again, and pressing `C` a second
+time cancels. You cannot switch at all while awakened.
+
+## Gojo's awakening
+
+A meter under the ability bar fills while Gojo fights — fastest from hits you
+land and hits you take, slowly the rest of the time. At full it lights up and
+`F` takes the blindfold off.
+
+The entrance is three and a half seconds and cannot be interrupted: the ground
+cracks, the air is pulled in, the blindfold comes away on a white frame with
+the six eyes lit behind it, a column of cursed energy goes up and the name
+card lands. You are untouchable for all of it. The other players see the
+column, the shockwave and the poses, and their copy of you loses the blindfold
+on the same beat you do.
+
+For the next thirty four seconds `1`–`4` are a different kit, the aura stands
+off you, and health comes back about twice as fast.
+
+| Key | Technique | What it does |
+| --- | --- | --- |
+| `1` | **Lapse: Blue** | a point of attraction thrown forward; everything within nineteen metres is dragged toward it while it travels, then it collapses |
+| `2` | **Reversal: Red** | repulsion thrown as a front down a thirty metre cone — the hardest knockback in the game |
+| `3` | **Hollow Purple** | blue in one hand, red in the other, brought together and fired as a beam the length of the arena |
+| `4` | **Domain Expansion: Unlimited Void** | a dome thirty four metres across; everyone inside is held in place and fed more than they can process |
+
+`R` is still Limitless and the punch combo is unchanged. When the meter runs
+out the blindfold goes back on and the ordinary four return.
+
+Everything above is shared: the domain travels as its own message and locks
+anyone standing inside it on their own screen, and each technique is announced
+so the other clients play the matching effect from the right place, facing the
+right way.
+
+## Getting hit
+
+A hit hard enough to move you — anything over an impulse of seventeen —
+throws you rather than making you flinch. The throw is an *action*, not a
+reaction, which means the game already does the work: your cast is
+interrupted, movement is locked out until you land, and because the current
+action is broadcast every tick, every other screen plays the same tumble on
+their copy of you. Dummies and remote fighters use a matching pose driven by
+the same curve: arched over the impact with the limbs trailing, then a heavy
+landing and a scramble back up.
+
+The dash was a single velocity impulse fighting a drag of ten, so it covered
+about two metres. It now drives the velocity for the length of the dash and
+covers about twelve, with a short window of invulnerability at the start.
 
 ## How it works
 
@@ -97,12 +147,35 @@ shrugging the hit off.
 
 Ability *visuals* are made by the caster's client, so they would never appear
 on anybody else's screen. Each cast announces itself — watching
-`player.action` and `attackT` catches all nine abilities without patching a
-single cast function — and the other clients play a matching effect at that
-fighter's feet: a red blast for Reversal: Red, a flurry for Rapid Punches, a
-shockwave for Twofold Kick, a run of rings for Palm Barrage, a teleport puff
-for Limitless, frame-blue rings for Naoya's kit. These are visual only and
-never damage anything, because the hit already travels as its own message.
+`player.action` and `attackT` catches every ability without patching a single
+cast function — and the other clients play a matching effect at that fighter's
+feet: a red blast for Reversal: Red, a flurry for Rapid Punches, a shockwave
+for Twofold Kick, a run of rings for Palm Barrage, a teleport puff for
+Limitless, frame-blue rings for Naoya's kit, and the whole awakened set. These
+are visual only and never damage anything, because the hit already travels as
+its own message.
+
+### The effects kit
+
+`vfx.js` draws effects the way a sakuga cut draws them: flat shapes that snap
+in on one frame and are gone a few frames later. Almost everything is a
+billboard carrying a canvas-drawn texture — four and eight point stars, spoke
+bursts, rings with a hard leading edge, crescents, tapered streaks, jagged
+bolts, a starfield for the domain — because that is what an impact frame
+actually is. A hit is a white cross, a spoke burst and streaks that point
+along their own velocity, not a ball that inflates.
+
+The three helpers the original game used everywhere — `ringWave`, `spark` and
+`explodeRed` — are re-pointed at the kit, so every existing move was upgraded
+at the same time without touching `base.html`.
+
+Two things are handled carefully because they cost frames. Rings *across* the
+path of a blast are edge-on to whoever fired it, so a travelling front draws
+three rings per step — across the path, facing the camera, and on the floor —
+and reads from any angle. And three.js bakes the light count into every
+material's shader, so the point lights used by charge orbs and auras come from
+a pool created at load; adding one mid-fight would recompile every shader in
+the scene exactly when the screen is busiest.
 
 The title screen normally comes back whenever pointer lock is lost, which in a
 match looks like being thrown out of the room. During a match it is kept shut
@@ -197,6 +270,9 @@ disk.
 | File | What it does |
 | --- | --- |
 | `base.html` | the original game, untouched |
+| `vfx.js` | the effects kit: impact frames, rings, slashes, beams, domes |
+| `combat.js` | the longer dash, the throw, and the eight second fighter swap |
+| `gojo.js` | the awakening meter, its entrance and the four techniques |
 | `mp.js` | the online mode, appended inside the game's module |
 | `three.module.min.js` | vendored three.js 0.160.0 |
 | `mqtt.min.js` | vendored MQTT client |
