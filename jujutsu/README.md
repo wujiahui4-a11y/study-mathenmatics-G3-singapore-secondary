@@ -8,7 +8,8 @@ meter and glass frames.
 
 ## Playing
 
-Title screen → **PLAY ONLINE WITH FRIENDS**.
+Title screen → **PLAY ONLINE WITH FRIENDS**. Three fighters: Gojo, Naoya and
+Yuji.
 
 * **Create a room** gives you a six character code.
 * Everyone else types that code and joins.
@@ -22,6 +23,35 @@ A scoreboard sits on the right and a kill feed on the left.
 wind-down and a timer appears above the ability bar; taking a hit puts you
 back in combat and starts the eight seconds again, and pressing `C` a second
 time cancels. You cannot switch at all while awakened.
+
+## Yuji Itadori
+
+A third fighter, on the same bones as the other two: a rig config, an entry in
+`CHARS`, and moves that live in `stepAction` and `poseAction`. Pink crop,
+shaved sides, school collar, and markings that stay hidden until something else
+is driving.
+
+He has no technique, so everything he throws is thrown with his body, and that
+is the brief for the animation. Every move starts from the floor: the back foot
+turns, the hips go before the shoulders, the fist is last, and he finishes past
+the target rather than at it.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Divergent Fist** | lands, and then lands again half a second later — which is why the first hit barely moves them |
+| `2` | **Black Flash** | the frame goes out, comes back white, and what is left behind is black line work thrown through the air rather than light |
+| `3` | **Manji Kick** | a turning kick that takes them up with it |
+| `4` | **Crushing Blow** | up, and back down through the floor |
+| `R` | **Surge** | output dumped at once, to make room |
+
+`F` spends the shared meter on the thing living in him: the markings come up
+and for twenty six seconds everything he throws lands about a third harder.
+
+His poses run through the same spring layer as the cutscenes, but only while a
+move is playing — a spring on walking is just input lag. The arm doing the work
+is given a much stiffer spring than the rest of him: a strike that takes an
+eighth of a second on a loose spring never actually extends, and the whole
+thing reads as gliding.
 
 ## Gojo's awakening
 
@@ -354,6 +384,7 @@ disk.
 | `combat.js` | the longer dash, the throw, and the eight second fighter swap |
 | `gojo.js` | the awakening meter, Gojo's entrance and his four techniques |
 | `naoya.js` | Naoya's run, and the cut it ends in |
+| `yuji.js` | Yuji: his rig, his five moves and his transformation |
 | `mp.js` | the online mode, appended inside the game's module |
 | `three.module.min.js` | vendored three.js 0.160.0 |
 | `mqtt.min.js` | vendored MQTT client |
