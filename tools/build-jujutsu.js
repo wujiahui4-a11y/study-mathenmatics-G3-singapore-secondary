@@ -81,12 +81,20 @@ const partsThree = '<script type="importmap">\n' +
 const partsMqtt = '<script src="__PART_BASE__?p=2"></script>';
 
 let shell = assemble(partsThree, partsMqtt);
-/* the module itself is small enough to stay inline: it is the game, ~116 kB */
+
+/* A copy of the page, kept as inert text. An embedded page cannot be granted
+   pointer lock, but it can open a blank window and write this into it: that
+   window is a fresh top level context, so the mouse locks there. Whoever
+   serves the shell substitutes __PART_BASE__ inside this copy too, so its
+   script URLs are already absolute. */
+shell = shell.replace('</body>',
+  '<script type="text/plain" id="__selfDoc">' + guard(shell) + '</script>\n</body>');
+
 fs.writeFileSync(path.join(out, 'index.html'), shell);
 fs.writeFileSync(path.join(out, 'p1.js'), three);
 fs.writeFileSync(path.join(out, 'p2.js'), mqtt);
 fs.writeFileSync(path.join(out, 'index.local.html'),
-  shell.replace(/__PART_BASE__\?p=(\d+)/g, 'p$1.js'));
+  shell.replace(/__PART_BASE__\?p=(\d+)/g, './p$1.js'));
 
 console.log('jujutsu-parts/index.html  ' + Math.round(shell.length / 1024) + ' kB');
 console.log('jujutsu-parts/p1.js       ' + Math.round(three.length / 1024) + ' kB (three.js)');

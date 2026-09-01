@@ -3381,11 +3381,32 @@ window.__game = {
     window.addEventListener('contextmenu', function (e) { if (MP.active) e.preventDefault(); });
   }
 
+  /* Google's frame URL renders nothing on its own, so the new window is
+     opened blank and the page is written into it. A written about:blank
+     window escapes the sandbox, which is what lets the mouse lock there. */
   function popOut() {
     var w = null;
-    try { w = window.open(location.href, '_blank', 'width=1280,height=820'); } catch (e) {}
+    try { w = window.open('', '_blank', 'width=1280,height=820'); } catch (e) {}
     if (!w) {
       status('Your browser blocked the pop-up — allow pop-ups for this page and try again.', true);
+      return;
+    }
+    var self = document.getElementById('__selfDoc');
+    try {
+      if (self && self.textContent.length > 500) {
+        /* the copy stores its own closing script tags escaped, so they have
+           to be restored before the parser sees them; and a written window has
+           no URL of its own, so it needs a base for parts loaded by path */
+        var doc = self.textContent.split('<\\/script').join('<\/script')
+          .replace('<head>', '<head><base href="' + location.href.split('#')[0] + '">');
+        w.document.open();
+        w.document.write(doc);
+        w.document.close();
+      } else {
+        w.location.href = location.href;      // not the embedded build
+      }
+    } catch (e) {
+      status('Could not open the window: ' + (e.message || e), true);
       return;
     }
     status('Opened in a new window. Join the room from there.');
