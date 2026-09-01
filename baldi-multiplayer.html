@@ -21595,6 +21595,13 @@ else boot();
       'font:15px "Comic Sans MS","Chalkboard SE",cursive;color:#ffe98a;pointer-events:none;',
       'text-shadow:2px 2px 0 rgba(0,0,0,.6)}',
       '#mpDragHint b{color:#3fe0ff}',
+      '#mpPopOut{display:none;margin-top:14px;background:#0d0d0d;border:4px solid #e08a2e;',
+      'border-radius:6px;padding:12px 14px;font:13px/1.55 "Comic Sans MS","Chalkboard SE",cursive;color:#ffe98a}',
+      '#mpPopOut button{width:100%;margin-top:10px;background:#e08a2e;border:0;color:#1b1205;',
+      'border-radius:6px;padding:11px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}',
+      '#mpPopBtn2{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:43;display:none;',
+      'background:#e08a2e;border:0;color:#1b1205;border-radius:6px;padding:8px 16px;cursor:pointer;',
+      'font:700 13px "Comic Sans MS",cursive}',
       '#mpCaught{position:fixed;inset:0;z-index:74;display:none;align-items:center;justify-content:center;',
       'background:rgba(4,8,14,.9);color:#fff;font-family:inherit;text-align:center}',
       '#mpCaught .r{max-width:440px}',
@@ -21631,6 +21638,9 @@ else boot();
       '        <button id="mpLeave" class="ghost">LEAVE</button>',
       '      </div>',
       '    </div>',
+      '    <div id="mpPopOut">This page is embedded, so the browser will not let the game hold the',
+      '      mouse. Opening it in its own window fixes that.',
+      '      <button id="mpPopBtn">OPEN IN A FULL WINDOW</button></div>',
       '    <div id="mpStatus"></div>',
       '    <div class="row"><button id="mpBack" class="ghost">BACK</button></div>',
       '  </div>',
@@ -21644,6 +21654,7 @@ else boot();
       '<div id="mpClick"><div class="card"><b>CLICK TO LOOK AROUND</b>',
       '<span>move the mouse to look · Esc lets it go</span></div></div>',
       '<div id="mpDragHint">hold <b>RIGHT MOUSE</b> and move to look around</div>',
+      '<button id="mpPopBtn2">open in a full window for proper mouse look</button>',
       '<div id="mpResult"><div class="r"><h2 id="mpResultTitle">—</h2><p id="mpResultText"></p>',
       '<button id="mpResultBtn">BACK TO THE MENU</button></div></div>',
       '<div id="mpCaught"><div class="r"><h2 style="color:#ff8f84">BALDI CAUGHT YOU</h2>',
@@ -21666,6 +21677,13 @@ else boot();
     }
 
     el('mpBack').addEventListener('click', closeLobby);
+
+    /* An embedded page is never granted pointer lock, but a pop-up opened
+       from it is a fresh top level window that is not sandboxed — and there
+       the mouse locks normally. */
+    if (window.top !== window.self) el('mpPopOut').style.display = 'block';
+    el('mpPopBtn').addEventListener('click', popOut);
+    el('mpPopBtn2').addEventListener('click', popOut);
     el('mpCreate').addEventListener('click', function () { createRoom(); });
     /* These existing clicks are the user gestures browsers require before
        they will lock a pointer. No extra click is needed when the match starts. */
@@ -21701,6 +21719,13 @@ else boot();
       skills.appendChild(d);
     });
     bindSkillClicks();
+  }
+
+  function popOut() {
+    var w = null;
+    try { w = window.open(location.href, '_blank', 'width=1280,height=820'); } catch (e) {}
+    if (!w) { status('Your browser blocked the pop-up — allow pop-ups for this page and try again.', true); return; }
+    status('Opened in a new window. Start the room from there.');
   }
 
   function status(text, bad) {
@@ -21794,6 +21819,7 @@ else boot();
     if (MP.lockTimer) { clearInterval(MP.lockTimer); MP.lockTimer = null; }
     el('mpClick').style.display = 'none';
     el('mpDragHint').style.display = 'none';
+    el('mpPopBtn2').style.display = 'none';
     MP.dragging = false;
     document.body.classList.remove('mpMouseLocked');
     if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
@@ -22654,7 +22680,9 @@ else boot();
     /* three states: locked, loose but lockable, or a page that will never
        grant the lock — the last one gets drag-look instead */
     el('mpClick').style.display = (locked || MP.lockBlocked) ? 'none' : 'flex';
-    el('mpDragHint').style.display = (!locked && MP.lockBlocked && !MP.dragging) ? 'block' : 'none';
+    var showDrag = !locked && MP.lockBlocked && !MP.dragging;
+    el('mpDragHint').style.display = showDrag ? 'block' : 'none';
+    el('mpPopBtn2').style.display = (showDrag && window.top !== window.self) ? 'block' : 'none';
   }
 
   /* Hold the right button and move. Same relative movement as a locked mouse,

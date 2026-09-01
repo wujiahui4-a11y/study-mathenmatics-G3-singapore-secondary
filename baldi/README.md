@@ -47,9 +47,15 @@ Blocked pointer lock on an element because the element's frame is sandboxed
 and the 'allow-pointer-lock' permission is not set.
 ```
 
-Nothing on the page can win that back — a popup opened from the frame inherits
-the restriction and a nested iframe cannot hold more permissions than its
-parent. When the refusal is seen the game switches to **drag-look**: hold the
+There is one way out. Apps Script's sandbox includes
+`allow-popups-to-escape-sandbox`, so a pop-up opened to a **real URL** is a
+fresh top level window that is not sandboxed — and the mouse locks there
+normally. An embedded page now says so and offers **OPEN IN A FULL WINDOW**,
+both in the lobby and beside the look hint during a match. (A blob pop-up does
+not work: blob URLs inherit the opener's sandbox flags. A nested iframe cannot
+help either, since it can never hold more permissions than its parent.)
+
+For anyone who stays in the frame, the game switches to **drag-look**: hold the
 **right mouse button** and move. It reads the same relative movement, so there
 is still no cursor position or screen edge involved, and releasing and
 re-gripping works like lifting a mouse off the mat. Left click stays as shoot.
