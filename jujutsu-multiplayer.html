@@ -4334,6 +4334,24 @@ window.__game = {
 
     if (typeof collideWorld === 'function') collideWorld(rag.hips, 1);
 
+    /* Somebody else's body is simulated here so it flops on this screen
+       too, but where it ends up belongs to them: their broadcast pulls it
+       into place, gently enough not to fight the tumble. */
+    if (rag.pull) {
+      var g = Math.min(1, dt * (rag.down ? 9 : 3.6));
+      rag.hips.x += (rag.pull.x - rag.hips.x) * g;
+      rag.hips.z += (rag.pull.z - rag.hips.z) * g;
+      /* follow them up too, so a body thrown into the air is in the air on
+         every screen rather than lying down early */
+      if (rag.pull.y != null) {
+        var wantY = rag.pull.y + floor;
+        if (rag.pull.y > .3 || rag.hips.y < wantY) {
+          rag.hips.y += (wantY - rag.hips.y) * Math.min(1, dt * 2.6);
+          if (rag.hips.y > floor + .2) rag.down = false;
+        }
+      }
+    }
+
     /* once it is down it keeps tipping until it is lying on its side */
     if (rag.down) {
       rag.restT += dt;
@@ -4378,10 +4396,15 @@ window.__game = {
     }
 
     /* the body carries its owner's position with it, so the chase camera
-       keeps watching the corpse rather than the spot it died on */
-    ent.pos.x = rag.hips.x;
-    ent.pos.z = rag.hips.z;
-    ent.pos.y = 0;
+       keeps watching the corpse rather than the spot it died on — except
+       for a body that belongs to another client, whose position is theirs */
+    if (!rag.pull) {
+      ent.pos.x = rag.hips.x;
+      ent.pos.z = rag.hips.z;
+      /* the height goes out with it, so the other clients can put the body
+         where it actually is rather than flat on the floor */
+      ent.pos.y = Math.max(0, rag.hips.y - floor);
+    }
 
     /* --- write it out --- */
     var q = new THREE.Quaternion().setFromEuler(rag.rot);
@@ -8276,6 +8299,7 @@ window.__game = {
     var f = MP.fighters[id];
     if (!f) return;
     if (f.aura) { f.aura.stop(); f.aura = null; }
+    if (f.e && f.e.rag && window.JJRAG) window.JJRAG.stop(f.e);
     var i = enemies.indexOf(f.e);
     if (i >= 0) enemies.splice(i, 1);
     scene.remove(f.e.rig.root);
@@ -8318,8 +8342,26 @@ window.__game = {
       g.ty = m.h / 10;
       if (g.e.pos.x === 0 && g.e.pos.z === 0) { g.e.pos.set(m.x, g.ty, m.z); }
       g.e.hp = m.hp; g.e.maxHp = m.mx || 100;
+      /* Somebody else going down used to just hide their body, so only the
+         player who died ever saw a corpse. Their body drops here too, and
+         their own broadcast decides where it lands. */
+      if (!!m.d !== !!g.down) {
+        g.down = !!m.d;
+        if (g.down && window.JJRAG) {
+          var away = new THREE.Vector3(m.x - g.e.pos.x, 0, m.z - g.e.pos.z);
+          if (away.lengthSq() < .04) away.set(Math.random() - .5, 0, Math.random() - .5);
+          away.normalize().multiplyScalar(13);
+          away.y = 9;
+          window.JJRAG.start(g.e, away);
+          if (g.e.rag) g.e.rag.pull = { x: m.x, z: m.z, y: g.ty };
+        } else if (!g.down && window.JJRAG) {
+          window.JJRAG.stop(g.e);
+        }
+      }
+      if (g.e.rag) g.e.rag.pull = { x: m.x, z: m.z, y: g.ty };
       g.e.dead = !!m.d;
-      g.e.rig.root.visible = !m.d;
+      /* only hide them if there is no body to show */
+      g.e.rig.root.visible = !m.d || !!g.e.rag;
       g.remoteFramed = !!m.f;
       /* animation state, replayed on their rig exactly as they see it */
       g.speed = (m.sp || 0) / 10;
@@ -8752,6 +8794,7 @@ window.__game = {
   var _enemyUpdate = Enemy.prototype.update;
   Enemy.prototype.update = function (dt) {
     if (!this.net) return _enemyUpdate.call(this, dt);
+    if (this.rag) return;                            // the body is falling
     /* keep the parts of the enemy tick that are purely cosmetic */
     if (this.frameT > 0) this.frameT -= dt;
     if (this.stunT > 0) this.stunT -= dt;

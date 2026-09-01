@@ -125,6 +125,24 @@
 
     if (typeof collideWorld === 'function') collideWorld(rag.hips, 1);
 
+    /* Somebody else's body is simulated here so it flops on this screen
+       too, but where it ends up belongs to them: their broadcast pulls it
+       into place, gently enough not to fight the tumble. */
+    if (rag.pull) {
+      var g = Math.min(1, dt * (rag.down ? 9 : 3.6));
+      rag.hips.x += (rag.pull.x - rag.hips.x) * g;
+      rag.hips.z += (rag.pull.z - rag.hips.z) * g;
+      /* follow them up too, so a body thrown into the air is in the air on
+         every screen rather than lying down early */
+      if (rag.pull.y != null) {
+        var wantY = rag.pull.y + floor;
+        if (rag.pull.y > .3 || rag.hips.y < wantY) {
+          rag.hips.y += (wantY - rag.hips.y) * Math.min(1, dt * 2.6);
+          if (rag.hips.y > floor + .2) rag.down = false;
+        }
+      }
+    }
+
     /* once it is down it keeps tipping until it is lying on its side */
     if (rag.down) {
       rag.restT += dt;
@@ -169,10 +187,15 @@
     }
 
     /* the body carries its owner's position with it, so the chase camera
-       keeps watching the corpse rather than the spot it died on */
-    ent.pos.x = rag.hips.x;
-    ent.pos.z = rag.hips.z;
-    ent.pos.y = 0;
+       keeps watching the corpse rather than the spot it died on — except
+       for a body that belongs to another client, whose position is theirs */
+    if (!rag.pull) {
+      ent.pos.x = rag.hips.x;
+      ent.pos.z = rag.hips.z;
+      /* the height goes out with it, so the other clients can put the body
+         where it actually is rather than flat on the floor */
+      ent.pos.y = Math.max(0, rag.hips.y - floor);
+    }
 
     /* --- write it out --- */
     var q = new THREE.Quaternion().setFromEuler(rag.rot);

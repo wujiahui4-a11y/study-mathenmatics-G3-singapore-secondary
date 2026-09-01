@@ -549,6 +549,7 @@
     var f = MP.fighters[id];
     if (!f) return;
     if (f.aura) { f.aura.stop(); f.aura = null; }
+    if (f.e && f.e.rag && window.JJRAG) window.JJRAG.stop(f.e);
     var i = enemies.indexOf(f.e);
     if (i >= 0) enemies.splice(i, 1);
     scene.remove(f.e.rig.root);
@@ -591,8 +592,26 @@
       g.ty = m.h / 10;
       if (g.e.pos.x === 0 && g.e.pos.z === 0) { g.e.pos.set(m.x, g.ty, m.z); }
       g.e.hp = m.hp; g.e.maxHp = m.mx || 100;
+      /* Somebody else going down used to just hide their body, so only the
+         player who died ever saw a corpse. Their body drops here too, and
+         their own broadcast decides where it lands. */
+      if (!!m.d !== !!g.down) {
+        g.down = !!m.d;
+        if (g.down && window.JJRAG) {
+          var away = new THREE.Vector3(m.x - g.e.pos.x, 0, m.z - g.e.pos.z);
+          if (away.lengthSq() < .04) away.set(Math.random() - .5, 0, Math.random() - .5);
+          away.normalize().multiplyScalar(13);
+          away.y = 9;
+          window.JJRAG.start(g.e, away);
+          if (g.e.rag) g.e.rag.pull = { x: m.x, z: m.z, y: g.ty };
+        } else if (!g.down && window.JJRAG) {
+          window.JJRAG.stop(g.e);
+        }
+      }
+      if (g.e.rag) g.e.rag.pull = { x: m.x, z: m.z, y: g.ty };
       g.e.dead = !!m.d;
-      g.e.rig.root.visible = !m.d;
+      /* only hide them if there is no body to show */
+      g.e.rig.root.visible = !m.d || !!g.e.rag;
       g.remoteFramed = !!m.f;
       /* animation state, replayed on their rig exactly as they see it */
       g.speed = (m.sp || 0) / 10;
@@ -1025,6 +1044,7 @@
   var _enemyUpdate = Enemy.prototype.update;
   Enemy.prototype.update = function (dt) {
     if (!this.net) return _enemyUpdate.call(this, dt);
+    if (this.rag) return;                            // the body is falling
     /* keep the parts of the enemy tick that are purely cosmetic */
     if (this.frameT > 0) this.frameT -= dt;
     if (this.stunT > 0) this.stunT -= dt;
