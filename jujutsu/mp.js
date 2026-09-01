@@ -1306,6 +1306,59 @@
         }, 750);
         break;
 
+      case 'h1':
+        setTimeout(function () {
+          FX.ring(new THREE.Vector3(pos.x, .1, pos.z), 0xffcc4d, { maxR: 7, life: .5 });
+          FX.dust(pos.clone(), 5, 0xcfc3a8, 7, 2.6);
+        }, 150);
+        setTimeout(function () {
+          var at = mid.clone().addScaledVector(fwd, 7);
+          FX.cross(at, 0xffe08a, 6, .3);
+          FX.impact(at, 0xffcc4d, 2.2);
+          FX.rings(at, 0xffcc4d, 3, { maxR: 12, life: .5, ground: false, gap: 40 });
+          FX.debris(new THREE.Vector3(at.x, 0, at.z), 8, 14, 0x8b93a2);
+          if (near) addShake(.6);
+        }, 900);
+        break;
+      case 'h2':
+        for (i = 0; i < 14; i++) {
+          (function (n) {
+            setTimeout(function () {
+              FX.streaks(mid.clone().addScaledVector(fwd, 2 + n * 1.3), 0xffe08a, 2, 12, .8);
+            }, 300 + n * 55);
+          })(i);
+        }
+        break;
+      case 'h3':
+        [260, 480, 700].forEach(function (ms, n) {
+          setTimeout(function () {
+            var at = mid.clone().addScaledVector(fwd, 2.5);
+            FX.impact(at, 0xffcc4d, 1.1 + n * .3);
+            FX.slash(at, fwd, 0xffe08a, 3.4 + n, .16);
+          }, ms);
+        });
+        setTimeout(function () {
+          var at = pos.clone().addScaledVector(fwd, 2.2);
+          FX.cross(at.clone().add(new THREE.Vector3(0, 1.6, 0)), 0xffffff, 6.5, .3);
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), 0xffd964, 4, { maxR: 15, life: .6, gap: 42 });
+          FX.cracks(new THREE.Vector3(at.x, 0, at.z), 10, 14, 0x2a2418);
+          FX.debris(new THREE.Vector3(at.x, 0, at.z), 11, 16, 0x5c5240);
+          if (near) addShake(1.1);
+        }, 950);
+        break;
+      case 'h4':
+        setTimeout(function () {
+          FX.dome(new THREE.Vector3(pos.x, 1, pos.z), 32, 0xffcc4d, 5.4);
+          FX.rings(new THREE.Vector3(pos.x, .15, pos.z), 0xffd964, 4, { maxR: 32, life: .8, gap: 55 });
+          FX.cracks(pos.clone(), 11, 18, 0x2a2008);
+          FX.debris(pos.clone(), 12, 14, 0x6b5a30);
+          if (close) { FX.flash('#fff3d0', .5, .5); addShake(1.2); }
+        }, 850);
+        break;
+      case 'hr':
+        FX.streaks(mid, 0xffd964, 10, 14, 1.2);
+        FX.ring(new THREE.Vector3(pos.x, .1, pos.z), 0xffd964, { maxR: 7, life: .4 });
+        break;
       case 'y1':
         setTimeout(function () {
           var at = mid.clone().addScaledVector(fwd, 2.6);
