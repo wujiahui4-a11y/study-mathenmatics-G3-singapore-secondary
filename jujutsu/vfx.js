@@ -1040,6 +1040,118 @@
     }
   }
 
+  /* Rubble that is pulled off the ground toward a moving point, then rides
+     around it. Pieces start far out and small, grow as they arrive, and
+     never pop in already orbiting. */
+  function orbitRubble(getPos, n, color, opt) {
+    opt = opt || {};
+    n = n || 14;
+    color = color == null ? 0x5c6473 : color;
+    var from = opt.from || 12;
+    var to = opt.to || 3.6;
+    var rise = opt.rise || .55;
+    var bits = [];
+    var alive = true;
+    var mode = 'in';
+    var i;
+
+    function spawnOne(delay, startR) {
+      var s = .3 + Math.random() * .95;
+      var m = new THREE.Mesh(CHUNK, new THREE.MeshStandardMaterial({ color: color, roughness: .9 }));
+      m.scale.setScalar(.001);
+      var ang = Math.random() * TAU;
+      var r0 = startR != null ? startR : from * (.62 + Math.random() * .55);
+      var r1 = to * (.5 + Math.random() * .75);
+      var lift = .8 + Math.random() * 2.4;
+      var c0 = getPos();
+      m.position.set(c0.x + Math.cos(ang) * r0, .12, c0.z + Math.sin(ang) * r0);
+      scene.add(m);
+      bits.push({
+        m: m, ang: ang, r0: r0, r1: r1, lift: lift,
+        spin: (Math.random() < .5 ? -1 : 1) * (1.3 + Math.random() * 2.5),
+        av: new THREE.Vector3((Math.random() - .5) * 12, (Math.random() - .5) * 12, (Math.random() - .5) * 12),
+        delay: delay == null ? Math.random() * (opt.stagger || .48) : delay,
+        k: 0, sx: s, sy: s * (.45 + Math.random() * .4), sz: s * (.55 + Math.random() * .7),
+        v: null, life: 0
+      });
+    }
+
+    for (i = 0; i < n; i++) spawnOne(Math.random() * (opt.stagger || .48));
+
+    addFx({ t: 14, update: function (dt) {
+      if (!alive && mode !== 'out') {
+        for (i = 0; i < bits.length; i++) if (bits[i].m) { kill(bits[i].m); bits[i].m = null; }
+        return false;
+      }
+      var c = getPos();
+      if (!c) return true;
+      var any = false;
+      for (i = 0; i < bits.length; i++) {
+        var b = bits[i];
+        if (!b.m) continue;
+        any = true;
+        if (mode === 'out' && b.v) {
+          b.life -= dt;
+          b.v.y -= 30 * dt;
+          b.m.position.addScaledVector(b.v, dt);
+          b.m.rotation.x += b.av.x * dt;
+          b.m.rotation.y += b.av.y * dt;
+          b.m.rotation.z += b.av.z * dt;
+          if (b.m.position.y < .25) {
+            b.m.position.y = .25;
+            b.v.y = Math.abs(b.v.y) * .28;
+            b.v.x *= .6; b.v.z *= .6;
+          }
+          if (b.life < .45) {
+            b.m.material.transparent = true;
+            b.m.material.opacity = Math.max(0, b.life / .45);
+          }
+          if (b.life <= 0) { kill(b.m); b.m = null; }
+          continue;
+        }
+        if (b.delay > 0) { b.delay -= dt; continue; }
+        b.k = Math.min(1, b.k + dt / rise);
+        var e = ease.out(b.k);
+        b.ang += b.spin * dt * (.22 + e);
+        var r = b.r0 + (b.r1 - b.r0) * e;
+        var y = .12 + (c.y + b.lift - .12) * e;
+        b.m.position.set(c.x + Math.cos(b.ang) * r, y, c.z + Math.sin(b.ang) * r);
+        b.m.scale.set(b.sx * e, b.sy * e, b.sz * e);
+        b.m.rotation.x += b.av.x * dt * .35;
+        b.m.rotation.y += b.av.y * dt * .35;
+      }
+      if (!any) { alive = false; return false; }
+      return true;
+    } });
+
+    return {
+      add: function (count, startR) {
+        count = count || 1;
+        for (var j = 0; j < count; j++) spawnOne(0, startR);
+      },
+      release: function (spd) {
+        mode = 'out';
+        var c = getPos();
+        spd = spd || 16;
+        for (i = 0; i < bits.length; i++) {
+          var b = bits[i];
+          if (!b.m) continue;
+          var away = c ? b.m.position.clone().sub(c) : new THREE.Vector3((Math.random() - .5), .5, (Math.random() - .5));
+          if (away.lengthSq() < .01) away.set(Math.random() - .5, .5, Math.random() - .5);
+          away.normalize();
+          b.v = away.multiplyScalar(spd * (.5 + Math.random() * .75));
+          b.v.y = Math.max(b.v.y, 7 + Math.random() * 10);
+          b.life = 1.25 + Math.random() * .7;
+        }
+      },
+      dispose: function () {
+        if (mode === 'out') { alive = false; return; }
+        alive = false;
+        mode = 'dead';
+      }
+    };
+  }
+
   /* A front travelling away from the caster. Three reads per step — one
      across the path, one facing the camera and one on the floor — because a
      ring across the path is edge on to whoever fired it. */
@@ -1465,7 +1577,8 @@
     T: T, tex: T,
     impact: impact, cross: cross, streaks: streaks,
     ring: ring, rings: rings, speedRing: speedRing, slash: slash, wave: wave,
-    dust: dust, cracks: cracks, debris: debris, shockwave: shockwave, plates: plates,
+    dust: dust, cracks: cracks, debris: debris, orbitRubble: orbitRubble,
+    shockwave: shockwave, plates: plates,
     beam: beam, orb: orb, mote: mote, converge: converge,
     aura: aura, dome: dome, barrier: barrier,
     flash: flash, mangaLines: mangaLines, letterbox: letterbox, tint: tint, zoom: zoom,

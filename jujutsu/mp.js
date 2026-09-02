@@ -1423,16 +1423,25 @@
         if (close) { addShake(.8); FX.flash('#bfe0ff', .3, .5); }
         break;
       case 'aw_blue':
-        FX.speedRing(mid.clone().addScaledVector(fwd, 1.6), 0x59a8ff, 6, .3);
-        for (i = 0; i < 8; i++) {
+        var live = { p: mid.clone().addScaledVector(fwd, 1.6) };
+        var rocks = FX.orbitRubble(function () { return live.p; }, 16, 0x5c6473,
+          { from: 11, to: 4.2, rise: .5, stagger: .4 });
+        FX.speedRing(live.p.clone(), 0x59a8ff, 11, .34);
+        for (i = 0; i < 10; i++) {
           (function (n) {
             setTimeout(function () {
-              var at = mid.clone().addScaledVector(fwd, 2 + n * 2.6);
-              FX.ring(at, 0x59a8ff, { maxR: .6, from: 6, life: .3, ground: false, opacity: .8 });
-              FX.mote(at, 0x8fd0ff, 6, .26);
+              live.p.addScaledVector(fwd, 2.1);
+              FX.ring(live.p.clone(), 0x59a8ff, { maxR: 2.2, from: 8, life: .32, ground: false, opacity: .8 });
+              FX.mote(live.p.clone(), 0x8fd0ff, 10, .28);
+              if (n % 2 === 0) rocks.add(1, 8 + Math.random() * 4);
             }, 380 + n * 55);
           })(i);
         }
+        setTimeout(function () {
+          rocks.release(18);
+          FX.rings(live.p.clone(), 0x2f7bff, 3, { maxR: 22, life: .55, ground: false, gap: 45 });
+          FX.dust(new THREE.Vector3(live.p.x, 0, live.p.z), 8, 0xd2ddef, 12, 3.6);
+        }, 1320);
         break;
       case 'aw_red':
         setTimeout(function () {

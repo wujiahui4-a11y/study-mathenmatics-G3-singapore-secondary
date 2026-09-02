@@ -4005,6 +4005,118 @@ window.__game = {
     }
   }
 
+  /* Rubble that is pulled off the ground toward a moving point, then rides
+     around it. Pieces start far out and small, grow as they arrive, and
+     never pop in already orbiting. */
+  function orbitRubble(getPos, n, color, opt) {
+    opt = opt || {};
+    n = n || 14;
+    color = color == null ? 0x5c6473 : color;
+    var from = opt.from || 12;
+    var to = opt.to || 3.6;
+    var rise = opt.rise || .55;
+    var bits = [];
+    var alive = true;
+    var mode = 'in';
+    var i;
+
+    function spawnOne(delay, startR) {
+      var s = .3 + Math.random() * .95;
+      var m = new THREE.Mesh(CHUNK, new THREE.MeshStandardMaterial({ color: color, roughness: .9 }));
+      m.scale.setScalar(.001);
+      var ang = Math.random() * TAU;
+      var r0 = startR != null ? startR : from * (.62 + Math.random() * .55);
+      var r1 = to * (.5 + Math.random() * .75);
+      var lift = .8 + Math.random() * 2.4;
+      var c0 = getPos();
+      m.position.set(c0.x + Math.cos(ang) * r0, .12, c0.z + Math.sin(ang) * r0);
+      scene.add(m);
+      bits.push({
+        m: m, ang: ang, r0: r0, r1: r1, lift: lift,
+        spin: (Math.random() < .5 ? -1 : 1) * (1.3 + Math.random() * 2.5),
+        av: new THREE.Vector3((Math.random() - .5) * 12, (Math.random() - .5) * 12, (Math.random() - .5) * 12),
+        delay: delay == null ? Math.random() * (opt.stagger || .48) : delay,
+        k: 0, sx: s, sy: s * (.45 + Math.random() * .4), sz: s * (.55 + Math.random() * .7),
+        v: null, life: 0
+      });
+    }
+
+    for (i = 0; i < n; i++) spawnOne(Math.random() * (opt.stagger || .48));
+
+    addFx({ t: 14, update: function (dt) {
+      if (!alive && mode !== 'out') {
+        for (i = 0; i < bits.length; i++) if (bits[i].m) { kill(bits[i].m); bits[i].m = null; }
+        return false;
+      }
+      var c = getPos();
+      if (!c) return true;
+      var any = false;
+      for (i = 0; i < bits.length; i++) {
+        var b = bits[i];
+        if (!b.m) continue;
+        any = true;
+        if (mode === 'out' && b.v) {
+          b.life -= dt;
+          b.v.y -= 30 * dt;
+          b.m.position.addScaledVector(b.v, dt);
+          b.m.rotation.x += b.av.x * dt;
+          b.m.rotation.y += b.av.y * dt;
+          b.m.rotation.z += b.av.z * dt;
+          if (b.m.position.y < .25) {
+            b.m.position.y = .25;
+            b.v.y = Math.abs(b.v.y) * .28;
+            b.v.x *= .6; b.v.z *= .6;
+          }
+          if (b.life < .45) {
+            b.m.material.transparent = true;
+            b.m.material.opacity = Math.max(0, b.life / .45);
+          }
+          if (b.life <= 0) { kill(b.m); b.m = null; }
+          continue;
+        }
+        if (b.delay > 0) { b.delay -= dt; continue; }
+        b.k = Math.min(1, b.k + dt / rise);
+        var e = ease.out(b.k);
+        b.ang += b.spin * dt * (.22 + e);
+        var r = b.r0 + (b.r1 - b.r0) * e;
+        var y = .12 + (c.y + b.lift - .12) * e;
+        b.m.position.set(c.x + Math.cos(b.ang) * r, y, c.z + Math.sin(b.ang) * r);
+        b.m.scale.set(b.sx * e, b.sy * e, b.sz * e);
+        b.m.rotation.x += b.av.x * dt * .35;
+        b.m.rotation.y += b.av.y * dt * .35;
+      }
+      if (!any) { alive = false; return false; }
+      return true;
+    } });
+
+    return {
+      add: function (count, startR) {
+        count = count || 1;
+        for (var j = 0; j < count; j++) spawnOne(0, startR);
+      },
+      release: function (spd) {
+        mode = 'out';
+        var c = getPos();
+        spd = spd || 16;
+        for (i = 0; i < bits.length; i++) {
+          var b = bits[i];
+          if (!b.m) continue;
+          var away = c ? b.m.position.clone().sub(c) : new THREE.Vector3((Math.random() - .5), .5, (Math.random() - .5));
+          if (away.lengthSq() < .01) away.set(Math.random() - .5, .5, Math.random() - .5);
+          away.normalize();
+          b.v = away.multiplyScalar(spd * (.5 + Math.random() * .75));
+          b.v.y = Math.max(b.v.y, 7 + Math.random() * 10);
+          b.life = 1.25 + Math.random() * .7;
+        }
+      },
+      dispose: function () {
+        if (mode === 'out') { alive = false; return; }
+        alive = false;
+        mode = 'dead';
+      }
+    };
+  }
+
   /* A front travelling away from the caster. Three reads per step — one
      across the path, one facing the camera and one on the floor — because a
      ring across the path is edge on to whoever fired it. */
@@ -4430,7 +4542,8 @@ window.__game = {
     T: T, tex: T,
     impact: impact, cross: cross, streaks: streaks,
     ring: ring, rings: rings, speedRing: speedRing, slash: slash, wave: wave,
-    dust: dust, cracks: cracks, debris: debris, shockwave: shockwave, plates: plates,
+    dust: dust, cracks: cracks, debris: debris, orbitRubble: orbitRubble,
+    shockwave: shockwave, plates: plates,
     beam: beam, orb: orb, mote: mote, converge: converge,
     aura: aura, dome: dome, barrier: barrier,
     flash: flash, mangaLines: mangaLines, letterbox: letterbox, tint: tint, zoom: zoom,
@@ -7705,31 +7818,42 @@ window.__game = {
   function stepBlue(a, dt) {
     var p = player;
     if (a.t < .38) {                                   // gathering
-      if (!a.orb) a.orb = FX.orb(0x2f7bff, 1.05);
-      var h = handPos(1);
-      a.orb.set(h);
-      a.orb.step(dt, .35 + a.t / .38 * .65);
-      if (Math.random() < .9) FX.mote(h, 0x59a8ff, 4.5, .28);
+      a.pos = handPos(1);
+      if (!a.orb) a.orb = FX.orb(0x2f7bff, 2.35);
+      if (!a.rocks) {
+        a.rocks = FX.orbitRubble(function () { return a.pos; }, 16, 0x5c6473,
+          { from: 11, to: 4.2, rise: .52, stagger: .42 });
+      }
+      a.orb.set(a.pos);
+      a.orb.step(dt, .35 + a.t / .38 * .8);
+      if (Math.random() < .9) FX.mote(a.pos, 0x59a8ff, 7.5, .3);
       return;
     }
     if (!a.fired) {                                    // released
       a.fired = 1;
       a.dir = aimDir();
-      a.pos = handPos(1).add(a.dir.clone().multiplyScalar(1.2));
-      FX.speedRing(a.pos.clone(), 0x59a8ff, 6, .3);
-      FX.cross(a.pos.clone(), 0x9fd8ff, 3, .22);
-      addShake(.2);
+      a.pos = handPos(1).add(a.dir.clone().multiplyScalar(1.6));
+      FX.speedRing(a.pos.clone(), 0x59a8ff, 11, .34);
+      FX.cross(a.pos.clone(), 0x9fd8ff, 5.2, .24);
+      if (a.rocks) a.rocks.add(6, 10);
+      addShake(.28);
     }
     if (a.done) return;
 
     /* it drifts forward and drags everything in with it */
     a.pos.addScaledVector(a.dir, 21 * dt);
     a.orb.set(a.pos);
-    a.orb.step(dt, 1);
-    if (Math.random() < .85) FX.mote(a.pos.clone(), 0x8fd0ff, 7.5, .3);
+    a.orb.step(dt, 1.15);
+    if (Math.random() < .9) FX.mote(a.pos.clone(), 0x8fd0ff, 11, .32);
     /* the space around a point of attraction folds toward it */
-    if (Math.random() < .5) {
-      FX.ring(a.pos.clone(), 0x59a8ff, { maxR: .6, from: 7, life: .32, ground: false, opacity: .8 });
+    if (Math.random() < .55) {
+      FX.ring(a.pos.clone(), 0x59a8ff, { maxR: 2.2, from: 9, life: .34, ground: false, opacity: .8 });
+    }
+    /* more of the floor coming up around it, one or two pieces at a time */
+    a.rockT = (a.rockT || 0) + dt;
+    if (a.rocks && a.rockT > .1) {
+      a.rockT = 0;
+      a.rocks.add(1, 8 + Math.random() * 5);
     }
 
     a.pull = (a.pull || 0) + dt;
@@ -7738,12 +7862,12 @@ window.__game = {
       e = list[i];
       d = a.pos.clone().sub(e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)));
       dist = d.length();
-      if (dist > 19) continue;
+      if (dist > 24) continue;
       d.normalize();
       /* knockback pointing at the orb is a pull, and it travels to the
          other clients as an ordinary hit, so they get dragged too */
       if (a.pull > .22) {
-        e.damage(2, d.clone().multiplyScalar(15 + (1 - dist / 19) * 13),
+        e.damage(2, d.clone().multiplyScalar(15 + (1 - dist / 24) * 13),
           { react: 'pummel', reactDur: .3, noFrameBonus: true, spark: 0x59a8ff });
       }
     }
@@ -7751,7 +7875,7 @@ window.__game = {
 
     var hit = null;
     for (i = 0; i < list.length; i++) {
-      if (list[i].pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(a.pos) < 3.1) { hit = list[i]; break; }
+      if (list[i].pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(a.pos) < 5.6) { hit = list[i]; break; }
     }
     if (hit || a.t > 1.32) collapseBlue(a);
   }
@@ -7761,14 +7885,14 @@ window.__game = {
     a.done = 1;
     var at = a.pos.clone();
     if (a.orb) { a.orb.dispose(); a.orb = null; }
+    if (a.rocks) { a.rocks.release(18); a.rocks = null; }
     /* everything falls in, then the point lets go */
     FX.flash('#cfe4ff', .3, .25);
-    FX.cross(at, 0x9fd8ff, 6, .28);
-    FX.impact(at, 0x59a8ff, 2.2);
-    FX.rings(at, 0x2f7bff, 3, { maxR: 17, life: .55, ground: false, gap: 45 });
-    FX.ring(new THREE.Vector3(at.x, .1, at.z), 0x59a8ff, { maxR: 16, life: .6 });
-    FX.dust(new THREE.Vector3(at.x, 0, at.z), 9, 0xd2ddef, 10, 3.4);
-    FX.debris(new THREE.Vector3(at.x, 0, at.z), 9, 14);
+    FX.cross(at, 0x9fd8ff, 8.5, .3);
+    FX.impact(at, 0x59a8ff, 3.1);
+    FX.rings(at, 0x2f7bff, 3, { maxR: 24, life: .6, ground: false, gap: 45 });
+    FX.ring(new THREE.Vector3(at.x, .1, at.z), 0x59a8ff, { maxR: 22, life: .65 });
+    FX.dust(new THREE.Vector3(at.x, 0, at.z), 12, 0xd2ddef, 13, 4);
     FX.zoom(9, .4);
     addShake(.7);
     hitstop(.07);
@@ -7777,10 +7901,10 @@ window.__game = {
     targets().forEach(function (e) {
       var c = e.pos.clone().add(new THREE.Vector3(0, 2.4, 0));
       var dist = c.distanceTo(at);
-      if (dist > 15) return;
-      var away = c.sub(at).normalize().multiplyScalar(24 * (1.2 - dist / 15 * .7));
+      if (dist > 18) return;
+      var away = c.sub(at).normalize().multiplyScalar(24 * (1.2 - dist / 18 * .7));
       away.y = Math.max(away.y, 13);
-      e.damage(26 * (1.15 - dist / 15 * .45), away,
+      e.damage(26 * (1.15 - dist / 18 * .45), away,
         { react: 'gut', reactDur: .55, spark: 0x59a8ff, side: 1 });
     });
   }
@@ -8200,7 +8324,7 @@ window.__game = {
      otherwise leave its orbs hanging in the air. */
   var held = null;
   function cleanup(a) {
-    ['orb', 'blue', 'red', 'core'].forEach(function (k) {
+    ['orb', 'blue', 'red', 'core', 'rocks'].forEach(function (k) {
       if (a[k] && a[k].dispose) { a[k].dispose(); a[k] = null; }
     });
     /* Purple and the domain put the bars up on the way in and take them down
@@ -17505,16 +17629,25 @@ window.__game = {
         if (close) { addShake(.8); FX.flash('#bfe0ff', .3, .5); }
         break;
       case 'aw_blue':
-        FX.speedRing(mid.clone().addScaledVector(fwd, 1.6), 0x59a8ff, 6, .3);
-        for (i = 0; i < 8; i++) {
+        var live = { p: mid.clone().addScaledVector(fwd, 1.6) };
+        var rocks = FX.orbitRubble(function () { return live.p; }, 16, 0x5c6473,
+          { from: 11, to: 4.2, rise: .5, stagger: .4 });
+        FX.speedRing(live.p.clone(), 0x59a8ff, 11, .34);
+        for (i = 0; i < 10; i++) {
           (function (n) {
             setTimeout(function () {
-              var at = mid.clone().addScaledVector(fwd, 2 + n * 2.6);
-              FX.ring(at, 0x59a8ff, { maxR: .6, from: 6, life: .3, ground: false, opacity: .8 });
-              FX.mote(at, 0x8fd0ff, 6, .26);
+              live.p.addScaledVector(fwd, 2.1);
+              FX.ring(live.p.clone(), 0x59a8ff, { maxR: 2.2, from: 8, life: .32, ground: false, opacity: .8 });
+              FX.mote(live.p.clone(), 0x8fd0ff, 10, .28);
+              if (n % 2 === 0) rocks.add(1, 8 + Math.random() * 4);
             }, 380 + n * 55);
           })(i);
         }
+        setTimeout(function () {
+          rocks.release(18);
+          FX.rings(live.p.clone(), 0x2f7bff, 3, { maxR: 22, life: .55, ground: false, gap: 45 });
+          FX.dust(new THREE.Vector3(live.p.x, 0, live.p.z), 8, 0xd2ddef, 12, 3.6);
+        }, 1320);
         break;
       case 'aw_red':
         setTimeout(function () {
@@ -21754,6 +21887,118 @@ window.__game = {
     }
   }
 
+  /* Rubble that is pulled off the ground toward a moving point, then rides
+     around it. Pieces start far out and small, grow as they arrive, and
+     never pop in already orbiting. */
+  function orbitRubble(getPos, n, color, opt) {
+    opt = opt || {};
+    n = n || 14;
+    color = color == null ? 0x5c6473 : color;
+    var from = opt.from || 12;
+    var to = opt.to || 3.6;
+    var rise = opt.rise || .55;
+    var bits = [];
+    var alive = true;
+    var mode = 'in';
+    var i;
+
+    function spawnOne(delay, startR) {
+      var s = .3 + Math.random() * .95;
+      var m = new THREE.Mesh(CHUNK, new THREE.MeshStandardMaterial({ color: color, roughness: .9 }));
+      m.scale.setScalar(.001);
+      var ang = Math.random() * TAU;
+      var r0 = startR != null ? startR : from * (.62 + Math.random() * .55);
+      var r1 = to * (.5 + Math.random() * .75);
+      var lift = .8 + Math.random() * 2.4;
+      var c0 = getPos();
+      m.position.set(c0.x + Math.cos(ang) * r0, .12, c0.z + Math.sin(ang) * r0);
+      scene.add(m);
+      bits.push({
+        m: m, ang: ang, r0: r0, r1: r1, lift: lift,
+        spin: (Math.random() < .5 ? -1 : 1) * (1.3 + Math.random() * 2.5),
+        av: new THREE.Vector3((Math.random() - .5) * 12, (Math.random() - .5) * 12, (Math.random() - .5) * 12),
+        delay: delay == null ? Math.random() * (opt.stagger || .48) : delay,
+        k: 0, sx: s, sy: s * (.45 + Math.random() * .4), sz: s * (.55 + Math.random() * .7),
+        v: null, life: 0
+      });
+    }
+
+    for (i = 0; i < n; i++) spawnOne(Math.random() * (opt.stagger || .48));
+
+    addFx({ t: 14, update: function (dt) {
+      if (!alive && mode !== 'out') {
+        for (i = 0; i < bits.length; i++) if (bits[i].m) { kill(bits[i].m); bits[i].m = null; }
+        return false;
+      }
+      var c = getPos();
+      if (!c) return true;
+      var any = false;
+      for (i = 0; i < bits.length; i++) {
+        var b = bits[i];
+        if (!b.m) continue;
+        any = true;
+        if (mode === 'out' && b.v) {
+          b.life -= dt;
+          b.v.y -= 30 * dt;
+          b.m.position.addScaledVector(b.v, dt);
+          b.m.rotation.x += b.av.x * dt;
+          b.m.rotation.y += b.av.y * dt;
+          b.m.rotation.z += b.av.z * dt;
+          if (b.m.position.y < .25) {
+            b.m.position.y = .25;
+            b.v.y = Math.abs(b.v.y) * .28;
+            b.v.x *= .6; b.v.z *= .6;
+          }
+          if (b.life < .45) {
+            b.m.material.transparent = true;
+            b.m.material.opacity = Math.max(0, b.life / .45);
+          }
+          if (b.life <= 0) { kill(b.m); b.m = null; }
+          continue;
+        }
+        if (b.delay > 0) { b.delay -= dt; continue; }
+        b.k = Math.min(1, b.k + dt / rise);
+        var e = ease.out(b.k);
+        b.ang += b.spin * dt * (.22 + e);
+        var r = b.r0 + (b.r1 - b.r0) * e;
+        var y = .12 + (c.y + b.lift - .12) * e;
+        b.m.position.set(c.x + Math.cos(b.ang) * r, y, c.z + Math.sin(b.ang) * r);
+        b.m.scale.set(b.sx * e, b.sy * e, b.sz * e);
+        b.m.rotation.x += b.av.x * dt * .35;
+        b.m.rotation.y += b.av.y * dt * .35;
+      }
+      if (!any) { alive = false; return false; }
+      return true;
+    } });
+
+    return {
+      add: function (count, startR) {
+        count = count || 1;
+        for (var j = 0; j < count; j++) spawnOne(0, startR);
+      },
+      release: function (spd) {
+        mode = 'out';
+        var c = getPos();
+        spd = spd || 16;
+        for (i = 0; i < bits.length; i++) {
+          var b = bits[i];
+          if (!b.m) continue;
+          var away = c ? b.m.position.clone().sub(c) : new THREE.Vector3((Math.random() - .5), .5, (Math.random() - .5));
+          if (away.lengthSq() < .01) away.set(Math.random() - .5, .5, Math.random() - .5);
+          away.normalize();
+          b.v = away.multiplyScalar(spd * (.5 + Math.random() * .75));
+          b.v.y = Math.max(b.v.y, 7 + Math.random() * 10);
+          b.life = 1.25 + Math.random() * .7;
+        }
+      },
+      dispose: function () {
+        if (mode === 'out') { alive = false; return; }
+        alive = false;
+        mode = 'dead';
+      }
+    };
+  }
+
   /* A front travelling away from the caster. Three reads per step — one
      across the path, one facing the camera and one on the floor — because a
      ring across the path is edge on to whoever fired it. */
@@ -22179,7 +22424,8 @@ window.__game = {
     T: T, tex: T,
     impact: impact, cross: cross, streaks: streaks,
     ring: ring, rings: rings, speedRing: speedRing, slash: slash, wave: wave,
-    dust: dust, cracks: cracks, debris: debris, shockwave: shockwave, plates: plates,
+    dust: dust, cracks: cracks, debris: debris, orbitRubble: orbitRubble,
+    shockwave: shockwave, plates: plates,
     beam: beam, orb: orb, mote: mote, converge: converge,
     aura: aura, dome: dome, barrier: barrier,
     flash: flash, mangaLines: mangaLines, letterbox: letterbox, tint: tint, zoom: zoom,
@@ -25454,31 +25700,42 @@ window.__game = {
   function stepBlue(a, dt) {
     var p = player;
     if (a.t < .38) {                                   // gathering
-      if (!a.orb) a.orb = FX.orb(0x2f7bff, 1.05);
-      var h = handPos(1);
-      a.orb.set(h);
-      a.orb.step(dt, .35 + a.t / .38 * .65);
-      if (Math.random() < .9) FX.mote(h, 0x59a8ff, 4.5, .28);
+      a.pos = handPos(1);
+      if (!a.orb) a.orb = FX.orb(0x2f7bff, 2.35);
+      if (!a.rocks) {
+        a.rocks = FX.orbitRubble(function () { return a.pos; }, 16, 0x5c6473,
+          { from: 11, to: 4.2, rise: .52, stagger: .42 });
+      }
+      a.orb.set(a.pos);
+      a.orb.step(dt, .35 + a.t / .38 * .8);
+      if (Math.random() < .9) FX.mote(a.pos, 0x59a8ff, 7.5, .3);
       return;
     }
     if (!a.fired) {                                    // released
       a.fired = 1;
       a.dir = aimDir();
-      a.pos = handPos(1).add(a.dir.clone().multiplyScalar(1.2));
-      FX.speedRing(a.pos.clone(), 0x59a8ff, 6, .3);
-      FX.cross(a.pos.clone(), 0x9fd8ff, 3, .22);
-      addShake(.2);
+      a.pos = handPos(1).add(a.dir.clone().multiplyScalar(1.6));
+      FX.speedRing(a.pos.clone(), 0x59a8ff, 11, .34);
+      FX.cross(a.pos.clone(), 0x9fd8ff, 5.2, .24);
+      if (a.rocks) a.rocks.add(6, 10);
+      addShake(.28);
     }
     if (a.done) return;
 
     /* it drifts forward and drags everything in with it */
     a.pos.addScaledVector(a.dir, 21 * dt);
     a.orb.set(a.pos);
-    a.orb.step(dt, 1);
-    if (Math.random() < .85) FX.mote(a.pos.clone(), 0x8fd0ff, 7.5, .3);
+    a.orb.step(dt, 1.15);
+    if (Math.random() < .9) FX.mote(a.pos.clone(), 0x8fd0ff, 11, .32);
     /* the space around a point of attraction folds toward it */
-    if (Math.random() < .5) {
-      FX.ring(a.pos.clone(), 0x59a8ff, { maxR: .6, from: 7, life: .32, ground: false, opacity: .8 });
+    if (Math.random() < .55) {
+      FX.ring(a.pos.clone(), 0x59a8ff, { maxR: 2.2, from: 9, life: .34, ground: false, opacity: .8 });
+    }
+    /* more of the floor coming up around it, one or two pieces at a time */
+    a.rockT = (a.rockT || 0) + dt;
+    if (a.rocks && a.rockT > .1) {
+      a.rockT = 0;
+      a.rocks.add(1, 8 + Math.random() * 5);
     }
 
     a.pull = (a.pull || 0) + dt;
@@ -25487,12 +25744,12 @@ window.__game = {
       e = list[i];
       d = a.pos.clone().sub(e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)));
       dist = d.length();
-      if (dist > 19) continue;
+      if (dist > 24) continue;
       d.normalize();
       /* knockback pointing at the orb is a pull, and it travels to the
          other clients as an ordinary hit, so they get dragged too */
       if (a.pull > .22) {
-        e.damage(2, d.clone().multiplyScalar(15 + (1 - dist / 19) * 13),
+        e.damage(2, d.clone().multiplyScalar(15 + (1 - dist / 24) * 13),
           { react: 'pummel', reactDur: .3, noFrameBonus: true, spark: 0x59a8ff });
       }
     }
@@ -25500,7 +25757,7 @@ window.__game = {
 
     var hit = null;
     for (i = 0; i < list.length; i++) {
-      if (list[i].pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(a.pos) < 3.1) { hit = list[i]; break; }
+      if (list[i].pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(a.pos) < 5.6) { hit = list[i]; break; }
     }
     if (hit || a.t > 1.32) collapseBlue(a);
   }
@@ -25510,14 +25767,14 @@ window.__game = {
     a.done = 1;
     var at = a.pos.clone();
     if (a.orb) { a.orb.dispose(); a.orb = null; }
+    if (a.rocks) { a.rocks.release(18); a.rocks = null; }
     /* everything falls in, then the point lets go */
     FX.flash('#cfe4ff', .3, .25);
-    FX.cross(at, 0x9fd8ff, 6, .28);
-    FX.impact(at, 0x59a8ff, 2.2);
-    FX.rings(at, 0x2f7bff, 3, { maxR: 17, life: .55, ground: false, gap: 45 });
-    FX.ring(new THREE.Vector3(at.x, .1, at.z), 0x59a8ff, { maxR: 16, life: .6 });
-    FX.dust(new THREE.Vector3(at.x, 0, at.z), 9, 0xd2ddef, 10, 3.4);
-    FX.debris(new THREE.Vector3(at.x, 0, at.z), 9, 14);
+    FX.cross(at, 0x9fd8ff, 8.5, .3);
+    FX.impact(at, 0x59a8ff, 3.1);
+    FX.rings(at, 0x2f7bff, 3, { maxR: 24, life: .6, ground: false, gap: 45 });
+    FX.ring(new THREE.Vector3(at.x, .1, at.z), 0x59a8ff, { maxR: 22, life: .65 });
+    FX.dust(new THREE.Vector3(at.x, 0, at.z), 12, 0xd2ddef, 13, 4);
     FX.zoom(9, .4);
     addShake(.7);
     hitstop(.07);
@@ -25526,10 +25783,10 @@ window.__game = {
     targets().forEach(function (e) {
       var c = e.pos.clone().add(new THREE.Vector3(0, 2.4, 0));
       var dist = c.distanceTo(at);
-      if (dist > 15) return;
-      var away = c.sub(at).normalize().multiplyScalar(24 * (1.2 - dist / 15 * .7));
+      if (dist > 18) return;
+      var away = c.sub(at).normalize().multiplyScalar(24 * (1.2 - dist / 18 * .7));
       away.y = Math.max(away.y, 13);
-      e.damage(26 * (1.15 - dist / 15 * .45), away,
+      e.damage(26 * (1.15 - dist / 18 * .45), away,
         { react: 'gut', reactDur: .55, spark: 0x59a8ff, side: 1 });
     });
   }
@@ -25949,7 +26206,7 @@ window.__game = {
      otherwise leave its orbs hanging in the air. */
   var held = null;
   function cleanup(a) {
-    ['orb', 'blue', 'red', 'core'].forEach(function (k) {
+    ['orb', 'blue', 'red', 'core', 'rocks'].forEach(function (k) {
       if (a[k] && a[k].dispose) { a[k].dispose(); a[k] = null; }
     });
     /* Purple and the domain put the bars up on the way in and take them down
@@ -35254,16 +35511,25 @@ window.__game = {
         if (close) { addShake(.8); FX.flash('#bfe0ff', .3, .5); }
         break;
       case 'aw_blue':
-        FX.speedRing(mid.clone().addScaledVector(fwd, 1.6), 0x59a8ff, 6, .3);
-        for (i = 0; i < 8; i++) {
+        var live = { p: mid.clone().addScaledVector(fwd, 1.6) };
+        var rocks = FX.orbitRubble(function () { return live.p; }, 16, 0x5c6473,
+          { from: 11, to: 4.2, rise: .5, stagger: .4 });
+        FX.speedRing(live.p.clone(), 0x59a8ff, 11, .34);
+        for (i = 0; i < 10; i++) {
           (function (n) {
             setTimeout(function () {
-              var at = mid.clone().addScaledVector(fwd, 2 + n * 2.6);
-              FX.ring(at, 0x59a8ff, { maxR: .6, from: 6, life: .3, ground: false, opacity: .8 });
-              FX.mote(at, 0x8fd0ff, 6, .26);
+              live.p.addScaledVector(fwd, 2.1);
+              FX.ring(live.p.clone(), 0x59a8ff, { maxR: 2.2, from: 8, life: .32, ground: false, opacity: .8 });
+              FX.mote(live.p.clone(), 0x8fd0ff, 10, .28);
+              if (n % 2 === 0) rocks.add(1, 8 + Math.random() * 4);
             }, 380 + n * 55);
           })(i);
         }
+        setTimeout(function () {
+          rocks.release(18);
+          FX.rings(live.p.clone(), 0x2f7bff, 3, { maxR: 22, life: .55, ground: false, gap: 45 });
+          FX.dust(new THREE.Vector3(live.p.x, 0, live.p.z), 8, 0xd2ddef, 12, 3.6);
+        }, 1320);
         break;
       case 'aw_red':
         setTimeout(function () {

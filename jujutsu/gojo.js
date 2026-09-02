@@ -890,31 +890,42 @@
   function stepBlue(a, dt) {
     var p = player;
     if (a.t < .38) {                                   // gathering
-      if (!a.orb) a.orb = FX.orb(0x2f7bff, 1.05);
-      var h = handPos(1);
-      a.orb.set(h);
-      a.orb.step(dt, .35 + a.t / .38 * .65);
-      if (Math.random() < .9) FX.mote(h, 0x59a8ff, 4.5, .28);
+      a.pos = handPos(1);
+      if (!a.orb) a.orb = FX.orb(0x2f7bff, 2.35);
+      if (!a.rocks) {
+        a.rocks = FX.orbitRubble(function () { return a.pos; }, 16, 0x5c6473,
+          { from: 11, to: 4.2, rise: .52, stagger: .42 });
+      }
+      a.orb.set(a.pos);
+      a.orb.step(dt, .35 + a.t / .38 * .8);
+      if (Math.random() < .9) FX.mote(a.pos, 0x59a8ff, 7.5, .3);
       return;
     }
     if (!a.fired) {                                    // released
       a.fired = 1;
       a.dir = aimDir();
-      a.pos = handPos(1).add(a.dir.clone().multiplyScalar(1.2));
-      FX.speedRing(a.pos.clone(), 0x59a8ff, 6, .3);
-      FX.cross(a.pos.clone(), 0x9fd8ff, 3, .22);
-      addShake(.2);
+      a.pos = handPos(1).add(a.dir.clone().multiplyScalar(1.6));
+      FX.speedRing(a.pos.clone(), 0x59a8ff, 11, .34);
+      FX.cross(a.pos.clone(), 0x9fd8ff, 5.2, .24);
+      if (a.rocks) a.rocks.add(6, 10);
+      addShake(.28);
     }
     if (a.done) return;
 
     /* it drifts forward and drags everything in with it */
     a.pos.addScaledVector(a.dir, 21 * dt);
     a.orb.set(a.pos);
-    a.orb.step(dt, 1);
-    if (Math.random() < .85) FX.mote(a.pos.clone(), 0x8fd0ff, 7.5, .3);
+    a.orb.step(dt, 1.15);
+    if (Math.random() < .9) FX.mote(a.pos.clone(), 0x8fd0ff, 11, .32);
     /* the space around a point of attraction folds toward it */
-    if (Math.random() < .5) {
-      FX.ring(a.pos.clone(), 0x59a8ff, { maxR: .6, from: 7, life: .32, ground: false, opacity: .8 });
+    if (Math.random() < .55) {
+      FX.ring(a.pos.clone(), 0x59a8ff, { maxR: 2.2, from: 9, life: .34, ground: false, opacity: .8 });
+    }
+    /* more of the floor coming up around it, one or two pieces at a time */
+    a.rockT = (a.rockT || 0) + dt;
+    if (a.rocks && a.rockT > .1) {
+      a.rockT = 0;
+      a.rocks.add(1, 8 + Math.random() * 5);
     }
 
     a.pull = (a.pull || 0) + dt;
@@ -923,12 +934,12 @@
       e = list[i];
       d = a.pos.clone().sub(e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)));
       dist = d.length();
-      if (dist > 19) continue;
+      if (dist > 24) continue;
       d.normalize();
       /* knockback pointing at the orb is a pull, and it travels to the
          other clients as an ordinary hit, so they get dragged too */
       if (a.pull > .22) {
-        e.damage(2, d.clone().multiplyScalar(15 + (1 - dist / 19) * 13),
+        e.damage(2, d.clone().multiplyScalar(15 + (1 - dist / 24) * 13),
           { react: 'pummel', reactDur: .3, noFrameBonus: true, spark: 0x59a8ff });
       }
     }
@@ -936,7 +947,7 @@
 
     var hit = null;
     for (i = 0; i < list.length; i++) {
-      if (list[i].pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(a.pos) < 3.1) { hit = list[i]; break; }
+      if (list[i].pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(a.pos) < 5.6) { hit = list[i]; break; }
     }
     if (hit || a.t > 1.32) collapseBlue(a);
   }
@@ -946,14 +957,14 @@
     a.done = 1;
     var at = a.pos.clone();
     if (a.orb) { a.orb.dispose(); a.orb = null; }
+    if (a.rocks) { a.rocks.release(18); a.rocks = null; }
     /* everything falls in, then the point lets go */
     FX.flash('#cfe4ff', .3, .25);
-    FX.cross(at, 0x9fd8ff, 6, .28);
-    FX.impact(at, 0x59a8ff, 2.2);
-    FX.rings(at, 0x2f7bff, 3, { maxR: 17, life: .55, ground: false, gap: 45 });
-    FX.ring(new THREE.Vector3(at.x, .1, at.z), 0x59a8ff, { maxR: 16, life: .6 });
-    FX.dust(new THREE.Vector3(at.x, 0, at.z), 9, 0xd2ddef, 10, 3.4);
-    FX.debris(new THREE.Vector3(at.x, 0, at.z), 9, 14);
+    FX.cross(at, 0x9fd8ff, 8.5, .3);
+    FX.impact(at, 0x59a8ff, 3.1);
+    FX.rings(at, 0x2f7bff, 3, { maxR: 24, life: .6, ground: false, gap: 45 });
+    FX.ring(new THREE.Vector3(at.x, .1, at.z), 0x59a8ff, { maxR: 22, life: .65 });
+    FX.dust(new THREE.Vector3(at.x, 0, at.z), 12, 0xd2ddef, 13, 4);
     FX.zoom(9, .4);
     addShake(.7);
     hitstop(.07);
@@ -962,10 +973,10 @@
     targets().forEach(function (e) {
       var c = e.pos.clone().add(new THREE.Vector3(0, 2.4, 0));
       var dist = c.distanceTo(at);
-      if (dist > 15) return;
-      var away = c.sub(at).normalize().multiplyScalar(24 * (1.2 - dist / 15 * .7));
+      if (dist > 18) return;
+      var away = c.sub(at).normalize().multiplyScalar(24 * (1.2 - dist / 18 * .7));
       away.y = Math.max(away.y, 13);
-      e.damage(26 * (1.15 - dist / 15 * .45), away,
+      e.damage(26 * (1.15 - dist / 18 * .45), away,
         { react: 'gut', reactDur: .55, spark: 0x59a8ff, side: 1 });
     });
   }
@@ -1385,7 +1396,7 @@
      otherwise leave its orbs hanging in the air. */
   var held = null;
   function cleanup(a) {
-    ['orb', 'blue', 'red', 'core'].forEach(function (k) {
+    ['orb', 'blue', 'red', 'core', 'rocks'].forEach(function (k) {
       if (a[k] && a[k].dispose) { a[k].dispose(); a[k] = null; }
     });
     /* Purple and the domain put the bars up on the way in and take them down
