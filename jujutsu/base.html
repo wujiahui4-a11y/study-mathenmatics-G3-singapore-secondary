@@ -217,27 +217,29 @@
     margin: 26px 0 14px;
   }
   .roster-card {
-    width: 104px; padding: 6px 6px 8px; cursor: pointer;
-    background: rgba(10,8,10,.55);
+    width: 110px; padding: 0; cursor: pointer;
+    background: #0c0a0c;
     border: 1px solid rgba(212,180,90,.28);
     color: inherit; font: inherit;
-    transition: border-color .15s, transform .15s, box-shadow .15s, background .15s;
+    transition: border-color .15s, transform .15s, box-shadow .15s;
   }
   .roster-card:hover { border-color: var(--gold-hi); transform: translateY(-3px); }
   .roster-card.active {
     border-color: var(--gold);
-    background: rgba(36,24,12,.7);
-    box-shadow: 0 0 22px rgba(212,180,90,.22);
+    box-shadow: 0 0 26px rgba(212,180,90,.28);
   }
   .roster-card img {
-    display: block; width: 90px; height: 90px; margin: 0 auto 6px;
-    background: #0c0a0c; border: 1px solid rgba(212,180,90,.3);
+    display: block; width: 100%; height: 96px; object-fit: cover;
+    background: #0c0a0c; border: 0;
   }
   .roster-card .rn {
-    display: block;
+    display: block; padding: 7px 0 8px;
     font-family: 'Cinzel', serif;
     font-size: 11px; letter-spacing: 1.6px; color: #efe6d4;
+    background: rgba(0,0,0,.55);
+    border-top: 1px solid rgba(212,180,90,.2);
   }
+  .roster-card.active .rn { color: var(--gold-hi); background: rgba(40,28,10,.7); }
   #menuPick .pn {
     font-family: 'Finger Paint', 'Cinzel', cursive;
     font-size: 20px; letter-spacing: 3px; color: #fff8e6;
@@ -273,11 +275,11 @@
   }
   #jjOnline:hover { background: rgba(212,180,90,.1); }
   #menu .controls {
-    max-width: 760px; margin: 0 auto;
+    max-width: 640px; margin: 0 auto;
     font-size: 12px; line-height: 1.7; color: #c8bba6;
-    background: rgba(8,7,10,.45);
-    border: 1px solid rgba(212,180,90,.18);
-    padding: 12px 18px 10px;
+    background: rgba(8,7,10,.4);
+    border: 1px solid rgba(212,180,90,.16);
+    padding: 10px 16px 8px;
   }
   #menu .ctrl-universal { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; margin-bottom: 10px; }
   #menu .kchip {
@@ -373,11 +375,7 @@
         <span class="kchip"><b>F</b> awaken</span>
       </div>
       <div class="ctrl-kits">
-        <div class="kit-row"><span class="cn">GOJO</span><span><b>1</b> Red &nbsp;&middot;&nbsp; <b>2</b> Rapid &nbsp;&middot;&nbsp; <b>3</b> Twofold &nbsp;&middot;&nbsp; <b>4</b> Palm &nbsp;&middot;&nbsp; <b>R</b> Limitless</span></div>
-        <div class="kit-row"><span class="cn ny">NAOYA</span><span><b>1</b> Breaker &nbsp;&middot;&nbsp; <b>2</b> Tanto &nbsp;&middot;&nbsp; <b>3</b> Not Toji &nbsp;&middot;&nbsp; <b>R</b> 24 FPS</span></div>
-        <div class="kit-row"><span class="cn yj">YUJI</span><span><b>1</b> Divergent Fist &nbsp;&middot;&nbsp; <b>2</b> Black Flash &nbsp;&middot;&nbsp; <b>3</b> Manji &nbsp;&middot;&nbsp; <b>4</b> Crush &nbsp;&middot;&nbsp; <b>R</b> Surge</span></div>
-        <div class="kit-row"><span class="cn hk">HAKARI</span><span><b>1</b> Shutter &nbsp;&middot;&nbsp; <b>2</b> Barrage &nbsp;&middot;&nbsp; <b>3</b> Gachinko &nbsp;&middot;&nbsp; <b>4</b> Domain &nbsp;&middot;&nbsp; <b>R</b> Overwhelm</span></div>
-        <div class="kit-row"><span class="cn ch">CHOSO</span><span><b>1</b> Piercing Blood &nbsp;&middot;&nbsp; <b>2</b> Meteorite &nbsp;&middot;&nbsp; <b>3</b> Supernova &nbsp;&middot;&nbsp; <b>4</b> Scale &nbsp;&middot;&nbsp; <b>R</b> Edge</span></div>
+        <div class="kit-row" id="menuKit"></div>
       </div>
     </div>
     <div class="go">PICK A FIGHTER, THEN ENTER</div>
@@ -2766,7 +2764,6 @@ function setMenuMode(pause) {
 function enterArenaLocal(e) {
   if (e) { e.preventDefault(); e.stopPropagation(); }
   started = true;
-  setMenuMode(true);
   menu.style.display = "none";
   audio();
   renderer.domElement.requestPointerLock?.();
@@ -3100,6 +3097,18 @@ function refreshCharList() {
     menuPick.querySelector(".pn").textContent = CHARS[player.char].name;
     menuPick.querySelector(".ps").textContent = CHARS[player.char].sub;
   }
+  const kit = document.getElementById("menuKit");
+  if (kit && CHARS[player.char]) {
+    const c = CHARS[player.char];
+    const tint = { gojo: "", naoya: "ny", yuji: "yj", hakari: "hk", choso: "ch" }[player.char] || "";
+    const line = c.moves
+      .filter((m) => m.key !== "LMB" && m.key !== "Q")
+      .map((m) => `<b>${m.key}</b> ${m.lbl}`)
+      .join(" &nbsp;&middot;&nbsp; ");
+    kit.innerHTML = `<span class="cn ${tint}">${c.name.split(" ")[0]}</span><span>${line}</span>`;
+  }
+  const aw = document.querySelector("#menu .aw-row");
+  if (aw) aw.style.display = player.char === "gojo" ? "" : "none";
 }
 
 const cardName = document.querySelector("#charCard .name");
@@ -3187,7 +3196,7 @@ loop();
 /* test hooks */
 window.__game = {
   player, enemies, cds,
-  start() { started = true; setMenuMode(true); menu.style.display = "none"; },
+  start() { started = true; menu.style.display = "none"; },
   punch, doDash,
   castRed, castRapid, castTwofold, castPalm, castLimitless,
   castN1, castN2, castN3, castNaoyaR,

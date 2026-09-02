@@ -1390,10 +1390,11 @@
     if (!box) box = document.querySelector('#menu .controls');
     if (!box) return;
     var add = document.createElement('div');
-    add.className = 'kit-row';
+    add.className = 'kit-row aw-row';
     add.innerHTML =
-      '<span class="cn aw">AWAKENED</span> <b>F</b> awaken &nbsp;&middot;&nbsp; <b>1</b> Blue &nbsp;&middot;&nbsp; <b>2</b> Red &nbsp;&middot;&nbsp; <b>3</b> Purple &nbsp;&middot;&nbsp; <b>4</b> Void' +
-      '<span class="kit-note">C takes 8s out of combat</span>';
+      '<span class="cn aw">AWAKENED</span>' +
+      '<span><b>F</b> awaken &nbsp;&middot;&nbsp; <b>1</b> Blue &nbsp;&middot;&nbsp; <b>2</b> Red &nbsp;&middot;&nbsp; <b>3</b> Purple &nbsp;&middot;&nbsp; <b>4</b> Void' +
+      '<span class="kit-note">C takes 8s out of combat</span></span>';
     box.appendChild(add);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', listControls);
