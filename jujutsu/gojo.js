@@ -119,7 +119,19 @@
     if (songArmed) return;
     songArmed = true;
     try { audio(); } catch (e) {}
-    ensureSong();
+    var a = ensureSong();
+    /* unlock the element on a real gesture so a remote awakening can
+       start the track later without the browser swallowing play() */
+    a.muted = true;
+    var p = a.play();
+    if (p && p.then) {
+      p.then(function () {
+        if (!Object.keys(songIds).length) { try { a.pause(); a.currentTime = 0; } catch (e) {} }
+        a.muted = false;
+      }).catch(function () { a.muted = false; });
+    } else {
+      a.muted = false;
+    }
   }
   window.addEventListener('pointerdown', armSong);
   window.addEventListener('keydown', armSong);
@@ -156,10 +168,10 @@
     }
     var fs = window.MPJJ && window.MPJJ.fighters;
     if (fs) {
-      for (var id in songIds) {
-        if (id === 'local') continue;
+      for (var id in fs) {
         var f = fs[id];
         if (!f || !f.e || !f.e.pos) continue;
+        if (!songIds[id] && !f.aw) continue;
         pos = f.e.pos;
         d = player.pos.distanceTo(pos);
         if (d < bestD) { bestD = d; best = { pos: pos, dist: d, id: id }; }
