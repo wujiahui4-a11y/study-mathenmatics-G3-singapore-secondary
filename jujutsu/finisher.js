@@ -424,30 +424,35 @@
     } },
 
     /* -------------------------------------------------------- HAKARI */
-    /* 1 · Shutter — it comes down, it turns flat, and it goes through */
+    /* 1 · Shutter — the same train door, thrown, then laid through them */
     h1: { name: 'CUT IN HALF', color: '#ffcc4d', hold: 1.25, run: function (e, d, p, G) {
-      /* the door itself, thrown into them and then laid over */
-      var door = new THREE.Mesh(new THREE.BoxGeometry(9, 11, .9),
-        new THREE.MeshStandardMaterial({ color: 0x7c5a2a, roughness: .7, metalness: .3 }));
-      var trim = new THREE.Mesh(new THREE.BoxGeometry(9.4, .9, 1.1),
-        new THREE.MeshStandardMaterial({ color: 0xffd84a, roughness: .4, metalness: .6 }));
-      trim.position.y = 5.2;
-      door.add(trim);
-      door.position.copy(p).addScaledVector(d, -9).add(up(2.4));
-      door.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d);
-      scene.add(door);
+      var HK = window.JJHAKARI;
+      var door = (HK && HK.makeDoor) ? HK.makeDoor() : new THREE.Group();
+      /* facing lives on the root so flattening the door cannot wipe it */
+      var root = new THREE.Group();
+      var spin = new THREE.Group();
+      spin.add(door);
+      root.add(spin);
+      root.position.copy(p).addScaledVector(d, -9).add(up(3.2));
+      root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d);
+      scene.add(root);
       try { sfx.shatter(); } catch (err) {}
 
       var t = 0, hit = false, cut = false;
       addFx({ t: 2.4, update: function (dt) {
         this.t -= dt; t += dt;
+        if (HK) HK.pulseDoor(door, t * 3);
         if (t < .3) {                                 // in, hard
-          door.position.addScaledVector(d, dt * 30);
+          root.position.addScaledVector(d, dt * 30);
+          if (HK) HK.rattleDoor(door, .03);
+          if (Math.random() < .8) FX.streaks(root.position.clone(), 0xffe08a, 2, 14, 1.3);
         } else if (!hit) {
           hit = true;
-          FX.impact(p, 0xffcc4d, 3);
-          FX.cross(p, 0xffe08a, 6, .26);
-          FX.rings(p, 0xffcc4d, 3, { maxR: 12, life: .5, ground: false, gap: 34 });
+          FX.impact(p, 0xffcc4d, 3.2);
+          FX.cross(p, 0xffe08a, 7, .28);
+          FX.rings(p, 0xffcc4d, 3, { maxR: 13, life: .5, ground: false, gap: 34 });
+          FX.debris(p.clone(), 8, 12, 0x8b93a2);
+          FX.debris(p.clone(), 5, 10, 0xffcc4d);
           if (window.JJHITS) window.JJHITS.react(e, 'crumple', .8);
           addShake(1.6);
           if (typeof hitstop === 'function') hitstop(.12);
@@ -455,24 +460,32 @@
         if (t > .3 && t < .78) {
           /* and over it goes, until it is lying across their middle */
           var k = (t - .3) / .48;
-          door.rotation.x = -Math.PI / 2 * k;
-          door.position.y = 2.4 + Math.sin(k * Math.PI) * 1.4;
+          var u = k * k * (3 - 2 * k);
+          spin.rotation.x = -Math.PI / 2 * u;
+          root.position.y = 3.2 + Math.sin(u * Math.PI) * 1.2;
+          if (HK) HK.rattleDoor(door, .07 * (1 - k));
         }
         if (t >= .78 && !cut) {
           cut = true;
           FX.flash('#fff3d0', .55, .25);
+          FX.cutLine(
+            p.clone().add(new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(4)).add(up(3.3)),
+            p.clone().add(new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(-4)).add(up(3.3)),
+            0xffe08a, 1.2, .4);
+          FX.debris(p.clone().add(up(3.2)), 12, 16, 0x8b93a2);
           if (typeof hitstop === 'function') hitstop(.14);
           G.halve(e, { dir: d, power: 1.3, color: 0xffe08a, stand: .3 });
           addShake(2);
           try { sfx.sever(); } catch (err) {}
         }
         if (t > .78) {                                // the door falls past them
-          door.position.y -= dt * 9;
-          door.position.addScaledVector(d, dt * 3);
+          root.position.y -= dt * 9;
+          root.position.addScaledVector(d, dt * 3);
+          spin.rotation.x -= dt * .4;
         }
         if (this.t <= 0) {
-          scene.remove(door);
-          door.traverse(function (c) { if (c.isMesh) c.material.dispose(); });
+          if (HK && HK.dropDoor) HK.dropDoor(door);
+          scene.remove(root);
           return false;
         }
         return true;
