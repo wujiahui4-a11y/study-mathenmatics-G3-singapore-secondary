@@ -6843,91 +6843,85 @@ window.__game = {
   var SONG_FILE = 'Final_Encore_Full_Version.mp3';
   var SONG_HOST = 'https://raw.githubusercontent.com/wujiahui4-a11y/' +
     'study-mathenmatics-G3-singapore-secondary/main/Final_Encore_Full_Version.mp3';
-  var SONG_VOL = .62;
+  var SONG_CDN = 'https://cdn.jsdelivr.net/gh/wujiahui4-a11y/' +
+    'study-mathenmatics-G3-singapore-secondary@main/Final_Encore_Full_Version.mp3';
+  var SONG_VOL = .9;
   /* full volume inside this, silent past this. the domain is thirty-four
      metres, so anyone standing in it can still hear him */
   var HEAR_NEAR = 8, HEAR_FAR = 48;
-  var songEl = null, songIds = {}, songFade = 0, songTriedHost = false, songArmed = false;
-  var songGraph = null, songWant = 0;
+  var songEl = null, songIds = {}, songFade = 0, songArmed = false;
+  var songWant = 0, songUrls = null, songUrlI = 0, songErr = '';
 
-  function songUrl() {
-    var href = '';
+  function songCandidates() {
+    var list = [], href = '';
     try { href = String(location.href || ''); } catch (e) {}
-    if (/googleusercontent|script\.google|^about:|^blob:/i.test(href)) return SONG_HOST;
     try {
-      if (/\/jujutsu-parts\//.test(href)) return new URL('../' + SONG_FILE, href).href;
-      return new URL(SONG_FILE, href).href;
+      if (/\/jujutsu-parts\//.test(href)) {
+        list.push(new URL(SONG_FILE, href).href);
+        list.push(new URL('../' + SONG_FILE, href).href);
+      } else {
+        list.push(new URL(SONG_FILE, href).href);
+      }
     } catch (e) {
-      return SONG_FILE;
+      list.push(SONG_FILE);
     }
+    list.push(SONG_HOST);
+    list.push(SONG_CDN);
+    return list;
   }
 
   function ensureSong() {
     if (songEl) return songEl;
+    songUrls = songCandidates();
+    songUrlI = 0;
     var a = new Audio();
     a.preload = 'auto';
     a.loop = false;
-    a.crossOrigin = 'anonymous';
-    a.volume = 1;
-    a.src = songUrl();
+    a.muted = false;
+    a.volume = SONG_VOL;
+    a.src = songUrls[0];
+    try { document.body.appendChild(a); } catch (e) {}
     a.addEventListener('error', function () {
-      if (songTriedHost) return;
-      songTriedHost = true;
-      a.src = SONG_HOST;
-      a.load();
-      if (Object.keys(songIds).length) {
-        var p = a.play();
-        if (p && p.catch) p.catch(function () {});
+      songUrlI++;
+      if (songUrlI >= songUrls.length) {
+        songErr = 'could not load the theme';
+        if (window.JJNOTICE) window.JJNOTICE('THEME FAILED TO LOAD', '#ff8fa5');
+        return;
       }
+      songErr = 'try ' + songUrls[songUrlI];
+      a.src = songUrls[songUrlI];
+      a.load();
+      if (Object.keys(songIds).length) kickPlay(a);
     });
     songEl = a;
-    attachSong(a);
     return a;
   }
 
-  /* the element is the clock; the graph puts it on him in the world */
-  function attachSong(a) {
-    if (songGraph) return songGraph;
-    var ac = null;
-    try { ac = audio(); } catch (e) {}
-    if (!ac) return null;
-    try {
-      var src = ac.createMediaElementSource(a);
-      var gain = ac.createGain();
-      var panner = ac.createPanner();
-      panner.panningModel = 'equalpower';
-      panner.distanceModel = 'linear';
-      panner.refDistance = 1000;
-      panner.maxDistance = 10000;
-      panner.rolloffFactor = 0;
-      panner.coneInnerAngle = 360;
-      gain.gain.value = 0;
-      src.connect(panner);
-      panner.connect(gain);
-      gain.connect(ac.destination);
-      songGraph = { ac: ac, src: src, gain: gain, panner: panner };
-    } catch (e) {
-      songGraph = null;
+  function kickPlay(a) {
+    if (!a) return;
+    a.muted = false;
+    try { audio(); } catch (e) {}
+    var p = a.play();
+    if (p && p.catch) {
+      p.catch(function () {
+        if (window.JJNOTICE) window.JJNOTICE('CLICK TO HEAR THE THEME', '#9fd8ff');
+        var once = function () {
+          window.removeEventListener('pointerdown', once);
+          a.muted = false;
+          a.play().catch(function () {});
+        };
+        window.addEventListener('pointerdown', once);
+      });
     }
-    return songGraph;
   }
 
   function armSong() {
-    if (songArmed) return;
-    songArmed = true;
     try { audio(); } catch (e) {}
     var a = ensureSong();
-    /* unlock the element on a real gesture so a remote awakening can
-       start the track later without the browser swallowing play() */
-    a.muted = true;
-    var p = a.play();
-    if (p && p.then) {
-      p.then(function () {
-        if (!Object.keys(songIds).length) { try { a.pause(); a.currentTime = 0; } catch (e) {} }
-        a.muted = false;
-      }).catch(function () { a.muted = false; });
-    } else {
-      a.muted = false;
+    a.muted = false;
+    if (!songArmed) {
+      songArmed = true;
+      try { a.load(); } catch (e) {}
     }
   }
   window.addEventListener('pointerdown', armSong);
@@ -6935,16 +6929,13 @@ window.__game = {
 
   function playSong(restart) {
     var a = ensureSong();
-    attachSong(a);
+    a.muted = false;
+    a.volume = SONG_VOL;
     songFade = 0;
     if (restart) {
-      try { a.pause(); } catch (e) {}
       try { a.currentTime = 0; } catch (e) {}
     }
-    if (a.paused) {
-      var p = a.play();
-      if (p && p.catch) p.catch(function () {});
-    }
+    kickPlay(a);
   }
 
   function fadeSong() {
@@ -6977,34 +6968,6 @@ window.__game = {
     return best;
   }
 
-  function setListener(ac, from) {
-    var l = ac.listener;
-    var p = player.pos;
-    var fx = Math.sin(player.facing), fz = Math.cos(player.facing);
-    if (l.positionX) {
-      l.positionX.value = p.x;
-      l.positionY.value = p.y + 3.4;
-      l.positionZ.value = p.z;
-      l.forwardX.value = fx;
-      l.forwardY.value = 0;
-      l.forwardZ.value = fz;
-      l.upX.value = 0; l.upY.value = 1; l.upZ.value = 0;
-    } else if (l.setPosition) {
-      l.setPosition(p.x, p.y + 3.4, p.z);
-      l.setOrientation(fx, 0, fz, 0, 1, 0);
-    }
-    if (!from || !songGraph || !songGraph.panner) return;
-    var pan = songGraph.panner;
-    var x = from.x, y = from.y + 3.2, z = from.z;
-    if (pan.positionX) {
-      pan.positionX.value = x;
-      pan.positionY.value = y;
-      pan.positionZ.value = z;
-    } else if (pan.setPosition) {
-      pan.setPosition(x, y, z);
-    }
-  }
-
   function stepSong(dt) {
     var src = songSource();
     /* a late packet, or walking into range of someone already awakened,
@@ -7023,15 +6986,13 @@ window.__game = {
     } else if (src) {
       want = SONG_VOL * hearGain(src.dist);
       songWant = want;
-      if (songEl && songEl.paused && want > 0.01) playSong(false);
+      if (songEl && (songEl.paused || songEl.muted)) playSong(false);
     } else {
       want = 0;
       songWant = 0;
     }
-    if (songGraph && songGraph.gain) {
-      songGraph.gain.gain.value = want;
-      if (songGraph.ac && src) setListener(songGraph.ac, src.pos);
-    } else if (songEl) {
+    if (songEl) {
+      songEl.muted = false;
       songEl.volume = Math.max(0, Math.min(1, want));
     }
     renderHear(src, src ? hearGain(src.dist) : 0);
@@ -7046,8 +7007,7 @@ window.__game = {
     if (on) {
       var first = !songIds[id];
       songIds[id] = 1;
-      if (first) playSong(true);
-      else playSong(false);
+      playSong(!!first);
     } else {
       delete songIds[id];
       if (!Object.keys(songIds).length) fadeSong();
@@ -7061,15 +7021,16 @@ window.__game = {
   AW.HEAR_FAR = HEAR_FAR;
   AW.debugHear = function () {
     var src = songSource();
-    var g = songGraph && songGraph.gain ? songGraph.gain.gain.value
-      : (songEl ? songEl.volume : 0);
     return {
       ids: Object.keys(songIds),
       src: src ? { id: src.id, dist: +src.dist.toFixed(2), x: src.pos.x, z: src.pos.z } : null,
       hear: src ? hearGain(src.dist) : 0,
-      vol: +g.toFixed(3),
+      vol: songEl ? +songEl.volume.toFixed(3) : 0,
+      muted: !!(songEl && songEl.muted),
       t: songEl ? +songEl.currentTime.toFixed(2) : 0,
-      paused: !songEl || songEl.paused
+      paused: !songEl || songEl.paused,
+      file: songEl ? songEl.currentSrc : '',
+      err: songErr
     };
   };
 
@@ -23462,91 +23423,85 @@ window.__game = {
   var SONG_FILE = 'Final_Encore_Full_Version.mp3';
   var SONG_HOST = 'https://raw.githubusercontent.com/wujiahui4-a11y/' +
     'study-mathenmatics-G3-singapore-secondary/main/Final_Encore_Full_Version.mp3';
-  var SONG_VOL = .62;
+  var SONG_CDN = 'https://cdn.jsdelivr.net/gh/wujiahui4-a11y/' +
+    'study-mathenmatics-G3-singapore-secondary@main/Final_Encore_Full_Version.mp3';
+  var SONG_VOL = .9;
   /* full volume inside this, silent past this. the domain is thirty-four
      metres, so anyone standing in it can still hear him */
   var HEAR_NEAR = 8, HEAR_FAR = 48;
-  var songEl = null, songIds = {}, songFade = 0, songTriedHost = false, songArmed = false;
-  var songGraph = null, songWant = 0;
+  var songEl = null, songIds = {}, songFade = 0, songArmed = false;
+  var songWant = 0, songUrls = null, songUrlI = 0, songErr = '';
 
-  function songUrl() {
-    var href = '';
+  function songCandidates() {
+    var list = [], href = '';
     try { href = String(location.href || ''); } catch (e) {}
-    if (/googleusercontent|script\.google|^about:|^blob:/i.test(href)) return SONG_HOST;
     try {
-      if (/\/jujutsu-parts\//.test(href)) return new URL('../' + SONG_FILE, href).href;
-      return new URL(SONG_FILE, href).href;
+      if (/\/jujutsu-parts\//.test(href)) {
+        list.push(new URL(SONG_FILE, href).href);
+        list.push(new URL('../' + SONG_FILE, href).href);
+      } else {
+        list.push(new URL(SONG_FILE, href).href);
+      }
     } catch (e) {
-      return SONG_FILE;
+      list.push(SONG_FILE);
     }
+    list.push(SONG_HOST);
+    list.push(SONG_CDN);
+    return list;
   }
 
   function ensureSong() {
     if (songEl) return songEl;
+    songUrls = songCandidates();
+    songUrlI = 0;
     var a = new Audio();
     a.preload = 'auto';
     a.loop = false;
-    a.crossOrigin = 'anonymous';
-    a.volume = 1;
-    a.src = songUrl();
+    a.muted = false;
+    a.volume = SONG_VOL;
+    a.src = songUrls[0];
+    try { document.body.appendChild(a); } catch (e) {}
     a.addEventListener('error', function () {
-      if (songTriedHost) return;
-      songTriedHost = true;
-      a.src = SONG_HOST;
-      a.load();
-      if (Object.keys(songIds).length) {
-        var p = a.play();
-        if (p && p.catch) p.catch(function () {});
+      songUrlI++;
+      if (songUrlI >= songUrls.length) {
+        songErr = 'could not load the theme';
+        if (window.JJNOTICE) window.JJNOTICE('THEME FAILED TO LOAD', '#ff8fa5');
+        return;
       }
+      songErr = 'try ' + songUrls[songUrlI];
+      a.src = songUrls[songUrlI];
+      a.load();
+      if (Object.keys(songIds).length) kickPlay(a);
     });
     songEl = a;
-    attachSong(a);
     return a;
   }
 
-  /* the element is the clock; the graph puts it on him in the world */
-  function attachSong(a) {
-    if (songGraph) return songGraph;
-    var ac = null;
-    try { ac = audio(); } catch (e) {}
-    if (!ac) return null;
-    try {
-      var src = ac.createMediaElementSource(a);
-      var gain = ac.createGain();
-      var panner = ac.createPanner();
-      panner.panningModel = 'equalpower';
-      panner.distanceModel = 'linear';
-      panner.refDistance = 1000;
-      panner.maxDistance = 10000;
-      panner.rolloffFactor = 0;
-      panner.coneInnerAngle = 360;
-      gain.gain.value = 0;
-      src.connect(panner);
-      panner.connect(gain);
-      gain.connect(ac.destination);
-      songGraph = { ac: ac, src: src, gain: gain, panner: panner };
-    } catch (e) {
-      songGraph = null;
+  function kickPlay(a) {
+    if (!a) return;
+    a.muted = false;
+    try { audio(); } catch (e) {}
+    var p = a.play();
+    if (p && p.catch) {
+      p.catch(function () {
+        if (window.JJNOTICE) window.JJNOTICE('CLICK TO HEAR THE THEME', '#9fd8ff');
+        var once = function () {
+          window.removeEventListener('pointerdown', once);
+          a.muted = false;
+          a.play().catch(function () {});
+        };
+        window.addEventListener('pointerdown', once);
+      });
     }
-    return songGraph;
   }
 
   function armSong() {
-    if (songArmed) return;
-    songArmed = true;
     try { audio(); } catch (e) {}
     var a = ensureSong();
-    /* unlock the element on a real gesture so a remote awakening can
-       start the track later without the browser swallowing play() */
-    a.muted = true;
-    var p = a.play();
-    if (p && p.then) {
-      p.then(function () {
-        if (!Object.keys(songIds).length) { try { a.pause(); a.currentTime = 0; } catch (e) {} }
-        a.muted = false;
-      }).catch(function () { a.muted = false; });
-    } else {
-      a.muted = false;
+    a.muted = false;
+    if (!songArmed) {
+      songArmed = true;
+      try { a.load(); } catch (e) {}
     }
   }
   window.addEventListener('pointerdown', armSong);
@@ -23554,16 +23509,13 @@ window.__game = {
 
   function playSong(restart) {
     var a = ensureSong();
-    attachSong(a);
+    a.muted = false;
+    a.volume = SONG_VOL;
     songFade = 0;
     if (restart) {
-      try { a.pause(); } catch (e) {}
       try { a.currentTime = 0; } catch (e) {}
     }
-    if (a.paused) {
-      var p = a.play();
-      if (p && p.catch) p.catch(function () {});
-    }
+    kickPlay(a);
   }
 
   function fadeSong() {
@@ -23596,34 +23548,6 @@ window.__game = {
     return best;
   }
 
-  function setListener(ac, from) {
-    var l = ac.listener;
-    var p = player.pos;
-    var fx = Math.sin(player.facing), fz = Math.cos(player.facing);
-    if (l.positionX) {
-      l.positionX.value = p.x;
-      l.positionY.value = p.y + 3.4;
-      l.positionZ.value = p.z;
-      l.forwardX.value = fx;
-      l.forwardY.value = 0;
-      l.forwardZ.value = fz;
-      l.upX.value = 0; l.upY.value = 1; l.upZ.value = 0;
-    } else if (l.setPosition) {
-      l.setPosition(p.x, p.y + 3.4, p.z);
-      l.setOrientation(fx, 0, fz, 0, 1, 0);
-    }
-    if (!from || !songGraph || !songGraph.panner) return;
-    var pan = songGraph.panner;
-    var x = from.x, y = from.y + 3.2, z = from.z;
-    if (pan.positionX) {
-      pan.positionX.value = x;
-      pan.positionY.value = y;
-      pan.positionZ.value = z;
-    } else if (pan.setPosition) {
-      pan.setPosition(x, y, z);
-    }
-  }
-
   function stepSong(dt) {
     var src = songSource();
     /* a late packet, or walking into range of someone already awakened,
@@ -23642,15 +23566,13 @@ window.__game = {
     } else if (src) {
       want = SONG_VOL * hearGain(src.dist);
       songWant = want;
-      if (songEl && songEl.paused && want > 0.01) playSong(false);
+      if (songEl && (songEl.paused || songEl.muted)) playSong(false);
     } else {
       want = 0;
       songWant = 0;
     }
-    if (songGraph && songGraph.gain) {
-      songGraph.gain.gain.value = want;
-      if (songGraph.ac && src) setListener(songGraph.ac, src.pos);
-    } else if (songEl) {
+    if (songEl) {
+      songEl.muted = false;
       songEl.volume = Math.max(0, Math.min(1, want));
     }
     renderHear(src, src ? hearGain(src.dist) : 0);
@@ -23665,8 +23587,7 @@ window.__game = {
     if (on) {
       var first = !songIds[id];
       songIds[id] = 1;
-      if (first) playSong(true);
-      else playSong(false);
+      playSong(!!first);
     } else {
       delete songIds[id];
       if (!Object.keys(songIds).length) fadeSong();
@@ -23680,15 +23601,16 @@ window.__game = {
   AW.HEAR_FAR = HEAR_FAR;
   AW.debugHear = function () {
     var src = songSource();
-    var g = songGraph && songGraph.gain ? songGraph.gain.gain.value
-      : (songEl ? songEl.volume : 0);
     return {
       ids: Object.keys(songIds),
       src: src ? { id: src.id, dist: +src.dist.toFixed(2), x: src.pos.x, z: src.pos.z } : null,
       hear: src ? hearGain(src.dist) : 0,
-      vol: +g.toFixed(3),
+      vol: songEl ? +songEl.volume.toFixed(3) : 0,
+      muted: !!(songEl && songEl.muted),
       t: songEl ? +songEl.currentTime.toFixed(2) : 0,
-      paused: !songEl || songEl.paused
+      paused: !songEl || songEl.paused,
+      file: songEl ? songEl.currentSrc : '',
+      err: songErr
     };
   };
 
