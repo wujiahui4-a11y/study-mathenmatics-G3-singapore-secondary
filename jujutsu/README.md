@@ -245,8 +245,9 @@ card lands. You are untouchable for all of it. **Final Encore** (the full
 version) starts on the first frame of that cut and sits on that Gojo: anyone
 close enough hears it, louder the closer they are, and from the side he is
 standing on — full volume inside about eight metres, still there at the
-edge of Unlimited Void, silent past about forty-eight. Walk away and it
-falls off; walk back in and the same song is still going. It fades when the awakening ends. The other players see the
+edge of Unlimited Void, silent past about forty-eight. A small **NEARBY ·
+FINAL ENCORE** card fades in on their screen with the distance. Walk away
+and it falls off; walk back in and the same song is still going. It fades when the awakening ends. The other players see the
 column, the shockwave and the poses, and their copy of you loses the blindfold
 on the same beat you do.
 

@@ -209,7 +209,10 @@
   }
 
   function stepSong(dt) {
-    var src = Object.keys(songIds).length ? songSource() : null;
+    var src = songSource();
+    /* a late packet, or walking into range of someone already awakened,
+       should still find the track even if theme() was missed */
+    if (src && src.id !== 'local' && !songIds[src.id]) theme(true, src.id);
     var want = 0;
     if (songFade) {
       songWant = Math.max(0, songWant - dt * .9);
@@ -234,6 +237,7 @@
     } else if (songEl) {
       songEl.volume = Math.max(0, Math.min(1, want));
     }
+    renderHear(src, src ? hearGain(src.dist) : 0);
   }
 
   /* on: a Gojo in the room just started the entrance. off: that Gojo
@@ -255,6 +259,7 @@
 
   AW.hearGain = hearGain;
   AW.songSource = songSource;
+  AW.step = stepSong;
   AW.HEAR_NEAR = HEAR_NEAR;
   AW.HEAR_FAR = HEAR_FAR;
   AW.debugHear = function () {
@@ -364,7 +369,14 @@
       '#jjAwSay{position:fixed;left:0;right:0;bottom:17%;text-align:center;z-index:15;pointer-events:none;',
       '  font-family:"Finger Paint","Segoe UI",cursive;font-size:23px;letter-spacing:2px;color:#fff;',
       '  text-shadow:0 2px 10px #000,0 0 26px rgba(58,125,255,.75);opacity:0;transition:opacity .18s}',
-      '#jjAwSay.on{opacity:1}'
+      '#jjAwSay.on{opacity:1}',
+      /* someone else's theme, heard because you walked into it */
+      '#jjHear{position:fixed;left:50%;bottom:148px;transform:translateX(-50%);z-index:12;',
+      '  pointer-events:none;text-align:center;font-family:"Finger Paint","Segoe UI",cursive;',
+      '  opacity:0;transition:opacity .2s}',
+      '#jjHear .k{font-size:10px;letter-spacing:5px;color:#9fd8ff;text-shadow:0 1px 6px #000}',
+      '#jjHear .n{font-size:18px;letter-spacing:4px;color:#fff;text-shadow:0 0 16px #3a7dff,0 2px 6px #000}',
+      '#jjHear .d{font-size:10px;letter-spacing:2px;color:#cfe2ff;margin-top:3px;text-shadow:0 1px 4px #000}'
     ].join('');
     document.head.appendChild(css);
 
@@ -384,6 +396,24 @@
     var say = document.createElement('div');
     say.id = 'jjAwSay';
     document.body.appendChild(say);
+
+    var hear = document.createElement('div');
+    hear.id = 'jjHear';
+    hear.innerHTML = '<div class="k">NEARBY</div><div class="n">FINAL ENCORE</div>' +
+      '<div class="d"></div>';
+    document.body.appendChild(hear);
+  }
+
+  function renderHear(src, gain) {
+    buildBar();
+    var el = document.getElementById('jjHear');
+    if (!el) return;
+    var remote = src && src.id !== 'local' && gain > 0.04;
+    el.style.opacity = remote ? String(Math.max(0.28, Math.min(1, gain))) : '0';
+    if (remote) {
+      el.querySelector('.d').textContent = Math.round(src.dist) + 'm  \u00b7  hearing ' +
+        Math.round(gain * 100) + '%';
+    }
   }
 
   function renderBar() {
@@ -1311,7 +1341,7 @@
   /* --------------------------------------------------------- per frame */
   var _updatePlayer = updatePlayer;
   updatePlayer = function (dt) {
-    if (AW.cine) { stepSong(dt); renderBar(); return; } // the entrance owns the frame
+    if (AW.cine) { renderBar(); return; } // the entrance owns the frame
     _updatePlayer(dt);
     if (held && held !== player.action) { cleanup(held); held = null; }
     if (player.action && player.action.type.indexOf('aw_') === 0) held = player.action;
@@ -1324,7 +1354,6 @@
     } else if (player.char === 'gojo' && !player.dead) {
       gain(GAIN_IDLE * dt);
     }
-    stepSong(dt);
     renderBar();
   };
 
@@ -1407,7 +1436,10 @@
 
   /* death drops the awakening */
   var _stepDeath = null;
-  addFx({ t: 1e9, update: function () {
+  addFx({ t: 1e9, update: function (dt) {
+    /* runs even while a spawn cutscene has stolen updatePlayer, so a
+       nearby awakened Gojo is still audible as you walk in */
+    stepSong(dt);
     if (player.dead && AW.active) endAwake();
     if (player.dead && AW.cine) {
       AW.cine = false; FX.letterbox(false); hud(true);
