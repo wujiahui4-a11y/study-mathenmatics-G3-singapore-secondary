@@ -14938,10 +14938,14 @@ window.__game = {
     } },
 
     /* -------------------------------------------------------- HAKARI */
-    /* 1 · Shutter — the same train door, thrown, then laid through them */
-    h1: { name: 'CUT IN HALF', color: '#ffcc4d', hold: 1.25, run: function (e, d, p, G) {
+    /* 1 · Shutter — the same train door, laid flat, then drawn through */
+    h1: { name: 'CUT IN HALF', color: '#ffcc4d', hold: 1.35, run: function (e, d, p, G) {
       var HK = window.JJHAKARI;
       var door = (HK && HK.makeDoor) ? HK.makeDoor() : new THREE.Group();
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      if (side.lengthSq() < .01) side.set(1, 0, 0);
+      side.normalize();
+      var waist = p.clone().add(up(3.3));
       /* facing lives on the root so flattening the door cannot wipe it */
       var root = new THREE.Group();
       var spin = new THREE.Group();
@@ -14950,18 +14954,33 @@ window.__game = {
       root.position.copy(p).addScaledVector(d, -9).add(up(3.2));
       root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d);
       scene.add(root);
+
+      /* the gold edge the door cuts with once it is lying down */
+      var edgeMat = new THREE.MeshBasicMaterial({
+        color: 0xfff3c0, transparent: true, opacity: 0, toneMapped: false
+      });
+      var sheetMat = new THREE.MeshBasicMaterial({
+        color: 0xffe08a, transparent: true, opacity: 0, side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
+      });
+      var edge = new THREE.Mesh(new THREE.BoxGeometry(7.8, .14, .14), edgeMat);
+      door.add(edge);
+      var sheet = new THREE.Mesh(new THREE.PlaneGeometry(7.8, 6.8), sheetMat);
+      door.add(sheet);
+
       try { sfx.shatter(); } catch (err) {}
 
-      var t = 0, hit = false, cut = false;
-      addFx({ t: 2.4, update: function (dt) {
+      var t = 0, hit = false, slicing = false, cut = false, lastGhost = 0;
+      addFx({ t: 2.6, update: function (dt) {
         this.t -= dt; t += dt;
         if (HK) HK.pulseDoor(door, t * 3);
-        if (t < .3) {                                 // in, hard
-          root.position.addScaledVector(d, dt * 30);
+        if (t < .24) {                                 // in, hard
+          root.position.addScaledVector(d, dt * 36);
           if (HK) HK.rattleDoor(door, .03);
           if (Math.random() < .8) FX.streaks(root.position.clone(), 0xffe08a, 2, 14, 1.3);
         } else if (!hit) {
           hit = true;
+          root.position.copy(waist);
           FX.impact(p, 0xffcc4d, 3.2);
           FX.cross(p, 0xffe08a, 7, .28);
           FX.rings(p, 0xffcc4d, 3, { maxR: 13, life: .5, ground: false, gap: 34 });
@@ -14971,35 +14990,89 @@ window.__game = {
           addShake(1.6);
           if (typeof hitstop === 'function') hitstop(.12);
         }
-        if (t > .3 && t < .78) {
-          /* and over it goes, until it is lying across their middle */
-          var k = (t - .3) / .48;
+        if (t > .24 && t < .5) {
+          /* over it goes, until the face is the cutting plane */
+          var k = (t - .24) / .26;
           var u = k * k * (3 - 2 * k);
           spin.rotation.x = -Math.PI / 2 * u;
-          root.position.y = 3.2 + Math.sin(u * Math.PI) * 1.2;
-          if (HK) HK.rattleDoor(door, .07 * (1 - k));
+          root.position.copy(waist).add(up(Math.sin(u * Math.PI) * .6));
+          edgeMat.opacity = u * .95;
+          sheetMat.opacity = u * .28;
+          if (HK) HK.rattleDoor(door, .06 * (1 - k));
         }
-        if (t >= .78 && !cut) {
+        if (t >= .5 && t < .96) {
+          /* and then it is drawn sideways through them — the cut */
+          var k = (t - .5) / .46;
+          var u = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+          spin.rotation.x = -Math.PI / 2;
+          root.position.copy(waist).addScaledVector(side, -6.4 + 12.8 * u);
+          edgeMat.opacity = 1;
+          sheetMat.opacity = .34;
+          if (HK) HK.rattleDoor(door, .05);
+          if (Math.random() < .85) {
+            FX.streaks(root.position.clone(), 0xffe08a, 2, 12, 1.1);
+            FX.streaks(root.position.clone(), 0xff4f8b, 1, 8, .8);
+          }
+          if (!slicing) {
+            slicing = true;
+            FX.slash(waist, side, 0xffe08a, 9, .32);
+            FX.cutLine(
+              waist.clone().addScaledVector(side, -5.4),
+              waist.clone().addScaledVector(side, 5.4),
+              0xffe08a, 1.5, .62, { grow: 1 });
+            FX.speedRing(waist, 0xffcc4d, 7, .28);
+            try { sfx.whoosh(); } catch (err) {}
+          }
+          if (t - lastGhost > .06) {
+            lastGhost = t;
+            var ghost = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 6.6),
+              new THREE.MeshBasicMaterial({
+                color: 0xffe08a, transparent: true, opacity: .28, side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false
+              }));
+            ghost.position.copy(root.position);
+            ghost.quaternion.copy(root.quaternion);
+            ghost.rotateX(-Math.PI / 2);
+            scene.add(ghost);
+            addFx({ t: .22, update: function (dt2) {
+              this.t -= dt2;
+              ghost.material.opacity *= 1 - dt2 * 5;
+              if (this.t <= 0) {
+                scene.remove(ghost);
+                ghost.material.dispose();
+                return false;
+              }
+              return true;
+            } });
+          }
+        }
+        if (t >= .72 && !cut) {
           cut = true;
           FX.flash('#fff3d0', .55, .25);
           FX.cutLine(
-            p.clone().add(new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(4)).add(up(3.3)),
-            p.clone().add(new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(-4)).add(up(3.3)),
-            0xffe08a, 1.2, .4);
-          FX.debris(p.clone().add(up(3.2)), 12, 16, 0x8b93a2);
+            waist.clone().addScaledVector(side, -4.4),
+            waist.clone().addScaledVector(side, 4.4),
+            0xffffff, 1.3, .4);
+          FX.debris(waist.clone(), 12, 16, 0x8b93a2);
           if (typeof hitstop === 'function') hitstop(.14);
           G.halve(e, { dir: d, power: 1.3, color: 0xffe08a, stand: .3 });
           addShake(2);
           try { sfx.sever(); } catch (err) {}
         }
-        if (t > .78) {                                // the door falls past them
+        if (t > .96) {                                // the door falls past them
           root.position.y -= dt * 9;
           root.position.addScaledVector(d, dt * 3);
-          spin.rotation.x -= dt * .4;
+          root.position.addScaledVector(side, dt * 4);
+          spin.rotation.x -= dt * .35;
+          edgeMat.opacity = Math.max(0, edgeMat.opacity - dt * 3);
+          sheetMat.opacity = Math.max(0, sheetMat.opacity - dt * 2);
         }
         if (this.t <= 0) {
           if (HK && HK.dropDoor) HK.dropDoor(door);
+          else scene.remove(door);
           scene.remove(root);
+          edgeMat.dispose();
+          sheetMat.dispose();
           return false;
         }
         return true;
