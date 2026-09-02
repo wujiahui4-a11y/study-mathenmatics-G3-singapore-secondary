@@ -11093,7 +11093,6 @@ window.__game = {
     box(g, .38, 6.6, .96, steel, -3.58, 0, 0);
     box(g, .38, 6.6, .96, steel, 3.58, 0, 0);
     box(g, 7.55, .34, 1.0, steelD, 0, -3.28, 0);
-    box(g, 7.05, 6.15, .2, steelD, 0, 0, 0);
 
     /* rubber sweep and hazard blocks on the sill */
     box(g, 7.1, .16, .86, ink, 0, -3.08, 0);
@@ -11173,6 +11172,10 @@ window.__game = {
     if (!door || !door.userData.left || !door.userData.right) return;
     door.userData.left.position.x = door.userData.left.userData.homeX - amount;
     door.userData.right.position.x = door.userData.right.userData.homeX + amount;
+    var show = amount < .55;
+    if (door.userData.glow) door.userData.glow.visible = show;
+    if (door.userData.glowB) door.userData.glowB.visible = show;
+    if (door.userData.star) door.userData.star.visible = amount < .25;
   };
   HK.dropDoor = function (door) {
     if (!door) return;
@@ -14966,7 +14969,7 @@ window.__game = {
       try { sfx.shatter(); } catch (err) {}
 
       var t = 0, hit = false, opened = false, clamp = false, cut = false;
-      var GAP = 3.4;
+      var GAP = 4.6;
       addFx({ t: 2.4, update: function (dt) {
         this.t -= dt; t += dt;
         if (HK) HK.pulseDoor(door, t * 3);

@@ -440,7 +440,7 @@
       try { sfx.shatter(); } catch (err) {}
 
       var t = 0, hit = false, opened = false, clamp = false, cut = false;
-      var GAP = 3.4;
+      var GAP = 4.6;
       addFx({ t: 2.4, update: function (dt) {
         this.t -= dt; t += dt;
         if (HK) HK.pulseDoor(door, t * 3);
