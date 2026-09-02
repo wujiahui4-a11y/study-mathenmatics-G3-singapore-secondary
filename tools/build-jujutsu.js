@@ -32,8 +32,8 @@ const mqtt = fs.readFileSync(path.join(src, 'mqtt.min.js'), 'utf8');
    sits after every fighter so it can send them all somewhere, and mp
    shares the lot — last, so it still broadcasts through a cutscene. */
 const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'gore.js', 'combat.js', 'hits.js',
-  'dash.js', 'gojo.js', 'naoya.js', 'yuji.js', 'hakari.js', 'void.js', 'sukuna.js',
-  'parlor.js', 'finisher.js', 'mp.js']
+  'dash.js', 'gojo.js', 'naoya.js', 'yuji.js', 'hakari.js', 'choso.js', 'void.js',
+  'sukuna.js', 'parlor.js', 'finisher.js', 'mp.js']
   .map(function (f) {
     return { name: f, code: fs.readFileSync(path.join(src, f), 'utf8') };
   });

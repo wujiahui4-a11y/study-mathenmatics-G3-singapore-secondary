@@ -318,8 +318,25 @@
   }, true);
 
   /* the two cooldowns, and the readout */
+  /* =====================================================================
+     THE RUNNING TRAIL
+     Every fighter left afterimages behind them at a run. That is Naoya's
+     — he is the one who is faster than the frame rate — and on everybody
+     else it was just smearing the screen. The trail is spawned inside the
+     game's own update off a timer, so the timer is held under the line it
+     fires at rather than the call being taken out of a file that is meant
+     to stay untouched. Every deliberate afterimage — the dash, Limitless,
+     the teleports — is a direct call and is not affected.
+
+     The timer is zeroed rather than driven far negative, because the game
+     adds to it and never resets it on a fighter swap: park it at minus a
+     billion as somebody else and Naoya inherits that number when you
+     switch to him, and his trail never comes back. From zero, one frame of
+     `dt` is still well under the gap it fires at, and he starts clean.
+     ================================================================== */
   var _updatePlayer = updatePlayer;
   updatePlayer = function (dt) {
+    if (player.char !== 'naoya') player.ghostAcc = 0;
     _updatePlayer(dt);
     if (!D.mine() || player.dead) return;
     if (D.line > 0) D.line = Math.max(0, D.line - dt);

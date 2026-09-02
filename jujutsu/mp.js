@@ -719,6 +719,8 @@
       /* how the body is meant to go if this is the one that does it —
          cut apart, burnt, or simply limp */
       if (m.dth && window.JJGORE) window.JJGORE.mark(player, m.dth);
+      /* pinned by a stream: it holds for as long as it keeps arriving */
+      if (m.pin) player.pinned = Math.max(player.pinned || 0, m.pin / 100);
       if (m.rk && window.JJHITS) window.JJHITS.next(m.rk, m.rd || .5);
       hurtPlayer(m.d, k);
       /* the same flinch the dummies play, on us — but not while the hit is
@@ -1215,6 +1217,7 @@
     /* and how the body should go if this is the hit that finishes them:
        theirs to apply, like their health, but ours to ask for */
     if (opts.death) msg.dth = opts.death;
+    if (opts.pin) msg.pin = Math.round(opts.pin * 100);
     if (MP.relay) MP.relay.pub(msg);
     /* show it on them straight away; their own broadcast confirms it */
     if (opts.react) {

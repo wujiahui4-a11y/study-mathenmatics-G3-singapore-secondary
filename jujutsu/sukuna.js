@@ -593,7 +593,7 @@
      down the arena rather than a line of light that is already at the
      other end.
      ================================================================== */
-  var FUGA = { charge: 1.15, speed: 42, range: 78, radius: 7.4 };
+  var FUGA = { charge: 1.15, speed: 42, range: 78, radius: 4.8 };
 
   function castFlame() {
     if (!ok('s3')) return;
@@ -601,45 +601,77 @@
     player.iframes = Math.max(player.iframes, 1);
   }
 
-  /* the arrow itself: a head, a shaft, four flights, and the fire that is
-     all of it held together */
+  /* THE ARROW ITSELF
+     It was too big and it was all glow, so there was no arrow in it — just
+     a bright mess travelling down the road. This is smaller, and every
+     piece of it is drawn twice: a dark shell a little larger than the part
+     it sits on, with its faces turned inward so only the far side of it
+     renders, and the bright part inside that. What you get out of two
+     passes is an outline, and an outline is the only reason a shape reads
+     against something as loud as fire. */
   function buildArrow() {
     var g = new THREE.Group();
-    function hot(geo, color, opacity) {
+    /* the dark shell, drawn behind everything */
+    function edge(geo, scale) {
+      var m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+        color: 0x180402, side: THREE.BackSide, toneMapped: false,
+        transparent: true, opacity: .92, depthWrite: false
+      }));
+      m.scale.setScalar(scale == null ? 1.16 : scale);
+      m.renderOrder = 3;
+      return m;
+    }
+    /* and the fire inside it */
+    function hot(geo, color, opacity, outline) {
       var m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
         color: color, transparent: opacity != null, opacity: opacity == null ? 1 : opacity,
         toneMapped: false, blending: THREE.AdditiveBlending, depthWrite: false
       }));
+      m.renderOrder = 5;
+      if (outline !== false) {
+        var o = edge(geo, outline || 1.16);
+        var wrap = new THREE.Group();
+        wrap.add(o);
+        wrap.add(m);
+        g.add(wrap);
+        return wrap;
+      }
       g.add(m);
       return m;
     }
-    /* the head: a long spike, with a white core inside the fire of it */
-    var head = hot(new THREE.ConeGeometry(3.4, 12, 4), 0xffd08a);
+    /* the head: a spike, with a white core down the middle of it */
+    var head = hot(new THREE.ConeGeometry(1.1, 4.2, 4), 0xffb060, null, 1.22);
     head.rotation.x = Math.PI / 2;
-    head.position.z = 8.6;
-    var core = hot(new THREE.ConeGeometry(2, 10.6, 4), 0xffffff);
+    head.position.z = 3.1;
+    var core = hot(new THREE.ConeGeometry(.55, 3.5, 4), 0xfff2d8, null, false);
     core.rotation.x = Math.PI / 2;
-    core.position.z = 8.9;
+    core.position.z = 3.2;
     /* the shaft */
-    var shaft = hot(new THREE.CylinderGeometry(1.5, 2.2, 17, 10), 0xff6a1e);
+    var shaft = hot(new THREE.CylinderGeometry(.45, .68, 6.1, 8), 0xff5a12, null, 1.22);
     shaft.rotation.x = Math.PI / 2;
-    shaft.position.z = -3.5;
-    var shaftCore = hot(new THREE.CylinderGeometry(.68, 1, 17.6, 8), 0xffe6b4);
+    shaft.position.z = -1.3;
+    var shaftCore = hot(new THREE.CylinderGeometry(.18, .27, 6.3, 6), 0xffe6b4, null, false);
     shaftCore.rotation.x = Math.PI / 2;
-    shaftCore.position.z = -3.5;
-    /* the flights, which are the part that makes it read as an arrow */
+    shaftCore.position.z = -1.3;
+    /* the flights, which are what makes it read as an arrow rather than a
+       bolt of light */
     for (var i = 0; i < 4; i++) {
-      var f = hot(new THREE.PlaneGeometry(5.8, 8.4), 0xff8a2a, .92);
-      f.position.z = -10.6;
+      var f = hot(new THREE.PlaneGeometry(1.8, 2.9), 0xff7a1a, .95, 1.14);
+      f.position.z = -3.9;
       f.rotation.z = i * Math.PI / 4;
       f.rotation.y = i % 2 ? Math.PI / 2 : 0;
-      f.material.side = THREE.DoubleSide;
+      f.children.forEach(function (c) { c.material.side = THREE.DoubleSide; });
     }
-    /* the black the flame carries in the middle of it */
-    var soot = hot(new THREE.CylinderGeometry(2.6, 3, 14, 8), 0x1a0402, .55);
+    /* the black the flame carries with it, thin enough to be a rim */
+    var soot = new THREE.Mesh(new THREE.CylinderGeometry(.78, .95, 5.3, 8),
+      new THREE.MeshBasicMaterial({
+        color: 0x1a0402, transparent: true, opacity: .5,
+        toneMapped: false, depthWrite: false
+      }));
     soot.rotation.x = Math.PI / 2;
-    soot.position.z = -2.2;
-    soot.material.blending = THREE.NormalBlending;
+    soot.position.z = -.9;
+    soot.renderOrder = 2;
+    g.add(soot);
     g.__soot = soot;
     return g;
   }
@@ -647,6 +679,87 @@
   function aimArrow(g, from, dir) {
     g.position.copy(from);
     g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.clone().normalize());
+  }
+
+  /* WHERE IT LANDS
+     Two frames and then the fire. The frames are the manga's: one white,
+     held for nothing at all, and then one black — which is the only way a
+     hit this size reads, because a flash on its own just brightens the
+     screen and a flash that goes to black is an event. Then the ground
+     opens and the fire goes up rather than out. */
+  function detonate(at, dir, ghost, hitList) {
+    var floor = new THREE.Vector3(at.x, 0, at.z);
+
+    /* --- the impact frame --- */
+    FX.flash('#ffffff', 1, .07);
+    FX.mangaLines(1, .55);
+    if (typeof hitstop === 'function') hitstop(.17);
+    addShake(2.6);
+    if (AN) AN.camKick(2.2);
+    FX.cross(at.clone(), 0xffffff, 12, .14);
+    setTimeout(function () {
+      if (typeof scene === 'undefined') return;
+      FX.flash('#0a0508', .95, .14);
+      FX.impact(at.clone(), 0x1a0402, 5);
+    }, 80);
+
+    /* --- and then the fire, going up --- */
+    setTimeout(function () {
+      if (typeof scene === 'undefined') return;
+      var up = new THREE.Vector3(0, 1, 0);
+      FX.flash('#ffb070', .6, .5);
+      /* the pillar: soot on the outside, fire inside it, white in the middle */
+      FX.beam(floor.clone(), up, 210, 0x1a0402, { radius: 11, life: 2.6 });
+      FX.beam(floor.clone(), up, 200, 0xff5a12, { radius: 7, life: 2.4 });
+      FX.beam(floor.clone(), up, 190, 0xffb060, { radius: 3.6, life: 2.2 });
+      FX.beam(floor.clone(), up, 180, 0xfff2d8, { radius: 1.3, life: 2 });
+      FX.ring(new THREE.Vector3(at.x, .2, at.z), 0xffb070, { maxR: 40, life: 1 });
+      FX.rings(at.clone(), 0xff8a3a, 5, { maxR: 34, life: .9, ground: false, gap: 46 });
+      FX.debris(floor.clone(), 24, 26, 0x2a1008);
+      FX.cracks(floor.clone(), 12, 22, 0x2a1008);
+      FX.scorch(floor.clone(), 16, 40);
+      FX.zoom(14, .7);
+      addShake(2.8);
+      try { sfx.blast(); } catch (e) {}
+      /* flames climbing the pillar, so it is fire going up and not a bar
+         of light standing in the road */
+      for (var i = 0; i < 30; i++) {
+        (function (n) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            var h = n * 4.5;
+            var a2 = Math.random() * TAU, rr = Math.random() * (7 - Math.min(5, n * .12));
+            FX.flame(floor.clone().add(new THREE.Vector3(
+              Math.cos(a2) * rr, h + Math.random() * 5, Math.sin(a2) * rr)),
+              9 - n * .18, .8 + Math.random() * .5);
+            if (n % 4 === 0) {
+              FX.ring(floor.clone().add(new THREE.Vector3(0, h, 0)), 0xff8a3a,
+                { maxR: 9 - n * .12, life: .5, ground: true, opacity: .7 });
+            }
+          }, n * 34);
+        })(i);
+      }
+      FX.fire(at.clone(), 24, 5, 6, 1.6);
+      /* and the smoke it leaves standing there afterwards */
+      for (var k = 0; k < 14; k++) {
+        (function (n) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            FX.dust(floor.clone().add(new THREE.Vector3(
+              (Math.random() - .5) * 12, 4 + n * 5, (Math.random() - .5) * 12)),
+              2, 0x241a18, 9, 6);
+          }, 300 + n * 90);
+        })(k);
+      }
+      if (ghost) return;
+      enemies.forEach(function (e) {
+        if (!e || e.dead || hitList.indexOf(e) >= 0) return;
+        if (e.pos.distanceTo(at) > 17) return;
+        var kb = e.pos.clone().sub(at).setY(0).normalize().multiplyScalar(24); kb.y = 14;
+        e.damage(38, kb, { react: 'burn', reactDur: 1.1, spark: 0xff8a3a, death: 'burn' });
+        FX.fire(e.pos.clone().add(new THREE.Vector3(0, 2, 0)), 8, 1.4, 3, .9);
+      });
+    }, 190);
   }
 
   /* It flies. Everything it passes burns, and the ground under it stays lit.
@@ -657,77 +770,65 @@
     var g = buildArrow();
     scene.add(g);
     aimArrow(g, from, dir);
-    var travelled = 0, hitList = [], t = 0, trail = 0;
-    var lamp = FX.orb ? null : null;
+    var travelled = 0, hitList = [], t = 0, trail = 0, struck = false;
     addFx({ t: 6, update: function (dt) {
       this.t -= dt; t += dt;
       var step = FUGA.speed * dt;
       travelled += step;
       g.position.addScaledVector(dir, step);
-      g.rotation.z += dt * 2.2;
-      var wob = 1 + Math.sin(t * 24) * .05;
-      g.scale.set(wob, wob, 1 + Math.sin(t * 17) * .04);
-      if (g.__soot) g.__soot.material.opacity = .35 + Math.random() * .3;
+      g.rotation.z += dt * 2.6;
+      var wob = 1 + Math.sin(t * 24) * .03;
+      g.scale.set(wob, wob, 1);
+      if (g.__soot) g.__soot.material.opacity = .4 + Math.random() * .18;
 
-      /* the fire coming off it */
+      /* The fire it drags behind it. It starts behind the fletching and
+         never in front of it, so the tail is a tail and not a cloud with
+         an arrow lost somewhere inside it. */
       trail += dt;
-      if (trail > .02) {
+      if (trail > .028) {
         trail = 0;
-        FX.flame(g.position.clone().addScaledVector(dir, -7 - Math.random() * 7)
-          .add(new THREE.Vector3((Math.random() - .5) * 5, (Math.random() - .5) * 5, (Math.random() - .5) * 5)),
-          4.5 + Math.random() * 4, .55 + Math.random() * .4);
-        FX.flame(g.position.clone().add(new THREE.Vector3(
-          (Math.random() - .5) * 4, (Math.random() - .5) * 4, (Math.random() - .5) * 4)),
-          3.4 + Math.random() * 3, .35);
-        FX.streaks(g.position.clone().addScaledVector(dir, -8), 0xffc46a, 2, 15, 1.5);
+        FX.flame(g.position.clone().addScaledVector(dir, -5.5 - Math.random() * 4)
+          .add(new THREE.Vector3((Math.random() - .5) * 1.1, (Math.random() - .5) * 1.1, (Math.random() - .5) * 1.1)),
+          1.5 + Math.random() * 1.2, .34 + Math.random() * .2);
+        FX.streaks(g.position.clone().addScaledVector(dir, -6), 0xffc46a, 1, 9, 1.1);
       }
       /* and the line it burns into the ground under itself */
-      if (Math.random() < dt * 26) {
+      if (Math.random() < dt * 18) {
         var floor = new THREE.Vector3(g.position.x, 0, g.position.z);
-        FX.scorch(floor, 3.4 + Math.random() * 2.4, 16);
-        FX.fire(floor.clone().add(new THREE.Vector3(0, .4, 0)), 3, 2.4, 2.6, .8);
+        FX.scorch(floor, 2.6 + Math.random() * 1.6, 16);
+        FX.fire(floor.clone().add(new THREE.Vector3(0, .4, 0)), 2, 1.8, 2, .7);
       }
 
-      /* whatever it reaches, it does not reach twice */
-      if (!ghost) enemies.forEach(function (e) {
-        if (!e || e.dead || hitList.indexOf(e) >= 0) return;
-        if (e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(g.position) > FUGA.radius) return;
-        hitList.push(e);
-        var kb = dir.clone().multiplyScalar(26); kb.y = 10;
-        e.damage(64, kb, {
-          react: 'burn', reactDur: 1.3, spark: 0xff8a3a, color: '#ff9a4a',
-          death: 'burn', ragdoll: true
-        });
-        FX.fire(e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), 12, 1.6, 3.4, 1);
-        FX.impact(e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0xffb070, 2.6);
-        hitstop(.06);
-        addShake(1);
-        if (window.JJAW) window.JJAW.gain(16);
-      });
-      var done = travelled >= FUGA.range || this.t <= 0;
-      if (!done) return true;
-      /* it goes off where it stops */
-      var at = g.position.clone();
-      FX.flash('#ffb070', .7, .5);
-      FX.impact(at, 0xffd08a, 5.5);
-      FX.fire(at, 26, 5, 6, 1.5);
-      FX.rings(at, 0xff8a3a, 4, { maxR: 30, life: .8, ground: false, gap: 60 });
-      FX.ring(new THREE.Vector3(at.x, .2, at.z), 0xffb070, { maxR: 34, life: .9 });
-      FX.debris(new THREE.Vector3(at.x, 0, at.z), 18, 20, 0x2a1008);
-      FX.cracks(new THREE.Vector3(at.x, 0, at.z), 9, 15, 0x2a1008);
-      FX.scorch(new THREE.Vector3(at.x, 0, at.z), 13, 40);
-      FX.mangaLines(1, .4);
-      FX.zoom(12, .6);
-      addShake(2.2);
-      if (AN) AN.camKick(2);
-      try { sfx.blast(); } catch (e) {}
-      if (!ghost) enemies.forEach(function (e) {
-        if (!e || e.dead || hitList.indexOf(e) >= 0) return;
-        if (e.pos.distanceTo(at) > 16) return;
-        var kb = e.pos.clone().sub(at).setY(0).normalize().multiplyScalar(24); kb.y = 12;
-        e.damage(38, kb, { react: 'burn', reactDur: 1.1, spark: 0xff8a3a, death: 'burn' });
-        FX.fire(e.pos.clone().add(new THREE.Vector3(0, 2, 0)), 8, 1.4, 3, .9);
-      });
+      /* the first thing it reaches is where it stops */
+      if (!struck && !ghost) {
+        for (var i = 0; i < enemies.length; i++) {
+          var e = enemies[i];
+          if (!e || e.dead) continue;
+          if (e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(g.position) > FUGA.radius) continue;
+          struck = true;
+          hitList.push(e);
+          var kb = dir.clone().multiplyScalar(26); kb.y = 12;
+          e.damage(74, kb, {
+            react: 'burn', reactDur: 1.4, spark: 0xff8a3a, color: '#ff9a4a',
+            death: 'burn', ragdoll: true
+          });
+          if (window.JJAW) window.JJAW.gain(18);
+          break;
+        }
+      }
+      /* a ghost has nobody to hit, so it stops where the caster's did */
+      if (!struck && ghost) {
+        for (var j = 0; j < enemies.length; j++) {
+          var e2 = enemies[j];
+          if (!e2 || e2.dead) continue;
+          if (e2.pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(g.position) > FUGA.radius) continue;
+          struck = true;
+          break;
+        }
+      }
+
+      if (!struck && travelled < FUGA.range && this.t > 0) return true;
+      detonate(g.position.clone(), dir, ghost, hitList);
       scene.remove(g);
       g.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
       return false;
@@ -753,10 +854,13 @@
         FX.flash('#ff9a4a', .3, .3);
         try { sfx.fire(); } catch (e) {}
       }
-      /* it forms in front of him and is drawn back onto the hand */
-      var out = 9 - E.out(k) * 5.5;
+      /* It forms out in front of him and is drawn back toward the hand —
+         but never all the way back, because the camera sits behind his
+         shoulder and anything that comes within about eight units of him
+         is across the whole lens instead of in his hand. */
+      var out = 15 - E.out(k) * 5;
       aimArrow(a.arrow, palm.clone().addScaledVector(d, out), d);
-      var grow = .25 + E.out(Math.min(1, k * 1.3)) * .95;
+      var grow = .22 + E.out(Math.min(1, k * 1.3)) * .78;
       a.arrow.scale.setScalar(grow);
       addShake(.2 + k * .5);
       /* the ground in front of him is already alight */
@@ -775,7 +879,8 @@
         a.arrow.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
         a.arrow = null;
       }
-      loose(palm.clone().addScaledVector(d, 4), d.clone());
+      /* it leaves from where it was drawn, so there is no jump */
+      loose(palm.clone().addScaledVector(d, 10), d.clone());
       FX.flash('#ffd8a0', .55, .3);
       FX.cross(palm, 0xffffff, 7, .24);
       FX.rings(palm, 0xff8a3a, 3, { maxR: 12, life: .5, ground: false, gap: 40 });
@@ -1306,19 +1411,32 @@
     fuga: function (pos, yaw) {
       var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
       var palm = pos.clone().addScaledVector(d, 1.6).add(new THREE.Vector3(0, 3, 0));
-      /* the furnace opening, and then the arrow going */
+      /* the furnace opening, and then the arrow going. The arrow forms and
+         is drawn back here as well, because half of what this skill looks
+         like happens before anything leaves his hand. */
       FX.converge(palm, 0xff8a3a, 30, 14, .9);
+      var arrow = buildArrow();
+      scene.add(arrow);
+      SK.stage.push(arrow);
       var n = 0, iv = setInterval(function () {
-        if (n++ > 22 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        if (typeof scene === 'undefined') { clearInterval(iv); return; }
+        var k = Math.min(1, (n * 50) / (FUGA.charge * 1000));
+        aimArrow(arrow, palm.clone().addScaledVector(d, 15 - E.out(k) * 5), d);
+        arrow.scale.setScalar(.22 + E.out(Math.min(1, k * 1.3)) * .78);
         FX.flame(palm.clone().add(new THREE.Vector3(
           (Math.random() - .5) * 3, (Math.random() - .5) * 3, (Math.random() - .5) * 3)),
           1.4 + Math.random() * 2, .35);
+        if (n++ > 22) clearInterval(iv);
       }, 50);
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
+        var i = SK.stage.indexOf(arrow);
+        if (i >= 0) SK.stage.splice(i, 1);
+        scene.remove(arrow);
+        arrow.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
         FX.flash('#ffd8a0', .35, .3);
         FX.rings(palm, 0xff8a3a, 3, { maxR: 12, life: .5, ground: false, gap: 40 });
-        loose(palm.clone().addScaledVector(d, 4), d.clone(), true);
+        loose(palm.clone().addScaledVector(d, 10), d.clone(), true);
       }, FUGA.charge * 1000);
     },
     /* the shrine has no barrier, so there is nothing to be outside of:

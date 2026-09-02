@@ -8,8 +8,8 @@ meter and glass frames.
 
 ## Playing
 
-Title screen → **PLAY ONLINE WITH FRIENDS**. Four fighters: Gojo, Naoya, Yuji and
-Hakari.
+Title screen → **PLAY ONLINE WITH FRIENDS**. Five fighters: Gojo, Naoya, Yuji,
+Hakari and Choso.
 
 * **Create a room** gives you a six character code.
 * Everyone else types that code and joins.
@@ -126,6 +126,27 @@ that what it reaches is not put out afterwards, and it leaves the ground
 burning in a line behind it. Anything it kills **burns down to a husk**, which
 stays where it fell.
 
+**Making it read.** The first version of it was too big and all glow, so
+there was no arrow in it — just a bright mess going down the road, and during
+the draw it was pulled back to three metres in front of a camera sitting on
+his shoulder, which put it across the whole lens. Two things fix that. It is
+about half the size it was, and it is drawn back only as far as ten metres,
+so the shape stays a shape. And every bright part of it is drawn twice: a
+dark shell a little larger than the part it sits on, faces turned inward so
+only the far side renders, with the fire inside that. Two passes give an
+outline, and an outline is the only reason a shape reads against something as
+loud as fire. The tail starts behind the fletching and never in front of it.
+
+**Where it lands.** It stops at the first thing it touches rather than
+passing through. Then two frames, which are the manga's: one white, held for
+almost nothing, and then one black — a flash on its own only brightens the
+screen, but a flash that goes to black is an event. A fifth of a second later
+the ground opens and the fire goes **up** rather than out: a two hundred metre
+pillar, soot on the outside, fire inside it and white down the middle, with
+thirty flames climbing it in sequence so it is fire going up and not a bar of
+light standing in the road. Debris, shock rings, a scorch mark and smoke are
+what it leaves.
+
 ### Malevolent Shrine has no barrier
 
 Every other domain closes a space off and works inside it. This one is put
@@ -147,13 +168,57 @@ and a half seconds it rains full length Cleaves across the whole radius,
 drops a lattice over anybody inside it three times a second, and cuts apart
 anything that runs out of health in there.
 
+## Choso
+
+The eldest of the nine Death Painting Wombs — half human, half cursed spirit,
+and the only thing he does is move his own blood. Black hair tied up with two
+long strands left down the front of it, the stitch mark across the bridge of
+his nose, and a high collar.
+
+Blood manipulation is a technique of pressure, not of volume, so nothing he
+throws is a cloud of red: everything is a **line**, drawn thin, with the whole
+of the pressure behind the point of it.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Piercing Blood** | 貫流 — see below; it has two of them |
+| `2` | **Blood Meteorite** | 血隕 — a mass taken up over the head and thrown down as one piece |
+| `3` | **Supernova** | 超新星 — eighteen orbs put out around him and opened at once |
+| `4` | **Flowing Red Scale** | 赤鱗 — his own blood pressure raised; everything lands about a third harder while it holds |
+| `R` | **Blood Edge** | 血刃 — a blade drawn out and taken across whatever is close |
+
+### Piercing Blood has a tap and a hold
+
+Because in the source it is both: a single shot that goes through what it is
+pointed at, and a sustained one he stands and holds on somebody.
+
+**Tap** is the shot. Convergence first — it is pulled in before it is let go —
+then one line seventy four metres long and two and a half wide, drawn as a cut
+rather than a beam.
+
+**Hold** is the version he takes a stance for. Keep `1` down and the shot
+becomes a stream, and the camera goes to **first person over his own two hands
+clamped together** on the line — which is the pose the technique is drawn in.
+From there:
+
+- The aim turns **slowly**, at about 1.35 radians a second, and no faster no
+  matter how hard the mouse is thrown. It is a braced firing position, so it
+  cannot be whipped around; getting it onto somebody is the cost of the damage.
+- It runs for up to four and a fifth seconds at forty six a second along a
+  sixty metre line.
+- Anybody the line is **on is held there** and cannot move. They are released
+  the moment it comes off them — so it is a pin that has to be maintained, not
+  a stun that is applied once.
+- His head, neck and collar are hidden while it runs, because the camera is
+  inside them.
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — twenty four of them, one
+and differently from every other skill in the game — thirty four of them, one
 per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -167,13 +232,17 @@ Three things a finisher deliberately is not:
 * **It is not Naoya's awakening.** That eleven beat cut is his and it is
   untouched.
 
-| | Gojo | Naoya | Yuji | Hakari |
-| --- | --- | --- | --- | --- |
-| `1` | **blown apart** — repulsion has nowhere to put them but outward | **framed** — stopped, and then shattered like the glass | **hit twice** — it folds them, and half a second later the rest of it arrives | **cut in half** — the shutter hits them, turns flat, and goes through |
-| `2` | **pummelled** — a dozen of them, and then the floor | **cut in two** — one level cut, and he walks on | **black flash** — the frame goes out and comes back as black line work | **riddled** — the other half of the machine, all of it |
-| `3` | **launched** — up, and a very small flash a long way overhead | **put through it** — the kick that ends the conversation | **spun apart** — it takes them up and it takes them apart | **floored** — three of his own, and then the ground |
-| `4` | **pressed flat** — four rings, each one lower than the last | — | **driven down** — all of his weight, and a crater | **paid out** — the machine cashes them in |
-| `R` | **erased** — nothing is left standing and nothing falls over | **never saw it** — three places at once | **burned out** — from the inside | **run through** — shoulder first, and out the other side |
+| | Gojo | Naoya | Yuji | Hakari | Choso |
+| --- | --- | --- | --- | --- | --- |
+| `1` | **blown apart** — repulsion has nowhere to put them but outward | **framed** — stopped, and then shattered like the glass | **hit twice** — it folds them, and half a second later the rest of it arrives | **cut in half** — the shutter hits them, turns flat, and goes through | **pierced** — one line, and the jet out of the back of them |
+| `2` | **pummelled** — a dozen of them, and then the floor | **cut in two** — one level cut, and he walks on | **black flash** — the frame goes out and comes back as black line work | **riddled** — the other half of the machine, all of it | **under it** — the mass comes down and stays down |
+| `3` | **launched** — up, and a very small flash a long way overhead | **put through it** — the kick that ends the conversation | **spun apart** — it takes them up and it takes them apart | **floored** — three of his own, and then the ground | **supernova** — dark and small, and then not |
+| `4` | **pressed flat** — four rings, each one lower than the last | — | **driven down** — all of his weight, and a crater | **paid out** — the machine cashes them in | **burst** — the pressure is raised inside them |
+| `R` | **erased** — nothing is left standing and nothing falls over | **never saw it** — three places at once | **burned out** — from the inside | **run through** — shoulder first, and out the other side | **opened** — one level draw, and the top of them waits |
+
+Choso's held Piercing Blood has one of its own on top of that: it does not
+stop, so neither does the finisher — it **bores through** them and there is
+nothing left to fall over.
 
 Gojo awakened gets four more: Lapse: Blue **draws them in** and closes on them,
 Reversal: Red **tears them apart**, Unlimited Void **shuts them down** without
@@ -182,6 +251,16 @@ with the beam and the legs are left standing in the road until they find out.
 
 Sukuna's four: Dismantle **dismantles**, Cleave **cleaves** on the diagonal,
 Fuga **burns them to ash**, and Malevolent Shrine **cuts them to pieces**.
+
+Choso's are all pressure and none of them is a spray. Piercing Blood tapped
+**pierces** — one line through, and the picture is the jet out of the far
+side; held, it **bores through** them until there is nothing to fall over.
+Blood Meteorite puts them **under it** and leaves a crater. Supernova goes
+dark and small for a beat before it **bursts**, because that is the only way
+an explosion reads. Flowing Red Scale raises the pressure *inside* them, so
+nothing hits them and they go anyway. Blood Edge **opens** them on one level
+draw, and the top of them stands on it half a second longer than anybody
+else's does.
 
 The health lock still holds — the target is pinned at one health for as long as
 the finisher runs, so the beat plays out on somebody who is still there and the
@@ -384,6 +463,15 @@ the action out from under the cast instead: a `keydown` listener in the
 capture phase runs before the game's own bubble handler, so by the time that
 handler asks whether you are busy, there is nothing left to be busy with.
 
+### The run trail is Naoya's alone
+
+Everybody used to leave afterimages behind them just for walking around, which
+made the one fighter whose entire technique is *being faster than you* look
+like everyone else. So the trail is now his and nobody else's: `dash.js` holds
+`player.ghostAcc` far below its threshold for any character that is not Naoya,
+before the original `updatePlayer` gets a chance to top it up. Nothing else
+changes — the same accumulator, the same ghosts, just not spent on people who
+have not earned them.
 
 ## Getting hit
 
@@ -686,14 +774,17 @@ disk.
 | `ragdoll.js` | limp bodies, and the heaps they settle into |
 | `gore.js` | the other two ways of dying, and the health lock a finisher runs under |
 | `combat.js` | the longer dash, the throw, and the eight second fighter swap |
-| `dash.js` | Q, rebuilt on The Strongest Battlegrounds — for everybody but Naoya |
+| `dash.js` | Q, rebuilt on The Strongest Battlegrounds — for everybody but Naoya; and the run trail kept to Naoya alone |
 | `hits.js` | eight more reactions, the ring-out over all of them, and the player finally playing them |
 | `gojo.js` | the awakening meter, Gojo's entrance and his four techniques |
 | `naoya.js` | Naoya's run, and the cut it ends in |
 | `yuji.js` | Yuji: his rig, his five moves and his transformation |
 | `hakari.js` | Hakari: his rig, his four moves and the machine in his domain |
+| `choso.js` | Choso: his rig, his five moves and the first-person blood stream |
+| `void.js` | Unlimited Void: the hand sign, the barrier and everything inside it |
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
-| `finisher.js` | the stage above the city, and a long cut for every fighter |
+| `parlor.js` | Hakari's domain: the parlour, the machine and what it pays out |
+| `finisher.js` | one short finisher per skill, and the health lock they run under |
 | `mp.js` | the online mode, appended inside the game's module |
 | `three.module.min.js` | vendored three.js 0.160.0 |
 | `mqtt.min.js` | vendored MQTT client |

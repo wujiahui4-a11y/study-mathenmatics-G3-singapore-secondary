@@ -5,8 +5,8 @@
    The rule is simple: when a *skill* is the thing that would have taken
    somebody out, it does not just take them out — it finishes them, in
    the way that skill finishes people, and it finishes them differently
-   from every other skill in the game. Twenty four of them, one for each
-   ability on each fighter's bar.
+   from every other skill in the game. One for each ability on each
+   fighter's bar.
 
    Three things this is deliberately NOT:
 
@@ -629,6 +629,162 @@
         G.dice(e, { dir: d, power: 1.6, cubes: 30 });
         addShake(2.4);
       }, 1050);
+    } },
+
+    /* =================================================================
+       CHOSO — everything he does is a line with the pressure behind it,
+       so none of these are a spray. They are a hole, a bore, a weight,
+       a burst, a rise and a draw.
+       ============================================================== */
+
+    /* 1 · Piercing Blood, tapped — one shot, and it goes all the way
+       through. The tell is what comes out of the far side. */
+    c1: { name: 'PIERCED', color: '#d4143c', hold: .8, run: function (e, d, p, G) {
+      var thr = p.clone().addScaledVector(d, 26);
+      FX.cutLine(p.clone().addScaledVector(d, -6), thr, 0xffffff, .5, .3);
+      FX.beam(p.clone().addScaledVector(d, -4), d, 32, 0xd4143c, { radius: .5, life: .32 });
+      FX.impact(p.clone(), 0xd4143c, 2.2);
+      if (typeof hitstop === 'function') hitstop(.12);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        /* the jet out of the back of them, which is the whole picture */
+        FX.blood(p.clone(), d.clone(), 12, 2.4);
+        FX.streaks(p.clone().addScaledVector(d, 4), 0x8b0f2a, 7, 22, 1.6);
+        FX.flash('#d4143c', .35, .2);
+        G.sever(e, { dir: d, power: 1.5, cubes: 6, color: 0x8b0f2a });
+        addShake(1.5);
+      }, 420);
+    } },
+
+    /* 1h · the held stream — it does not stop, so neither does this.
+       He bores through them and there is nothing to fall over. */
+    c1s: { name: 'BORED THROUGH', color: '#d4143c', hold: 1.4, run: function (e, d, p, G) {
+      var n = 0;
+      var iv = setInterval(function () {
+        if (n++ > 13 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        FX.beam(p.clone().addScaledVector(d, -7), d, 16, 0xd4143c,
+          { radius: .34 + Math.random() * .12, life: .13 });
+        FX.beam(p.clone().addScaledVector(d, -7), d, 16, 0xffffff,
+          { radius: .12, life: .12 });
+        FX.blood(p.clone(), d.clone(), 3, 1.1);
+        FX.mote(p.clone(), 0x8b0f2a, 2.4, .22);
+        addShake(.3);
+      }, 90);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.flash('#ffffff', .5, .25);
+        if (typeof hitstop === 'function') hitstop(.14);
+        FX.rings(p.clone(), 0xd4143c, 3, { maxR: 11, life: .5, ground: false, gap: 40 });
+        G.erase(e, { color: 0x8b0f2a });
+        addShake(1.8);
+      }, 1300);
+    } },
+
+    /* 2 · Blood Meteorite — the mass comes down and they are under it */
+    c2: { name: 'UNDER IT', color: '#8b0f2a', hold: 1, run: function (e, d, p, G) {
+      var mass = new THREE.Mesh(new THREE.IcosahedronGeometry(3.2, 0),
+        new THREE.MeshBasicMaterial({ color: 0x8b0f2a, toneMapped: false }));
+      mass.position.copy(p).add(up(34));
+      scene.add(mass);
+      var t = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        var k = Math.min(1, t / .62);
+        mass.position.y = p.y + 34 * (1 - k * k);
+        mass.rotation.x += dt * 5; mass.rotation.y += dt * 4;
+        if (Math.random() < .6) FX.mote(mass.position.clone(), 0xd4143c, 2.6, .3);
+        if (k < 1) return true;
+        scene.remove(mass);
+        mass.material.dispose();
+        return false;
+      } });
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.flash('#8b0f2a', .55, .25);
+        if (typeof hitstop === 'function') hitstop(.16);
+        FX.impact(new THREE.Vector3(p.x, .4, p.z), 0x8b0f2a, 6);
+        FX.cracks(new THREE.Vector3(p.x, .1, p.z), 14, 20, 0x4a0512);
+        FX.blood(p.clone(), up(1), 16, 3);
+        G.flatten(e, { color: 0x8b0f2a });
+        addShake(2.6);
+      }, 640);
+    } },
+
+    /* 3 · Supernova — a star goes in before it goes out. The orbs close
+       on them, the light is pulled in, and then it is not. */
+    c3: { name: 'SUPERNOVA', color: '#d4143c', hold: 1.3, run: function (e, d, p, G) {
+      for (var i = 0; i < 18; i++) {
+        (function (n) {
+          var a = n * TAU / 18, ring = n % 3;
+          var from = p.clone().add(new THREE.Vector3(
+            Math.cos(a) * 11, (ring - 1) * 5, Math.sin(a) * 11));
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            FX.streaks(from, 0xd4143c, 2, 16, .9);
+            FX.converge(p.clone(), 0x8b0f2a, 6, 12, .5);
+          }, n * 34);
+        })(i);
+      }
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        /* held small and dark for a beat — that is what sells the burst */
+        FX.flash('#2a0208', .7, .18);
+        FX.impact(p.clone(), 0x4a0512, 2);
+        if (typeof hitstop === 'function') hitstop(.2);
+      }, 800);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.flash('#ffd8e0', .8, .4);
+        FX.rings(p.clone(), 0xd4143c, 6, { maxR: 34, life: .9, ground: false, gap: 44 });
+        FX.debris(new THREE.Vector3(p.x, .2, p.z), 20, 22, 0x4a0512);
+        G.dice(e, { dir: d, power: 1.9, cubes: 26, color: 0x8b0f2a });
+        addShake(3);
+      }, 1000);
+    } },
+
+    /* 4 · Flowing Red Scale — the pressure is raised, and it is raised
+       inside them. Nothing hits them; they go from the inside out. */
+    c4: { name: 'BURST', color: '#ff2a4a', hold: 1.1, run: function (e, d, p, G) {
+      var n = 0;
+      var iv = setInterval(function () {
+        if (n++ > 8 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        /* the swell: rings tight on the body, getting faster */
+        FX.rings(p.clone(), 0xd4143c, 1, { maxR: 2 + n * .5, life: .22, ground: false });
+        FX.mote(p.clone(), 0x8b0f2a, 2 + n * .3, .2);
+        addShake(.2 + n * .12);
+      }, 95);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.flash('#ff2a4a', .6, .3);
+        if (typeof hitstop === 'function') hitstop(.15);
+        for (var i = 0; i < 10; i++) {
+          var a = Math.random() * TAU, e2 = Math.random() * Math.PI - Math.PI / 2;
+          FX.blood(p.clone(), new THREE.Vector3(
+            Math.cos(a) * Math.cos(e2), Math.sin(e2), Math.sin(a) * Math.cos(e2)), 5, 2);
+        }
+        G.sever(e, { dir: d, power: 2.1, cubes: 14, color: 0x8b0f2a, spread: 1 });
+        addShake(2.2);
+      }, 900);
+    } },
+
+    /* R · Blood Edge — one draw, low and level, and the top of them is
+       still standing on it for a moment afterwards */
+    cr: { name: 'OPENED', color: '#d4143c', hold: .9, run: function (e, d, p, G) {
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      FX.cutLine(p.clone().addScaledVector(side, -5), p.clone().addScaledVector(side, 5),
+        0xd4143c, 1.1, .34);
+      FX.cutLine(p.clone().addScaledVector(side, -5), p.clone().addScaledVector(side, 5),
+        0xffffff, .34, .3);
+      if (typeof hitstop === 'function') hitstop(.13);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.blood(p.clone(), side.clone(), 9, 2);
+        FX.blood(p.clone(), side.clone().negate(), 9, 2);
+        FX.flash('#d4143c', .4, .22);
+        /* level, and it stands there a beat longer than the others do */
+        G.halve(e, { dir: d, power: 1.1, tilt: 0, color: 0x8b0f2a, stand: .5 });
+        addShake(1.4);
+      }, 400);
     } }
   };
 
@@ -639,7 +795,8 @@
     n1: 'dice', n2: 'sever', n3: 'ragdoll', nr: 'sever', nrf: 'sever',
     y1: 'sever', y2: 'dice', y3: 'sever', y4: 'flat', yr: 'burn',
     h1: 'sever', h2: 'dice', h3: 'flat', h4: 'burn', hr: 'ragdoll',
-    s1: 'dice', s2: 'sever', s3: 'burn', s4: 'dice'
+    s1: 'dice', s2: 'sever', s3: 'burn', s4: 'dice',
+    c1: 'sever', c1s: 'gone', c2: 'flat', c3: 'dice', c4: 'sever', cr: 'sever'
   };
 
   /* =====================================================================
