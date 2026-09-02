@@ -431,13 +431,13 @@
       var side = new THREE.Vector3(-d.z, 0, d.x);
       if (side.lengthSq() < .01) side.set(1, 0, 0);
       side.normalize();
-      var waist = p.clone().add(up(3.3));
+      var waist = new THREE.Vector3(p.x, 3.3, p.z);
       /* facing lives on the root so flattening the door cannot wipe it */
       var root = new THREE.Group();
       var spin = new THREE.Group();
       spin.add(door);
       root.add(spin);
-      root.position.copy(p).addScaledVector(d, -9).add(up(3.2));
+      root.position.copy(waist).addScaledVector(d, -9);
       root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d);
       scene.add(root);
 
@@ -466,7 +466,7 @@
           if (Math.random() < .8) FX.streaks(root.position.clone(), 0xffe08a, 2, 14, 1.3);
         } else if (!hit) {
           hit = true;
-          root.position.copy(waist);
+          root.position.copy(waist).addScaledVector(d, .3);
           FX.impact(p, 0xffcc4d, 3.2);
           FX.cross(p, 0xffe08a, 7, .28);
           FX.rings(p, 0xffcc4d, 3, { maxR: 13, life: .5, ground: false, gap: 34 });
@@ -491,7 +491,7 @@
           var k = (t - .5) / .46;
           var u = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
           spin.rotation.x = -Math.PI / 2;
-          root.position.copy(waist).addScaledVector(side, -6.4 + 12.8 * u);
+          root.position.copy(waist).addScaledVector(d, .5).addScaledVector(side, -5.2 + 10.4 * u);
           edgeMat.opacity = 1;
           sheetMat.opacity = .34;
           if (HK) HK.rattleDoor(door, .05);
