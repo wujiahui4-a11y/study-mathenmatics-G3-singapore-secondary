@@ -125,6 +125,16 @@
   var _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
   var _inv = new THREE.Matrix4(), _rel = new THREE.Matrix4();
 
+  /* whatever is about to be copied has to be where the body actually is:
+     the rig's world matrix is refreshed by the entity's own update, so a
+     body taken apart in the same frame it was moved would leave its
+     pieces a frame behind it */
+  function settle(ent) {
+    if (!ent || !ent.rig || !ent.rig.root) return;
+    if (ent.pos && !ent.rag) ent.rig.root.position.copy(ent.pos);
+    ent.rig.root.updateMatrixWorld(true);
+  }
+
   /* copy the meshes belonging to one joint into a world space group */
   function carve(rig, part) {
     var node = rig[part.n];
@@ -175,10 +185,12 @@
   function drop(ent, g, vel, spin, mass) {
     g.__rest = false;
     scene.add(g);
-    pieces.push({
+    var p = {
       ent: ent, g: g, vel: vel, av: spin, m: mass || 1,
       rest: 0, down: false, t: 0, bleed: .5
-    });
+    };
+    pieces.push(p);
+    return p;
   }
 
   function stepPieces(dt) {
@@ -259,10 +271,11 @@
      ================================================================== */
   function sever(ent, opts) {
     opts = opts || {};
-    if (!ent || !ent.rig || ent.__gored) return;
+    if (!ent || !ent.rig || ent.__gored) return [];
     ent.__gored = true;
+    var made = [];
     var rig = ent.rig;
-    rig.root.updateMatrixWorld(true);
+    settle(ent);
 
     var dir = (opts.dir || new THREE.Vector3(0, 0, 1)).clone().setY(0);
     if (dir.lengthSq() < .01) dir.set(0, 0, 1);
@@ -281,8 +294,8 @@
       var v = away.multiplyScalar((3 + Math.random() * 7) * power)
         .addScaledVector(dir, (2 + Math.random() * 6) * power);
       v.y += 3 + Math.random() * 7 * power;
-      drop(ent, g, v, new THREE.Vector3(
-        (Math.random() - .5) * 12, (Math.random() - .5) * 12, (Math.random() - .5) * 12), part.m);
+      made.push(drop(ent, g, v, new THREE.Vector3(
+        (Math.random() - .5) * 12, (Math.random() - .5) * 12, (Math.random() - .5) * 12), part.m));
       /* the cut itself, drawn where the piece came away */
       if (i % 2 === 0) {
         FX.blood(g.position.clone(), dir.clone().setY(.5), 5, 1.3);
@@ -304,9 +317,9 @@
         gg.add(m);
         gg.position.copy(centre).add(new THREE.Vector3(
           (Math.random() - .5) * 1.6, (Math.random() - .5) * 3.4, (Math.random() - .5) * 1.6));
-        drop(ent, gg, new THREE.Vector3(
+        made.push(drop(ent, gg, new THREE.Vector3(
           (Math.random() - .5) * 16 * power, 4 + Math.random() * 12 * power, (Math.random() - .5) * 16 * power),
-          new THREE.Vector3((Math.random() - .5) * 16, (Math.random() - .5) * 16, (Math.random() - .5) * 16), .4);
+          new THREE.Vector3((Math.random() - .5) * 16, (Math.random() - .5) * 16, (Math.random() - .5) * 16), .4));
       }
     }
 
@@ -318,6 +331,7 @@
     try { sfx.sever(); } catch (e) {}
     addShake(.9);
     if (typeof hitstop === 'function') hitstop(.09);
+    return made;
   }
   GORE.sever = sever;
   GORE.dice = function (ent, opts) {
@@ -327,17 +341,103 @@
   };
 
   /* =====================================================================
-     BURNED
-     The body chars where it stands, drops, and stays there as a husk.
+     CUT IN TWO
+     Not eleven pieces — two. One cut, at the waist or across the body,
+     and the top of them leaves while the bottom is still standing on
+     legs that have not been told yet.
      ================================================================== */
-  function burn(ent, opts) {
+  var HALF_TOP = { n: 'spine', stop: [], w: 1.34, d: .7, up: -.02, m: 3.4 };
+  var HALF_BOT = { n: 'hips', stop: ['spine'], w: 1.16, d: .66, up: .78, m: 2.8 };
+
+  function halve(ent, opts) {
     opts = opts || {};
-    if (!ent || !ent.rig || ent.__gored) return;
+    if (!ent || !ent.rig || ent.__gored) return null;
     ent.__gored = true;
     var rig = ent.rig;
-    rig.root.updateMatrixWorld(true);
+    settle(ent);
 
-    /* the whole body copied in one piece, because it is not coming apart */
+    var dir = (opts.dir || new THREE.Vector3(0, 0, 1)).clone().setY(0);
+    if (dir.lengthSq() < .01) dir.set(0, 0, 1);
+    dir.normalize();
+    var power = opts.power == null ? 1 : opts.power;
+    var tilt = opts.tilt || 0;                       // a cut that is not level
+
+    var top = carve(rig, HALF_TOP), bot = carve(rig, HALF_BOT);
+    if (top) top.children.forEach(function (c) { if (c.geometry && c.geometry.type === 'BoxGeometry' && Math.abs(c.position.y - HALF_TOP.up) < .06) c.rotation.z = tilt; });
+    if (bot) bot.children.forEach(function (c) { if (c.geometry && c.geometry.type === 'BoxGeometry' && Math.abs(c.position.y - HALF_BOT.up) < .06) c.rotation.z = tilt; });
+
+    var at = ent.pos.clone().add(new THREE.Vector3(0, 3.3, 0));
+    hideBody(ent);
+
+    /* the cut itself, drawn where it went through */
+    var side = new THREE.Vector3(-dir.z, 0, dir.x);
+    FX.cutLine(at.clone().addScaledVector(side, -4).add(new THREE.Vector3(0, -Math.sin(tilt) * 4, 0)),
+      at.clone().addScaledVector(side, 4).add(new THREE.Vector3(0, Math.sin(tilt) * 4, 0)),
+      opts.color == null ? 0xffffff : opts.color, 1.1, .4);
+    FX.blood(at.clone(), dir.clone().setY(.5), 16, 1.6);
+    FX.decal(FX.T.blood, new THREE.Vector3(ent.pos.x, 0, ent.pos.z), 3.2, 0x54040f, .95, 40);
+    try { sfx.sever(); } catch (e) {}
+    addShake(.8);
+    if (typeof hitstop === 'function') hitstop(.11);
+
+    if (top) {
+      if (opts.eraseTop) {
+        /* there is no top half any more. It was not thrown anywhere. */
+        scene.add(top);
+        var et = 0;
+        addFx({ t: .5, update: function (dt) {
+          this.t -= dt; et += dt;
+          var k = Math.min(1, et / .22);
+          top.scale.setScalar(Math.max(.001, 1 - k));
+          top.position.y += dt * 1.4;
+          if (this.t <= 0) {
+            scene.remove(top);
+            top.traverse(function (c) { if (c.isMesh) c.material.dispose(); });
+            return false;
+          }
+          return true;
+        } });
+      } else {
+        var v = dir.clone().multiplyScalar(7 * power)
+          .addScaledVector(side, tilt * 8);
+        v.y = 7 + Math.random() * 5 * power;
+        drop(ent, top, v, new THREE.Vector3(
+          (Math.random() - .5) * 5, (Math.random() - .5) * 6, -3 - Math.random() * 4), HALF_TOP.m);
+      }
+    }
+    if (bot) {
+      /* the legs keep standing until they find out */
+      scene.add(bot);
+      var stand = opts.stand == null ? .38 : opts.stand;
+      var bt = 0, dropped = false;
+      addFx({ t: 1e9, update: function (dt) {
+        bt += dt;
+        if (bt < stand) {
+          bot.position.y += Math.sin(bt * 30) * .012;   // it wobbles
+          return true;
+        }
+        if (!dropped) {
+          dropped = true;
+          scene.remove(bot);
+          drop(ent, bot, dir.clone().multiplyScalar(-1.6), new THREE.Vector3(
+            (Math.random() < .5 ? -1 : 1) * (1.6 + Math.random()), 0, (Math.random() - .5) * 2), HALF_BOT.m);
+          FX.blood(bot.position.clone().add(new THREE.Vector3(0, 1, 0)), new THREE.Vector3(0, 1, 0), 8, 1.3);
+        }
+        return false;
+      } });
+    }
+    return { top: top, bottom: bot };
+  }
+  GORE.halve = halve;
+
+  /* =====================================================================
+     A COPY OF THE WHOLE BODY
+     For the endings that do not take it apart: burning it, flattening
+     it, and taking it out of the world altogether.
+     ================================================================== */
+  function cloneBody(ent) {
+    var rig = ent.rig;
+    settle(ent);
     var g = new THREE.Group();
     rig.root.matrixWorld.decompose(_v, _q, _s);
     g.position.copy(_v); g.quaternion.copy(_q);
@@ -353,6 +453,123 @@
       mats.push(m.material);
     });
     scene.add(g);
+    return { g: g, mats: mats };
+  }
+
+  /* =====================================================================
+     FLATTENED
+     Something came down on them, or they came down on something. The
+     body is pressed into the ground and stays pressed into it.
+     ================================================================== */
+  function flatten(ent, opts) {
+    opts = opts || {};
+    if (!ent || !ent.rig || ent.__gored) return;
+    ent.__gored = true;
+    var body = cloneBody(ent);
+    hideBody(ent);
+    var at = new THREE.Vector3(ent.pos.x, 0, ent.pos.z);
+    FX.blood(ent.pos.clone().add(new THREE.Vector3(0, 1.6, 0)), new THREE.Vector3(0, 1, 0), 18, 1.6);
+    FX.decal(FX.T.blood, at.clone(), 4.4, 0x54040f, .95, 40);
+    FX.cracks(at.clone(), 9, opts.crater || 13, 0x1a1014);
+    FX.dust(at.clone(), 10, 0xc9bda6, 12, 3.6);
+    try { sfx.sever(); } catch (e) {}
+    addShake(1.4);
+    if (typeof hitstop === 'function') hitstop(.12);
+    var t = 0;
+    addFx({ t: 1e9, update: function (dt) {
+      t += dt;
+      var k = Math.min(1, t / .18);
+      var f = 1 - k * .88;                            // down to a tenth of itself
+      body.g.scale.set(1 + k * .55, Math.max(.09, f), 1 + k * .55);
+      body.g.position.y = Math.max(0, body.g.position.y - dt * 9);
+      return t < 1;
+    } });
+  }
+  GORE.flatten = flatten;
+
+  /* =====================================================================
+     ERASED
+     Not killed — removed. Nothing is left standing and nothing falls
+     over; there is a mark on the floor where somebody used to be.
+     ================================================================== */
+  function erase(ent, opts) {
+    opts = opts || {};
+    if (!ent || !ent.rig || ent.__gored) return;
+    ent.__gored = true;
+    var body = cloneBody(ent);
+    hideBody(ent);
+    var at = ent.pos.clone().add(new THREE.Vector3(0, 2.6, 0));
+    var col = opts.color == null ? 0x9b4dff : opts.color;
+    FX.converge(at.clone(), col, 34, 12, .5);
+    FX.impact(at.clone(), col, 2.6);
+    FX.decal(FX.T.blood, new THREE.Vector3(ent.pos.x, 0, ent.pos.z), 2.4, 0x0a0a12, .8, 30);
+    addShake(.7);
+    var t = 0;
+    addFx({ t: 1e9, update: function (dt) {
+      t += dt;
+      var k = Math.min(1, t / .45);
+      body.g.scale.set(Math.max(.001, 1 - k), Math.max(.001, 1 - k * .7), Math.max(.001, 1 - k));
+      for (var i = 0; i < body.mats.length; i++) {
+        body.mats[i].transparent = true;
+        body.mats[i].opacity = 1 - k;
+        if (body.mats[i].emissive) {
+          body.mats[i].emissive.setHex(col);
+          body.mats[i].emissiveIntensity = k * 1.6;
+        }
+      }
+      if (k >= 1) {
+        scene.remove(body.g);
+        body.mats.forEach(function (m) { m.dispose(); });
+        return false;
+      }
+      return true;
+    } });
+  }
+  GORE.erase = erase;
+
+  /* =====================================================================
+     PULLED IN
+     Taken apart, and then the pieces are taken somewhere.
+     ================================================================== */
+  function implode(ent, opts) {
+    opts = opts || {};
+    var made = sever(ent, { dir: opts.dir, power: .35, cubes: opts.cubes || 10 });
+    var to = (opts.at || ent.pos.clone().add(new THREE.Vector3(0, 3, 0))).clone();
+    var t = 0;
+    addFx({ t: 1e9, update: function (dt) {
+      t += dt;
+      for (var i = 0; i < made.length; i++) {
+        var p = made[i];
+        if (!p || p.gone) continue;
+        p.down = false;
+        var pull = to.clone().sub(p.g.position);
+        var d = pull.length();
+        p.vel.addScaledVector(pull.normalize(), dt * (28 + t * 60));
+        p.vel.multiplyScalar(Math.pow(.6, dt));
+        if (d < 1.2) { p.gone = true; FX.mote(to.clone(), opts.color || 0x3a7dff, 2, .3); }
+      }
+      if (t > 1.1) {
+        FX.impact(to.clone(), opts.color || 0x3a7dff, 3.4);
+        FX.rings(to.clone(), opts.color || 0x3a7dff, 3,
+          { maxR: 12, life: .5, ground: false, gap: 40 });
+        addShake(1);
+        return false;
+      }
+      return true;
+    } });
+  }
+  GORE.implode = implode;
+
+  /* =====================================================================
+     BURNED
+     The body chars where it stands, drops, and stays there as a husk.
+     ================================================================== */
+  function burn(ent, opts) {
+    opts = opts || {};
+    if (!ent || !ent.rig || ent.__gored) return;
+    ent.__gored = true;
+    var body = cloneBody(ent);
+    var g = body.g, mats = body.mats;
     hideBody(ent);
 
     var at = ent.pos.clone();

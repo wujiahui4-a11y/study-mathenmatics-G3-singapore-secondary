@@ -149,40 +149,65 @@ anything that runs out of health in there.
 
 ## Finishers
 
-Every fighter has one, off the ordinary kit, in the way Naoya's awakening
-ends in one.
+**Every skill has its own, and the basic punch has none.**
 
-When one of your abilities is about to take somebody out, **it does not take
-them out**. It takes them somewhere: a stage built well above the city where
-the two of you are the only things that exist for the next half a minute. The
-arena is never touched and every other player carries on watching the pair of
-you stand still.
+When a *skill* is the thing that would have taken somebody out, it does not
+just take them out. It finishes them, in the way that skill finishes people,
+and differently from every other skill in the game — twenty four of them, one
+per ability per fighter.
 
-| | The cut | Ends |
-| --- | --- | --- |
-| Gojo | **THROUGHOUT HEAVEN AND EARTH** — blue takes them off the floor, red puts them through a wall, and what the two of them make between his hands does the rest | burnt |
-| Naoya | **TWENTY FOUR FRAMES** — hit from four sides inside a second, the tanto, and twenty four passes that each leave a line | in pieces |
-| Yuji | **BLACK FLASH** — divergent fist, the manji kick, down through the floor, and a hundredth of a second | face down |
-| Hakari | **PRIVATE PURE LOVE TRAIN** — the hands, the shutter, three sevens, and the thing the parlour was always going to send | in pieces |
-| Sukuna | **DISMANTLE** — one finger, one line, the net, the cleave, the furnace he does not bother using, and 解 | in cubes |
+Three things a finisher deliberately is not:
 
-Two rules hold for all five.
+* **It is not the punch.** A jab that happens to land last is not a finisher.
+  `m1` never triggers one, and it excludes itself for free: a punch runs off
+  `attackT` rather than off an action, so there is no skill to attribute it to.
+* **It is not a cutscene.** Nobody is taken anywhere, the camera is never taken
+  away, the letterbox never comes in and you never stop playing. The longest of
+  them is under two and a half seconds; most are around one.
+* **It is not Naoya's awakening.** That eleven beat cut is his and it is
+  untouched.
 
-**The health is locked.** Both fighters are held at a floor of one health for
-the whole cut, so a finisher thrown at somebody who was already on two health
-does not kill them in the first beat and leave the other twenty seconds
-playing to a corpse. The kill is applied at the end, by the victim, once the
-cut is over — the same way Naoya's is, because a hit arriving while their own
-copy of the cut is still running would be thrown away.
+| | Gojo | Naoya | Yuji | Hakari |
+| --- | --- | --- | --- | --- |
+| `1` | **blown apart** — repulsion has nowhere to put them but outward | **framed** — stopped, and then shattered like the glass | **hit twice** — it folds them, and half a second later the rest of it arrives | **cut in half** — the shutter hits them, turns flat, and goes through |
+| `2` | **pummelled** — a dozen of them, and then the floor | **cut in two** — one level cut, and he walks on | **black flash** — the frame goes out and comes back as black line work | **riddled** — the other half of the machine, all of it |
+| `3` | **launched** — up, and a very small flash a long way overhead | **put through it** — the kick that ends the conversation | **spun apart** — it takes them up and it takes them apart | **floored** — three of his own, and then the ground |
+| `4` | **pressed flat** — four rings, each one lower than the last | — | **driven down** — all of his weight, and a crater | **paid out** — the machine cashes them in |
+| `R` | **erased** — nothing is left standing and nothing falls over | **never saw it** — three places at once | **burned out** — from the inside | **run through** — shoulder first, and out the other side |
 
-**They do not all end limp.** A ragdoll is one ending out of three now.
+Gojo awakened gets four more: Lapse: Blue **draws them in** and closes on them,
+Reversal: Red **tears them apart**, Unlimited Void **shuts them down** without
+touching them at all, and Hollow Purple **halves** them — the top of them goes
+with the beam and the legs are left standing in the road until they find out.
+
+Sukuna's four: Dismantle **dismantles**, Cleave **cleaves** on the diagonal,
+Fuga **burns them to ash**, and Malevolent Shrine **cuts them to pieces**.
+
+The health lock still holds — the target is pinned at one health for as long as
+the finisher runs, so the beat plays out on somebody who is still there and the
+kill lands at the end of it — and there is a seven second cooldown, so a
+finisher stays something that happens rather than something that always happens.
+
+Over the network it is one small message: everybody plays the same beat on
+their copy of whoever it caught, and the person it is happening *to* is handed
+a set of blanks instead of the body-breaking kit, because their own body is
+taken apart by the hit that arrives at the end rather than by a replay of
+somebody else's effect landing on them while they are still alive.
+
+### What is left
+
+Five endings, and which one you get depends on the skill: a **ragdoll**, a
+body **cut apart** into the pieces it was cut into, one **cut in two** at the
+waist or across the diagonal, one **burned** down to a husk, one **pressed
+flat** into the road, and one **erased** — which leaves a mark on the floor
+and nothing else.
 
 ## Dying
 
 Dying used to burst the body into loose boxes, and then it was a ragdoll:
 the hips carry the momentum of whatever killed you, the joints swing on
 springs with nothing driving them, and it lands and settles into a heap. That
-is still the default. There are two more.
+is still the default, and it is now one of six.
 
 **Cut apart.** A body Dismantle catches falls into the pieces it was cut
 into. The separation is real: every mesh in the rig is copied into the piece
@@ -195,6 +220,17 @@ where they were thrown and stay there until the respawn.
 **Burnt.** A body the Divine Flame catches chars from the inside out over a
 second and a half, burns where it is standing, goes down, and stays as a
 husk with the scorch mark it left under it.
+
+**Cut in two.** One cut rather than eleven: the top of them leaves and the
+bottom is still standing on legs that have not been told yet, for about a
+third of a second, before those go too.
+
+**Pressed flat.** Whatever came down on them is still coming down. The body
+is compressed into the road over a fifth of a second and stays compressed
+into it.
+
+**Erased.** Nothing is left standing and nothing falls over. There is a mark
+on the floor where somebody used to be.
 
 ## Gojo's awakening
 

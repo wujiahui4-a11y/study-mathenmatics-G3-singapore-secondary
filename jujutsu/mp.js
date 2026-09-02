@@ -750,31 +750,19 @@
       }
       return;
     }
-    if (m.t === 'fcine') {                              // a finisher started
-      if (m.to === MP.id) {
-        if (window.JJFIN) window.JJFIN.remote(m.id, m.k);
-      } else {
-        /* everybody else in the room: the pair of them lock up where they
-           stand, so put something over them that says so */
-        var fa = MP.fighters[m.id], fv = MP.fighters[m.to];
-        var cutName = (CHARS[m.k] && CHARS[m.k].name) || 'A FINISHER';
-        feed('<b>' + esc(fa ? fa.name : '???') + '</b> finished <b>' +
-          esc(fv ? fv.name : '???') + '</b>');
-        [fa, fv].forEach(function (f, n) {
-          if (!f || !f.e) return;
-          var at = f.e.pos.clone();
-          window.JJFX.beam(at.clone(), new THREE.Vector3(0, 1, 0), 40,
-            n ? 0xff5f6d : 0xffffff, { radius: 1.4, life: 1.6 });
-          window.JJFX.rings(new THREE.Vector3(at.x, .12, at.z), n ? 0xff5f6d : 0xdfefff, 3,
-            { maxR: 12, life: .9, gap: 70 });
-          if (!f.finAura) {
-            f.finAura = window.JJFX.aura(function () { return f.e.pos; }, n ? 0xff5f6d : 0xdfefff);
-            setTimeout(function () {
-              if (f.finAura) { f.finAura.stop(); f.finAura = null; }
-            }, 34000);
-          }
-        });
+    if (m.t === 'fin') {                                // a skill finished somebody
+      var fv = m.to === MP.id ? null : MP.fighters[m.to];
+      var fa = MP.fighters[m.id];
+      var who = m.to === MP.id ? player : (fv && fv.e);
+      if (who && window.JJFIN) {
+        window.JJFIN.remote(who,
+          m.k,
+          new THREE.Vector3(m.x || who.pos.x, 0, m.z || who.pos.z),
+          new THREE.Vector3(m.dx || 0, 0, m.dz || 1),
+          m.to === MP.id);
       }
+      feed('<b>' + esc(fa ? fa.name : '???') + '</b> finished <b>' +
+        esc(m.to === MP.id ? MP.name : (fv ? fv.name : '???')) + '</b>');
       return;
     }
     if (m.t === 'gore') {                               // their body, coming apart
@@ -1146,8 +1134,8 @@
       MP.myChar = player.char;
       setTag(player.rig, MP.name, player.char);
     }
+    /* a finisher is not a cutscene any more, so the tags stay up for it */
     var cine = CS.active ||
-      !!(window.JJFIN && window.JJFIN.on()) ||
       !!(window.JJNAOYA && window.JJNAOYA.busy()) ||
       !!(window.JJAW && window.JJAW.cine);
     if (player.rig && player.rig.__tag) player.rig.__tag.visible = !cine && !player.dead;
