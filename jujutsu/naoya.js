@@ -25,6 +25,10 @@
         fist through the middle of it
     10  white, and back to the arena
 
+   After they break the wall and he is standing on them, the Shoreline
+   / Projection moment starts at 0:50 of the compilation. When the cut
+   is over the music fades; it does not cut.
+
    ===================================================================== */
 (function () {
   'use strict';
@@ -44,6 +48,145 @@
     busy: function () { return RUSH.on || CINE.on; },
     panel: function (on) { panel(on); }          // the still, for a look at it
   };
+
+  /* ----------------------------------------------------------- the song
+     The compilation is two minutes and a bit. The shoreline moment the
+     cut wants sits at 0:50. Apps Script cannot play an .mp3 URL, so that
+     stretch is carried as p4 (window.JJNAOYATHEME) and started from the
+     top of the extract — which is already 0:50 of the original. */
+  var OST_VOL = .88;
+  var OST_FADE = .42;                              // ~2s from full to silent
+  var ostBuf = null, ostNode = null, ostGain = null;
+  var ostFade = 0, ostNeed = false, ostWant = 0, ostArmed = false;
+  var ostErr = '';
+
+  function ostPartBase() {
+    var nodes = document.getElementsByTagName('script'), i, s, m;
+    for (i = 0; i < nodes.length; i++) {
+      s = nodes[i].getAttribute('src') || '';
+      m = s.match(/^(.*)[?&]p=2(?:$|&)/);
+      if (m) return m[1];
+      if (/p2\.js$/.test(s)) return s.replace(/p2\.js$/, '');
+    }
+    var im = document.querySelector('script[type="importmap"]');
+    if (im && im.textContent) {
+      m = im.textContent.match(/"three"\s*:\s*"(.*?)\?p=1"/);
+      if (m) return m[1];
+      m = im.textContent.match(/"three"\s*:\s*"(.*?)p1\.js"/);
+      if (m) return m[1];
+    }
+    return '';
+  }
+
+  function loadP4(done) {
+    if (window.JJNAOYATHEME) { done(); return; }
+    var base = ostPartBase();
+    if (!base) { done(); return; }
+    var sc = document.createElement('script');
+    if (/\/exec$/i.test(base) || /script\.google\.com/.test(base)) {
+      sc.src = base.replace(/[?&]p=\d+$/, '') + '?p=4';
+    } else {
+      sc.src = base.replace(/p2\.js$/i, 'p4.js');
+      if (!/p4\.js$/i.test(sc.src)) sc.src = base + (/\/$/.test(base) ? '' : '/') + 'p4.js';
+    }
+    sc.onload = function () { done(); };
+    sc.onerror = function () { ostErr = 'p4 failed'; done(); };
+    document.head.appendChild(sc);
+  }
+
+  function decodeOst(done) {
+    if (ostBuf) { done(true); return; }
+    if (!window.JJNAOYATHEME) { done(false); return; }
+    var ac = null;
+    try { ac = audio(); } catch (e) {}
+    if (!ac) { done(false); return; }
+    try {
+      var bin = atob(window.JJNAOYATHEME);
+      var bytes = new Uint8Array(bin.length), i;
+      for (i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      ac.decodeAudioData(bytes.buffer.slice(0), function (buf) {
+        ostBuf = buf;
+        try { window.JJNAOST.ready = true; window.JJNAOST.dur = buf.duration; } catch (e2) {}
+        done(true);
+      }, function () { done(false); });
+    } catch (e) { done(false); }
+  }
+
+  function startOstNode() {
+    var ac = audio();
+    if (!ac || !ostBuf) return false;
+    if (ostNode) { try { ostNode.stop(); } catch (e) {} ostNode = null; }
+    if (!ostGain) {
+      ostGain = ac.createGain();
+      ostGain.connect(ac.destination);
+    }
+    ostWant = OST_VOL;
+    ostGain.gain.value = OST_VOL;
+    ostNode = ac.createBufferSource();
+    ostNode.buffer = ostBuf;
+    ostNode.connect(ostGain);
+    try { ostNode.start(0); } catch (e) { try { ostNode.start(0); } catch (e2) { return false; } }
+    return true;
+  }
+
+  function startOst() {
+    ostNeed = true;
+    ostFade = 0;
+    try { audio(); } catch (e) {}
+    loadP4(function () {
+      decodeOst(function (ok) {
+        if (!ostNeed) return;
+        if (ok && startOstNode()) return;
+        ostErr = ostErr || 'could not start the ost';
+      });
+    });
+  }
+
+  function fadeOst() {
+    ostNeed = false;
+    if (!ostNode && ostWant <= 0) return;
+    ostFade = 1;
+  }
+
+  function stopOst() {
+    ostFade = 0;
+    ostWant = 0;
+    ostNeed = false;
+    if (ostNode) { try { ostNode.stop(); } catch (e) {} ostNode = null; }
+    if (ostGain) ostGain.gain.value = 0;
+  }
+
+  function stepOst(dt) {
+    if (!ostFade) return;
+    ostWant = Math.max(0, ostWant - dt * OST_FADE);
+    if (ostGain) ostGain.gain.value = ostWant;
+    if (ostWant <= .02) stopOst();
+  }
+
+  function armOst() {
+    try { audio(); } catch (e) {}
+    ostArmed = true;
+    loadP4(function () { decodeOst(function () {}); });
+  }
+  window.addEventListener('pointerdown', armOst, { once: true, capture: true });
+  window.addEventListener('keydown', armOst, { once: true, capture: true });
+  try { loadP4(function () {}); } catch (e) {}
+
+  window.JJNAOST = {
+    ready: false, dur: 0, vol: 0, on: false, fading: false,
+    start: startOst,
+    fade: fadeOst,
+    playing: function () { return !!ostNode && !ostFade; }
+  };
+  addFx({ t: 1e9, update: function (dt) {
+    stepOst(dt);
+    try {
+      window.JJNAOST.vol = ostWant;
+      window.JJNAOST.on = !!ostNode && !ostFade;
+      window.JJNAOST.fading = !!ostFade;
+    } catch (e) {}
+    return true;
+  } });
 
   /* =====================================================================
      ART
@@ -733,6 +876,7 @@
     if (A.self) FX.trail(A.rig, 0x9fd8ff, 3, 45, .4);
 
     if (A.self && window.JJAW) window.JJAW.finish();
+    fadeOst();
   }
 
   /* ------------------------------------------------------------- stage */
@@ -1232,6 +1376,9 @@
 
   /* ---- 5 · the slab, the boot, the mountain coming apart ------------- */
   { dur: 4.0, enter: function () {
+      /* he is on them. the wall is behind them. this is where the ost
+         comes in — 0:50 of the compilation, not from the first bar. */
+      startOst();
       clearStage();
       buildSlab();
       var A = CINE.A, V = CINE.V;
@@ -1552,7 +1699,7 @@
     } },
 
   /* ---- 11 · white, and back to the arena ----------------------------- */
-  { dur: 2.4, enter: function () { CINE.whiteT = 0; },
+  { dur: 2.4, enter: function () { CINE.whiteT = 0; fadeOst(); },
     step: function (t) {
       white(Math.min(1, t / 1.5));
       if (t > 1.5) hudOff(true);
@@ -1562,6 +1709,24 @@
       white(0);
     } }
   ];
+
+  function skipToBeat(n) {
+    if (!CINE.on) {
+      var v = enemies && enemies[0];
+      if (!v) return false;
+      startCine(entHandle(v), selfHandle());
+    }
+    n = n | 0;
+    if (CINE.beat >= 0 && CINE.beat !== n && BEATS[CINE.beat].exit) BEATS[CINE.beat].exit();
+    CINE.beat = n;
+    CINE.bt = 0;
+    CINE.flags = {};
+    if (CINE.beat >= BEATS.length) { endCine(); return true; }
+    if (BEATS[CINE.beat].enter) BEATS[CINE.beat].enter();
+    return true;
+  }
+  window.JJNAOST.skipToBeat = skipToBeat;
+  window.JJNAOST.endCine = function () { if (CINE.on) endCine(); };
 
   function stepCine(dt) {
     CINE.dt = dt;

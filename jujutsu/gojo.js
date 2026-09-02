@@ -1018,7 +1018,7 @@
       FX.debris(player.pos.clone().addScaledVector(a.dir, 7), 12, 17);
       addShake(1);
       hitstop(.08);
-      try { sfx.hit(); } catch (e) {}
+      try { (sfx.redMax || sfx.hit)(); } catch (e) {}
 
       /* everything in the cone in front is thrown */
       targets().forEach(function (e) {

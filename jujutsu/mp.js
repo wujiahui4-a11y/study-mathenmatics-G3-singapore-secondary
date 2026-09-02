@@ -1449,6 +1449,7 @@
       case 'aw_red':
         setTimeout(function () {
           FX.wave(mid, fwd, 0xff3b4d, { steps: 6, r0: 9, grow: 2.4, reach: 5.5 });
+          try { (sfx.redMax || sfx.hit)(); } catch (e) {}
         }, 450);
         setTimeout(function () {
           FX.cross(mid.clone().addScaledVector(fwd, 1.4), 0xffb3ba, 6, .3);

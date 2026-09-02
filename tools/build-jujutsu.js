@@ -31,7 +31,7 @@ const mqtt = fs.readFileSync(path.join(src, 'mqtt.min.js'), 'utf8');
    gojo builds the awakening on top, finisher
    sits after every fighter so it can send them all somewhere, and mp
    shares the lot — last, so it still broadcasts through a cutscene. */
-const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'gore.js', 'punch-sfx.js', 'combat.js', 'hits.js',
+const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'gore.js', 'punch-sfx.js', 'red-sfx.js', 'combat.js', 'hits.js',
   'dash.js', 'gojo.js', 'naoya.js', 'yuji.js', 'hakari.js', 'choso.js', 'void.js',
   'sukuna.js', 'parlor.js', 'finisher.js', 'mp.js']
   .map(function (f) {
@@ -83,7 +83,13 @@ const inlineThree =
 })();
 </script>`;
 
-const single = assemble(inlineThree, '<script>\n' + guard(mqtt) + '\n</script>');
+const p4src = (function () {
+  const p = path.join(root, 'jujutsu-parts', 'p4.js');
+  return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
+})();
+const p4Tag = p4src ? '<script>\n' + guard(p4src) + '\n</script>\n' : '';
+
+const single = assemble(inlineThree, '<script>\n' + guard(mqtt) + '\n</script>\n' + p4Tag);
 fs.writeFileSync(path.join(root, 'jujutsu-multiplayer.html'), single);
 console.log('jujutsu-multiplayer.html  ' + Math.round(single.length / 1024) + ' kB');
 
@@ -94,7 +100,8 @@ if (!fs.existsSync(out)) fs.mkdirSync(out);
 const partsThree = '<script type="importmap">\n' +
   '{ "imports": { "three": "__PART_BASE__?p=1" } }\n</script>';
 const partsMqtt = '<script src="__PART_BASE__?p=2"></script>\n' +
-  '<script src="__PART_BASE__?p=3" async></script>';
+  '<script src="__PART_BASE__?p=3" async></script>\n' +
+  '<script src="__PART_BASE__?p=4" async></script>';
 
 let shell = assemble(partsThree, partsMqtt);
 
@@ -118,4 +125,8 @@ console.log('jujutsu-parts/p2.js       ' + Math.round(mqtt.length / 1024) + ' kB
 const p3path = path.join(out, 'p3.js');
 if (fs.existsSync(p3path)) {
   console.log('jujutsu-parts/p3.js       ' + Math.round(fs.statSync(p3path).size / 1024) + ' kB (theme)');
+}
+const p4path = path.join(out, 'p4.js');
+if (fs.existsSync(p4path)) {
+  console.log('jujutsu-parts/p4.js       ' + Math.round(fs.statSync(p4path).size / 1024) + ' kB (naoya ost)');
 }
