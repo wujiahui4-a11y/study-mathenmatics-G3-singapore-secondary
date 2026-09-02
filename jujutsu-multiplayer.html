@@ -6957,6 +6957,8 @@ window.__game = {
   }
   window.addEventListener('pointerdown', armSong);
   window.addEventListener('keydown', armSong);
+  /* start the 8 MB download now, so F is not waiting on it */
+  try { ensureSong(); } catch (e) {}
 
   function playSong(restart) {
     var a = ensureSong();
@@ -7039,6 +7041,7 @@ window.__game = {
       var first = !songIds[id];
       songIds[id] = 1;
       playSong(!!first);
+      if (first && window.JJNOTICE) window.JJNOTICE('FINAL ENCORE', '#9fd8ff');
     } else {
       delete songIds[id];
       if (!Object.keys(songIds).length) fadeSong();

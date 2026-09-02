@@ -129,6 +129,8 @@
   }
   window.addEventListener('pointerdown', armSong);
   window.addEventListener('keydown', armSong);
+  /* start the 8 MB download now, so F is not waiting on it */
+  try { ensureSong(); } catch (e) {}
 
   function playSong(restart) {
     var a = ensureSong();
