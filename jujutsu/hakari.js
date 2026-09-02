@@ -106,7 +106,7 @@
   try { CHARS.hakari.portrait = makePortrait(HAKARI_CFG); } catch (e) {}
   try { buildCharList(); } catch (e) {}
 
-  var HK = window.JJHAKARI = { fever: 0, spins: 0, shutter: null };
+  var HK = window.JJHAKARI = { fever: 0, spins: 0, shutter: null, makeDoor: null };
 
   /* --------------------------------------------------------------- help */
   function ready(key) {
@@ -152,33 +152,268 @@
     HK.shutter = { until: 0, dir: a.dir.clone() };
     try { sfx.frame(); } catch (e) {}
   }
+  /* one door, used by the skill and by the finisher — a train shutter,
+     not a wooden box. Same size the throw already aims with. */
+  var DOOR_SLAT = null, DOOR_GLASS = null, DOOR_PLATE = null;
+  function doorCanvas(w, h, draw) {
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    draw(c.getContext('2d'), w, h);
+    var t = new THREE.CanvasTexture(c);
+    try { t.colorSpace = THREE.SRGBColorSpace || THREE.sRGBEncoding; } catch (err) {}
+    t.anisotropy = 4;
+    return t;
+  }
+  function doorMaps() {
+    if (DOOR_SLAT) return;
+    DOOR_SLAT = doorCanvas(16, 64, function (x, w, h) {
+      var i, g;
+      for (i = 0; i < 8; i++) {
+        g = x.createLinearGradient(0, i * 8, 0, i * 8 + 8);
+        g.addColorStop(0, '#f2f6fb');
+        g.addColorStop(.28, '#b8c2d0');
+        g.addColorStop(.5, '#6e7888');
+        g.addColorStop(.72, '#d0d8e2');
+        g.addColorStop(1, '#8a93a2');
+        x.fillStyle = g;
+        x.fillRect(0, i * 8, w, 8);
+      }
+    });
+    DOOR_SLAT.wrapS = DOOR_SLAT.wrapT = THREE.RepeatWrapping;
+    DOOR_SLAT.repeat.set(1, 2);
+    DOOR_GLASS = doorCanvas(256, 160, function (x, w, h) {
+      var g = x.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, '#153044');
+      g.addColorStop(.45, '#2a5a78');
+      g.addColorStop(1, '#0c1c28');
+      x.fillStyle = g;
+      x.fillRect(0, 0, w, h);
+      g = x.createLinearGradient(20, 0, w - 20, h);
+      g.addColorStop(0, 'rgba(210,230,255,0.22)');
+      g.addColorStop(.5, 'rgba(255,220,120,0.08)');
+      g.addColorStop(1, 'rgba(80,140,180,0.18)');
+      x.fillStyle = g;
+      x.fillRect(10, 10, w - 20, h - 20);
+      x.fillStyle = 'rgba(255,210,74,0.92)';
+      x.font = 'bold 54px sans-serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText('777', w / 2, h / 2 + 4);
+      x.fillStyle = 'rgba(255,80,140,0.55)';
+      x.fillRect(18, h - 22, w - 36, 5);
+    });
+    DOOR_PLATE = doorCanvas(256, 48, function (x, w, h) {
+      x.fillStyle = '#1a1420';
+      x.fillRect(0, 0, w, h);
+      var g = x.createLinearGradient(0, 0, w, 0);
+      g.addColorStop(0, '#ff4f8b');
+      g.addColorStop(.5, '#ffd964');
+      g.addColorStop(1, '#ff4f8b');
+      x.fillStyle = g;
+      x.fillRect(0, 6, w, h - 12);
+      x.fillStyle = '#1a1020';
+      x.font = 'bold 18px sans-serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText('PRIVATE PURE LOVE TRAIN', w / 2, h / 2);
+    });
+  }
   function makeDoor() {
+    doorMaps();
     var g = new THREE.Group();
-    var frame = new THREE.Mesh(new THREE.BoxGeometry(7.2, 6.6, .5),
-      new THREE.MeshStandardMaterial({ color: 0xb9c0cc, roughness: .5, metalness: .3 }));
-    g.add(frame);
-    /* the slats, and the seam down the middle where it parts */
-    for (var i = 0; i < 9; i++) {
-      var slat = new THREE.Mesh(new THREE.BoxGeometry(6.9, .12, .58),
-        new THREE.MeshStandardMaterial({ color: 0x8b93a2, roughness: .6 }));
-      slat.position.y = -2.9 + i * .72;
-      g.add(slat);
+    g.userData.slats = [];
+    g.userData.golds = [];
+
+    function mat(c, opt) {
+      opt = opt || {};
+      var m = new THREE.MeshStandardMaterial({
+        color: c,
+        roughness: opt.rough == null ? .55 : opt.rough,
+        metalness: opt.metal == null ? .22 : opt.metal,
+        emissive: opt.emit || 0x000000,
+        emissiveIntensity: opt.emitI || 0,
+        map: opt.map || null,
+        transparent: !!opt.alpha,
+        opacity: opt.alpha == null ? 1 : opt.alpha
+      });
+      if (opt.gold) {
+        m.userData.baseEmit = opt.emitI || .32;
+        g.userData.golds.push(m);
+      }
+      return m;
     }
-    var seam = new THREE.Mesh(new THREE.BoxGeometry(.16, 6.6, .6),
-      new THREE.MeshStandardMaterial({ color: 0x6d7484, roughness: .6 }));
-    g.add(seam);
+    function lit(c, opt) {
+      opt = opt || {};
+      var m = new THREE.MeshBasicMaterial({
+        color: c, toneMapped: false, map: opt.map || null,
+        transparent: !!opt.alpha, opacity: opt.alpha == null ? 1 : opt.alpha
+      });
+      return m;
+    }
+    function box(par, w, h, d, m, x, y, z) {
+      var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      mesh.position.set(x || 0, y || 0, z || 0);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      par.add(mesh);
+      return mesh;
+    }
+
+    var steel = mat(0xc5ced8, { rough: .48, metal: .28 });
+    var steelD = mat(0x6a7382, { rough: .58, metal: .18 });
+    var steelR = mat(0xffffff, { rough: .42, metal: .2, map: DOOR_SLAT });
+    var ink = mat(0x2a2e36, { rough: .82, metal: .06 });
+    var gold = lit(0xffd24a);
+    var goldH = lit(0xffe08a);
+    var pink = lit(0xff4f8b);
+    var glass = lit(0xffffff, { map: DOOR_GLASS });
+    var plate = lit(0xffffff, { map: DOOR_PLATE });
+    var hazY = lit(0xffcc33);
+    var hazK = mat(0x2a2c32, { rough: .8, metal: .08 });
+    var rv = mat(0xc8d0da, { rough: .4, metal: .3 });
+
+    /* two leaves, so the finisher can open them and clamp them */
+    var left = new THREE.Group();
+    left.position.x = -1.72;
+    left.userData.homeX = -1.72;
+    g.add(left);
+    var right = new THREE.Group();
+    right.position.x = 1.72;
+    right.userData.homeX = 1.72;
+    g.add(right);
+    g.userData.left = left;
+    g.userData.right = right;
+
+    /* the frame the shutter rides in — same from either side */
+    box(g, 7.55, .42, .96, steel, 0, 3.22, 0);
+    box(g, 7.7, .14, 1.02, gold, 0, 3.46, 0);
+    box(g, .38, 6.6, .96, steel, -3.58, 0, 0);
+    box(g, .38, 6.6, .96, steel, 3.58, 0, 0);
+    box(g, 7.55, .34, 1.0, steelD, 0, -3.28, 0);
+
+    /* rubber sweep and hazard blocks on the sill */
+    box(g, 7.1, .16, .86, ink, 0, -3.08, 0);
+    var h;
+    for (h = 0; h < 9; h++) {
+      box(g, .72, .12, .96, h % 2 ? hazY : hazK, -2.88 + h * .72, -3.38, 0);
+    }
+
+    /* both skins: the player stands on -Z, the throw goes toward +Z */
+    function skin(zS) {
+      box(g, 7.85, .07, .07, goldH, 0, 3.58, .44 * zS);
+      box(g, 7.85, .07, .07, goldH, 0, -3.48, .44 * zS);
+      box(g, .07, 7.1, .07, goldH, -3.82, 0, .44 * zS);
+      box(g, .07, 7.1, .07, goldH, 3.82, 0, .44 * zS);
+
+      var side;
+      for (side = -1; side <= 1; side += 2) {
+        var leaf = side < 0 ? left : right;
+
+        box(leaf, 3.28, 6.05, .14, steel, 0, 0, 0);
+        var s;
+        for (s = 0; s < 10; s++) {
+          var sy = -2.62 + s * .38;
+          var slat = box(leaf, 3.12, .3, .2, steelR, 0, sy, .12 * zS);
+          slat.userData.home = slat.position.clone();
+          g.userData.slats.push(slat);
+          box(leaf, 3.12, .06, .24, steelD, 0, sy - .16, .14 * zS);
+        }
+        box(leaf, 2.55, 1.85, .08, ink, 0, 2.08, .14 * zS);
+        box(leaf, 2.36, 1.66, .05, glass, 0, 2.08, .2 * zS);
+        box(leaf, 2.58, .1, .12, gold, 0, 2.96, .22 * zS);
+        box(leaf, 2.58, .1, .12, gold, 0, 1.2, .22 * zS);
+        box(leaf, .1, 1.86, .12, gold, -1.24, 2.08, .22 * zS);
+        box(leaf, .1, 1.86, .12, gold, 1.24, 2.08, .22 * zS);
+        box(leaf, 2.4, .06, .1, gold, 0, 2.08, .24 * zS);
+        box(leaf, .06, 1.66, .1, gold, 0, 2.08, .24 * zS);
+        box(leaf, 3.16, .28, .12, plate, 0, 1.02, .26 * zS);
+        box(leaf, 3.16, .05, .14, pink, 0, 1.18, .28 * zS);
+        box(leaf, .08, .72, .08, ink, side * -.9, -.15, .34 * zS);
+        box(leaf, .34, .08, .08, ink, side * -.9, -.15, .34 * zS);
+        box(leaf, .22, .1, .1, goldH, 0, 2.88, .32 * zS);
+        box(leaf, .12, 6.0, .22, steel, side * 1.52, 0, .08 * zS);
+        /* the inner edge that meets the other leaf when they clamp */
+        box(leaf, .14, 6.1, .28, goldH, side * -1.62, 0, .2 * zS);
+      }
+
+      var r;
+      for (r = -3; r <= 3; r++) box(g, .1, .1, .1, rv, r * 1.05, 3.22, .5 * zS);
+      for (r = -2; r <= 2; r++) {
+        box(g, .1, .1, .1, rv, -3.58, r * 1.15, .5 * zS);
+        box(g, .1, .1, .1, rv, 3.58, r * 1.15, .5 * zS);
+      }
+    }
+    skin(-1);
+    skin(1);
+
     var glow = FX.billboard(FX.T.ring, 0xffcc4d, .5);
-    glow.scale.set(9, 9, 1);
-    glow.position.z = .5;
+    glow.scale.set(8.2, 8.2, 1);
+    glow.position.z = -.58;
     g.add(glow);
+    g.userData.glow = glow;
+    var glowB = FX.billboard(FX.T.ring, 0xff4f8b, .32);
+    glowB.scale.set(7.4, 7.4, 1);
+    glowB.position.z = .58;
+    g.add(glowB);
+    g.userData.glowB = glowB;
+    var star = FX.billboard(FX.T.star, 0xffe08a, .35);
+    star.scale.set(2.8, 2.8, 1);
+    star.position.set(0, .15, -.68);
+    g.add(star);
+    g.userData.star = star;
+
     return g;
   }
+  HK.makeDoor = makeDoor;
+  HK.openDoor = function (door, amount) {
+    if (!door || !door.userData.left || !door.userData.right) return;
+    door.userData.left.position.x = door.userData.left.userData.homeX - amount;
+    door.userData.right.position.x = door.userData.right.userData.homeX + amount;
+    var show = amount < .55;
+    if (door.userData.glow) door.userData.glow.visible = show;
+    if (door.userData.glowB) door.userData.glowB.visible = show;
+    if (door.userData.star) door.userData.star.visible = amount < .25;
+  };
+  HK.dropDoor = function (door) {
+    if (!door) return;
+    if (door.parent) door.parent.remove(door);
+    else if (typeof scene !== 'undefined') scene.remove(door);
+    door.traverse(function (c) {
+      if (!c.isMesh || !c.material) return;
+      var ms = c.material.length ? c.material : [c.material];
+      for (var i = 0; i < ms.length; i++) if (ms[i] && ms[i].dispose) ms[i].dispose();
+    });
+  };
+  HK.pulseDoor = function (door, t) {
+    if (!door || !door.userData) return;
+    var k = .5 + .5 * Math.sin(t * 20);
+    if (door.userData.glow) door.userData.glow.material.opacity = .42 + k * .28;
+    if (door.userData.glowB) door.userData.glowB.material.opacity = .22 + k * .18;
+    if (door.userData.star) door.userData.star.material.opacity = .28 + k * .3;
+    var golds = door.userData.golds || [];
+    for (var i = 0; i < golds.length; i++) {
+      if (golds[i].isMeshStandardMaterial) {
+        golds[i].emissiveIntensity = (golds[i].userData.baseEmit || .3) + k * .45;
+      }
+    }
+  };
+  HK.rattleDoor = function (door, amt) {
+    if (!door || !door.userData || !door.userData.slats) return;
+    var slats = door.userData.slats;
+    for (var i = 0; i < slats.length; i++) {
+      var s = slats[i], home = s.userData.home;
+      if (!home) continue;
+      s.position.x = home.x + (Math.random() - .5) * amt;
+      s.position.z = home.z + (Math.random() - .5) * amt * .6;
+    }
+  };
   function stepShutter(a, dt) {
     if (!a.door) return;
     if (a.t < .22) {                                 // it drops into place
       var k = E.out(a.t / .22);
       a.door.scale.set(1, .05 + .95 * k, 1);
       a.door.position.copy(player.pos).addScaledVector(a.dir, 2.6).add(new THREE.Vector3(0, 3.4, 0));
+      HK.pulseDoor(a.door, a.t);
       if (a.stage < 1) {
         a.stage = 1;
         FX.ring(new THREE.Vector3(a.door.position.x, .1, a.door.position.z), 0xffcc4d, { maxR: 7, life: .5 });
@@ -192,6 +427,7 @@
     if (a.t < .62) {
       HK.shutter.until = SA_now() + .2;
       a.door.position.copy(player.pos).addScaledVector(a.dir, 2.6).add(new THREE.Vector3(0, 3.4, 0));
+      HK.pulseDoor(a.door, a.t);
       if (Math.random() < .3) FX.streaks(a.door.position.clone(), 0xffcc4d, 1, 5, .8);
       return;
     }
@@ -205,6 +441,8 @@
     if (a.t < 1.0) {
       a.slam += dt;
       a.door.position.addScaledVector(a.dir, 34 * dt);
+      HK.pulseDoor(a.door, a.t * 2);
+      HK.rattleDoor(a.door, .04);
       if (Math.random() < .7) FX.streaks(a.door.position.clone(), 0xffe08a, 2, 12, 1.2);
       enemies.forEach(function (e) {
         if (!e || e.dead || e.rag || e.hkHit) return;
@@ -226,7 +464,7 @@
       FX.rings(at, 0xffcc4d, 3, { maxR: 12, life: .5, ground: false, gap: 40 });
       FX.debris(new THREE.Vector3(at.x, 0, at.z), 10, 15, 0x8b93a2);
       addShake(.8);
-      scene.remove(a.door);
+      HK.dropDoor(a.door);
       a.door = null;
       HK.shutter = null;
     }
