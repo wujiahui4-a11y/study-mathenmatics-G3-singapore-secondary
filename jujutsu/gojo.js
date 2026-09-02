@@ -840,9 +840,10 @@
       hitstop(.16);
       try { sfx.frame(); } catch (e) {}
       if (window.MPJJ && window.MPJJ.relay) {
-        window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id,
+        window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id, k: 'void',
           x: Math.round(a.center.x * 10) / 10, z: Math.round(a.center.z * 10) / 10,
-          r: DOM.r, d: DOM.lock });
+          y: Math.round(player.facing * 100) / 100,
+          r: DOM.r, d: DOM.lock, dur: 8.2 });
       }
       /* everything inside is held still and fed more than it can take */
       targets().forEach(function (e) {

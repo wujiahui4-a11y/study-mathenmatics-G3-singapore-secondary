@@ -434,8 +434,27 @@
   function goreDeath(ent, style, dir) {
     if (style === 'burn') burn(ent, { dir: dir });
     else sever(ent, { dir: dir, power: style === 'dice' ? 1.3 : 1, cubes: style === 'dice' });
+    /* a body that comes apart on one screen and flops on every other one
+       is two different deaths. Ours goes out; theirs comes in. */
+    if (ent === player && window.MPJJ && window.MPJJ.active && window.MPJJ.relay) {
+      var d = dir || new THREE.Vector3(0, 0, 1);
+      window.MPJJ.relay.pub({
+        t: 'gore', id: window.MPJJ.id, s: style,
+        dx: Math.round(d.x * 10) / 10, dz: Math.round(d.z * 10) / 10
+      });
+    }
   }
   GORE.kill = goreDeath;
+
+  /* somebody else's body, going the way theirs went */
+  GORE.remote = function (ent, style, dir) {
+    if (!ent || ent.__gored) return;
+    ent.dead = true;
+    /* long enough for the pieces to be looked at: a body that is put back
+       together on the next frame was never taken apart */
+    ent.respawnT = Math.max(ent.respawnT || 0, 9);
+    goreDeath(ent, style || 'sever', dir);
+  };
 
   var _die = Enemy.prototype.die;
   Enemy.prototype.die = function () {

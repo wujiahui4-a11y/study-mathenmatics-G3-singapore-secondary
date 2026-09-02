@@ -312,9 +312,10 @@
     return keep(g);
   }
 
-  function openVoid(center) {
+  function openVoid(center, yaw) {
     clearStage();
     V.center = center.clone();
+    if (yaw == null) yaw = player.facing;
 
     /* pitch black, stars, and galaxies a long way off */
     var sky = new THREE.Mesh(new THREE.SphereGeometry(R * 4.5, 32, 24),
@@ -361,7 +362,7 @@
     });
 
     /* the eye, out past the target, the size of the hole it is named for */
-    var dir = new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing));
+    var dir = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     var eye = buildEye(center.clone().addScaledVector(dir, R * 1.55).add(new THREE.Vector3(0, 13, 0)));
     eye.lookAt(player.pos.x, player.pos.y + 3, player.pos.z);
     V.eye = eye;
@@ -530,9 +531,10 @@
       openVoid(a.center);
       hitstop(.12);
       if (window.MPJJ && window.MPJJ.relay) {
-        window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id,
+        window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id, k: 'void',
           x: Math.round(a.center.x * 10) / 10, z: Math.round(a.center.z * 10) / 10,
-          r: R, d: 3.2 });
+          y: Math.round(player.facing * 100) / 100,
+          r: R, d: 3.2, dur: DUR });
       }
       (V.lifted || []).forEach(function (e) {
         e.damage(22, null, { react: 'pummel', reactDur: 2, noFrameBonus: true, spark: 0xbfd8ff });
@@ -699,8 +701,42 @@
     return _hurtPlayer(amount, knock);
   };
 
+  /* =====================================================================
+     SOMEBODY ELSE'S VOID
+     A domain is a barrier with a world inside it. From outside you should
+     see the barrier standing in the street for as long as it is up, and
+     from inside you should be in the void — not watch the caster mime at
+     a patch of empty road. Both, now, on every client in the room.
+     ================================================================== */
+  V.remoteT = 0;
+  V.remote = function (center, yaw, dur) {
+    if (V.on) return;                                // ours is already up
+    dur = dur || DUR;
+    center = center.clone();
+    /* what it looks like from the street */
+    FX.barrier(new THREE.Vector3(center.x, 1, center.z), R, 0x1b2f5c, dur, {
+      map: FX.T.void, opacity: .34, rim: 0x9fd8ff, blend: false
+    });
+    FX.rings(new THREE.Vector3(center.x, .15, center.z), 0xdfefff, 4,
+      { maxR: R + 4, life: .9, gap: 60 });
+    FX.cracks(new THREE.Vector3(center.x, 0, center.z), 12, 20);
+    FX.debris(new THREE.Vector3(center.x, 0, center.z), 14, 14);
+    var d = player.pos.distanceTo(center);
+    if (d < R + 40) addShake(Math.max(.3, 1.4 - d / 60));
+    if (d > R) return;                               // watching it from outside
+    /* and what it looks like from in it */
+    V.remoteT = dur;
+    openVoid(center, yaw);
+    FX.flash('#ffffff', .8, .5);
+  };
+
   /* if it is cut short, put the world back */
-  addFx({ t: 1e9, update: function () {
+  addFx({ t: 1e9, update: function (dt) {
+    if (V.remoteT > 0) {
+      V.remoteT -= dt;
+      if (V.remoteT <= 0) { V.remoteT = 0; closeVoid(); }
+      return true;
+    }
     var a = player.action;
     if (V.on && (!a || a.type !== 'aw_domain')) closeVoid();
     return true;

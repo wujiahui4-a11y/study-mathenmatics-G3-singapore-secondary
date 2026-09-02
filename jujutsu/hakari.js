@@ -456,9 +456,10 @@
         e.damage(8, null, { react: 'pummel', reactDur: 1.1, noFrameBonus: true, spark: 0xffd964 });
       });
       if (window.MPJJ && window.MPJJ.relay) {
-        window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id,
+        window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id, k: 'parlour',
           x: Math.round(a.center.x * 10) / 10, z: Math.round(a.center.z * 10) / 10,
-          r: DOM_R, d: 1.4 });
+          y: Math.round(player.facing * 100) / 100,
+          r: DOM_R, d: 1.4, dur: 9.6 });
       }
       ui.style.display = 'block';
       ui.className = '';

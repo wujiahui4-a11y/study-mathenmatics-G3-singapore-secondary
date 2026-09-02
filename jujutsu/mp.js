@@ -523,9 +523,53 @@
     var cv = renderer.domElement;
     if (cv && cv.requestPointerLock) { try { cv.requestPointerLock(); } catch (e) {} }
     MP.relay.pub({ t: 'hi', id: MP.id, n: MP.name, c: player.char });
+    setTag(player.rig, MP.name, player.char);
+    MP.myChar = player.char;
     MP.wasDead = false;
     startCutscene();
   }
+
+  /* ---------------------------------------------------------- name tags
+     Who that is, over their head, in their fighter's colour. Drawn once
+     into a canvas and carried on the rig, so it follows the body through
+     everything the body does — including being thrown across the arena. */
+  function nameTag(text, color) {
+    var c = document.createElement('canvas');
+    c.width = 320; c.height = 72;
+    var g = c.getContext('2d');
+    g.font = 'bold 40px "Finger Paint", "Segoe UI", sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    g.lineWidth = 9;
+    g.strokeStyle = 'rgba(0,0,0,.9)';
+    g.strokeText(text, 160, 38);
+    g.fillStyle = color || '#ffffff';
+    g.fillText(text, 160, 38);
+    var t = new THREE.CanvasTexture(c);
+    t.needsUpdate = true;
+    var s = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: t, transparent: true, depthWrite: false, toneMapped: false
+    }));
+    s.scale.set(6.4, 1.44, 1);
+    s.position.y = 7.7;
+    s.renderOrder = 12;
+    s.__tag = true;
+    return s;
+  }
+
+  function setTag(rig, text, char) {
+    if (!rig || !rig.root) return;
+    if (rig.__tag) {
+      rig.root.remove(rig.__tag);
+      if (rig.__tag.material.map) rig.__tag.material.map.dispose();
+      rig.__tag.material.dispose();
+    }
+    var col = (CHARS[char] && CHARS[char].glow) || '#ffffff';
+    rig.__tag = nameTag(text, col);
+    rig.root.add(rig.__tag);
+  }
+  MP.setTag = setTag;
 
   /* A remote fighter is a real Enemy, so every punch, Red, palm and frame the
      game already knows how to do lands on them without special cases. */
@@ -540,6 +584,7 @@
     scene.add(e.rig.root);
     e.maxHp = 100; e.hp = 100;
     e.drawBars();
+    setTag(e.rig, name || '???', char);
     var f = { id: id, name: name, char: char, e: e, tx: 0, tz: 0, tyaw: 0, seen: nowS() };
     MP.fighters[id] = f;
     return f;
@@ -565,7 +610,7 @@
       renderList();
       updateScore();
     }
-    if (name) f.name = name;
+    if (name && f.name !== name) { f.name = name; setTag(f.e.rig, name, f.char); }
     return f;
   }
 
@@ -609,6 +654,8 @@
         }
       }
       if (g.e.rag) g.e.rag.pull = { x: m.x, z: m.z, y: g.ty };
+      /* back on their feet: whatever is left of the last body goes */
+      if (g.e.dead && !m.d && window.JJGORE) window.JJGORE.clear(g.e);
       g.e.dead = !!m.d;
       /* only hide them if there is no body to show */
       g.e.rig.root.visible = !m.d || !!g.e.rag;
@@ -625,6 +672,15 @@
          its own, so a packet that arrives mid-flinch cannot cut it short. */
       if (m.rk && (!g.e.react || g.e.react.type !== m.rk)) {
         g.e.react = { type: m.rk, t: (m.rt || 0) / 100, dur: (m.rd || 50) / 100, side: m.rs || 1 };
+        /* somebody landed one on them somewhere else in the room: the two
+           frames of white that goes with it should happen here too */
+        if (window.JJHITS) window.JJHITS.flash(g.e.rig, 0xffffff, 1);
+        if (m.rk === 'slash' || m.rk === 'dismantle') {
+          window.JJFX.blood(g.e.pos.clone().add(new THREE.Vector3(0, 2.7, 0)),
+            new THREE.Vector3(0, 1, 0), 5, 1.1);
+        } else if (m.rk === 'burn') {
+          window.JJFX.fire(g.e.pos.clone().add(new THREE.Vector3(0, 2, 0)), 5, 1, 2, .6);
+        }
       }
       /* blindfold off, six eyes lit, cursed energy standing off them */
       if (!!m.aw !== !!g.aw) {
@@ -672,18 +728,80 @@
       return;
     }
     if (m.t === 'proj' && m.to === MP.id) { applyProjPlayer(m.a); return; }
-    if (m.t === 'ncine' && m.to === MP.id) {             // their rush caught us
-      if (window.JJNAOYA) window.JJNAOYA.remoteCine(m.id);
+    if (m.t === 'ncine') {                              // their rush caught somebody
+      if (m.to === MP.id) {
+        if (window.JJNAOYA) window.JJNAOYA.remoteCine(m.id);
+      } else {
+        var na = MP.fighters[m.id], nv = MP.fighters[m.to];
+        [na, nv].forEach(function (f, n) {
+          if (!f || !f.e) return;
+          var at = f.e.pos.clone();
+          window.JJFX.beam(at.clone(), new THREE.Vector3(0, 1, 0), 34, 0x9fd8ff,
+            { radius: 1.2, life: 1.4 });
+          window.JJFX.rings(new THREE.Vector3(at.x, .12, at.z), 0xbfe6ff, 3,
+            { maxR: 10, life: .8, gap: 70 });
+          if (!f.finAura) {
+            f.finAura = window.JJFX.aura(function () { return f.e.pos; }, 0x9fd8ff);
+            setTimeout(function () {
+              if (f.finAura) { f.finAura.stop(); f.finAura = null; }
+            }, 30000);
+          }
+        });
+      }
       return;
     }
-    if (m.t === 'fcine' && m.to === MP.id) {             // their finisher caught us
-      if (window.JJFIN) window.JJFIN.remote(m.id, m.k);
+    if (m.t === 'fcine') {                              // a finisher started
+      if (m.to === MP.id) {
+        if (window.JJFIN) window.JJFIN.remote(m.id, m.k);
+      } else {
+        /* everybody else in the room: the pair of them lock up where they
+           stand, so put something over them that says so */
+        var fa = MP.fighters[m.id], fv = MP.fighters[m.to];
+        var cutName = (CHARS[m.k] && CHARS[m.k].name) || 'A FINISHER';
+        feed('<b>' + esc(fa ? fa.name : '???') + '</b> finished <b>' +
+          esc(fv ? fv.name : '???') + '</b>');
+        [fa, fv].forEach(function (f, n) {
+          if (!f || !f.e) return;
+          var at = f.e.pos.clone();
+          window.JJFX.beam(at.clone(), new THREE.Vector3(0, 1, 0), 40,
+            n ? 0xff5f6d : 0xffffff, { radius: 1.4, life: 1.6 });
+          window.JJFX.rings(new THREE.Vector3(at.x, .12, at.z), n ? 0xff5f6d : 0xdfefff, 3,
+            { maxR: 12, life: .9, gap: 70 });
+          if (!f.finAura) {
+            f.finAura = window.JJFX.aura(function () { return f.e.pos; }, n ? 0xff5f6d : 0xdfefff);
+            setTimeout(function () {
+              if (f.finAura) { f.finAura.stop(); f.finAura = null; }
+            }, 34000);
+          }
+        });
+      }
+      return;
+    }
+    if (m.t === 'gore') {                               // their body, coming apart
+      var gf = MP.fighters[m.id];
+      if (gf && gf.e && window.JJGORE) {
+        window.JJGORE.remote(gf.e, m.s,
+          new THREE.Vector3(m.dx || 0, 0, m.dz || 1));
+      }
       return;
     }
     if (m.t === 'dom') {                                // a domain opened near us
       var who = MP.fighters[m.id];
       feed('<b>' + esc(who ? who.name : '???') + '</b> expanded a domain');
+      var dc = new THREE.Vector3(m.x, 0, m.z);
       var inside = Math.hypot(player.pos.x - m.x, player.pos.z - m.z) <= (m.r || 34);
+      /* The domain itself, not a puff of rings where one happened. Each of
+         the three builds the same thing the caster built: the barrier from
+         outside, the room from inside, and for the shrine — which has no
+         barrier — the whole shrine, for everybody, wherever they stand. */
+      var yaw = m.y == null ? 0 : m.y, dur = m.dur || 8;
+      if (m.k === 'shrine' && window.JJSUKUNA && window.JJSUKUNA.remote) {
+        window.JJSUKUNA.remote.shrine(dc, yaw, dur);
+      } else if (m.k === 'parlour' && window.JJPARLOR && window.JJPARLOR.remote) {
+        window.JJPARLOR.remote(dc, yaw, dur);
+      } else if (window.JJVOID && window.JJVOID.remote) {
+        window.JJVOID.remote(dc, yaw, dur);
+      }
       if (inside && window.JJAW && !player.dead) window.JJAW.enterVoid(m.d || 2.3);
       return;
     }
@@ -1021,10 +1139,29 @@
     player.react = selfReact.react;           // cleared for us when it finishes
   }
 
+  /* the tags: ours follows a fighter swap onto the new rig, and every tag
+     steps out of shot while a cutscene owns the frame */
+  function stepTags() {
+    if (MP.myChar !== player.char) {
+      MP.myChar = player.char;
+      setTag(player.rig, MP.name, player.char);
+    }
+    var cine = CS.active ||
+      !!(window.JJFIN && window.JJFIN.on()) ||
+      !!(window.JJNAOYA && window.JJNAOYA.busy()) ||
+      !!(window.JJAW && window.JJAW.cine);
+    if (player.rig && player.rig.__tag) player.rig.__tag.visible = !cine && !player.dead;
+    for (var id in MP.fighters) {
+      var e = MP.fighters[id].e;
+      if (e && e.rig && e.rig.__tag) e.rig.__tag.visible = !cine && !e.dead;
+    }
+  }
+
   updatePlayer = function (dt) {
     if (CS.active) stepCutscene(dt);          // you stand still and pose
     else { _updatePlayer(dt); stepSelfReact(dt); }
     if (!MP.active) return;
+    stepTags();
     announceCasts();
     stepFighters(dt);
     sendState(dt);
@@ -1319,12 +1456,9 @@
         }, 1750);
         break;
       case 'aw_domain':
-        setTimeout(function () {
-          FX.dome(new THREE.Vector3(pos.x, 1, pos.z), 34, 0xbfd8ff, 5.2);
-          FX.rings(new THREE.Vector3(pos.x, .15, pos.z), 0xdfefff, 4, { maxR: 37, life: .8, gap: 60 });
-          FX.debris(pos.clone(), 14, 14);
-          if (close) { FX.flash('#ffffff', .6, .6); addShake(1.2); }
-        }, 750);
+        /* the hand and the sign; the void arrives on its own message */
+        FX.converge(mid, 0x6fb4ff, 20, 10, .8);
+        if (close) addShake(.5);
         break;
 
       case 'h1':
@@ -1368,13 +1502,8 @@
         }, 950);
         break;
       case 'h4':
-        setTimeout(function () {
-          FX.dome(new THREE.Vector3(pos.x, 1, pos.z), 32, 0xffcc4d, 5.4);
-          FX.rings(new THREE.Vector3(pos.x, .15, pos.z), 0xffd964, 4, { maxR: 32, life: .8, gap: 55 });
-          FX.cracks(pos.clone(), 11, 18, 0x2a2008);
-          FX.debris(pos.clone(), 12, 14, 0x6b5a30);
-          if (close) { FX.flash('#fff3d0', .5, .5); addShake(1.2); }
-        }, 850);
+        FX.mote(mid, 0xffd964, 8, .6);
+        if (close) addShake(.5);
         break;
       case 'hr':
         FX.streaks(mid, 0xffd964, 10, 14, 1.2);
@@ -1442,60 +1571,29 @@
       /* the four he gets when the thing inside him is out */
       case 's1':
         setTimeout(function () {
-          for (var i = 0; i < 6; i++) {
-            (function (n) {
-              setTimeout(function () {
-                var at = mid.clone().addScaledVector(fwd, 4 + n * 1.6)
-                  .add(new THREE.Vector3((n - 3) * 1.2, (n % 2 ? .8 : -.8), 0));
-                FX.slash(at, fwd, n % 2 ? 0xffffff : 0xd4143c, 6, .2);
-                FX.streaks(at, 0xd4143c, 2, 6, 1);
-              }, n * 34);
-            })(i);
+          if (window.JJSUKUNA && window.JJSUKUNA.remote) {
+            window.JJSUKUNA.remote.dismantle(pos.clone(), yaw);
           }
-          FX.cross(mid.clone().addScaledVector(fwd, 4), 0xffffff, 4, .18);
-          if (close) addShake(.6);
-        }, 220);
+        }, 180);
         break;
       case 's2':
         setTimeout(function () {
-          var at = mid.clone().addScaledVector(fwd, 3.4);
-          FX.slash(at, fwd, 0xffffff, 12, .24);
-          FX.slash(at, fwd, 0xd4143c, 10, .22);
-          FX.cross(at, 0xffffff, 6, .26);
-          FX.impact(at, 0xd4143c, 3);
-          FX.debris(at, 12, 12, 0x2a1218);
-          FX.cracks(new THREE.Vector3(at.x, .1, at.z), 10, 12, 0x14060a);
-          if (close) addShake(1.2);
+          if (window.JJSUKUNA && window.JJSUKUNA.remote) {
+            window.JJSUKUNA.remote.cleave(pos.clone(), yaw);
+          }
         }, 420);
         break;
       case 's3':
-        setTimeout(function () {
-          FX.beam(mid.clone(), fwd, 58, 0xff5a2a, { radius: 2.6, life: .8 });
-          FX.beam(mid.clone(), fwd, 58, 0x2a0208, { radius: 3.6, life: .85 });
-          for (var i = 0; i < 10; i++) {
-            var at = mid.clone().addScaledVector(fwd, 5 + i * 5);
-            FX.impact(at, 0xff6a2a, 1.5);
-            FX.cracks(new THREE.Vector3(at.x, .1, at.z), 4, 6, 0x2a1008);
-          }
-          if (close) addShake(1.6);
-        }, 850);
+        if (window.JJSUKUNA && window.JJSUKUNA.remote) {
+          window.JJSUKUNA.remote.fuga(pos.clone(), yaw);
+        }
         break;
       case 's4':
-        setTimeout(function () {
-          FX.rings(new THREE.Vector3(pos.x, .1, pos.z), 0xd4143c, 6, { maxR: 34, life: 1, gap: 70 });
-          FX.beam(pos.clone(), new THREE.Vector3(0, 1, 0), 70, 0x8b0f2a, { radius: 3, life: 1.2 });
-          FX.cracks(pos.clone(), 16, 22, 0x14060a);
-          FX.debris(pos.clone(), 18, 18, 0x2a1218);
-          if (close) addShake(2);
-          /* and then it keeps cutting, for as long as the shrine is up */
-          var n = 0, iv = setInterval(function () {
-            if (n++ > 44) { clearInterval(iv); return; }
-            var a = Math.random() * Math.PI * 2, rr = Math.random() * 30;
-            var at = new THREE.Vector3(pos.x + Math.cos(a) * rr, .8 + Math.random() * 8,
-              pos.z + Math.sin(a) * rr);
-            FX.slash(at, fwd, Math.random() < .4 ? 0xd4143c : 0xffffff, 5, .18);
-          }, 170);
-        }, 1500);
+        /* the hands going together, and the pressure of it. The shrine
+           itself arrives on its own message, which builds the real one. */
+        FX.mote(mid, 0x8b0f2a, 8, .6);
+        FX.rings(new THREE.Vector3(pos.x, .1, pos.z), 0xd4143c, 3, { maxR: 12, life: .7, gap: 70 });
+        if (close) addShake(.6);
         break;
       case 'sukuna':
         FX.flash('#2a000e', .4, .3);
@@ -1511,8 +1609,19 @@
         FX.speedRing(mid, 0xbfe6ff, 8, .35);
         if (close) addShake(.5);
         break;
-      case 'kb': case 'void':
-        break;                                        // these animate themselves
+      case 'kb':
+        /* the tumble poses itself off the broadcast action; the landing
+           did not travel, so it is played here on the same beat */
+        setTimeout(function () {
+          var at = new THREE.Vector3(pos.x, 0, pos.z);
+          FX.dust(at, 7, 0xd7dde8, 9, 3);
+          FX.ring(new THREE.Vector3(at.x, .1, at.z), 0xbcc6d8, { maxR: 7, life: .4 });
+          FX.cracks(at, 4, 6);
+          if (near) addShake(.25);
+        }, 560);
+        break;
+      case 'void':
+        break;                                        // this animates itself
       case 'n1': case 'n2': case 'n3': case 'nr': case 'nrf':
         FX.ring(pos, 0x9be7ff, { maxR: 8, life: .4 });
         FX.slash(mid.clone().addScaledVector(fwd, 1.6), fwd, 0xcfefff, 3, .18);

@@ -433,12 +433,44 @@ shrugging the hit off.
 Ability *visuals* are made by the caster's client, so they would never appear
 on anybody else's screen. Each cast announces itself — watching
 `player.action` and `attackT` catches every ability without patching a single
-cast function — and the other clients play a matching effect at that fighter's
-feet: a red blast for Reversal: Red, a flurry for Rapid Punches, a shockwave
-for Twofold Kick, a run of rings for Palm Barrage, a teleport puff for
-Limitless, frame-blue rings for Naoya's kit, and the whole awakened set. These
-are visual only and never damage anything, because the hit already travels as
-its own message.
+cast function — and the other clients play the effect at that fighter's feet.
+These are visual only and never damage anything, because the hit already
+travels as its own message.
+
+For a while those effects were *stand-ins*: a hand-written sketch of each
+ability, cheaper and smaller than the thing it stood for. A domain expansion
+was a dome for five seconds and then nothing, which meant the biggest move in
+the game was the one nobody else could see. So the sketches are gone. Every
+module now exposes the routine the caster runs, with the damage taken out of
+it, and the room plays **that**:
+
+| Announced | What every other screen builds |
+| --- | --- |
+| Dismantle | the three real lattices and the grid through the floor, then the unravelling |
+| Cleave | the real cut |
+| Fuga | the furnace, and a real arrow flying the length of the arena and going off |
+| Malevolent Shrine | the whole shrine — it has no barrier, so everybody gets the building, the ribs, the mouths and thirteen seconds of cuts |
+| Unlimited Void | the barrier, standing in the street; and if you are inside its forty metres, the void itself |
+| Idle Death Gamble | the same: the barrier from outside, the parlour from inside, and the coins either way |
+
+The barrier is `FX.barrier`: a sphere with a latitude and longitude shell over
+it, because a transparent sphere with no lines on it reads as a wash of colour
+over half the screen rather than as a thing standing in the road.
+
+**Bodies too.** A death that comes apart on one screen and flops on every
+other one is two different deaths, so the style travels: `dth` rides along with
+the hit that causes it, and the dying client broadcasts a `gore` message that
+every other client plays on their copy of that fighter. The finisher and
+Naoya's cut are private to the two people in them, so everybody else gets a
+column of cursed energy and an aura over the pair of them for as long as it
+runs — which is the honest answer to "why are those two standing still".
+
+### Name tags
+
+Everybody's name sits over their head in their fighter's colour, drawn once
+into a canvas and carried on the rig, so it follows the body through
+everything the body does. It follows a fighter swap onto the new rig, and it
+steps out of shot whenever a cutscene owns the frame.
 
 ### The effects kit
 
@@ -555,7 +587,7 @@ disk.
 | File | What it does |
 | --- | --- |
 | `base.html` | the original game, untouched |
-| `vfx.js` | the effects kit: impact frames, rings, cuts, lattices, fire, blood, fracture webs |
+| `vfx.js` | the effects kit: impact frames, rings, cuts, lattices, fire, blood, fracture webs, barriers |
 | `anim.js` | joint springs, weight, breath, smears, camera and holds |
 | `ragdoll.js` | limp bodies, and the heaps they settle into |
 | `gore.js` | the other two ways of dying, and the health lock a finisher runs under |

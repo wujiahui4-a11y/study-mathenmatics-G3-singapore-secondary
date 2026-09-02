@@ -420,6 +420,51 @@
     return true;
   }
 
+  /* the net itself, with nothing behind it. Every client in the room plays
+     this — the caster's, and everybody watching them do it. */
+  function weaveFx(from, d) {
+    var side = new THREE.Vector3(d.z, 0, -d.x).normalize();
+    var i;
+    /* three planes of it at different depths, so it reads as a volume of
+       cuts rather than a curtain — and the far one is the widest, because
+       the net is thrown rather than drawn */
+    [8, 18, 29].forEach(function (dist, n) {
+      var c = from.clone().addScaledVector(d, dist).add(new THREE.Vector3(0, 6.2, 0));
+      FX.lattice(c, d, DIS.half * 2 + n * 3, DIS.high + n * 2,
+        7 - n, 5 - n, n === 1 ? RED : 0xffffff,
+        { stagger: 14, life: .6, width: .4 + n * .08 });
+    });
+    /* and the same grid put through the floor */
+    var g0 = from.clone().addScaledVector(d, 3);
+    for (i = -3; i <= 3; i++) {
+      var lane = g0.clone().addScaledVector(side, i * (DIS.half / 3));
+      FX.cutLine(new THREE.Vector3(lane.x, .18, lane.z),
+        lane.clone().addScaledVector(d, DIS.range).setY(.18), INK, .5, .7);
+    }
+    for (i = 1; i <= 6; i++) {
+      var rung = g0.clone().addScaledVector(d, i * (DIS.range / 6));
+      FX.cutLine(rung.clone().addScaledVector(side, -DIS.half).setY(.18),
+        rung.clone().addScaledVector(side, DIS.half).setY(.18), INK, .5, .7);
+    }
+    FX.cross(from.clone().addScaledVector(d, 6).add(new THREE.Vector3(0, 4, 0)), 0xffffff, 6, .2);
+    FX.mangaLines(.7, .3);
+    addShake(.9);
+    try { sfx.slash(); } catch (e) {}
+  }
+
+  /* and what the net leaves behind, wherever it closed */
+  function unravelFx(from, d) {
+    var side = new THREE.Vector3(d.z, 0, -d.x).normalize();
+    FX.flash('#ffffff', .45, .18);
+    for (var i = 1; i <= 7; i++) {
+      var q = from.clone().addScaledVector(d, i * (DIS.range / 7))
+        .addScaledVector(side, (Math.random() - .5) * DIS.half);
+      FX.cracks(q, 5 + Math.random() * 3, 6 + Math.random() * 4, INK);
+    }
+    addShake(1.3);
+    try { sfx.sever(); } catch (e) {}
+  }
+
   function castDismantle() {
     if (!ok('s1')) return;
     begin('s1', 1.25, 's1', 'DISMANTLE', '解');
@@ -427,39 +472,14 @@
   }
 
   function stepDismantle(a, dt) {
-    var p = player, d = fwd(), i;
-    var side = new THREE.Vector3(d.z, 0, -d.x).normalize();
+    var p = player, d = fwd();
 
     /* ---- the weave ---- */
     if (a.t >= .18 && a.stage < 1) {
       a.stage = 1;
-      /* three planes of it at different depths, so it reads as a volume of
-         cuts rather than a curtain — and the far one is the widest,
-         because the net is thrown rather than drawn */
-      [8, 18, 29].forEach(function (dist, n) {
-        var c = p.pos.clone().addScaledVector(d, dist).add(new THREE.Vector3(0, 6.2, 0));
-        FX.lattice(c, d, DIS.half * 2 + n * 3, DIS.high + n * 2,
-          7 - n, 5 - n, n === 1 ? RED : 0xffffff,
-          { stagger: 14, life: .6, width: .4 + n * .08 });
-      });
-      /* and the same grid put through the floor */
-      var g0 = p.pos.clone().addScaledVector(d, 3);
-      for (i = -3; i <= 3; i++) {
-        var lane = g0.clone().addScaledVector(side, i * (DIS.half / 3));
-        FX.cutLine(new THREE.Vector3(lane.x, .18, lane.z),
-          lane.clone().addScaledVector(d, DIS.range).setY(.18), INK, .5, .7);
-      }
-      for (i = 1; i <= 6; i++) {
-        var rung = g0.clone().addScaledVector(d, i * (DIS.range / 6));
-        FX.cutLine(rung.clone().addScaledVector(side, -DIS.half).setY(.18),
-          rung.clone().addScaledVector(side, DIS.half).setY(.18), INK, .5, .7);
-      }
-      FX.cross(p.pos.clone().addScaledVector(d, 6).add(new THREE.Vector3(0, 4, 0)), 0xffffff, 6, .2);
-      FX.mangaLines(.7, .3);
-      addShake(.9);
+      weaveFx(p.pos, d);
       if (AN) AN.camKick(.9);
       FX.zoom(-6, .35);
-      try { sfx.slash(); } catch (e) {}
 
       /* the weave barely moves anybody: it is a hundred small cuts */
       targets(DIS.range, DIS.half).forEach(function (e) {
@@ -473,7 +493,6 @@
     if (a.t >= .72 && a.stage < 2) {
       a.stage = 2;
       hitstop(.09);
-      FX.flash('#ffffff', .45, .18);
       var caught = targets(DIS.range, DIS.half);
       caught.forEach(function (e) {
         var dir = e.pos.clone().sub(p.pos).setY(0);
@@ -488,14 +507,8 @@
           { react: 'dismantle', reactDur: .6, spark: RED, death: 'dice', bleed: true });
       });
       /* the ground it was thrown across goes the same way */
-      for (i = 1; i <= 7; i++) {
-        var q = p.pos.clone().addScaledVector(d, i * (DIS.range / 7))
-          .addScaledVector(side, (Math.random() - .5) * DIS.half);
-        FX.cracks(q, 5 + Math.random() * 3, 6 + Math.random() * 4, INK);
-      }
-      addShake(1.3);
+      unravelFx(p.pos, d);
       if (caught.length && window.JJAW) window.JJAW.gain(10);
-      try { sfx.sever(); } catch (e) {}
     }
   }
 
@@ -636,8 +649,11 @@
     g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.clone().normalize());
   }
 
-  /* it flies. Everything it passes burns, and the ground under it stays lit. */
-  function loose(from, dir) {
+  /* It flies. Everything it passes burns, and the ground under it stays lit.
+     `ghost` is the copy every other client in the room flies: same arrow,
+     same trench, same detonation, and not a point of damage — the hits
+     travel as their own messages, the way every other hit does. */
+  function loose(from, dir, ghost) {
     var g = buildArrow();
     scene.add(g);
     aimArrow(g, from, dir);
@@ -673,7 +689,7 @@
       }
 
       /* whatever it reaches, it does not reach twice */
-      enemies.forEach(function (e) {
+      if (!ghost) enemies.forEach(function (e) {
         if (!e || e.dead || hitList.indexOf(e) >= 0) return;
         if (e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(g.position) > FUGA.radius) return;
         hitList.push(e);
@@ -688,9 +704,6 @@
         addShake(1);
         if (window.JJAW) window.JJAW.gain(16);
       });
-      /* the player is in the arena too, and fire does not care whose it is */
-      if (window.MPJJ && window.MPJJ.active) { /* remote fighters are enemies already */ }
-
       var done = travelled >= FUGA.range || this.t <= 0;
       if (!done) return true;
       /* it goes off where it stops */
@@ -708,7 +721,7 @@
       addShake(2.2);
       if (AN) AN.camKick(2);
       try { sfx.blast(); } catch (e) {}
-      enemies.forEach(function (e) {
+      if (!ghost) enemies.forEach(function (e) {
         if (!e || e.dead || hitList.indexOf(e) >= 0) return;
         if (e.pos.distanceTo(at) > 16) return;
         var kb = e.pos.clone().sub(at).setY(0).normalize().multiplyScalar(24); kb.y = 12;
@@ -809,7 +822,10 @@
     hud(false);
   }
 
-  function buildShrine(center) {
+  /* `yaw` and `into` are here so the same shrine can be built by somebody
+     who is not the caster: every other client in the room builds its own
+     copy of it, at the position and facing that came down the wire. */
+  function buildShrine(center, yaw, into) {
     var g = new THREE.Group();
     var i, s, q;
     function bone(w, h, d, c) {
@@ -1048,10 +1064,10 @@
     }
 
     g.position.copy(center);
-    g.rotation.y = player.facing;
+    g.rotation.y = yaw == null ? player.facing : yaw;
     g.position.y -= 46;                              // it comes up out of the ground
     scene.add(g);
-    SK.stage.push(g);
+    (into || SK.stage).push(g);
     return g;
   }
 
@@ -1061,19 +1077,28 @@
      there is nothing left of it. This runs on its own clock rather than
      on the action, because the action is over long before the shrine is.
      ================================================================== */
-  function openDomain(center) {
+  function openDomain(center, opt) {
+    opt = opt || {};
     var t = 0, cutT = 0, tickT = 0, bigT = 0;
-    SK.domain = { center: center.clone(), r: SHRINE.r, t: 0 };
+    var shrine = opt.shrine || SK.shrine;
+    var mine = !opt.shrine;                          // ours, or somebody else's
+    var dur = opt.dur || SHRINE.dur;
+    var yaw = opt.yaw == null ? null : opt.yaw;
+    if (mine) SK.domain = { center: center.clone(), r: SHRINE.r, t: 0 };
     addFx({ t: 1e9, update: function (dt) {
       t += dt;
-      SK.domain.t = t;
-      if (!SK.shrine) return false;
+      if (mine) {
+        SK.domain.t = t;
+        shrine = SK.shrine;
+        if (!SK.shrine) return false;
+      }
+      if (!shrine) return false;
 
       /* it rises for the first two seconds and then stands */
       var rise = Math.min(1, t / 2.2);
-      SK.shrine.position.y = center.y - 46 * (1 - E.out(rise));
-      if (SK.shrine.fires) {
-        SK.shrine.fires.forEach(function (f, i) {
+      shrine.position.y = center.y - 46 * (1 - E.out(rise));
+      if (shrine.fires) {
+        shrine.fires.forEach(function (f, i) {
           f.scale.set(4 + Math.sin(t * 9 + i) * .8, 6 + Math.cos(t * 11 + i) * 1.4, 1);
         });
       }
@@ -1108,31 +1133,40 @@
         try { sfx.slash(); } catch (e) {}
       }
 
-      /* ---- and what it does to whoever is standing in it ---- */
+      /* ---- and what it does to whoever is standing in it ----
+         Everybody plays the cuts on everybody. Only the caster's client
+         applies the damage, the way every other hit in the game works. */
       tickT += dt;
       if (tickT > .32) {
         tickT = 0;
-        var caster = player;
-        enemies.forEach(function (e) {
+        var face = yaw == null ? player.facing : yaw;
+        var marks = enemies.slice();
+        if (!mine) marks.push(player);               // their shrine, our body
+        marks.forEach(function (e) {
           if (!e || e.dead) return;
           if (e.pos.distanceTo(center) > SHRINE.r) return;
           var at2 = e.pos.clone().add(new THREE.Vector3(0, 2.6, 0));
-          FX.lattice(at2, new THREE.Vector3(Math.sin(caster.facing), 0, Math.cos(caster.facing)),
+          FX.lattice(at2, new THREE.Vector3(Math.sin(face), 0, Math.cos(face)),
             3.6, 5.4, 3, 3, 0xffffff, { stagger: 0, life: .28, width: .3, spark: false });
           FX.blood(at2, new THREE.Vector3(0, 1, 0), 3, .9);
+          if (!mine || e === player) return;
           var dir3 = e.pos.clone().sub(center).setY(0);
           if (dir3.lengthSq() < .01) dir3.set(0, 0, 1);
           dir3.normalize();
           if (lowEnough(e)) { cutApart(e, dir3); return; }
           e.damage(13, null, {
             react: 'dismantle', reactDur: .3, spark: 0xffffff,
-            color: '#ff2a4a', death: 'dice', stun: .34, bleed: true
+            color: '#ff2a4a', death: 'dice', stun: .34, bleed: true, fin: false
           });
         });
         addShake(.3);
       }
 
-      if (t >= SHRINE.dur) { closeShrine(); return false; }
+      if (t >= dur) {
+        if (mine) closeShrine();
+        else if (opt.done) opt.done();
+        return false;
+      }
       return true;
     } });
   }
@@ -1175,9 +1209,10 @@
         if (window.JJHITS) window.JJHITS.react(e, 'shock', 1.4);
       });
       if (window.MPJJ && window.MPJJ.relay) {
-        window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id,
+        window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id, k: 'shrine',
           x: Math.round(a.center.x * 10) / 10, z: Math.round(a.center.z * 10) / 10,
-          r: SHRINE.r, d: 1.6 });
+          y: Math.round(player.facing * 100) / 100,
+          r: SHRINE.r, d: 1.6, dur: SHRINE.dur });
       }
       try { sfx.frame(); } catch (e) {}
     }
@@ -1236,6 +1271,83 @@
     }
     shakeMag = Math.max(0, shakeMag - dt * 2);
   }
+
+  /* =====================================================================
+     WHAT EVERYBODY ELSE SEES
+     An ability's visuals are made by the caster's own client, so without
+     this the rest of the room watches somebody mime. These are not
+     stand-ins: they are the same routines the caster runs, with the
+     damage taken out of them, played at the position and facing that
+     came down the wire.
+     ================================================================== */
+  SK.remote = {
+    dismantle: function (pos, yaw) {
+      var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      weaveFx(pos, d);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        unravelFx(pos, d);
+      }, 540);
+    },
+    cleave: function (pos, yaw) {
+      var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      var at = pos.clone().addScaledVector(d, 3.4).add(new THREE.Vector3(0, 2.8, 0));
+      cut(at, .35, 13, 0xffffff);
+      cut(at, -.45, 11, RED);
+      cut(at, 1.5, 9, 0xffffff);
+      FX.cross(at, 0xffffff, 6, .26);
+      FX.impact(at, RED, 3);
+      FX.heavyHit(at, RED, 1.2);
+      FX.debris(at, 14, 13, 0x2a1218);
+      FX.cracks(new THREE.Vector3(at.x, .1, at.z), 12, 14, INK);
+      addShake(1.2);
+      try { sfx.slash(); } catch (e) {}
+    },
+    fuga: function (pos, yaw) {
+      var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      var palm = pos.clone().addScaledVector(d, 1.6).add(new THREE.Vector3(0, 3, 0));
+      /* the furnace opening, and then the arrow going */
+      FX.converge(palm, 0xff8a3a, 30, 14, .9);
+      var n = 0, iv = setInterval(function () {
+        if (n++ > 22 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        FX.flame(palm.clone().add(new THREE.Vector3(
+          (Math.random() - .5) * 3, (Math.random() - .5) * 3, (Math.random() - .5) * 3)),
+          1.4 + Math.random() * 2, .35);
+      }, 50);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.flash('#ffd8a0', .35, .3);
+        FX.rings(palm, 0xff8a3a, 3, { maxR: 12, life: .5, ground: false, gap: 40 });
+        loose(palm.clone().addScaledVector(d, 4), d.clone(), true);
+      }, FUGA.charge * 1000);
+    },
+    /* the shrine has no barrier, so there is nothing to be outside of:
+       everybody in the room builds the whole thing and watches it cut */
+    shrine: function (center, yaw, dur) {
+      var stage = [];
+      var g = buildShrine(center, yaw, stage);
+      FX.flash('#ff2a4a', .55, .45);
+      FX.rings(new THREE.Vector3(center.x, .1, center.z), RED, 7,
+        { maxR: SHRINE.r, life: 1.2, gap: 60 });
+      FX.cracks(new THREE.Vector3(center.x, 0, center.z), 12, 26, INK);
+      addShake(Math.max(.4, 2.6 - player.pos.distanceTo(center) / 40));
+      try { sfx.frame(); } catch (e) {}
+      openDomain(center, {
+        shrine: g, dur: dur || SHRINE.dur, yaw: yaw,
+        done: function () {
+          stage.forEach(function (o) {
+            scene.remove(o);
+            o.traverse && o.traverse(function (c) {
+              if (c.isMesh && c.material) c.material.dispose();
+            });
+          });
+          stage.length = 0;
+          FX.flash('#ff8a9a', .3, .5);
+        }
+      });
+      return g;
+    }
+  };
 
   /* =====================================================================
      POSES FOR THE FOUR

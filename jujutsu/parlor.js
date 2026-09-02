@@ -142,11 +142,11 @@
     return room;
   }
 
-  function open(center) {
+  function open(center, yaw) {
     if (P.on) return;
     P.on = true;
     P.center = center.clone();
-    P.room = build(center, player.facing);
+    P.room = build(center, yaw == null ? player.facing : yaw);
     P.room.scale.set(1, .01, 1);
     if (window.JJSTAGE) {
       window.JJSTAGE.hide.sky = 0x0d0510;
@@ -166,12 +166,14 @@
     FX.flash('#ffe9b0', .4, .5);
   }
 
-  /* coins, when the machine finally gives something back */
-  function payout(center) {
+  /* coins, when the machine finally gives something back. `always` is for
+     the copy played by somebody standing outside the barrier, who has no
+     parlour of their own for the check to pass against. */
+  function payout(center, always) {
     for (var i = 0; i < 46; i++) {
       (function (n) {
         setTimeout(function () {
-          if (!P.on) return;
+          if (!P.on && !always) return;
           var a = Math.random() * Math.PI * 2, r = Math.random() * 9;
           var m = FX.billboard(FX.T.star, n % 3 ? GOLD : 0xfff0c0, 1);
           m.scale.setScalar(.7 + Math.random() * .7);
@@ -275,7 +277,44 @@
     return _updateCamera(dt);
   };
 
-  addFx({ t: 1e9, update: function () {
+  /* =====================================================================
+     SOMEBODY ELSE'S PARLOUR
+     From outside, the barrier standing in the street with the machine
+     lighting it from inside. From inside, the parlour — the same room he
+     is standing in, because that is where you are now too.
+     ================================================================== */
+  var R = 32;
+  P.remoteT = 0;
+  P.remote = function (center, yaw, dur) {
+    if (P.on) return;
+    dur = dur || DUR;
+    center = center.clone();
+    FX.barrier(new THREE.Vector3(center.x, 1, center.z), R, 0x6a4a10, dur, {
+      opacity: .26, rim: GOLD, blend: false
+    });
+    FX.rings(new THREE.Vector3(center.x, .15, center.z), GOLD, 4,
+      { maxR: R + 4, life: .9, gap: 55 });
+    FX.cracks(new THREE.Vector3(center.x, 0, center.z), 11, 18, 0x2a2008);
+    FX.debris(new THREE.Vector3(center.x, 0, center.z), 12, 14, 0x6b5a30);
+    var d = player.pos.distanceTo(center);
+    if (d < R + 40) addShake(Math.max(.3, 1.3 - d / 60));
+    /* the coins go up whether you are in it or not — that is the noise a
+       jackpot makes */
+    setTimeout(function () { if (typeof scene !== 'undefined') payout(center, true); }, 900);
+    if (d > R) return;
+    P.remoteT = dur;
+    P.remoteYaw = yaw;
+    open(center, yaw);
+    if (P.room) P.room.scale.set(1, 1, 1);
+    FX.flash('#fff3d0', .8, .45);
+  };
+
+  addFx({ t: 1e9, update: function (dt) {
+    if (P.remoteT > 0) {
+      P.remoteT -= dt;
+      if (P.remoteT <= 0) { P.remoteT = 0; close(); }
+      return true;
+    }
     var a = player.action;
     if (P.on && !(a && a.type === 'h4')) close();
     return true;

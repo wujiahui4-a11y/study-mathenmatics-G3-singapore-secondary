@@ -287,6 +287,36 @@
     return tex(c);
   })();
 
+  /* the shell of a domain: latitudes, longitudes and the seams between
+     them, so a transparent sphere reads as a sphere from any angle rather
+     than as a wash of colour over half the screen */
+  T.shell = (function () {
+    var c = canvas(512), g = c.getContext('2d'), i;
+    g.lineCap = 'round';
+    for (i = 1; i < 16; i++) {                       // latitudes
+      var y = i / 16 * 512;
+      var edge = Math.abs(i / 16 - .5) * 2;          // brighter at the poles
+      g.strokeStyle = 'rgba(255,255,255,' + (.16 + edge * .3) + ')';
+      g.lineWidth = i % 4 === 0 ? 3.4 : 1.4;
+      g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke();
+    }
+    for (i = 0; i < 24; i++) {                       // longitudes
+      var x = i / 24 * 512;
+      g.strokeStyle = 'rgba(255,255,255,' + (i % 3 === 0 ? .34 : .14) + ')';
+      g.lineWidth = i % 3 === 0 ? 3 : 1.2;
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 512); g.stroke();
+    }
+    /* and the panelling between them, so it is a made thing */
+    for (i = 0; i < 90; i++) {
+      g.fillStyle = 'rgba(255,255,255,' + (.02 + Math.random() * .05) + ')';
+      var px = Math.random() * 512, py = Math.random() * 512;
+      g.fillRect(px, py, 20 + Math.random() * 40, 14 + Math.random() * 26);
+    }
+    var t = tex(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  })();
+
   /* THE FRACTURE WEB
      Ground that has been hit does not crack in straight lines out of a
      point. It splits along a few main faults, each of which sheds branches
@@ -874,6 +904,69 @@
   }
 
   /* =====================================================================
+     THE BARRIER
+     A domain seen from outside it. Every domain but one closes a space
+     off, and the thing that does the closing is a sphere sitting in the
+     street — so from out here that is what it looks like, for as long as
+     it is up, rather than a puff of rings and nothing.
+     ================================================================== */
+  function barrier(pos, radius, color, life, opt) {
+    opt = opt || {};
+    var g = new THREE.Group();
+    g.position.copy(pos);
+    var skin = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({
+      color: color, map: opt.map || null, transparent: true,
+      opacity: opt.opacity == null ? .22 : opt.opacity,
+      side: THREE.DoubleSide, depthWrite: false, toneMapped: false,
+      blending: opt.blend === false ? THREE.NormalBlending : THREE.AdditiveBlending
+    }));
+    g.add(skin);
+    /* the shell over it: the lines that make a transparent sphere read as
+       one, brightest where it turns away from you */
+    var mesh = T.shell.clone();
+    mesh.wrapS = mesh.wrapT = THREE.RepeatWrapping;
+    mesh.repeat.set(3, 2);
+    mesh.needsUpdate = true;
+    var rim = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({
+      map: mesh, color: opt.rim == null ? 0xffffff : opt.rim,
+      transparent: true, opacity: .5,
+      side: THREE.DoubleSide, depthWrite: false, toneMapped: false,
+      blending: THREE.AdditiveBlending
+    }));
+    rim.material.__own = true;
+    rim.scale.setScalar(1.01);
+    g.add(rim);
+    scene.add(g);
+    /* and where it meets the ground */
+    ring(new THREE.Vector3(pos.x, .12, pos.z), color, { maxR: radius * 1.05, life: .9 });
+
+    var t = 0, open = .45, shut = Math.max(.5, life * .12);
+    addFx({ t: life, update: function (dt) {
+      this.t -= dt; t += dt;
+      var k = Math.min(1, t / open);
+      /* snaps open past its own size and settles back into it */
+      var s = radius * (ease.out(k) * 1.06 - Math.max(0, k - .7) * .2);
+      if (this.t < shut) s *= Math.max(0, this.t / shut);
+      g.scale.setScalar(Math.max(.001, s));
+      g.rotation.y += dt * .05;
+      var pulse = 1 + Math.sin(t * 2.4) * .12;
+      var fade = (this.t < shut ? this.t / shut : 1) * Math.min(1, t / .2);
+      skin.material.opacity = (opt.opacity == null ? .22 : opt.opacity) * pulse * fade;
+      rim.material.opacity = .5 * pulse * fade;
+      rim.material.map.offset.y += dt * .012;
+      if (this.t <= 0) {
+        scene.remove(g);
+        skin.material.dispose();
+        rim.material.map.dispose();
+        rim.material.dispose();
+        return false;
+      }
+      return true;
+    } });
+    return g;
+  }
+
+  /* =====================================================================
      BLOOD
      ================================================================== */
   function blood(pos, dir, n, size) {
@@ -1374,7 +1467,7 @@
     ring: ring, rings: rings, speedRing: speedRing, slash: slash, wave: wave,
     dust: dust, cracks: cracks, debris: debris, shockwave: shockwave, plates: plates,
     beam: beam, orb: orb, mote: mote, converge: converge,
-    aura: aura, dome: dome,
+    aura: aura, dome: dome, barrier: barrier,
     flash: flash, mangaLines: mangaLines, letterbox: letterbox, tint: tint, zoom: zoom,
     heavyHit: heavyHit, trail: trail,
     cutLine: cutLine, lattice: lattice, orientAlong: orientAlong, decal: decal,
