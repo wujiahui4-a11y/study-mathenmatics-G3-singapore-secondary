@@ -594,6 +594,7 @@
     var f = MP.fighters[id];
     if (!f) return;
     if (f.aura) { f.aura.stop(); f.aura = null; }
+    if (window.JJAW && window.JJAW.theme) window.JJAW.theme(false, id);
     if (f.e && f.e.rag && window.JJRAG) window.JJRAG.stop(f.e);
     var i = enemies.indexOf(f.e);
     if (i >= 0) enemies.splice(i, 1);
@@ -707,6 +708,7 @@
       /* their blindfold comes off partway through their entrance, not at
          the end of it, so it is applied on the same beat they see */
       if (m.k === 'awaken' && window.JJAW) {
+        if (window.JJAW.theme) window.JJAW.theme(true, m.id);
         setTimeout(function () {
           if (MP.fighters[m.id] === cf) { cf.aw = true; window.JJAW.remote(cf, true); }
         }, 1300);

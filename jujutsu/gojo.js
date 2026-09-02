@@ -12,6 +12,16 @@
 
    The meter, the entrance and all four techniques are shared over the
    network by mp.js, so the other screens see the same fight.
+
+   The entrance plays Final Encore (the full version sitting on main).
+   The thirty-four seconds of the awakened kit stay that long — the song
+   is three minutes and a bit, which is not a fight — and it fades when
+   the meter runs out, when he goes down, or when the last awakened Gojo
+   in the room drops the state.
+
+   The track sits on that Gojo. Anyone close enough hears it, louder the
+   closer they are, and from the side he is standing on. Walk away and it
+   falls off; walk back in and it is still the same song, not a restart.
    ===================================================================== */
 (function () {
   'use strict';
@@ -25,12 +35,299 @@
     cine: false, ct: 0, cineStage: 0,
     aura: null, orbs: null,
     gain: gain, awaken: awaken, isAwake: function () { return AW.active; },
-    setLook: setLook, remote: remoteAwaken
+    setLook: setLook, remote: remoteAwaken, theme: theme
   };
 
   /* how much a hit is worth: taking one is worth more than landing one,
      which is what keeps a losing fight interesting */
   var GAIN_DEALT = .55, GAIN_TAKEN = .95, GAIN_IDLE = 1.15;
+
+  /* ----------------------------------------------------------- the song */
+  var SONG_FILE = 'Final_Encore_Full_Version.mp3';
+  var SONG_HOST = 'https://raw.githubusercontent.com/wujiahui4-a11y/' +
+    'study-mathenmatics-G3-singapore-secondary/main/Final_Encore_Full_Version.mp3';
+  var SONG_CDN = 'https://cdn.jsdelivr.net/gh/wujiahui4-a11y/' +
+    'study-mathenmatics-G3-singapore-secondary@main/Final_Encore_Full_Version.mp3';
+  var SONG_VOL = .9;
+  /* you (the one who pressed F) always hear it full. everyone else hears
+     it by distance: full inside this, silent past this */
+  var HEAR_NEAR = 8, HEAR_FAR = 48;
+  var songEl = null, songIds = {}, songFade = 0, songArmed = false;
+  var songWant = 0, songUrls = null, songUrlI = 0, songErr = '';
+  var songBuf = null, songNode = null, songGain = null, songAt = 0, songT0 = 0;
+  var songMode = '', songNeed = false, songRestart = false;
+
+  function inFrame() {
+    var href = '';
+    try { href = String(location.href || ''); } catch (e) {}
+    return /googleusercontent|script\.google|^about:|^blob:/i.test(href);
+  }
+
+  /* Apps Script serves scripts as ?p=1 / ?p=2 / ?p=3 on the same exec URL */
+  function partBase() {
+    var nodes = document.getElementsByTagName('script'), i, s, m;
+    for (i = 0; i < nodes.length; i++) {
+      s = nodes[i].getAttribute('src') || '';
+      m = s.match(/^(.*)[?&]p=2(?:$|&)/);
+      if (m) return m[1];
+      if (/p2\.js$/.test(s)) return s.replace(/p2\.js$/, '');
+    }
+    var im = document.querySelector('script[type="importmap"]');
+    if (im && im.textContent) {
+      m = im.textContent.match(/"three"\s*:\s*"(.*?)\?p=1"/);
+      if (m) return m[1];
+      m = im.textContent.match(/"three"\s*:\s*"(.*?)p1\.js"/);
+      if (m) return m[1];
+    }
+    return '';
+  }
+
+  function loadP3(done) {
+    if (window.JJTHEME) { done(); return; }
+    var base = partBase();
+    if (!base) { done(); return; }
+    var sc = document.createElement('script');
+    if (/\/exec$/i.test(base) || /script\.google\.com/.test(base)) {
+      sc.src = base.replace(/[?&]p=\d+$/, '') + '?p=3';
+    } else {
+      sc.src = base.replace(/p2\.js$/i, 'p3.js');
+      if (!/p3\.js$/i.test(sc.src)) sc.src = base + (/\/$/.test(base) ? '' : '/') + 'p3.js';
+    }
+    sc.onload = function () { done(); };
+    sc.onerror = function () { songErr = 'p3 failed'; done(); };
+    document.head.appendChild(sc);
+  }
+
+  function decodeTheme(done) {
+    if (songBuf) { done(true); return; }
+    if (!window.JJTHEME) { done(false); return; }
+    var ac = null;
+    try { ac = audio(); } catch (e) {}
+    if (!ac) { done(false); return; }
+    try {
+      var bin = atob(window.JJTHEME);
+      var bytes = new Uint8Array(bin.length), i;
+      for (i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      ac.decodeAudioData(bytes.buffer.slice(0), function (buf) {
+        songBuf = buf;
+        done(true);
+      }, function () { done(false); });
+    } catch (e) { done(false); }
+  }
+
+  function applyGain(want) {
+    songWant = want;
+    if (songGain) {
+      songGain.gain.value = want;
+    }
+    if (songEl) {
+      songEl.muted = false;
+      songEl.volume = Math.max(0, Math.min(1, want));
+    }
+  }
+
+  function startWebAudio(restart) {
+    var ac = audio();
+    if (!ac || !songBuf) return false;
+    if (songNode) { try { songNode.stop(); } catch (e) {} songNode = null; }
+    if (!songGain) {
+      songGain = ac.createGain();
+      songGain.connect(ac.destination);
+    }
+    songGain.gain.value = SONG_VOL;
+    songNode = ac.createBufferSource();
+    songNode.buffer = songBuf;
+    songNode.connect(songGain);
+    var off = 0;
+    if (!restart && songT0) off = Math.max(0, (performance.now() / 1000) - songT0);
+    if (off >= songBuf.duration) off = 0;
+    try { songNode.start(0, off); } catch (e) { try { songNode.start(0); } catch (e2) {} }
+    songAt = off;
+    if (restart || !songT0) songT0 = performance.now() / 1000;
+    songMode = 'webaudio';
+    return true;
+  }
+
+  function songCandidates() {
+    var list = [], href = '';
+    try { href = String(location.href || ''); } catch (e) {}
+    if (inFrame()) {
+      list.push(SONG_CDN);
+      list.push(SONG_HOST);
+      return list;
+    }
+    try {
+      if (/\/jujutsu-parts\//.test(href)) {
+        list.push(new URL(SONG_FILE, href).href);
+        list.push(new URL('../' + SONG_FILE, href).href);
+      } else {
+        list.push(new URL(SONG_FILE, href).href);
+      }
+    } catch (e) {
+      list.push(SONG_FILE);
+    }
+    list.push(SONG_CDN);
+    list.push(SONG_HOST);
+    return list;
+  }
+
+  function ensureSong() {
+    if (songEl) return songEl;
+    songUrls = songCandidates();
+    songUrlI = 0;
+    var a = new Audio();
+    a.preload = 'auto';
+    a.loop = false;
+    a.muted = false;
+    a.volume = SONG_VOL;
+    a.src = songUrls[0];
+    try { document.body.appendChild(a); } catch (e) {}
+    a.addEventListener('error', function () {
+      songUrlI++;
+      if (songUrlI >= songUrls.length) {
+        songErr = songErr || 'could not load the theme';
+        return;
+      }
+      a.src = songUrls[songUrlI];
+      a.load();
+      if (Object.keys(songIds).length) a.play().catch(function () {});
+    });
+    songEl = a;
+    return a;
+  }
+
+  function startElement(restart) {
+    var a = ensureSong();
+    a.muted = false;
+    a.volume = SONG_VOL;
+    if (restart) { try { a.currentTime = 0; } catch (e) {} }
+    var p = a.play();
+    if (p && p.catch) {
+      p.catch(function () {
+        if (window.JJNOTICE) window.JJNOTICE('CLICK TO HEAR THE THEME', '#9fd8ff');
+      });
+    }
+    songMode = 'element';
+  }
+
+  function playSong(restart) {
+    songNeed = true;
+    songRestart = !!restart;
+    songFade = 0;
+    try { audio(); } catch (e) {}
+    loadP3(function () {
+      decodeTheme(function (ok) {
+        if (!songNeed) return;
+        if (ok && startWebAudio(songRestart)) return;
+        startElement(songRestart);
+      });
+    });
+  }
+
+  function armSong() {
+    try { audio(); } catch (e) {}
+    songArmed = true;
+    loadP3(function () { decodeTheme(function () {}); });
+  }
+  window.addEventListener('pointerdown', armSong);
+  window.addEventListener('keydown', armSong);
+  try { loadP3(function () {}); } catch (e) {}
+
+  function fadeSong() {
+    songNeed = false;
+    songFade = 1;
+  }
+
+  function hearGain(dist) {
+    if (dist <= HEAR_NEAR) return 1;
+    if (dist >= HEAR_FAR) return 0;
+    return 1 - (dist - HEAR_NEAR) / (HEAR_FAR - HEAR_NEAR);
+  }
+
+  function songSource() {
+    var best = null, bestD = 1e9, pos, d;
+    if (songIds.local && (AW.cine || AW.active) && player && player.pos) {
+      return { pos: player.pos, dist: 0, id: 'local' };
+    }
+    var fs = window.MPJJ && window.MPJJ.fighters;
+    if (fs) {
+      for (var id in fs) {
+        var f = fs[id];
+        if (!f || !f.e || !f.e.pos) continue;
+        if (!songIds[id] && !f.aw) continue;
+        pos = f.e.pos;
+        d = player.pos.distanceTo(pos);
+        if (d < bestD) { bestD = d; best = { pos: pos, dist: d, id: id }; }
+      }
+    }
+    return best;
+  }
+
+  function stepSong(dt) {
+    var src = songSource();
+    if (src && src.id !== 'local' && !songIds[src.id]) theme(true, src.id);
+    var want = 0;
+    if (songFade) {
+      songWant = Math.max(0, songWant - dt * .9);
+      want = songWant;
+      if (want <= .02) {
+        songFade = 0;
+        songWant = 0;
+        want = 0;
+        if (songNode) { try { songNode.stop(); } catch (e) {} songNode = null; }
+        if (songEl) { try { songEl.pause(); songEl.currentTime = 0; } catch (e) {} }
+        songT0 = 0;
+      }
+    } else if (src) {
+      /* you always get the full theme. only other people fall off with range */
+      want = (src.id === 'local') ? SONG_VOL : (SONG_VOL * hearGain(src.dist));
+      if (songNeed && !songNode && (!songEl || songEl.paused)) playSong(false);
+    }
+    applyGain(want);
+    renderHear(src, src ? (src.id === 'local' ? 1 : hearGain(src.dist)) : 0);
+  }
+
+  /* on: a Gojo in the room just started the entrance. off: that Gojo
+     is no longer awakened. A new entrance restarts the track so the
+     cut lands on the first beat; walking into range of one that is
+     already running does not. */
+  function theme(on, id) {
+    id = id || 'local';
+    if (on) {
+      var first = !songIds[id];
+      songIds[id] = 1;
+      playSong(!!first);
+      if (first && window.JJNOTICE) window.JJNOTICE(
+        id === 'local' ? 'FINAL ENCORE' : 'NEARBY THEME', '#9fd8ff');
+    } else {
+      delete songIds[id];
+      if (!Object.keys(songIds).length) fadeSong();
+    }
+  }
+
+  AW.hearGain = hearGain;
+  AW.songSource = songSource;
+  AW.step = stepSong;
+  AW.HEAR_NEAR = HEAR_NEAR;
+  AW.HEAR_FAR = HEAR_FAR;
+  AW.debugHear = function () {
+    var src = songSource();
+    var t = 0;
+    if (songMode === 'webaudio' && songT0) t = performance.now() / 1000 - songT0;
+    else if (songEl) t = songEl.currentTime;
+    return {
+      ids: Object.keys(songIds),
+      src: src ? { id: src.id, dist: +src.dist.toFixed(2), x: src.pos.x, z: src.pos.z } : null,
+      hear: src ? (src.id === 'local' ? 1 : hearGain(src.dist)) : 0,
+      vol: +songWant.toFixed(3),
+      muted: false,
+      t: +t.toFixed(2),
+      paused: songMode === 'webaudio' ? !songNode : (!songEl || songEl.paused),
+      file: songMode || (songEl ? songEl.currentSrc : ''),
+      err: songErr,
+      embedded: !!window.JJTHEME
+    };
+  };
 
   /* ------------------------------------------------------------ the look */
   function findBlindfold(rig) {
@@ -125,7 +422,14 @@
       '#jjAwSay{position:fixed;left:0;right:0;bottom:17%;text-align:center;z-index:15;pointer-events:none;',
       '  font-family:"Finger Paint","Segoe UI",cursive;font-size:23px;letter-spacing:2px;color:#fff;',
       '  text-shadow:0 2px 10px #000,0 0 26px rgba(58,125,255,.75);opacity:0;transition:opacity .18s}',
-      '#jjAwSay.on{opacity:1}'
+      '#jjAwSay.on{opacity:1}',
+      /* someone else's theme, heard because you walked into it */
+      '#jjHear{position:fixed;left:50%;bottom:148px;transform:translateX(-50%);z-index:12;',
+      '  pointer-events:none;text-align:center;font-family:"Finger Paint","Segoe UI",cursive;',
+      '  opacity:0;transition:opacity .2s}',
+      '#jjHear .k{font-size:10px;letter-spacing:5px;color:#9fd8ff;text-shadow:0 1px 6px #000}',
+      '#jjHear .n{font-size:18px;letter-spacing:4px;color:#fff;text-shadow:0 0 16px #3a7dff,0 2px 6px #000}',
+      '#jjHear .d{font-size:10px;letter-spacing:2px;color:#cfe2ff;margin-top:3px;text-shadow:0 1px 4px #000}'
     ].join('');
     document.head.appendChild(css);
 
@@ -145,6 +449,27 @@
     var say = document.createElement('div');
     say.id = 'jjAwSay';
     document.body.appendChild(say);
+
+    var hear = document.createElement('div');
+    hear.id = 'jjHear';
+    hear.innerHTML = '<div class="k">NEARBY</div><div class="n">FINAL ENCORE</div>' +
+      '<div class="d"></div>';
+    document.body.appendChild(hear);
+  }
+
+  function renderHear(src, gain) {
+    buildBar();
+    var el = document.getElementById('jjHear');
+    if (!el) return;
+    var mine = src && src.id === 'local';
+    var remote = src && src.id !== 'local' && gain > 0.04;
+    el.style.opacity = (mine || remote) ? String(Math.max(0.35, Math.min(1, gain || 1))) : '0';
+    el.querySelector('.k').textContent = mine ? 'NOW PLAYING' : 'NEARBY';
+    if (mine) el.querySelector('.d').textContent = 'you hear this too';
+    else if (remote) {
+      el.querySelector('.d').textContent = Math.round(src.dist) + 'm  \u00b7  hearing ' +
+        Math.round(gain * 100) + '%';
+    }
   }
 
   function renderBar() {
@@ -218,6 +543,7 @@
     if (window.MPJJ && window.MPJJ.relay) {
       window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'awaken' });
     }
+    theme(true, 'local');
   }
 
   function say(text) {
@@ -497,6 +823,7 @@
     if (AW.aura) { AW.aura.stop(); AW.aura = null; }
     setLook(player.rig, false);
     swapMoves(false);
+    theme(false, 'local');
     FX.ring(new THREE.Vector3(player.pos.x, .1, player.pos.z), 0x6fb4ff, { maxR: 8, life: .7 });
     if (window.JJNOTICE) window.JJNOTICE('AWAKENING ENDED', '#8fa4c8');
   }
@@ -1070,7 +1397,7 @@
   /* --------------------------------------------------------- per frame */
   var _updatePlayer = updatePlayer;
   updatePlayer = function (dt) {
-    if (AW.cine) { renderBar(); return; }             // the entrance owns the frame
+    if (AW.cine) { renderBar(); return; } // the entrance owns the frame
     _updatePlayer(dt);
     if (held && held !== player.action) { cleanup(held); held = null; }
     if (player.action && player.action.type.indexOf('aw_') === 0) held = player.action;
@@ -1165,9 +1492,15 @@
 
   /* death drops the awakening */
   var _stepDeath = null;
-  addFx({ t: 1e9, update: function () {
+  addFx({ t: 1e9, update: function (dt) {
+    /* runs even while a spawn cutscene has stolen updatePlayer, so a
+       nearby awakened Gojo is still audible as you walk in */
+    stepSong(dt);
     if (player.dead && AW.active) endAwake();
-    if (player.dead && AW.cine) { AW.cine = false; FX.letterbox(false); hud(true); }
+    if (player.dead && AW.cine) {
+      AW.cine = false; FX.letterbox(false); hud(true);
+      theme(false, 'local');
+    }
     return true;
   } });
 
@@ -1181,6 +1514,7 @@
       fighter.aura.stop();
       fighter.aura = null;
     }
+    theme(!!on, fighter.id || 'remote');
   }
 
   renderBar();
