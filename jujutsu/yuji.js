@@ -164,7 +164,7 @@
         e.damage(16 * boost(), aim().multiplyScalar(5).setY(3),
           { react: 'gut', reactDur: .45, spark: 0xffd9a8, noFrameBonus: true });
       });
-      try { sfx.hit(); } catch (e) {}
+      try { sfx.punch(); } catch (e) {}               // punch_hit_#3, first skill
     }
     if (a.t >= .62 && a.stage < 2) {                 // and the rest of it
       a.stage = 2;
@@ -772,5 +772,5 @@
     return true;
   } });
 
-  window.JJYUJI = { cfg: YUJI_CFG, blackFlash: blackFlash };
+  window.JJYUJI = { cfg: YUJI_CFG, blackFlash: blackFlash, castDivergent: castDivergent };
 })();

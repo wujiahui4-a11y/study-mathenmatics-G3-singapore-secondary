@@ -765,10 +765,10 @@
 
   /* the swap takes the stream and the scale with it */
   var _switchChar = switchChar;
-  switchChar = function (id) {
+  switchChar = function (id, quiet) {
     if (CH.stream) shutStream();
     if (CH.scale > 0) { CH.scale = 0; if (CH.aura) { CH.aura.stop(); CH.aura = null; } }
-    return _switchChar(id);
+    return _switchChar(id, quiet);
   };
 
   CH.stopStream = shutStream;

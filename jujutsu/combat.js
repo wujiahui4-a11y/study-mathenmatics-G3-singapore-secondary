@@ -207,8 +207,9 @@
      FIGHTER SWAP — eight seconds out of combat
      ================================================================== */
   var _switchChar = switchChar;
-  switchChar = function (id) {
-    if (!CHARS[id] || !started) return;
+  switchChar = function (id, quiet) {
+    if (!CHARS[id]) return;
+    if (!started) return _switchChar(id, true);
     if (window.JJAW && window.JJAW.active) {
       notice('CANNOT SWITCH WHILE AWAKENED', '#ff6b7f');
       return;

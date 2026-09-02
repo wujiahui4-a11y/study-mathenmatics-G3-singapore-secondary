@@ -156,42 +156,46 @@
     var css = document.createElement('style');
     css.textContent = [
       '#jjLobby{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;',
-      'background:rgba(4,6,12,.93);color:#eaf0ff;font-family:"Segoe UI",Arial,sans-serif}',
-      '#jjLobby .box{width:min(520px,92vw);background:#111726;border:1px solid #2b3category;',
-      'border:1px solid #2b3350;border-radius:14px;padding:24px}',
-      '#jjLobby h2{margin:0 0 4px;font-size:24px;letter-spacing:2px;color:#7fd4ff}',
-      '#jjLobby .sub{color:#93a0be;font-size:13px;line-height:1.55;margin-bottom:16px}',
-      '#jjLobby label{display:block;font-size:11px;letter-spacing:1px;color:#7e8bab;margin:12px 0 5px}',
-      '#jjLobby input{width:100%;background:#0b1018;border:1px solid #2c3453;color:#eaf0ff;border-radius:8px;',
-      'padding:10px 12px;font:inherit;font-size:15px;text-transform:uppercase}',
-      '#jjLobby input:focus{outline:none;border-color:#7fd4ff}',
+      'background:radial-gradient(ellipse at 50% 0%,rgba(154,28,46,.38),transparent 52%),rgba(8,7,11,.94);',
+      'color:#efe6d4;font-family:Barlow,"Segoe UI",Arial,sans-serif}',
+      '#jjLobby .box{width:min(520px,92vw);background:linear-gradient(180deg,rgba(16,12,12,.92),rgba(8,7,10,.92));',
+      'border:1px solid rgba(212,180,90,.4);padding:28px 26px;',
+      'box-shadow:0 24px 60px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,230,160,.1)}',
+      '#jjLobby h2{margin:0 0 6px;font-family:Cinzel,serif;font-size:26px;letter-spacing:3px;color:#f3dd8c}',
+      '#jjLobby .sub{color:#b6aa94;font-size:13px;line-height:1.55;margin-bottom:16px}',
+      '#jjLobby label{display:block;font-family:Cinzel,serif;font-size:10px;letter-spacing:2px;color:#d4b45a;margin:12px 0 5px}',
+      '#jjLobby input{width:100%;background:#0b090c;border:1px solid rgba(212,180,90,.28);color:#efe6d4;',
+      'padding:11px 12px;font:inherit;font-size:15px;text-transform:uppercase;border-radius:0}',
+      '#jjLobby input:focus{outline:none;border-color:#f3dd8c}',
       '#jjLobby .row{display:flex;gap:8px;margin-top:14px}',
-      '#jjLobby button{flex:1;background:#2f6df6;border:0;color:#fff;border-radius:8px;padding:12px;',
-      'font:inherit;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.5px}',
-      '#jjLobby button.ghost{background:#222c46;color:#cfd8ee}',
-      '#jjLobby .code{font-size:30px;letter-spacing:8px;text-align:center;color:#ffd76a;margin:10px 0}',
-      '#jjLobby .list{background:#0b1018;border:1px solid #26314c;border-radius:8px;padding:10px;',
+      '#jjLobby button{flex:1;background:linear-gradient(180deg,#f3dd8c,#c9a24a);border:1px solid #d4b45a;',
+      'color:#1a1208;padding:12px;font-family:Cinzel,serif;font-size:13px;font-weight:700;',
+      'cursor:pointer;letter-spacing:1.4px;border-radius:0}',
+      '#jjLobby button.ghost{background:transparent;color:#f3dd8c}',
+      '#jjLobby .code{font-family:Cinzel,serif;font-size:30px;letter-spacing:8px;text-align:center;color:#f3dd8c;margin:10px 0}',
+      '#jjLobby .list{background:#0b090c;border:1px solid rgba(212,180,90,.22);padding:10px;',
       'margin-top:12px;font-size:13px;min-height:58px}',
-      '#jjStatus{font-size:12px;color:#8b97b5;margin-top:12px;min-height:16px}',
+      '#jjStatus{font-size:12px;color:#9a9080;margin-top:12px;min-height:16px}',
       '#jjStatus.err{color:#ff8f84}',
       '#jjScore{position:fixed;right:14px;top:96px;z-index:20;display:none;min-width:186px;',
-      'background:rgba(8,12,22,.72);border:1px solid rgba(255,255,255,.12);border-radius:10px;',
-      'padding:8px 10px;font:12px/1.6 "Segoe UI",Arial,sans-serif;color:#eaf0ff}',
-      '#jjScore .hd{font-size:10px;letter-spacing:1px;color:#7e8bab;margin-bottom:4px}',
+      'background:rgba(8,7,10,.72);border:1px solid rgba(212,180,90,.28);',
+      'padding:8px 10px;font:12px/1.6 Barlow,"Segoe UI",Arial,sans-serif;color:#efe6d4}',
+      '#jjScore .hd{font-family:Cinzel,serif;font-size:10px;letter-spacing:2px;color:#d4b45a;margin-bottom:4px}',
       '#jjScore .r{display:flex;gap:8px}',
       '#jjScore .r .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '#jjScore .r.me .n{color:#7fd4ff;font-weight:700}',
+      '#jjScore .r.me .n{color:#f3dd8c;font-weight:700}',
       '#jjFeed{position:fixed;left:14px;bottom:110px;z-index:20;display:flex;flex-direction:column-reverse;',
-      'gap:4px;font:12px "Segoe UI",Arial,sans-serif;color:#eaf0ff;max-width:320px}',
-      '#jjFeed div{background:rgba(8,12,22,.75);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:4px 9px}',
-      '#jjOnline{position:absolute;left:50%;transform:translateX(-50%);bottom:76px;',
-      'background:#2f6df6;border:0;color:#fff;border-radius:10px;padding:12px 26px;cursor:pointer;',
-      'font:700 15px "Segoe UI",Arial,sans-serif;letter-spacing:1px}',
+      'gap:4px;font:12px Barlow,"Segoe UI",Arial,sans-serif;color:#efe6d4;max-width:320px}',
+      '#jjFeed div{background:rgba(8,7,10,.75);border:1px solid rgba(212,180,90,.18);padding:4px 9px}',
+      '#jjOnline{position:static;transform:none;background:transparent;border:1px solid #d4b45a;',
+      'color:#f3dd8c;padding:13px 26px;cursor:pointer;min-width:220px;',
+      'font:700 14px Cinzel,serif;letter-spacing:2.4px}',
       '#jjLook{position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;',
-      'background:rgba(3,6,14,.55);cursor:pointer;font-family:"Segoe UI",Arial,sans-serif}',
-      '#jjLook .c{background:#111726;border:1px solid #2b3350;border-radius:12px;padding:22px 34px;text-align:center}',
-      '#jjLook b{display:block;font-size:24px;letter-spacing:2px;color:#7fd4ff}',
-      '#jjLook span{display:block;margin-top:8px;font-size:13px;color:#93a0be}',
+      'background:rgba(6,5,8,.62);cursor:pointer;font-family:Barlow,"Segoe UI",Arial,sans-serif}',
+      '#jjLook .c{background:linear-gradient(180deg,rgba(16,12,12,.94),rgba(8,7,10,.94));',
+      'border:1px solid rgba(212,180,90,.4);padding:26px 38px;text-align:center}',
+      '#jjLook b{display:block;font-family:Cinzel,serif;font-size:22px;letter-spacing:3px;color:#f3dd8c}',
+      '#jjLook span{display:block;margin-top:8px;font-size:13px;color:#b6aa94}',
       'body.jjLocked,body.jjLocked *{cursor:none!important}',
       '#jjDragHint{position:fixed;left:50%;transform:translateX(-50%);bottom:66px;z-index:22;display:none;',
       'background:rgba(8,12,22,.8);border:1px solid rgba(127,212,255,.35);border-radius:8px;',
@@ -244,8 +248,8 @@
     wrap.innerHTML = [
       '<div id="jjLobby"><div class="box">',
       '  <h2>ONLINE MATCH</h2>',
-      '  <div class="sub">Fight your friends in the same arena. Everyone picks Gojo or Naoya and',
-      '    can switch with C. The training dummies step out while you brawl.</div>',
+      '  <div class="sub">The same city, five sorcerers. Create a room or join one. Dummies step out',
+      '    when the match starts, and C still switches fighter.</div>',
       '  <label>YOUR NAME</label><input id="jjName" maxlength="10" placeholder="PLAYER">',
       '  <div id="jjJoinBox">',
       '    <label>ROOM CODE (leave empty to create one)</label>',
@@ -286,9 +290,9 @@
 
     var btn = document.createElement('button');
     btn.id = 'jjOnline';
-    btn.textContent = 'PLAY ONLINE WITH FRIENDS';
-    var m = el('menu');
-    if (m) m.appendChild(btn);
+    btn.textContent = 'ONLINE MATCH';
+    var host = document.querySelector('#menu .menu-actions') || el('menu');
+    if (host) host.appendChild(btn);
     btn.addEventListener('click', function (e) {
       e.stopPropagation();                       // the menu itself starts the offline game
       openLobby();
@@ -1533,6 +1537,7 @@
           var at = mid.clone().addScaledVector(fwd, 2.6);
           FX.impact(at, 0xffd9a8, 1.5);
           FX.slash(at, fwd, 0xffe0c0, 4, .18);
+          try { sfx.punch(); } catch (e) {}
         }, 400);
         setTimeout(function () {
           var at = mid.clone().addScaledVector(fwd, 2.6);

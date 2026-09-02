@@ -1386,15 +1386,14 @@
 
   /* the menu lists the controls, so it should list these too */
   function listControls() {
-    var box = document.querySelector('#menu .controls');
+    var box = document.querySelector('#menu .ctrl-kits');
+    if (!box) box = document.querySelector('#menu .controls');
     if (!box) return;
     var add = document.createElement('div');
-    add.style.cssText = 'margin-top:7px;padding-top:7px;border-top:1px solid rgba(120,160,255,.25)';
+    add.className = 'kit-row';
     add.innerHTML =
-      '<span class="cn" style="color:#c7a6ff">AWAKENED GOJO</span> &mdash; <b>F</b> awaken when the bar fills ' +
-      '&nbsp;&middot;&nbsp; <b>1</b> Lapse: Blue &nbsp;&middot;&nbsp; <b>2</b> Reversal: Red ' +
-      '&nbsp;&middot;&nbsp; <b>3</b> Hollow Purple &nbsp;&middot;&nbsp; <b>4</b> Unlimited Void<br>' +
-      '<b>C</b> takes 8 seconds out of combat &mdash; getting hit starts the wait again';
+      '<span class="cn aw">AWAKENED</span> <b>F</b> awaken &nbsp;&middot;&nbsp; <b>1</b> Blue &nbsp;&middot;&nbsp; <b>2</b> Red &nbsp;&middot;&nbsp; <b>3</b> Purple &nbsp;&middot;&nbsp; <b>4</b> Void' +
+      '<span class="kit-note">C takes 8s out of combat</span>';
     box.appendChild(add);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', listControls);

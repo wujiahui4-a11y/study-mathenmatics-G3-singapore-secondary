@@ -3,13 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jujutsu Battleground — Gojo &amp; Naoya</title>
+<title>Jujutsu Battleground</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Finger+Paint&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Finger+Paint&family=Cinzel:wght@600;700;900&family=Barlow:wght@400;500;600;700&display=swap');
+  :root {
+    --gold: #d4b45a;
+    --gold-hi: #f3dd8c;
+    --blood: #9a1c2e;
+    --ink: #08070b;
+    --paper: #efe6d4;
+    --mute: #9a9080;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; }
+  html, body { height: 100%; overflow: hidden; background: #000; font-family: 'Barlow', 'Segoe UI', Arial, sans-serif; }
   canvas { display: block; }
-  .fp { font-family: 'Finger Paint', 'Segoe UI', cursive; }
+  .fp { font-family: 'Finger Paint', 'Cinzel', cursive; }
 
   #crosshair {
     position: fixed; left: 50%; top: 50%; width: 6px; height: 6px;
@@ -22,105 +30,119 @@
     pointer-events: none; z-index: 9;
   }
 
-  /* ---------- HUD (minimal white line style) ---------- */
+  /* ---------- HUD ---------- */
   #hud { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
   #charCard {
     position: absolute; left: 18px; top: 16px;
-    background: rgba(0,0,0,.18);
-    border: 2px solid rgba(255,255,255,.92); border-radius: 6px;
-    padding: 10px 16px; color: #fff; min-width: 250px;
-    box-shadow: 0 2px 12px rgba(0,0,0,.35);
+    min-width: 268px; padding: 12px 16px 12px 18px; color: #fff;
+    background: linear-gradient(180deg, rgba(12,10,12,.72), rgba(6,5,8,.58));
+    border: 1px solid rgba(212,180,90,.45);
+    border-left: 3px solid var(--gold);
+    box-shadow: 0 10px 28px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,230,160,.12);
   }
   #charCard .name {
-    font-family: 'Finger Paint', 'Segoe UI', cursive;
-    font-size: 17px; letter-spacing: 2px; color: #fff;
-    text-shadow: 0 1px 4px rgba(0,0,0,.6);
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    font-size: 17px; letter-spacing: 2px; color: #fff8e6;
+    text-shadow: 0 1px 0 #000, 0 0 12px rgba(212,180,90,.35);
   }
-  #charCard .sub { font-size: 9px; letter-spacing: 3px; color: rgba(255,255,255,.65); margin: 3px 0 7px; }
-  .barWrap { height: 10px; background: rgba(0,0,0,.35); border-radius: 3px; overflow: hidden; border: 1.5px solid rgba(255,255,255,.9); }
-  #hpFill { height: 100%; width: 100%; background: #fff; transition: width .15s; }
+  #charCard .sub {
+    font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 2.4px;
+    color: var(--gold); margin: 4px 0 8px;
+  }
+  .barWrap {
+    height: 8px; background: rgba(0,0,0,.5); overflow: hidden;
+    border: 1px solid rgba(212,180,90,.55);
+  }
+  #hpFill {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, #6a1018, #d4343c 55%, #f0d78a);
+    box-shadow: 0 0 10px rgba(212,52,60,.55);
+    transition: width .15s;
+  }
 
-  /* ---------- character list ---------- */
   #charList {
-    position: absolute; left: 18px; top: 112px;
-    display: flex; flex-direction: column; gap: 8px;
+    position: absolute; left: 18px; top: 118px;
+    display: flex; flex-direction: column; gap: 7px;
     pointer-events: auto;
   }
   #charList .clHead {
-    font-family: 'Finger Paint', 'Segoe UI', cursive;
-    font-size: 11px; letter-spacing: 3px; color: #fff;
+    font-family: 'Cinzel', serif;
+    font-size: 10px; letter-spacing: 4px; color: var(--gold);
     text-shadow: 0 1px 4px rgba(0,0,0,.7);
   }
   .charItem {
     display: flex; align-items: center; gap: 10px;
-    background: rgba(0,0,0,.18);
-    border: 2px solid rgba(255,255,255,.55); border-radius: 6px;
-    padding: 5px 12px 5px 5px; cursor: pointer; min-width: 158px;
-    transition: border-color .15s, background .15s;
+    min-width: 168px; padding: 4px 12px 4px 4px; cursor: pointer;
+    background: rgba(8,7,10,.5);
+    border: 1px solid rgba(212,180,90,.28);
+    transition: border-color .15s, background .15s, transform .15s;
   }
-  .charItem:hover { border-color: #fff; }
-  .charItem.active { border-color: #fff; background: rgba(255,255,255,.16); }
+  .charItem:hover { border-color: var(--gold-hi); background: rgba(20,16,12,.62); }
+  .charItem.active {
+    border-color: var(--gold);
+    background: rgba(40,28,12,.7);
+    box-shadow: 0 0 14px rgba(212,180,90,.18);
+  }
   .charItem img {
-    width: 42px; height: 42px; border-radius: 4px;
-    background: rgba(255,255,255,.1);
-    border: 1px solid rgba(255,255,255,.5);
+    width: 40px; height: 40px;
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(212,180,90,.4);
   }
   .charItem .cname {
-    font-family: 'Finger Paint', 'Segoe UI', cursive;
-    color: #fff; font-size: 13px; letter-spacing: 1.5px;
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    color: #fff8e6; font-size: 13px; letter-spacing: 1.4px;
     text-shadow: 0 1px 3px rgba(0,0,0,.6);
   }
-  .charItem .ctech { color: rgba(255,255,255,.6); font-size: 9px; letter-spacing: 1px; }
-  #charList .clHint { font-size: 9px; letter-spacing: 2px; color: rgba(255,255,255,.55); text-shadow: 0 1px 3px #000; }
+  .charItem .ctech { color: rgba(239,230,212,.55); font-size: 9px; letter-spacing: 1px; }
+  #charList .clHint { font-size: 9px; letter-spacing: 2px; color: rgba(212,180,90,.55); text-shadow: 0 1px 3px #000; }
 
-  /* ---------- skill bar: white frames + Finger Paint names ---------- */
   #moves {
-    position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%);
-    display: flex; gap: 10px; align-items: stretch;
+    position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
+    display: flex; gap: 8px; align-items: stretch;
   }
   .move {
     position: relative; overflow: hidden;
-    min-width: 86px; height: 52px; padding: 6px 14px 8px;
-    background: rgba(0,0,0,.18);
-    border: 2px solid #fff; border-radius: 6px;
+    min-width: 90px; height: 56px; padding: 7px 12px 8px;
+    background: linear-gradient(180deg, rgba(14,12,14,.7), rgba(6,5,8,.55));
+    border: 1px solid rgba(212,180,90,.5);
     color: #fff; text-align: center;
     display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-    box-shadow: 0 2px 10px rgba(0,0,0,.35);
+    box-shadow: 0 8px 18px rgba(0,0,0,.4);
   }
   .move .key {
-    position: absolute; top: 3px; left: 7px;
+    position: absolute; top: 4px; left: 7px;
+    font-family: 'Cinzel', serif;
     font-size: 9px; font-weight: 700; letter-spacing: 1px;
-    color: rgba(255,255,255,.75);
+    color: var(--gold);
   }
   .move .name {
-    font-family: 'Finger Paint', 'Segoe UI', cursive;
-    font-size: 14px; line-height: 1.05; letter-spacing: .5px;
-    color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.65);
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    font-size: 13px; line-height: 1.05; letter-spacing: .4px;
+    color: #fff8e6; text-shadow: 0 1px 4px rgba(0,0,0,.65);
     white-space: nowrap;
   }
   .move .cd {
     position: absolute; left: 0; bottom: 0; width: 100%; height: 0%;
-    background: rgba(255,255,255,.3);
+    background: rgba(212,180,90,.28);
     pointer-events: none;
   }
-  .move.onCd { border-color: rgba(255,255,255,.4); }
-  .move.onCd .name { color: rgba(255,255,255,.45); }
+  .move.onCd { border-color: rgba(212,180,90,.22); }
+  .move.onCd .name { color: rgba(239,230,212,.4); }
 
-  /* player projection meter */
   #projWrap {
     position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%);
     width: 260px; display: none;
   }
   #projWrap .plabel {
-    font-family: 'Finger Paint', 'Segoe UI', cursive;
-    font-size: 10px; letter-spacing: 4px; color: #fff; text-align: center;
+    font-family: 'Cinzel', serif;
+    font-size: 10px; letter-spacing: 4px; color: var(--gold); text-align: center;
     text-shadow: 0 1px 4px rgba(0,0,0,.7); margin-bottom: 3px;
   }
   #projBar {
-    height: 8px; border-radius: 3px; overflow: hidden;
-    background: rgba(0,0,0,.35); border: 1.5px solid #fff;
+    height: 7px; overflow: hidden;
+    background: rgba(0,0,0,.45); border: 1px solid rgba(212,180,90,.5);
   }
-  #projFill { height: 100%; width: 0%; background: #fff; }
+  #projFill { height: 100%; width: 0%; background: linear-gradient(90deg, #c9a24a, #fff1b8); }
 
   #vignette {
     position: fixed; inset: 0; pointer-events: none; z-index: 7; opacity: 0;
@@ -133,35 +155,170 @@
     pointer-events: none; z-index: 8; opacity: 0; transition: opacity .2s;
   }
   #splash .big {
-    font-family: 'Finger Paint', 'Segoe UI', cursive;
-    font-size: 42px; letter-spacing: 6px; color: #fff;
-    text-shadow: 0 0 22px var(--glow, #7a2aff), 0 0 60px var(--glow, #7a2aff);
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    font-size: 42px; letter-spacing: 6px; color: #fff8e6;
+    text-shadow: 0 0 22px var(--glow, #d4b45a), 0 0 60px var(--glow, #9a1c2e);
   }
-  #splash .small { font-size: 15px; letter-spacing: 8px; color: #cbd7ff; margin-top: 4px; }
+  #splash .small { font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 7px; color: var(--gold); margin-top: 4px; }
 
-  /* ---------- menu ---------- */
+  /* ---------- title / pause ---------- */
   #menu {
     position: fixed; inset: 0; z-index: 20; display: flex;
     align-items: center; justify-content: center; flex-direction: column;
-    background: radial-gradient(circle at 50% 30%, rgba(50,30,110,.75), rgba(4,4,14,.94) 70%);
-    color: #fff; cursor: pointer; text-align: center;
+    color: #efe6d4; text-align: center; cursor: default;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(154,28,46,.42), transparent 52%),
+      radial-gradient(ellipse at 18% 80%, rgba(40,24,90,.28), transparent 46%),
+      radial-gradient(ellipse at 82% 70%, rgba(154,28,46,.18), transparent 40%),
+      #08070b;
+  }
+  #menu.is-pause { background: rgba(6,5,8,.84); }
+  .menu-veil, .menu-orn { pointer-events: none; }
+  .menu-veil {
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 3px, rgba(0,0,0,.08) 3px 4px),
+      radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,.55) 100%);
+  }
+  .menu-orn {
+    position: absolute; width: 56px; height: 56px;
+    border: 1.5px solid rgba(212,180,90,.55);
+  }
+  .menu-orn.tl { top: 22px; left: 22px; border-right: 0; border-bottom: 0; }
+  .menu-orn.tr { top: 22px; right: 22px; border-left: 0; border-bottom: 0; }
+  .menu-orn.bl { bottom: 22px; left: 22px; border-right: 0; border-top: 0; }
+  .menu-orn.br { bottom: 22px; right: 22px; border-left: 0; border-top: 0; }
+  .menu-shell { position: relative; z-index: 1; width: min(920px, 92vw); padding: 8px 12px 4px; }
+  .menu-kicker {
+    font-family: 'Cinzel', serif;
+    font-size: 11px; letter-spacing: 7px; color: var(--gold);
+    margin-bottom: 8px;
   }
   #menu h1 {
-    font-size: 50px; font-weight: 900; letter-spacing: 4px;
-    background: linear-gradient(180deg, #fff, #86b4ff 55%, #7a2aff);
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    font-size: clamp(40px, 7.2vw, 78px); font-weight: 400; line-height: .92;
+    letter-spacing: 3px;
+    background: linear-gradient(180deg, #fff6d8 0%, #f0d78a 40%, #c9a24a 72%, #8a1a28 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
-    filter: drop-shadow(0 0 24px rgba(110,80,255,.75));
+    filter: drop-shadow(0 8px 28px rgba(154,28,46,.45));
   }
-  #menu h2 { font-size: 14px; letter-spacing: 10px; color: #93a7e8; margin: 4px 0 22px; }
+  #menu h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 12px; letter-spacing: 6px; color: var(--mute);
+    margin: 14px 0 0;
+  }
+  #menu h2::before, #menu h2::after {
+    content: ''; display: inline-block; width: 42px; height: 1px;
+    margin: 0 12px 4px; background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    vertical-align: middle;
+  }
+  #menuRoster {
+    display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;
+    margin: 26px 0 14px;
+  }
+  .roster-card {
+    width: 104px; padding: 6px 6px 8px; cursor: pointer;
+    background: rgba(10,8,10,.55);
+    border: 1px solid rgba(212,180,90,.28);
+    color: inherit; font: inherit;
+    transition: border-color .15s, transform .15s, box-shadow .15s, background .15s;
+  }
+  .roster-card:hover { border-color: var(--gold-hi); transform: translateY(-3px); }
+  .roster-card.active {
+    border-color: var(--gold);
+    background: rgba(36,24,12,.7);
+    box-shadow: 0 0 22px rgba(212,180,90,.22);
+  }
+  .roster-card img {
+    display: block; width: 90px; height: 90px; margin: 0 auto 6px;
+    background: #0c0a0c; border: 1px solid rgba(212,180,90,.3);
+  }
+  .roster-card .rn {
+    display: block;
+    font-family: 'Cinzel', serif;
+    font-size: 11px; letter-spacing: 1.6px; color: #efe6d4;
+  }
+  #menuPick .pn {
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    font-size: 20px; letter-spacing: 3px; color: #fff8e6;
+  }
+  #menuPick .ps {
+    font-family: 'Cinzel', serif;
+    font-size: 11px; letter-spacing: 3px; color: var(--gold); margin-top: 3px;
+  }
+  .menu-actions {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    margin: 22px 0 18px;
+  }
+  .menu-btn, #jjOnline {
+    appearance: none; cursor: pointer;
+    min-width: 220px; padding: 13px 26px;
+    font-family: 'Cinzel', serif;
+    font-size: 14px; font-weight: 700; letter-spacing: 2.4px;
+    border: 1px solid var(--gold);
+    transition: transform .15s, box-shadow .15s, background .15s, color .15s;
+  }
+  .menu-btn.primary, #menuFight {
+    background: linear-gradient(180deg, #f3dd8c, #c9a24a);
+    color: #1a1208;
+    box-shadow: 0 8px 24px rgba(201,162,74,.28), inset 0 1px 0 rgba(255,255,220,.55);
+  }
+  .menu-btn.primary:hover, #menuFight:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(201,162,74,.4);
+  }
+  #jjOnline {
+    position: static !important; transform: none !important; bottom: auto !important; left: auto !important;
+    background: transparent; color: var(--gold-hi);
+  }
+  #jjOnline:hover { background: rgba(212,180,90,.1); }
   #menu .controls {
-    font-size: 12.5px; line-height: 1.85; color: #c6d2ff;
-    background: rgba(10,14,34,.6); border: 1px solid rgba(120,160,255,.3);
-    border-radius: 12px; padding: 12px 28px;
+    max-width: 760px; margin: 0 auto;
+    font-size: 12px; line-height: 1.7; color: #c8bba6;
+    background: rgba(8,7,10,.45);
+    border: 1px solid rgba(212,180,90,.18);
+    padding: 12px 18px 10px;
   }
-  #menu .controls b { color: #fff; }
-  #menu .controls .cn { color: #9fd8ff; font-weight: 800; letter-spacing: 1px; }
-  #menu .go { margin-top: 22px; font-size: 17px; letter-spacing: 3px; color: #fff; animation: pulse 1.2s infinite; }
+  #menu .ctrl-universal { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; margin-bottom: 10px; }
+  #menu .kchip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px;
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(212,180,90,.22);
+    color: #d8cbb4; font-size: 11px; letter-spacing: .4px;
+  }
+  #menu .kchip b {
+    font-family: 'Cinzel', serif; color: var(--gold-hi); letter-spacing: 1px;
+  }
+  #menu .ctrl-kits { text-align: left; display: grid; gap: 3px; }
+  #menu .kit-row, #menu .ctrl-kits > div {
+    display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: baseline;
+    font-size: 12px; color: #c8bba6;
+  }
+  #menu .controls b { color: #fff4d6; font-weight: 600; }
+  #menu .controls .cn {
+    font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 1.4px; color: var(--gold);
+  }
+  #menu .controls .cn.ny { color: #9fd8ff; }
+  #menu .controls .cn.yj { color: #ff7f9a; }
+  #menu .controls .cn.hk { color: #ffcc4d; }
+  #menu .controls .cn.ch { color: #d4143c; }
+  #menu .controls .cn.aw { color: #c7a6ff; }
+  #menu .kit-note { display: block; grid-column: 2; color: #8a8070; font-size: 11px; }
+  #menu .go {
+    margin-top: 16px;
+    font-family: 'Cinzel', serif;
+    font-size: 12px; letter-spacing: 4px; color: var(--gold);
+    animation: pulse 1.6s infinite;
+  }
+  #menu.is-pause .go { display: none; }
   @keyframes pulse { 50% { opacity: .35; } }
+  @media (max-width: 720px) {
+    .roster-card { width: 78px; }
+    .roster-card img { width: 64px; height: 64px; }
+    #menu .kit-row, #menu .ctrl-kits > div { grid-template-columns: 1fr; }
+    .menu-btn, #jjOnline { min-width: 180px; }
+  }
 </style>
 </head>
 <body>
@@ -188,15 +345,43 @@
 </div>
 
 <div id="menu">
-  <h1>JUJUTSU BATTLEGROUND</h1>
-  <h2>SHENANIGANS &middot; 3D</h2>
-  <div class="controls">
-    <b>WASD</b> walk &nbsp;&middot;&nbsp; <b>Shift</b> run &nbsp;&middot;&nbsp; <b>Q</b> dash &nbsp;&middot;&nbsp; <b>Space</b> jump &nbsp;&middot;&nbsp; <b>C</b> switch character &nbsp;&middot;&nbsp; <b>Click</b> M1 combo<br>
-    <span class="cn">GOJO</span> &mdash; <b>1</b> Reversal: Red &nbsp;&middot;&nbsp; <b>2</b> Rapid Punches &nbsp;&middot;&nbsp; <b>3</b> Twofold Kick &nbsp;&middot;&nbsp; <b>4</b> Palm Barrage &nbsp;&middot;&nbsp; <b>R</b> Limitless<br>
-    <span class="cn">NAOYA</span> &mdash; <b>1</b> Projection Breaker &nbsp;&middot;&nbsp; <b>2</b> Tanto &nbsp;&middot;&nbsp; <b>3</b> You're Not Toji &nbsp;&middot;&nbsp; <b>R</b> Projection: 24 FPS<br>
-    Fill an enemy's <b>Projection Meter</b> to freeze them in a frame &mdash; your hits on framed targets deal <b>3&times;</b> damage!
+  <div class="menu-veil"></div>
+  <div class="menu-orn tl"></div>
+  <div class="menu-orn tr"></div>
+  <div class="menu-orn bl"></div>
+  <div class="menu-orn br"></div>
+  <div class="menu-shell">
+    <div class="menu-kicker">CURSED ENERGY ARENA</div>
+    <h1>JUJUTSU<br>BATTLEGROUND</h1>
+    <h2>FIVE SORCERERS &middot; ONE CITY</h2>
+    <div id="menuRoster"></div>
+    <div id="menuPick">
+      <div class="pn">GOJO SATORU</div>
+      <div class="ps">THE HONORED ONE &mdash; LIMITLESS</div>
+    </div>
+    <div class="menu-actions">
+      <button type="button" id="menuFight" class="menu-btn primary">ENTER THE ARENA</button>
+    </div>
+    <div class="controls">
+      <div class="ctrl-universal">
+        <span class="kchip"><b>WASD</b> walk</span>
+        <span class="kchip"><b>SHIFT</b> run</span>
+        <span class="kchip"><b>Q</b> dash</span>
+        <span class="kchip"><b>SPACE</b> jump</span>
+        <span class="kchip"><b>C</b> switch</span>
+        <span class="kchip"><b>LMB</b> punch</span>
+        <span class="kchip"><b>F</b> awaken</span>
+      </div>
+      <div class="ctrl-kits">
+        <div class="kit-row"><span class="cn">GOJO</span><span><b>1</b> Red &nbsp;&middot;&nbsp; <b>2</b> Rapid &nbsp;&middot;&nbsp; <b>3</b> Twofold &nbsp;&middot;&nbsp; <b>4</b> Palm &nbsp;&middot;&nbsp; <b>R</b> Limitless</span></div>
+        <div class="kit-row"><span class="cn ny">NAOYA</span><span><b>1</b> Breaker &nbsp;&middot;&nbsp; <b>2</b> Tanto &nbsp;&middot;&nbsp; <b>3</b> Not Toji &nbsp;&middot;&nbsp; <b>R</b> 24 FPS</span></div>
+        <div class="kit-row"><span class="cn yj">YUJI</span><span><b>1</b> Divergent Fist &nbsp;&middot;&nbsp; <b>2</b> Black Flash &nbsp;&middot;&nbsp; <b>3</b> Manji &nbsp;&middot;&nbsp; <b>4</b> Crush &nbsp;&middot;&nbsp; <b>R</b> Surge</span></div>
+        <div class="kit-row"><span class="cn hk">HAKARI</span><span><b>1</b> Shutter &nbsp;&middot;&nbsp; <b>2</b> Barrage &nbsp;&middot;&nbsp; <b>3</b> Gachinko &nbsp;&middot;&nbsp; <b>4</b> Domain &nbsp;&middot;&nbsp; <b>R</b> Overwhelm</span></div>
+        <div class="kit-row"><span class="cn ch">CHOSO</span><span><b>1</b> Piercing Blood &nbsp;&middot;&nbsp; <b>2</b> Meteorite &nbsp;&middot;&nbsp; <b>3</b> Supernova &nbsp;&middot;&nbsp; <b>4</b> Scale &nbsp;&middot;&nbsp; <b>R</b> Edge</span></div>
+      </div>
+    </div>
+    <div class="go">PICK A FIGHTER, THEN ENTER</div>
   </div>
-  <div class="go">CLICK TO FIGHT</div>
 </div>
 
 <script id="jjThreeSrc" type="text/plain">
@@ -2607,9 +2792,32 @@ function poseAction(r, a) {
 const keys = {};
 let locked = false, started = false;
 const menu = document.getElementById("menu");
+const menuFight = document.getElementById("menuFight");
+const menuSub = menu.querySelector("h2");
+
+function setMenuMode(pause) {
+  menu.classList.toggle("is-pause", !!pause);
+  if (menuSub) menuSub.textContent = pause ? "PAUSED" : "FIVE SORCERERS · ONE CITY";
+  if (menuFight) menuFight.textContent = pause ? "RESUME" : "ENTER THE ARENA";
+}
+function enterArenaLocal(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  started = true;
+  setMenuMode(true);
+  menu.style.display = "none";
+  audio();
+  renderer.domElement.requestPointerLock?.();
+}
 
 addEventListener("keydown", e => {
   keys[e.code] = true;
+  if (!started && (e.code === "Enter" || e.code === "Space")) {
+    const lobby = document.getElementById("jjLobby");
+    if (lobby && lobby.style.display === "flex") return;
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    enterArenaLocal(e);
+    return;
+  }
   if (!started) return;
   if (player.char === "gojo") {
     if (e.code === "Digit1") castRed();
@@ -2628,15 +2836,18 @@ addEventListener("keydown", e => {
 });
 addEventListener("keyup", e => keys[e.code] = false);
 
-menu.addEventListener("click", () => {
-  started = true;
-  menu.style.display = "none";
-  audio();
-  renderer.domElement.requestPointerLock?.();
+if (menuFight) menuFight.addEventListener("click", enterArenaLocal);
+menu.addEventListener("click", (e) => {
+  if (!started) return;
+  if (e.target.closest("button, .roster-card, input, a, .controls")) return;
+  enterArenaLocal(e);
 });
 document.addEventListener("pointerlockchange", () => {
   locked = document.pointerLockElement === renderer.domElement;
-  if (!locked && started) menu.style.display = "flex";
+  if (!locked && started) {
+    setMenuMode(true);
+    menu.style.display = "flex";
+  }
 });
 addEventListener("mousemove", e => {
   if (!locked) return;
@@ -2881,6 +3092,8 @@ function buildMovesBar() {
 }
 
 const charListEl = document.getElementById("charList");
+const menuRoster = document.getElementById("menuRoster");
+const menuPick = document.getElementById("menuPick");
 function buildCharList() {
   charListEl.querySelectorAll(".charItem").forEach(el => el.remove());
   const hint = charListEl.querySelector(".clHint");
@@ -2894,10 +3107,36 @@ function buildCharList() {
     item.addEventListener("click", () => switchChar(id));
     charListEl.insertBefore(item, hint);
   }
+  if (menuRoster) {
+    menuRoster.innerHTML = "";
+    for (const id of Object.keys(CHARS)) {
+      const c = CHARS[id];
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "roster-card" + (player.char === id ? " active" : "");
+      card.dataset.char = id;
+      card.innerHTML = `<img alt="${c.name}"><span class="rn">${c.name.split(" ")[0]}</span>`;
+      card.querySelector("img").src = c.portrait || "";
+      card.addEventListener("click", (e) => {
+        e.stopPropagation();
+        switchChar(id, true);
+      });
+      menuRoster.appendChild(card);
+    }
+  }
+  refreshCharList();
 }
 function refreshCharList() {
   charListEl.querySelectorAll(".charItem").forEach(el =>
     el.classList.toggle("active", el.dataset.char === player.char));
+  if (menuRoster) {
+    menuRoster.querySelectorAll(".roster-card").forEach(el =>
+      el.classList.toggle("active", el.dataset.char === player.char));
+  }
+  if (menuPick && CHARS[player.char]) {
+    menuPick.querySelector(".pn").textContent = CHARS[player.char].name;
+    menuPick.querySelector(".ps").textContent = CHARS[player.char].sub;
+  }
 }
 
 const cardName = document.querySelector("#charCard .name");
@@ -2905,7 +3144,7 @@ const cardSub = document.querySelector("#charCard .sub");
 const projWrap = document.getElementById("projWrap");
 const projFill = document.getElementById("projFill");
 
-function switchChar(id) {
+function switchChar(id, quiet) {
   if (!CHARS[id] || id === player.char) return;
   const p = player;
   unframePlayer(false);
@@ -2924,6 +3163,7 @@ function switchChar(id) {
   cardName.style.textShadow = `0 0 8px ${CHARS[id].glow}`;
   buildMovesBar();
   refreshCharList();
+  if (quiet || !started) return;
   showSplash(CHARS[id].name, CHARS[id].sub, CHARS[id].glow);
   spark(p.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0xbfe8ff, 12, 12, 1.4);
   ghostAfterimage(p.rig, 0xffffff);
@@ -2984,7 +3224,7 @@ loop();
 /* test hooks */
 window.__game = {
   player, enemies, cds,
-  start() { started = true; menu.style.display = "none"; },
+  start() { started = true; setMenuMode(true); menu.style.display = "none"; },
   punch, doDash,
   castRed, castRapid, castTwofold, castPalm, castLimitless,
   castN1, castN2, castN3, castNaoyaR,
@@ -6194,8 +6434,9 @@ window.__game = {
      FIGHTER SWAP — eight seconds out of combat
      ================================================================== */
   var _switchChar = switchChar;
-  switchChar = function (id) {
-    if (!CHARS[id] || !started) return;
+  switchChar = function (id, quiet) {
+    if (!CHARS[id]) return;
+    if (!started) return _switchChar(id, true);
     if (window.JJAW && window.JJAW.active) {
       notice('CANNOT SWITCH WHILE AWAKENED', '#ff6b7f');
       return;
@@ -7101,8 +7342,8 @@ window.__game = {
 
   /* switching to Naoya hands the charges back; switching away takes them */
   var _switchChar = switchChar;
-  switchChar = function (id) {
-    _switchChar(id);
+  switchChar = function (id, quiet) {
+    _switchChar(id, quiet);
     if (STYLE[player.char]) { D.line = 0; D.side = 0; player.dashCh = 1; }
   };
 
@@ -8507,15 +8748,14 @@ window.__game = {
 
   /* the menu lists the controls, so it should list these too */
   function listControls() {
-    var box = document.querySelector('#menu .controls');
+    var box = document.querySelector('#menu .ctrl-kits');
+    if (!box) box = document.querySelector('#menu .controls');
     if (!box) return;
     var add = document.createElement('div');
-    add.style.cssText = 'margin-top:7px;padding-top:7px;border-top:1px solid rgba(120,160,255,.25)';
+    add.className = 'kit-row';
     add.innerHTML =
-      '<span class="cn" style="color:#c7a6ff">AWAKENED GOJO</span> &mdash; <b>F</b> awaken when the bar fills ' +
-      '&nbsp;&middot;&nbsp; <b>1</b> Lapse: Blue &nbsp;&middot;&nbsp; <b>2</b> Reversal: Red ' +
-      '&nbsp;&middot;&nbsp; <b>3</b> Hollow Purple &nbsp;&middot;&nbsp; <b>4</b> Unlimited Void<br>' +
-      '<b>C</b> takes 8 seconds out of combat &mdash; getting hit starts the wait again';
+      '<span class="cn aw">AWAKENED</span> <b>F</b> awaken &nbsp;&middot;&nbsp; <b>1</b> Blue &nbsp;&middot;&nbsp; <b>2</b> Red &nbsp;&middot;&nbsp; <b>3</b> Purple &nbsp;&middot;&nbsp; <b>4</b> Void' +
+      '<span class="kit-note">C takes 8s out of combat</span>';
     box.appendChild(add);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', listControls);
@@ -10676,7 +10916,7 @@ window.__game = {
         e.damage(16 * boost(), aim().multiplyScalar(5).setY(3),
           { react: 'gut', reactDur: .45, spark: 0xffd9a8, noFrameBonus: true });
       });
-      try { sfx.hit(); } catch (e) {}
+      try { sfx.punch(); } catch (e) {}               // punch_hit_#3, first skill
     }
     if (a.t >= .62 && a.stage < 2) {                 // and the rest of it
       a.stage = 2;
@@ -11284,7 +11524,7 @@ window.__game = {
     return true;
   } });
 
-  window.JJYUJI = { cfg: YUJI_CFG, blackFlash: blackFlash };
+  window.JJYUJI = { cfg: YUJI_CFG, blackFlash: blackFlash, castDivergent: castDivergent };
 })();
 
 
@@ -13141,10 +13381,10 @@ window.__game = {
 
   /* the swap takes the stream and the scale with it */
   var _switchChar = switchChar;
-  switchChar = function (id) {
+  switchChar = function (id, quiet) {
     if (CH.stream) shutStream();
     if (CH.scale > 0) { CH.scale = 0; if (CH.aura) { CH.aura.stop(); CH.aura = null; } }
-    return _switchChar(id);
+    return _switchChar(id, quiet);
   };
 
   CH.stopStream = shutStream;
@@ -17050,42 +17290,46 @@ window.__game = {
     var css = document.createElement('style');
     css.textContent = [
       '#jjLobby{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;',
-      'background:rgba(4,6,12,.93);color:#eaf0ff;font-family:"Segoe UI",Arial,sans-serif}',
-      '#jjLobby .box{width:min(520px,92vw);background:#111726;border:1px solid #2b3category;',
-      'border:1px solid #2b3350;border-radius:14px;padding:24px}',
-      '#jjLobby h2{margin:0 0 4px;font-size:24px;letter-spacing:2px;color:#7fd4ff}',
-      '#jjLobby .sub{color:#93a0be;font-size:13px;line-height:1.55;margin-bottom:16px}',
-      '#jjLobby label{display:block;font-size:11px;letter-spacing:1px;color:#7e8bab;margin:12px 0 5px}',
-      '#jjLobby input{width:100%;background:#0b1018;border:1px solid #2c3453;color:#eaf0ff;border-radius:8px;',
-      'padding:10px 12px;font:inherit;font-size:15px;text-transform:uppercase}',
-      '#jjLobby input:focus{outline:none;border-color:#7fd4ff}',
+      'background:radial-gradient(ellipse at 50% 0%,rgba(154,28,46,.38),transparent 52%),rgba(8,7,11,.94);',
+      'color:#efe6d4;font-family:Barlow,"Segoe UI",Arial,sans-serif}',
+      '#jjLobby .box{width:min(520px,92vw);background:linear-gradient(180deg,rgba(16,12,12,.92),rgba(8,7,10,.92));',
+      'border:1px solid rgba(212,180,90,.4);padding:28px 26px;',
+      'box-shadow:0 24px 60px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,230,160,.1)}',
+      '#jjLobby h2{margin:0 0 6px;font-family:Cinzel,serif;font-size:26px;letter-spacing:3px;color:#f3dd8c}',
+      '#jjLobby .sub{color:#b6aa94;font-size:13px;line-height:1.55;margin-bottom:16px}',
+      '#jjLobby label{display:block;font-family:Cinzel,serif;font-size:10px;letter-spacing:2px;color:#d4b45a;margin:12px 0 5px}',
+      '#jjLobby input{width:100%;background:#0b090c;border:1px solid rgba(212,180,90,.28);color:#efe6d4;',
+      'padding:11px 12px;font:inherit;font-size:15px;text-transform:uppercase;border-radius:0}',
+      '#jjLobby input:focus{outline:none;border-color:#f3dd8c}',
       '#jjLobby .row{display:flex;gap:8px;margin-top:14px}',
-      '#jjLobby button{flex:1;background:#2f6df6;border:0;color:#fff;border-radius:8px;padding:12px;',
-      'font:inherit;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.5px}',
-      '#jjLobby button.ghost{background:#222c46;color:#cfd8ee}',
-      '#jjLobby .code{font-size:30px;letter-spacing:8px;text-align:center;color:#ffd76a;margin:10px 0}',
-      '#jjLobby .list{background:#0b1018;border:1px solid #26314c;border-radius:8px;padding:10px;',
+      '#jjLobby button{flex:1;background:linear-gradient(180deg,#f3dd8c,#c9a24a);border:1px solid #d4b45a;',
+      'color:#1a1208;padding:12px;font-family:Cinzel,serif;font-size:13px;font-weight:700;',
+      'cursor:pointer;letter-spacing:1.4px;border-radius:0}',
+      '#jjLobby button.ghost{background:transparent;color:#f3dd8c}',
+      '#jjLobby .code{font-family:Cinzel,serif;font-size:30px;letter-spacing:8px;text-align:center;color:#f3dd8c;margin:10px 0}',
+      '#jjLobby .list{background:#0b090c;border:1px solid rgba(212,180,90,.22);padding:10px;',
       'margin-top:12px;font-size:13px;min-height:58px}',
-      '#jjStatus{font-size:12px;color:#8b97b5;margin-top:12px;min-height:16px}',
+      '#jjStatus{font-size:12px;color:#9a9080;margin-top:12px;min-height:16px}',
       '#jjStatus.err{color:#ff8f84}',
       '#jjScore{position:fixed;right:14px;top:96px;z-index:20;display:none;min-width:186px;',
-      'background:rgba(8,12,22,.72);border:1px solid rgba(255,255,255,.12);border-radius:10px;',
-      'padding:8px 10px;font:12px/1.6 "Segoe UI",Arial,sans-serif;color:#eaf0ff}',
-      '#jjScore .hd{font-size:10px;letter-spacing:1px;color:#7e8bab;margin-bottom:4px}',
+      'background:rgba(8,7,10,.72);border:1px solid rgba(212,180,90,.28);',
+      'padding:8px 10px;font:12px/1.6 Barlow,"Segoe UI",Arial,sans-serif;color:#efe6d4}',
+      '#jjScore .hd{font-family:Cinzel,serif;font-size:10px;letter-spacing:2px;color:#d4b45a;margin-bottom:4px}',
       '#jjScore .r{display:flex;gap:8px}',
       '#jjScore .r .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '#jjScore .r.me .n{color:#7fd4ff;font-weight:700}',
+      '#jjScore .r.me .n{color:#f3dd8c;font-weight:700}',
       '#jjFeed{position:fixed;left:14px;bottom:110px;z-index:20;display:flex;flex-direction:column-reverse;',
-      'gap:4px;font:12px "Segoe UI",Arial,sans-serif;color:#eaf0ff;max-width:320px}',
-      '#jjFeed div{background:rgba(8,12,22,.75);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:4px 9px}',
-      '#jjOnline{position:absolute;left:50%;transform:translateX(-50%);bottom:76px;',
-      'background:#2f6df6;border:0;color:#fff;border-radius:10px;padding:12px 26px;cursor:pointer;',
-      'font:700 15px "Segoe UI",Arial,sans-serif;letter-spacing:1px}',
+      'gap:4px;font:12px Barlow,"Segoe UI",Arial,sans-serif;color:#efe6d4;max-width:320px}',
+      '#jjFeed div{background:rgba(8,7,10,.75);border:1px solid rgba(212,180,90,.18);padding:4px 9px}',
+      '#jjOnline{position:static;transform:none;background:transparent;border:1px solid #d4b45a;',
+      'color:#f3dd8c;padding:13px 26px;cursor:pointer;min-width:220px;',
+      'font:700 14px Cinzel,serif;letter-spacing:2.4px}',
       '#jjLook{position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;',
-      'background:rgba(3,6,14,.55);cursor:pointer;font-family:"Segoe UI",Arial,sans-serif}',
-      '#jjLook .c{background:#111726;border:1px solid #2b3350;border-radius:12px;padding:22px 34px;text-align:center}',
-      '#jjLook b{display:block;font-size:24px;letter-spacing:2px;color:#7fd4ff}',
-      '#jjLook span{display:block;margin-top:8px;font-size:13px;color:#93a0be}',
+      'background:rgba(6,5,8,.62);cursor:pointer;font-family:Barlow,"Segoe UI",Arial,sans-serif}',
+      '#jjLook .c{background:linear-gradient(180deg,rgba(16,12,12,.94),rgba(8,7,10,.94));',
+      'border:1px solid rgba(212,180,90,.4);padding:26px 38px;text-align:center}',
+      '#jjLook b{display:block;font-family:Cinzel,serif;font-size:22px;letter-spacing:3px;color:#f3dd8c}',
+      '#jjLook span{display:block;margin-top:8px;font-size:13px;color:#b6aa94}',
       'body.jjLocked,body.jjLocked *{cursor:none!important}',
       '#jjDragHint{position:fixed;left:50%;transform:translateX(-50%);bottom:66px;z-index:22;display:none;',
       'background:rgba(8,12,22,.8);border:1px solid rgba(127,212,255,.35);border-radius:8px;',
@@ -17138,8 +17382,8 @@ window.__game = {
     wrap.innerHTML = [
       '<div id="jjLobby"><div class="box">',
       '  <h2>ONLINE MATCH</h2>',
-      '  <div class="sub">Fight your friends in the same arena. Everyone picks Gojo or Naoya and',
-      '    can switch with C. The training dummies step out while you brawl.</div>',
+      '  <div class="sub">The same city, five sorcerers. Create a room or join one. Dummies step out',
+      '    when the match starts, and C still switches fighter.</div>',
       '  <label>YOUR NAME</label><input id="jjName" maxlength="10" placeholder="PLAYER">',
       '  <div id="jjJoinBox">',
       '    <label>ROOM CODE (leave empty to create one)</label>',
@@ -17180,9 +17424,9 @@ window.__game = {
 
     var btn = document.createElement('button');
     btn.id = 'jjOnline';
-    btn.textContent = 'PLAY ONLINE WITH FRIENDS';
-    var m = el('menu');
-    if (m) m.appendChild(btn);
+    btn.textContent = 'ONLINE MATCH';
+    var host = document.querySelector('#menu .menu-actions') || el('menu');
+    if (host) host.appendChild(btn);
     btn.addEventListener('click', function (e) {
       e.stopPropagation();                       // the menu itself starts the offline game
       openLobby();
@@ -18427,6 +18671,7 @@ window.__game = {
           var at = mid.clone().addScaledVector(fwd, 2.6);
           FX.impact(at, 0xffd9a8, 1.5);
           FX.slash(at, fwd, 0xffe0c0, 4, .18);
+          try { sfx.punch(); } catch (e) {}
         }, 400);
         setTimeout(function () {
           var at = mid.clone().addScaledVector(fwd, 2.6);

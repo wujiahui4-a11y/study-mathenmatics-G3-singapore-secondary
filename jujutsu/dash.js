@@ -352,8 +352,8 @@
 
   /* switching to Naoya hands the charges back; switching away takes them */
   var _switchChar = switchChar;
-  switchChar = function (id) {
-    _switchChar(id);
+  switchChar = function (id, quiet) {
+    _switchChar(id, quiet);
     if (STYLE[player.char]) { D.line = 0; D.side = 0; player.dashCh = 1; }
   };
 
