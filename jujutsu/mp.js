@@ -1405,6 +1405,9 @@
         FX.ring(pos, 0x6fa8ff, { maxR: 9, life: .5 });
         FX.streaks(mid, 0xdfefff, 12, 20, 1.4);
         break;
+      case 'm1':
+        try { sfx.punch(); } catch (e) {}
+        break;
       case 'spawn':
         FX.rings(pos, 0xbfe0ff, 3, { maxR: 14, life: .6, gap: 60 });
         FX.cross(mid, 0xffffff, 4, .3);
