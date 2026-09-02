@@ -665,7 +665,7 @@ address. Same Apps Script as the Baldi game, pointed at this folder:
 ```javascript
 const BASE = 'https://raw.githubusercontent.com/wujiahui4-a11y/'
   + 'study-mathenmatics-G3-singapore-secondary/'
-  + 'cursor/jujutsu-multiplayer-9b82/jujutsu-parts/';
+  + 'cursor/gojo-awakening-song-0a77/jujutsu-parts/';
 
 function doGet(e) {
   if (e.parameter.p) {
@@ -675,9 +675,15 @@ function doGet(e) {
   }
   const html = UrlFetchApp.fetch(BASE + 'index.html').getContentText()
     .replace(/__PART_BASE__/g, ScriptApp.getService().getUrl());
-  return HtmlService.createHtmlOutput(html).setTitle('Study Notes Hub');
+  return HtmlService.createHtmlOutput(html)
+    .setTitle('Study Notes Hub')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 ```
+
+`p=3` is Final Encore, carried as a script the same way three.js and MQTT are, so the Apps Script frame can play it. **You hear it** when you awaken. Anyone close to you hears it too.
+
+Change the `BASE` line to the branch above, save, and deploy a new version. An old deploy pointed at `cursor/jujutsu-multiplayer-9b82` does not have the song.
 
 `index.local.html` is the same shell with plain filenames, for opening from
 disk.

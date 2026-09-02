@@ -203,6 +203,7 @@
 { "imports": { "three": "__PART_BASE__?p=1" } }
 </script>
 <script src="__PART_BASE__?p=2"></script>
+<script src="__PART_BASE__?p=3" async></script>
 <script type="module">
 import * as THREE from "three";
 
@@ -6846,15 +6847,113 @@ window.__game = {
   var SONG_CDN = 'https://cdn.jsdelivr.net/gh/wujiahui4-a11y/' +
     'study-mathenmatics-G3-singapore-secondary@main/Final_Encore_Full_Version.mp3';
   var SONG_VOL = .9;
-  /* full volume inside this, silent past this. the domain is thirty-four
-     metres, so anyone standing in it can still hear him */
+  /* you (the one who pressed F) always hear it full. everyone else hears
+     it by distance: full inside this, silent past this */
   var HEAR_NEAR = 8, HEAR_FAR = 48;
   var songEl = null, songIds = {}, songFade = 0, songArmed = false;
   var songWant = 0, songUrls = null, songUrlI = 0, songErr = '';
+  var songBuf = null, songNode = null, songGain = null, songAt = 0, songT0 = 0;
+  var songMode = '', songNeed = false, songRestart = false;
+
+  function inFrame() {
+    var href = '';
+    try { href = String(location.href || ''); } catch (e) {}
+    return /googleusercontent|script\.google|^about:|^blob:/i.test(href);
+  }
+
+  /* Apps Script serves scripts as ?p=1 / ?p=2 / ?p=3 on the same exec URL */
+  function partBase() {
+    var nodes = document.getElementsByTagName('script'), i, s, m;
+    for (i = 0; i < nodes.length; i++) {
+      s = nodes[i].getAttribute('src') || '';
+      m = s.match(/^(.*)[?&]p=2(?:$|&)/);
+      if (m) return m[1];
+      if (/p2\.js$/.test(s)) return s.replace(/p2\.js$/, '');
+    }
+    var im = document.querySelector('script[type="importmap"]');
+    if (im && im.textContent) {
+      m = im.textContent.match(/"three"\s*:\s*"(.*?)\?p=1"/);
+      if (m) return m[1];
+      m = im.textContent.match(/"three"\s*:\s*"(.*?)p1\.js"/);
+      if (m) return m[1];
+    }
+    return '';
+  }
+
+  function loadP3(done) {
+    if (window.JJTHEME) { done(); return; }
+    var base = partBase();
+    if (!base) { done(); return; }
+    var sc = document.createElement('script');
+    if (/\/exec$/i.test(base) || /script\.google\.com/.test(base)) {
+      sc.src = base.replace(/[?&]p=\d+$/, '') + '?p=3';
+    } else {
+      sc.src = base.replace(/p2\.js$/i, 'p3.js');
+      if (!/p3\.js$/i.test(sc.src)) sc.src = base + (/\/$/.test(base) ? '' : '/') + 'p3.js';
+    }
+    sc.onload = function () { done(); };
+    sc.onerror = function () { songErr = 'p3 failed'; done(); };
+    document.head.appendChild(sc);
+  }
+
+  function decodeTheme(done) {
+    if (songBuf) { done(true); return; }
+    if (!window.JJTHEME) { done(false); return; }
+    var ac = null;
+    try { ac = audio(); } catch (e) {}
+    if (!ac) { done(false); return; }
+    try {
+      var bin = atob(window.JJTHEME);
+      var bytes = new Uint8Array(bin.length), i;
+      for (i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      ac.decodeAudioData(bytes.buffer.slice(0), function (buf) {
+        songBuf = buf;
+        done(true);
+      }, function () { done(false); });
+    } catch (e) { done(false); }
+  }
+
+  function applyGain(want) {
+    songWant = want;
+    if (songGain) {
+      songGain.gain.value = want;
+    }
+    if (songEl) {
+      songEl.muted = false;
+      songEl.volume = Math.max(0, Math.min(1, want));
+    }
+  }
+
+  function startWebAudio(restart) {
+    var ac = audio();
+    if (!ac || !songBuf) return false;
+    if (songNode) { try { songNode.stop(); } catch (e) {} songNode = null; }
+    if (!songGain) {
+      songGain = ac.createGain();
+      songGain.connect(ac.destination);
+    }
+    songGain.gain.value = SONG_VOL;
+    songNode = ac.createBufferSource();
+    songNode.buffer = songBuf;
+    songNode.connect(songGain);
+    var off = 0;
+    if (!restart && songT0) off = Math.max(0, (performance.now() / 1000) - songT0);
+    if (off >= songBuf.duration) off = 0;
+    try { songNode.start(0, off); } catch (e) { try { songNode.start(0); } catch (e2) {} }
+    songAt = off;
+    if (restart || !songT0) songT0 = performance.now() / 1000;
+    songMode = 'webaudio';
+    return true;
+  }
 
   function songCandidates() {
     var list = [], href = '';
     try { href = String(location.href || ''); } catch (e) {}
+    if (inFrame()) {
+      list.push(SONG_CDN);
+      list.push(SONG_HOST);
+      return list;
+    }
     try {
       if (/\/jujutsu-parts\//.test(href)) {
         list.push(new URL(SONG_FILE, href).href);
@@ -6865,8 +6964,8 @@ window.__game = {
     } catch (e) {
       list.push(SONG_FILE);
     }
-    list.push(SONG_HOST);
     list.push(SONG_CDN);
+    list.push(SONG_HOST);
     return list;
   }
 
@@ -6884,64 +6983,56 @@ window.__game = {
     a.addEventListener('error', function () {
       songUrlI++;
       if (songUrlI >= songUrls.length) {
-        songErr = 'could not load the theme';
-        if (window.JJNOTICE) window.JJNOTICE('THEME FAILED TO LOAD', '#ff8fa5');
+        songErr = songErr || 'could not load the theme';
         return;
       }
-      songErr = 'try ' + songUrls[songUrlI];
       a.src = songUrls[songUrlI];
       a.load();
-      if (Object.keys(songIds).length) kickPlay(a);
+      if (Object.keys(songIds).length) a.play().catch(function () {});
     });
     songEl = a;
     return a;
   }
 
-  function kickPlay(a) {
-    if (!a) return;
+  function startElement(restart) {
+    var a = ensureSong();
     a.muted = false;
-    try { audio(); } catch (e) {}
+    a.volume = SONG_VOL;
+    if (restart) { try { a.currentTime = 0; } catch (e) {} }
     var p = a.play();
     if (p && p.catch) {
       p.catch(function () {
         if (window.JJNOTICE) window.JJNOTICE('CLICK TO HEAR THE THEME', '#9fd8ff');
-        var once = function () {
-          window.removeEventListener('pointerdown', once);
-          a.muted = false;
-          a.play().catch(function () {});
-        };
-        window.addEventListener('pointerdown', once);
       });
     }
+    songMode = 'element';
+  }
+
+  function playSong(restart) {
+    songNeed = true;
+    songRestart = !!restart;
+    songFade = 0;
+    try { audio(); } catch (e) {}
+    loadP3(function () {
+      decodeTheme(function (ok) {
+        if (!songNeed) return;
+        if (ok && startWebAudio(songRestart)) return;
+        startElement(songRestart);
+      });
+    });
   }
 
   function armSong() {
     try { audio(); } catch (e) {}
-    var a = ensureSong();
-    a.muted = false;
-    if (!songArmed) {
-      songArmed = true;
-      try { a.load(); } catch (e) {}
-    }
+    songArmed = true;
+    loadP3(function () { decodeTheme(function () {}); });
   }
   window.addEventListener('pointerdown', armSong);
   window.addEventListener('keydown', armSong);
-  /* start the 8 MB download now, so F is not waiting on it */
-  try { ensureSong(); } catch (e) {}
-
-  function playSong(restart) {
-    var a = ensureSong();
-    a.muted = false;
-    a.volume = SONG_VOL;
-    songFade = 0;
-    if (restart) {
-      try { a.currentTime = 0; } catch (e) {}
-    }
-    kickPlay(a);
-  }
+  try { loadP3(function () {}); } catch (e) {}
 
   function fadeSong() {
-    if (!songEl || songEl.paused) return;
+    songNeed = false;
     songFade = 1;
   }
 
@@ -6972,32 +7063,26 @@ window.__game = {
 
   function stepSong(dt) {
     var src = songSource();
-    /* a late packet, or walking into range of someone already awakened,
-       should still find the track even if theme() was missed */
     if (src && src.id !== 'local' && !songIds[src.id]) theme(true, src.id);
     var want = 0;
     if (songFade) {
       songWant = Math.max(0, songWant - dt * .9);
       want = songWant;
       if (want <= .02) {
-        try { songEl.pause(); songEl.currentTime = 0; } catch (e) {}
         songFade = 0;
         songWant = 0;
         want = 0;
+        if (songNode) { try { songNode.stop(); } catch (e) {} songNode = null; }
+        if (songEl) { try { songEl.pause(); songEl.currentTime = 0; } catch (e) {} }
+        songT0 = 0;
       }
     } else if (src) {
-      want = SONG_VOL * hearGain(src.dist);
-      songWant = want;
-      if (songEl && (songEl.paused || songEl.muted)) playSong(false);
-    } else {
-      want = 0;
-      songWant = 0;
+      /* you always get the full theme. only other people fall off with range */
+      want = (src.id === 'local') ? SONG_VOL : (SONG_VOL * hearGain(src.dist));
+      if (songNeed && !songNode && (!songEl || songEl.paused)) playSong(false);
     }
-    if (songEl) {
-      songEl.muted = false;
-      songEl.volume = Math.max(0, Math.min(1, want));
-    }
-    renderHear(src, src ? hearGain(src.dist) : 0);
+    applyGain(want);
+    renderHear(src, src ? (src.id === 'local' ? 1 : hearGain(src.dist)) : 0);
   }
 
   /* on: a Gojo in the room just started the entrance. off: that Gojo
@@ -7010,7 +7095,8 @@ window.__game = {
       var first = !songIds[id];
       songIds[id] = 1;
       playSong(!!first);
-      if (first && window.JJNOTICE) window.JJNOTICE('FINAL ENCORE', '#9fd8ff');
+      if (first && window.JJNOTICE) window.JJNOTICE(
+        id === 'local' ? 'FINAL ENCORE' : 'NEARBY THEME', '#9fd8ff');
     } else {
       delete songIds[id];
       if (!Object.keys(songIds).length) fadeSong();
@@ -7024,16 +7110,20 @@ window.__game = {
   AW.HEAR_FAR = HEAR_FAR;
   AW.debugHear = function () {
     var src = songSource();
+    var t = 0;
+    if (songMode === 'webaudio' && songT0) t = performance.now() / 1000 - songT0;
+    else if (songEl) t = songEl.currentTime;
     return {
       ids: Object.keys(songIds),
       src: src ? { id: src.id, dist: +src.dist.toFixed(2), x: src.pos.x, z: src.pos.z } : null,
-      hear: src ? hearGain(src.dist) : 0,
-      vol: songEl ? +songEl.volume.toFixed(3) : 0,
-      muted: !!(songEl && songEl.muted),
-      t: songEl ? +songEl.currentTime.toFixed(2) : 0,
-      paused: !songEl || songEl.paused,
-      file: songEl ? songEl.currentSrc : '',
-      err: songErr
+      hear: src ? (src.id === 'local' ? 1 : hearGain(src.dist)) : 0,
+      vol: +songWant.toFixed(3),
+      muted: false,
+      t: +t.toFixed(2),
+      paused: songMode === 'webaudio' ? !songNode : (!songEl || songEl.paused),
+      file: songMode || (songEl ? songEl.currentSrc : ''),
+      err: songErr,
+      embedded: !!window.JJTHEME
     };
   };
 
@@ -7169,9 +7259,12 @@ window.__game = {
     buildBar();
     var el = document.getElementById('jjHear');
     if (!el) return;
+    var mine = src && src.id === 'local';
     var remote = src && src.id !== 'local' && gain > 0.04;
-    el.style.opacity = remote ? String(Math.max(0.28, Math.min(1, gain))) : '0';
-    if (remote) {
+    el.style.opacity = (mine || remote) ? String(Math.max(0.35, Math.min(1, gain || 1))) : '0';
+    el.querySelector('.k').textContent = mine ? 'NOW PLAYING' : 'NEARBY';
+    if (mine) el.querySelector('.d').textContent = 'you hear this too';
+    else if (remote) {
       el.querySelector('.d').textContent = Math.round(src.dist) + 'm  \u00b7  hearing ' +
         Math.round(gain * 100) + '%';
     }
@@ -16786,6 +16879,7 @@ window.__game = {
 { "imports": { "three": "__PART_BASE__?p=1" } }
 <\/script>
 <script src="__PART_BASE__?p=2"><\/script>
+<script src="__PART_BASE__?p=3" async><\/script>
 <script type="module">
 import * as THREE from "three";
 
@@ -23429,15 +23523,113 @@ window.__game = {
   var SONG_CDN = 'https://cdn.jsdelivr.net/gh/wujiahui4-a11y/' +
     'study-mathenmatics-G3-singapore-secondary@main/Final_Encore_Full_Version.mp3';
   var SONG_VOL = .9;
-  /* full volume inside this, silent past this. the domain is thirty-four
-     metres, so anyone standing in it can still hear him */
+  /* you (the one who pressed F) always hear it full. everyone else hears
+     it by distance: full inside this, silent past this */
   var HEAR_NEAR = 8, HEAR_FAR = 48;
   var songEl = null, songIds = {}, songFade = 0, songArmed = false;
   var songWant = 0, songUrls = null, songUrlI = 0, songErr = '';
+  var songBuf = null, songNode = null, songGain = null, songAt = 0, songT0 = 0;
+  var songMode = '', songNeed = false, songRestart = false;
+
+  function inFrame() {
+    var href = '';
+    try { href = String(location.href || ''); } catch (e) {}
+    return /googleusercontent|script\.google|^about:|^blob:/i.test(href);
+  }
+
+  /* Apps Script serves scripts as ?p=1 / ?p=2 / ?p=3 on the same exec URL */
+  function partBase() {
+    var nodes = document.getElementsByTagName('script'), i, s, m;
+    for (i = 0; i < nodes.length; i++) {
+      s = nodes[i].getAttribute('src') || '';
+      m = s.match(/^(.*)[?&]p=2(?:$|&)/);
+      if (m) return m[1];
+      if (/p2\.js$/.test(s)) return s.replace(/p2\.js$/, '');
+    }
+    var im = document.querySelector('script[type="importmap"]');
+    if (im && im.textContent) {
+      m = im.textContent.match(/"three"\s*:\s*"(.*?)\?p=1"/);
+      if (m) return m[1];
+      m = im.textContent.match(/"three"\s*:\s*"(.*?)p1\.js"/);
+      if (m) return m[1];
+    }
+    return '';
+  }
+
+  function loadP3(done) {
+    if (window.JJTHEME) { done(); return; }
+    var base = partBase();
+    if (!base) { done(); return; }
+    var sc = document.createElement('script');
+    if (/\/exec$/i.test(base) || /script\.google\.com/.test(base)) {
+      sc.src = base.replace(/[?&]p=\d+$/, '') + '?p=3';
+    } else {
+      sc.src = base.replace(/p2\.js$/i, 'p3.js');
+      if (!/p3\.js$/i.test(sc.src)) sc.src = base + (/\/$/.test(base) ? '' : '/') + 'p3.js';
+    }
+    sc.onload = function () { done(); };
+    sc.onerror = function () { songErr = 'p3 failed'; done(); };
+    document.head.appendChild(sc);
+  }
+
+  function decodeTheme(done) {
+    if (songBuf) { done(true); return; }
+    if (!window.JJTHEME) { done(false); return; }
+    var ac = null;
+    try { ac = audio(); } catch (e) {}
+    if (!ac) { done(false); return; }
+    try {
+      var bin = atob(window.JJTHEME);
+      var bytes = new Uint8Array(bin.length), i;
+      for (i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      ac.decodeAudioData(bytes.buffer.slice(0), function (buf) {
+        songBuf = buf;
+        done(true);
+      }, function () { done(false); });
+    } catch (e) { done(false); }
+  }
+
+  function applyGain(want) {
+    songWant = want;
+    if (songGain) {
+      songGain.gain.value = want;
+    }
+    if (songEl) {
+      songEl.muted = false;
+      songEl.volume = Math.max(0, Math.min(1, want));
+    }
+  }
+
+  function startWebAudio(restart) {
+    var ac = audio();
+    if (!ac || !songBuf) return false;
+    if (songNode) { try { songNode.stop(); } catch (e) {} songNode = null; }
+    if (!songGain) {
+      songGain = ac.createGain();
+      songGain.connect(ac.destination);
+    }
+    songGain.gain.value = SONG_VOL;
+    songNode = ac.createBufferSource();
+    songNode.buffer = songBuf;
+    songNode.connect(songGain);
+    var off = 0;
+    if (!restart && songT0) off = Math.max(0, (performance.now() / 1000) - songT0);
+    if (off >= songBuf.duration) off = 0;
+    try { songNode.start(0, off); } catch (e) { try { songNode.start(0); } catch (e2) {} }
+    songAt = off;
+    if (restart || !songT0) songT0 = performance.now() / 1000;
+    songMode = 'webaudio';
+    return true;
+  }
 
   function songCandidates() {
     var list = [], href = '';
     try { href = String(location.href || ''); } catch (e) {}
+    if (inFrame()) {
+      list.push(SONG_CDN);
+      list.push(SONG_HOST);
+      return list;
+    }
     try {
       if (/\/jujutsu-parts\//.test(href)) {
         list.push(new URL(SONG_FILE, href).href);
@@ -23448,8 +23640,8 @@ window.__game = {
     } catch (e) {
       list.push(SONG_FILE);
     }
-    list.push(SONG_HOST);
     list.push(SONG_CDN);
+    list.push(SONG_HOST);
     return list;
   }
 
@@ -23467,64 +23659,56 @@ window.__game = {
     a.addEventListener('error', function () {
       songUrlI++;
       if (songUrlI >= songUrls.length) {
-        songErr = 'could not load the theme';
-        if (window.JJNOTICE) window.JJNOTICE('THEME FAILED TO LOAD', '#ff8fa5');
+        songErr = songErr || 'could not load the theme';
         return;
       }
-      songErr = 'try ' + songUrls[songUrlI];
       a.src = songUrls[songUrlI];
       a.load();
-      if (Object.keys(songIds).length) kickPlay(a);
+      if (Object.keys(songIds).length) a.play().catch(function () {});
     });
     songEl = a;
     return a;
   }
 
-  function kickPlay(a) {
-    if (!a) return;
+  function startElement(restart) {
+    var a = ensureSong();
     a.muted = false;
-    try { audio(); } catch (e) {}
+    a.volume = SONG_VOL;
+    if (restart) { try { a.currentTime = 0; } catch (e) {} }
     var p = a.play();
     if (p && p.catch) {
       p.catch(function () {
         if (window.JJNOTICE) window.JJNOTICE('CLICK TO HEAR THE THEME', '#9fd8ff');
-        var once = function () {
-          window.removeEventListener('pointerdown', once);
-          a.muted = false;
-          a.play().catch(function () {});
-        };
-        window.addEventListener('pointerdown', once);
       });
     }
+    songMode = 'element';
+  }
+
+  function playSong(restart) {
+    songNeed = true;
+    songRestart = !!restart;
+    songFade = 0;
+    try { audio(); } catch (e) {}
+    loadP3(function () {
+      decodeTheme(function (ok) {
+        if (!songNeed) return;
+        if (ok && startWebAudio(songRestart)) return;
+        startElement(songRestart);
+      });
+    });
   }
 
   function armSong() {
     try { audio(); } catch (e) {}
-    var a = ensureSong();
-    a.muted = false;
-    if (!songArmed) {
-      songArmed = true;
-      try { a.load(); } catch (e) {}
-    }
+    songArmed = true;
+    loadP3(function () { decodeTheme(function () {}); });
   }
   window.addEventListener('pointerdown', armSong);
   window.addEventListener('keydown', armSong);
-  /* start the 8 MB download now, so F is not waiting on it */
-  try { ensureSong(); } catch (e) {}
-
-  function playSong(restart) {
-    var a = ensureSong();
-    a.muted = false;
-    a.volume = SONG_VOL;
-    songFade = 0;
-    if (restart) {
-      try { a.currentTime = 0; } catch (e) {}
-    }
-    kickPlay(a);
-  }
+  try { loadP3(function () {}); } catch (e) {}
 
   function fadeSong() {
-    if (!songEl || songEl.paused) return;
+    songNeed = false;
     songFade = 1;
   }
 
@@ -23555,32 +23739,26 @@ window.__game = {
 
   function stepSong(dt) {
     var src = songSource();
-    /* a late packet, or walking into range of someone already awakened,
-       should still find the track even if theme() was missed */
     if (src && src.id !== 'local' && !songIds[src.id]) theme(true, src.id);
     var want = 0;
     if (songFade) {
       songWant = Math.max(0, songWant - dt * .9);
       want = songWant;
       if (want <= .02) {
-        try { songEl.pause(); songEl.currentTime = 0; } catch (e) {}
         songFade = 0;
         songWant = 0;
         want = 0;
+        if (songNode) { try { songNode.stop(); } catch (e) {} songNode = null; }
+        if (songEl) { try { songEl.pause(); songEl.currentTime = 0; } catch (e) {} }
+        songT0 = 0;
       }
     } else if (src) {
-      want = SONG_VOL * hearGain(src.dist);
-      songWant = want;
-      if (songEl && (songEl.paused || songEl.muted)) playSong(false);
-    } else {
-      want = 0;
-      songWant = 0;
+      /* you always get the full theme. only other people fall off with range */
+      want = (src.id === 'local') ? SONG_VOL : (SONG_VOL * hearGain(src.dist));
+      if (songNeed && !songNode && (!songEl || songEl.paused)) playSong(false);
     }
-    if (songEl) {
-      songEl.muted = false;
-      songEl.volume = Math.max(0, Math.min(1, want));
-    }
-    renderHear(src, src ? hearGain(src.dist) : 0);
+    applyGain(want);
+    renderHear(src, src ? (src.id === 'local' ? 1 : hearGain(src.dist)) : 0);
   }
 
   /* on: a Gojo in the room just started the entrance. off: that Gojo
@@ -23593,7 +23771,8 @@ window.__game = {
       var first = !songIds[id];
       songIds[id] = 1;
       playSong(!!first);
-      if (first && window.JJNOTICE) window.JJNOTICE('FINAL ENCORE', '#9fd8ff');
+      if (first && window.JJNOTICE) window.JJNOTICE(
+        id === 'local' ? 'FINAL ENCORE' : 'NEARBY THEME', '#9fd8ff');
     } else {
       delete songIds[id];
       if (!Object.keys(songIds).length) fadeSong();
@@ -23607,16 +23786,20 @@ window.__game = {
   AW.HEAR_FAR = HEAR_FAR;
   AW.debugHear = function () {
     var src = songSource();
+    var t = 0;
+    if (songMode === 'webaudio' && songT0) t = performance.now() / 1000 - songT0;
+    else if (songEl) t = songEl.currentTime;
     return {
       ids: Object.keys(songIds),
       src: src ? { id: src.id, dist: +src.dist.toFixed(2), x: src.pos.x, z: src.pos.z } : null,
-      hear: src ? hearGain(src.dist) : 0,
-      vol: songEl ? +songEl.volume.toFixed(3) : 0,
-      muted: !!(songEl && songEl.muted),
-      t: songEl ? +songEl.currentTime.toFixed(2) : 0,
-      paused: !songEl || songEl.paused,
-      file: songEl ? songEl.currentSrc : '',
-      err: songErr
+      hear: src ? (src.id === 'local' ? 1 : hearGain(src.dist)) : 0,
+      vol: +songWant.toFixed(3),
+      muted: false,
+      t: +t.toFixed(2),
+      paused: songMode === 'webaudio' ? !songNode : (!songEl || songEl.paused),
+      file: songMode || (songEl ? songEl.currentSrc : ''),
+      err: songErr,
+      embedded: !!window.JJTHEME
     };
   };
 
@@ -23752,9 +23935,12 @@ window.__game = {
     buildBar();
     var el = document.getElementById('jjHear');
     if (!el) return;
+    var mine = src && src.id === 'local';
     var remote = src && src.id !== 'local' && gain > 0.04;
-    el.style.opacity = remote ? String(Math.max(0.28, Math.min(1, gain))) : '0';
-    if (remote) {
+    el.style.opacity = (mine || remote) ? String(Math.max(0.35, Math.min(1, gain || 1))) : '0';
+    el.querySelector('.k').textContent = mine ? 'NOW PLAYING' : 'NEARBY';
+    if (mine) el.querySelector('.d').textContent = 'you hear this too';
+    else if (remote) {
       el.querySelector('.d').textContent = Math.round(src.dist) + 'm  \u00b7  hearing ' +
         Math.round(gain * 100) + '%';
     }

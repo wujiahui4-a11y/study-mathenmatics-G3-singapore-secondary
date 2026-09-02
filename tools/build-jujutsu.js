@@ -93,7 +93,8 @@ if (!fs.existsSync(out)) fs.mkdirSync(out);
 
 const partsThree = '<script type="importmap">\n' +
   '{ "imports": { "three": "__PART_BASE__?p=1" } }\n</script>';
-const partsMqtt = '<script src="__PART_BASE__?p=2"></script>';
+const partsMqtt = '<script src="__PART_BASE__?p=2"></script>\n' +
+  '<script src="__PART_BASE__?p=3" async></script>';
 
 let shell = assemble(partsThree, partsMqtt);
 
@@ -113,4 +114,7 @@ fs.writeFileSync(path.join(out, 'index.local.html'),
 
 console.log('jujutsu-parts/index.html  ' + Math.round(shell.length / 1024) + ' kB');
 console.log('jujutsu-parts/p1.js       ' + Math.round(three.length / 1024) + ' kB (three.js)');
-console.log('jujutsu-parts/p2.js       ' + Math.round(mqtt.length / 1024) + ' kB (mqtt)');
+const p3path = path.join(out, 'p3.js');
+if (fs.existsSync(p3path)) {
+  console.log('jujutsu-parts/p3.js       ' + Math.round(fs.statSync(p3path).size / 1024) + ' kB (theme)');
+}
