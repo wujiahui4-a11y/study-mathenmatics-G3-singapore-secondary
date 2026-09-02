@@ -1056,13 +1056,13 @@
     var i;
 
     function spawnOne(delay, startR) {
-      var s = .3 + Math.random() * .95;
+      var s = .5 + Math.random() * 1.25;
       var m = new THREE.Mesh(CHUNK, new THREE.MeshStandardMaterial({ color: color, roughness: .9 }));
       m.scale.setScalar(.001);
       var ang = Math.random() * TAU;
       var r0 = startR != null ? startR : from * (.62 + Math.random() * .55);
-      var r1 = to * (.5 + Math.random() * .75);
-      var lift = .8 + Math.random() * 2.4;
+      var r1 = to * (.88 + Math.random() * .5);
+      var lift = -1.1 + Math.random() * 3.2;
       var c0 = getPos();
       m.position.set(c0.x + Math.cos(ang) * r0, .12, c0.z + Math.sin(ang) * r0);
       scene.add(m);
@@ -1110,6 +1110,9 @@
           continue;
         }
         if (b.delay > 0) { b.delay -= dt; continue; }
+        if (b.k === 0) {
+          dust(new THREE.Vector3(b.m.position.x, 0, b.m.position.z), 1, 0xd2ddef, 3.2, 1.5);
+        }
         b.k = Math.min(1, b.k + dt / rise);
         var e = ease.out(b.k);
         b.ang += b.spin * dt * (.22 + e);

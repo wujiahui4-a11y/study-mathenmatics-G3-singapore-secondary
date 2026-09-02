@@ -1424,9 +1424,9 @@
         break;
       case 'aw_blue':
         var live = { p: mid.clone().addScaledVector(fwd, 1.6) };
-        var rocks = FX.orbitRubble(function () { return live.p; }, 16, 0x5c6473,
-          { from: 11, to: 4.2, rise: .5, stagger: .4 });
-        FX.speedRing(live.p.clone(), 0x59a8ff, 11, .34);
+        var rocks = FX.orbitRubble(function () { return live.p; }, 20, 0x5c6473,
+          { from: 14, to: 6.8, rise: .48, stagger: .36 });
+        FX.speedRing(live.p.clone(), 0x59a8ff, 14, .36);
         for (i = 0; i < 10; i++) {
           (function (n) {
             setTimeout(function () {

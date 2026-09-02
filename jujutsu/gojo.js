@@ -891,23 +891,23 @@
     var p = player;
     if (a.t < .38) {                                   // gathering
       a.pos = handPos(1);
-      if (!a.orb) a.orb = FX.orb(0x2f7bff, 2.35);
+      if (!a.orb) a.orb = FX.orb(0x2f7bff, 3.4);
       if (!a.rocks) {
-        a.rocks = FX.orbitRubble(function () { return a.pos; }, 16, 0x5c6473,
-          { from: 11, to: 4.2, rise: .52, stagger: .42 });
+        a.rocks = FX.orbitRubble(function () { return a.pos; }, 22, 0x5c6473,
+          { from: 15, to: 7.6, rise: .5, stagger: .28 });
       }
       a.orb.set(a.pos);
-      a.orb.step(dt, .35 + a.t / .38 * .8);
-      if (Math.random() < .9) FX.mote(a.pos, 0x59a8ff, 7.5, .3);
+      a.orb.step(dt, .55 + a.t / .38 * .7);
+      if (Math.random() < .9) FX.mote(a.pos, 0x59a8ff, 10, .3);
       return;
     }
     if (!a.fired) {                                    // released
       a.fired = 1;
       a.dir = aimDir();
-      a.pos = handPos(1).add(a.dir.clone().multiplyScalar(1.6));
-      FX.speedRing(a.pos.clone(), 0x59a8ff, 11, .34);
-      FX.cross(a.pos.clone(), 0x9fd8ff, 5.2, .24);
-      if (a.rocks) a.rocks.add(6, 10);
+      a.pos = handPos(1).add(a.dir.clone().multiplyScalar(2.2));
+      FX.speedRing(a.pos.clone(), 0x59a8ff, 14, .36);
+      FX.cross(a.pos.clone(), 0x9fd8ff, 7, .26);
+      if (a.rocks) a.rocks.add(8, 13);
       addShake(.28);
     }
     if (a.done) return;
@@ -915,17 +915,17 @@
     /* it drifts forward and drags everything in with it */
     a.pos.addScaledVector(a.dir, 21 * dt);
     a.orb.set(a.pos);
-    a.orb.step(dt, 1.15);
-    if (Math.random() < .9) FX.mote(a.pos.clone(), 0x8fd0ff, 11, .32);
+    a.orb.step(dt, 1.2);
+    if (Math.random() < .9) FX.mote(a.pos.clone(), 0x8fd0ff, 14, .32);
     /* the space around a point of attraction folds toward it */
     if (Math.random() < .55) {
-      FX.ring(a.pos.clone(), 0x59a8ff, { maxR: 2.2, from: 9, life: .34, ground: false, opacity: .8 });
+      FX.ring(a.pos.clone(), 0x59a8ff, { maxR: 3.4, from: 11, life: .34, ground: false, opacity: .8 });
     }
     /* more of the floor coming up around it, one or two pieces at a time */
     a.rockT = (a.rockT || 0) + dt;
-    if (a.rocks && a.rockT > .1) {
+    if (a.rocks && a.rockT > .09) {
       a.rockT = 0;
-      a.rocks.add(1, 8 + Math.random() * 5);
+      a.rocks.add(1, 10 + Math.random() * 6);
     }
 
     a.pull = (a.pull || 0) + dt;
@@ -947,7 +947,7 @@
 
     var hit = null;
     for (i = 0; i < list.length; i++) {
-      if (list[i].pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(a.pos) < 5.6) { hit = list[i]; break; }
+      if (list[i].pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(a.pos) < 7.2) { hit = list[i]; break; }
     }
     if (hit || a.t > 1.32) collapseBlue(a);
   }
