@@ -328,6 +328,63 @@ fist, driven by one message; the finisher's damage is applied by the victim at
 the end of their own copy, because a hit arriving while a cut is running would
 be thrown away.
 
+## The dash
+
+`Q`, and it is built on the one from **The Strongest Battlegrounds** — for
+Gojo, Yuji and Hakari. **Naoya keeps his** (two charges, any direction, no
+commitment) because that is his whole gimmick and this is not it.
+
+What that game does, and what this now does:
+
+* **The direction comes from what you are holding.** Nothing or `W` is a
+  forward dash, `S` is a back dash, `A` or `D` is a side dash.
+* **Forward and back share one cooldown; the side dash has its own, much
+  shorter one.** That split is the entire design. The forward dash is a
+  commitment you spend to close or escape; the side dash is the tool you
+  actually fight with, and neither eats the other's cooldown. Four seconds
+  against one point seven here, which is that game's five against two brought
+  down to the size of this arena.
+* **Forward and back cover half as much ground again** — fourteen metres
+  against nine and a half, which is its four and a half tiles against three.
+* **A side dash gets shorter as your health does.** At full health it is the
+  full nine and a half; on your last few points it is about six. You do not
+  get to run a fight out on the thing you were winning it with.
+* **It is a commitment.** For its quarter of a second you are going where you
+  pointed and nowhere else, and it has its own animation — three of them, one
+  per direction, rather than a run cycle sliding sideways. Forward is a body
+  thrown ahead of its own feet, back is a skid with the weight behind it, and
+  a side dash keeps the shoulders pointed where they were looking and takes
+  the legs across underneath.
+* **It cancels recovery, not startup.** Throw something, and once it is past
+  the point where it could still miss you can leave early. Try to cancel the
+  first half of a move and it refuses. Domains and awakenings refuse outright.
+* **And you can leave a dash into a move**, so a dash that closes the distance
+  can be spent the moment it lands you — which is where that game's combos
+  come from.
+
+Each of the three does it their own way, which is the last thing that game
+does — same system, different animation and different colour coming off it.
+Gojo does not run through the space so much as stop being subject to it: a
+blue shimmer and the longest invulnerable window. Yuji has no technique, so it
+is a man sprinting and the floor finds out — dust off the push, and hairline
+cracks where he pushed. Hakari is on a polished floor and stays on it, so his
+keeps sliding after the dash itself has finished.
+
+Two implementation notes worth keeping:
+
+**The dash is an `action`.** That is what puts the pose on everybody else's
+screen — mp.js already broadcasts the current action every tick and replays it
+through `poseAction` — so remote fighters dash properly instead of sliding
+along in a run cycle. The direction rides along with it, because otherwise
+every remote dash would be posed as a side one.
+
+**`busy` is a `const` arrow in the original and cannot be wrapped**, so being
+in a dash blocks casting by definition. Leaving a dash early is done by taking
+the action out from under the cast instead: a `keydown` listener in the
+capture phase runs before the game's own bubble handler, so by the time that
+handler asks whether you are busy, there is nothing left to be busy with.
+
+
 ## Getting hit
 
 **No techniques while you are being hit.** Every cast is refused for as long
@@ -344,8 +401,9 @@ the same curve: arched over the impact with the limbs trailing, then a heavy
 landing and a scramble back up.
 
 The dash was a single velocity impulse fighting a drag of ten, so it covered
-about two metres. It now drives the velocity for the length of the dash and
-covers about twelve, with a short window of invulnerability at the start.
+about two metres. Naoya's now drives the velocity for the length of the dash
+and covers about twelve, with a short window of invulnerability at the start;
+everybody else's was rebuilt again, above.
 
 ### The reactions
 
@@ -628,6 +686,7 @@ disk.
 | `ragdoll.js` | limp bodies, and the heaps they settle into |
 | `gore.js` | the other two ways of dying, and the health lock a finisher runs under |
 | `combat.js` | the longer dash, the throw, and the eight second fighter swap |
+| `dash.js` | Q, rebuilt on The Strongest Battlegrounds — for everybody but Naoya |
 | `hits.js` | eight more reactions, the ring-out over all of them, and the player finally playing them |
 | `gojo.js` | the awakening meter, Gojo's entrance and his four techniques |
 | `naoya.js` | Naoya's run, and the cut it ends in |

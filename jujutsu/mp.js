@@ -667,6 +667,15 @@
       g.visYaw = (m.vy || 0) / 100;
       g.attack = m.at || 0;
       g.action = m.ac ? { type: m.ac, t: (m.ap || 0) / 100, dur: (m.ad || 1) / 100 } : null;
+      if (g.action && m.ac === 'dash') {
+        g.action.kind = m.dk || 'fwd';
+        g.action.side = m.ds || 0;
+        g.action.st = g.char;
+        if (!g.dashedAt || nowS() - g.dashedAt > .5) {
+          g.dashedAt = nowS();
+          if (window.JJDASH) window.JJDASH.remote(g.char, g.e.pos.clone(), g.e.facing, m.dk);
+        }
+      }
       /* a flinch they are already playing: start ours from the same point.
          One that is already running is left alone — applyReact expires it on
          its own, so a packet that arrives mid-flinch cannot cut it short. */
@@ -1328,6 +1337,10 @@
          play the poses, so it travels as one */
       ac: awakening() ? 'awakening' : (player.action ? player.action.type : 0),
       ap: awakening() ? Math.round(window.JJAW.ct * 100) : (player.action ? Math.round(player.action.t * 100) : 0),
+      /* which way a dash went, so it is not posed as a side one on every
+         other screen */
+      dk: (player.action && player.action.type === 'dash') ? player.action.kind : 0,
+      ds: (player.action && player.action.type === 'dash') ? (player.action.side || 0) : 0,
       ad: awakening() ? 360 : (player.action ? Math.round(player.action.dur * 100) : 0),
       rk: player.react ? player.react.type : 0,
       rt: player.react ? Math.round(player.react.t * 100) : 0,
