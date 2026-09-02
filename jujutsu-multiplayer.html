@@ -10909,7 +10909,7 @@ window.__game = {
   try { CHARS.hakari.portrait = makePortrait(HAKARI_CFG); } catch (e) {}
   try { buildCharList(); } catch (e) {}
 
-  var HK = window.JJHAKARI = { fever: 0, spins: 0, shutter: null };
+  var HK = window.JJHAKARI = { fever: 0, spins: 0, shutter: null, makeDoor: null };
 
   /* --------------------------------------------------------------- help */
   function ready(key) {
@@ -10955,33 +10955,252 @@ window.__game = {
     HK.shutter = { until: 0, dir: a.dir.clone() };
     try { sfx.frame(); } catch (e) {}
   }
+  /* one door, used by the skill and by the finisher — a train shutter,
+     not a wooden box. Same size the throw already aims with. */
+  var DOOR_SLAT = null, DOOR_GLASS = null, DOOR_PLATE = null;
+  function doorCanvas(w, h, draw) {
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    draw(c.getContext('2d'), w, h);
+    var t = new THREE.CanvasTexture(c);
+    try { t.colorSpace = THREE.SRGBColorSpace || THREE.sRGBEncoding; } catch (err) {}
+    t.anisotropy = 4;
+    return t;
+  }
+  function doorMaps() {
+    if (DOOR_SLAT) return;
+    DOOR_SLAT = doorCanvas(16, 64, function (x, w, h) {
+      var i, g;
+      for (i = 0; i < 8; i++) {
+        g = x.createLinearGradient(0, i * 8, 0, i * 8 + 8);
+        g.addColorStop(0, '#d4dbe4');
+        g.addColorStop(.28, '#9aa4b2');
+        g.addColorStop(.5, '#5c6574');
+        g.addColorStop(.72, '#b4bcc8');
+        g.addColorStop(1, '#6a7382');
+        x.fillStyle = g;
+        x.fillRect(0, i * 8, w, 8);
+      }
+    });
+    DOOR_SLAT.wrapS = DOOR_SLAT.wrapT = THREE.RepeatWrapping;
+    DOOR_SLAT.repeat.set(1, 2);
+    DOOR_GLASS = doorCanvas(256, 160, function (x, w, h) {
+      var g = x.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, '#153044');
+      g.addColorStop(.45, '#2a5a78');
+      g.addColorStop(1, '#0c1c28');
+      x.fillStyle = g;
+      x.fillRect(0, 0, w, h);
+      g = x.createLinearGradient(20, 0, w - 20, h);
+      g.addColorStop(0, 'rgba(210,230,255,0.22)');
+      g.addColorStop(.5, 'rgba(255,220,120,0.08)');
+      g.addColorStop(1, 'rgba(80,140,180,0.18)');
+      x.fillStyle = g;
+      x.fillRect(10, 10, w - 20, h - 20);
+      x.fillStyle = 'rgba(255,210,74,0.92)';
+      x.font = 'bold 54px sans-serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText('777', w / 2, h / 2 + 4);
+      x.fillStyle = 'rgba(255,80,140,0.55)';
+      x.fillRect(18, h - 22, w - 36, 5);
+    });
+    DOOR_PLATE = doorCanvas(256, 48, function (x, w, h) {
+      x.fillStyle = '#1a1420';
+      x.fillRect(0, 0, w, h);
+      var g = x.createLinearGradient(0, 0, w, 0);
+      g.addColorStop(0, '#ff4f8b');
+      g.addColorStop(.5, '#ffd964');
+      g.addColorStop(1, '#ff4f8b');
+      x.fillStyle = g;
+      x.fillRect(0, 6, w, h - 12);
+      x.fillStyle = '#1a1020';
+      x.font = 'bold 18px sans-serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText('PRIVATE PURE LOVE TRAIN', w / 2, h / 2);
+    });
+  }
   function makeDoor() {
+    doorMaps();
     var g = new THREE.Group();
-    var frame = new THREE.Mesh(new THREE.BoxGeometry(7.2, 6.6, .5),
-      new THREE.MeshStandardMaterial({ color: 0xb9c0cc, roughness: .5, metalness: .3 }));
-    g.add(frame);
-    /* the slats, and the seam down the middle where it parts */
-    for (var i = 0; i < 9; i++) {
-      var slat = new THREE.Mesh(new THREE.BoxGeometry(6.9, .12, .58),
-        new THREE.MeshStandardMaterial({ color: 0x8b93a2, roughness: .6 }));
-      slat.position.y = -2.9 + i * .72;
-      g.add(slat);
+    g.userData.slats = [];
+    g.userData.golds = [];
+
+    function mat(c, opt) {
+      opt = opt || {};
+      var m = new THREE.MeshStandardMaterial({
+        color: c,
+        roughness: opt.rough == null ? .42 : opt.rough,
+        metalness: opt.metal == null ? .72 : opt.metal,
+        emissive: opt.emit || 0x000000,
+        emissiveIntensity: opt.emitI || 0,
+        map: opt.map || null,
+        transparent: !!opt.alpha,
+        opacity: opt.alpha == null ? 1 : opt.alpha
+      });
+      if (opt.gold) {
+        m.userData.baseEmit = opt.emitI || .32;
+        g.userData.golds.push(m);
+      }
+      return m;
     }
-    var seam = new THREE.Mesh(new THREE.BoxGeometry(.16, 6.6, .6),
-      new THREE.MeshStandardMaterial({ color: 0x6d7484, roughness: .6 }));
-    g.add(seam);
-    var glow = FX.billboard(FX.T.ring, 0xffcc4d, .5);
-    glow.scale.set(9, 9, 1);
-    glow.position.z = .5;
+    function box(par, w, h, d, m, x, y, z) {
+      var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      mesh.position.set(x || 0, y || 0, z || 0);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      par.add(mesh);
+      return mesh;
+    }
+
+    var steel = mat(0xb8c2ce, { rough: .38, metal: .78 });
+    var steelD = mat(0x5a6270, { rough: .48, metal: .7 });
+    var steelR = mat(0xe8eef4, { rough: .34, metal: .82, map: DOOR_SLAT });
+    var ink = mat(0x1a1c22, { rough: .88, metal: .08 });
+    var gold = mat(0xffd24a, { rough: .26, metal: .88, emit: 0xffaa22, emitI: .42, gold: 1 });
+    var goldH = mat(0xffe08a, { rough: .2, metal: .9, emit: 0xffc44d, emitI: .7, gold: 1 });
+    var pink = mat(0xff4f8b, { rough: .4, metal: .35, emit: 0xff2a6a, emitI: .28, gold: 1 });
+    var glass = mat(0xffffff, { rough: .08, metal: .25, map: DOOR_GLASS, alpha: .82 });
+    var plate = mat(0xffffff, { rough: .45, metal: .2, map: DOOR_PLATE });
+    var hazY = mat(0xffcc33, { rough: .55, metal: .25, emit: 0xaa8800, emitI: .12 });
+    var hazK = mat(0x14161a, { rough: .8, metal: .1 });
+
+    /* the frame the shutter rides in */
+    box(g, 7.55, .42, .86, steel, 0, 3.22, 0);
+    box(g, 7.7, .12, .94, gold, 0, 3.46, 0);
+    box(g, .38, 6.6, .86, steel, -3.58, 0, 0);
+    box(g, .38, 6.6, .86, steel, 3.58, 0, 0);
+    box(g, 7.55, .34, .92, steelD, 0, -3.28, 0);
+    box(g, 7.2, 6.35, .16, steelD, 0, 0, -.28);     // the back plate
+    box(g, 7.35, 6.5, .1, ink, 0, 0, -.22);          // the well it sits in
+
+    /* gold cursed-energy rim, slightly proud of the steel */
+    box(g, 7.85, .07, .07, goldH, 0, 3.58, .38);
+    box(g, 7.85, .07, .07, goldH, 0, -3.48, .38);
+    box(g, .07, 7.1, .07, goldH, -3.82, 0, .38);
+    box(g, .07, 7.1, .07, goldH, 3.82, 0, .38);
+
+    var side;
+    for (side = -1; side <= 1; side += 2) {
+      var leaf = new THREE.Group();
+      leaf.position.set(side * 1.72, 0, .06);
+      g.add(leaf);
+
+      box(leaf, 3.28, 6.05, .22, steel, 0, 0, -.04);
+      /* corrugated slats — the shutter itself */
+      var s;
+      for (s = 0; s < 10; s++) {
+        var sy = -2.62 + s * .38;
+        var slat = box(leaf, 3.12, .3, .42, steelR, 0, sy, .12);
+        slat.userData.home = slat.position.clone();
+        g.userData.slats.push(slat);
+        box(leaf, 3.12, .06, .46, steelD, 0, sy - .16, .14);
+      }
+      /* the window in the top third, with the 777 on the glass */
+      box(leaf, 2.55, 1.85, .1, ink, 0, 2.08, .16);
+      box(leaf, 2.36, 1.66, .06, glass, 0, 2.08, .22);
+      box(leaf, 2.58, .1, .16, gold, 0, 2.96, .24);
+      box(leaf, 2.58, .1, .16, gold, 0, 1.2, .24);
+      box(leaf, .1, 1.86, .16, gold, -1.24, 2.08, .24);
+      box(leaf, .1, 1.86, .16, gold, 1.24, 2.08, .24);
+      box(leaf, 2.4, .06, .12, gold, 0, 2.08, .26);
+      box(leaf, .06, 1.66, .12, gold, 0, 2.08, .26);
+
+      /* the line across it that belongs to the train */
+      box(leaf, 3.16, .28, .14, plate, 0, 1.02, .28);
+      box(leaf, 3.16, .05, .16, pink, 0, 1.18, .3);
+
+      /* grab bar, and a lamp over the glass */
+      box(leaf, .08, .72, .08, ink, side * -.9, -.15, .36);
+      box(leaf, .34, .08, .08, ink, side * -.9, -.15, .36);
+      box(leaf, .22, .1, .12, goldH, 0, 2.88, .34);
+
+      /* outer stiffener */
+      box(leaf, .12, 6.0, .48, steel, side * 1.52, 0, .1);
+    }
+
+    /* the meeting stile, rubber and latch */
+    box(g, .18, 6.15, .62, steelD, 0, 0, .16);
+    box(g, .1, 6.05, .68, ink, 0, 0, .2);
+    box(g, .34, .42, .28, gold, 0, .15, .42);
+    box(g, .14, .18, .16, ink, 0, .15, .52);
+
+    /* rubber sweep, and the hazard blocks on the sill */
+    box(g, 7.1, .16, .7, ink, 0, -3.08, .18);
+    var h;
+    for (h = 0; h < 9; h++) {
+      box(g, .72, .12, .78, h % 2 ? hazY : hazK, -2.88 + h * .72, -3.38, .2);
+    }
+
+    /* rivets along the header and the posts */
+    var r, rv = mat(0x9aa3b0, { rough: .3, metal: .88 });
+    for (r = -3; r <= 3; r++) {
+      box(g, .1, .1, .12, rv, r * 1.05, 3.22, .46);
+    }
+    for (r = -2; r <= 2; r++) {
+      box(g, .1, .1, .12, rv, -3.58, r * 1.15, .46);
+      box(g, .1, .1, .12, rv, 3.58, r * 1.15, .46);
+    }
+
+    /* cursed-energy rings, front and back, so it reads when it flies */
+    var glow = FX.billboard(FX.T.ring, 0xffcc4d, .55);
+    glow.scale.set(9.4, 9.4, 1);
+    glow.position.z = .62;
     g.add(glow);
+    g.userData.glow = glow;
+    var glowB = FX.billboard(FX.T.ring, 0xff4f8b, .32);
+    glowB.scale.set(8.2, 8.2, 1);
+    glowB.position.z = -.42;
+    g.add(glowB);
+    g.userData.glowB = glowB;
+    var star = FX.billboard(FX.T.star, 0xffe08a, .4);
+    star.scale.set(3.2, 3.2, 1);
+    star.position.set(0, .15, .7);
+    g.add(star);
+    g.userData.star = star;
+
     return g;
   }
+  HK.makeDoor = makeDoor;
+  HK.dropDoor = function (door) {
+    if (!door) return;
+    if (door.parent) door.parent.remove(door);
+    else if (typeof scene !== 'undefined') scene.remove(door);
+    door.traverse(function (c) {
+      if (!c.isMesh || !c.material) return;
+      var ms = c.material.length ? c.material : [c.material];
+      for (var i = 0; i < ms.length; i++) if (ms[i] && ms[i].dispose) ms[i].dispose();
+    });
+  };
+  HK.pulseDoor = function (door, t) {
+    if (!door || !door.userData) return;
+    var k = .5 + .5 * Math.sin(t * 20);
+    if (door.userData.glow) door.userData.glow.material.opacity = .42 + k * .28;
+    if (door.userData.glowB) door.userData.glowB.material.opacity = .22 + k * .18;
+    if (door.userData.star) door.userData.star.material.opacity = .28 + k * .3;
+    var golds = door.userData.golds || [];
+    for (var i = 0; i < golds.length; i++) {
+      golds[i].emissiveIntensity = (golds[i].userData.baseEmit || .3) + k * .45;
+    }
+  };
+  HK.rattleDoor = function (door, amt) {
+    if (!door || !door.userData || !door.userData.slats) return;
+    var slats = door.userData.slats;
+    for (var i = 0; i < slats.length; i++) {
+      var s = slats[i], home = s.userData.home;
+      if (!home) continue;
+      s.position.x = home.x + (Math.random() - .5) * amt;
+      s.position.z = home.z + (Math.random() - .5) * amt * .6;
+    }
+  };
   function stepShutter(a, dt) {
     if (!a.door) return;
     if (a.t < .22) {                                 // it drops into place
       var k = E.out(a.t / .22);
       a.door.scale.set(1, .05 + .95 * k, 1);
       a.door.position.copy(player.pos).addScaledVector(a.dir, 2.6).add(new THREE.Vector3(0, 3.4, 0));
+      HK.pulseDoor(a.door, a.t);
       if (a.stage < 1) {
         a.stage = 1;
         FX.ring(new THREE.Vector3(a.door.position.x, .1, a.door.position.z), 0xffcc4d, { maxR: 7, life: .5 });
@@ -10995,6 +11214,7 @@ window.__game = {
     if (a.t < .62) {
       HK.shutter.until = SA_now() + .2;
       a.door.position.copy(player.pos).addScaledVector(a.dir, 2.6).add(new THREE.Vector3(0, 3.4, 0));
+      HK.pulseDoor(a.door, a.t);
       if (Math.random() < .3) FX.streaks(a.door.position.clone(), 0xffcc4d, 1, 5, .8);
       return;
     }
@@ -11008,6 +11228,8 @@ window.__game = {
     if (a.t < 1.0) {
       a.slam += dt;
       a.door.position.addScaledVector(a.dir, 34 * dt);
+      HK.pulseDoor(a.door, a.t * 2);
+      HK.rattleDoor(a.door, .04);
       if (Math.random() < .7) FX.streaks(a.door.position.clone(), 0xffe08a, 2, 12, 1.2);
       enemies.forEach(function (e) {
         if (!e || e.dead || e.rag || e.hkHit) return;
@@ -11029,7 +11251,7 @@ window.__game = {
       FX.rings(at, 0xffcc4d, 3, { maxR: 12, life: .5, ground: false, gap: 40 });
       FX.debris(new THREE.Vector3(at.x, 0, at.z), 10, 15, 0x8b93a2);
       addShake(.8);
-      scene.remove(a.door);
+      HK.dropDoor(a.door);
       a.door = null;
       HK.shutter = null;
     }
@@ -14715,30 +14937,35 @@ window.__game = {
     } },
 
     /* -------------------------------------------------------- HAKARI */
-    /* 1 · Shutter — it comes down, it turns flat, and it goes through */
+    /* 1 · Shutter — the same train door, thrown, then laid through them */
     h1: { name: 'CUT IN HALF', color: '#ffcc4d', hold: 1.25, run: function (e, d, p, G) {
-      /* the door itself, thrown into them and then laid over */
-      var door = new THREE.Mesh(new THREE.BoxGeometry(9, 11, .9),
-        new THREE.MeshStandardMaterial({ color: 0x7c5a2a, roughness: .7, metalness: .3 }));
-      var trim = new THREE.Mesh(new THREE.BoxGeometry(9.4, .9, 1.1),
-        new THREE.MeshStandardMaterial({ color: 0xffd84a, roughness: .4, metalness: .6 }));
-      trim.position.y = 5.2;
-      door.add(trim);
-      door.position.copy(p).addScaledVector(d, -9).add(up(2.4));
-      door.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d);
-      scene.add(door);
+      var HK = window.JJHAKARI;
+      var door = (HK && HK.makeDoor) ? HK.makeDoor() : new THREE.Group();
+      /* facing lives on the root so flattening the door cannot wipe it */
+      var root = new THREE.Group();
+      var spin = new THREE.Group();
+      spin.add(door);
+      root.add(spin);
+      root.position.copy(p).addScaledVector(d, -9).add(up(3.2));
+      root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d);
+      scene.add(root);
       try { sfx.shatter(); } catch (err) {}
 
       var t = 0, hit = false, cut = false;
       addFx({ t: 2.4, update: function (dt) {
         this.t -= dt; t += dt;
+        if (HK) HK.pulseDoor(door, t * 3);
         if (t < .3) {                                 // in, hard
-          door.position.addScaledVector(d, dt * 30);
+          root.position.addScaledVector(d, dt * 30);
+          if (HK) HK.rattleDoor(door, .03);
+          if (Math.random() < .8) FX.streaks(root.position.clone(), 0xffe08a, 2, 14, 1.3);
         } else if (!hit) {
           hit = true;
-          FX.impact(p, 0xffcc4d, 3);
-          FX.cross(p, 0xffe08a, 6, .26);
-          FX.rings(p, 0xffcc4d, 3, { maxR: 12, life: .5, ground: false, gap: 34 });
+          FX.impact(p, 0xffcc4d, 3.2);
+          FX.cross(p, 0xffe08a, 7, .28);
+          FX.rings(p, 0xffcc4d, 3, { maxR: 13, life: .5, ground: false, gap: 34 });
+          FX.debris(p.clone(), 8, 12, 0x8b93a2);
+          FX.debris(p.clone(), 5, 10, 0xffcc4d);
           if (window.JJHITS) window.JJHITS.react(e, 'crumple', .8);
           addShake(1.6);
           if (typeof hitstop === 'function') hitstop(.12);
@@ -14746,24 +14973,32 @@ window.__game = {
         if (t > .3 && t < .78) {
           /* and over it goes, until it is lying across their middle */
           var k = (t - .3) / .48;
-          door.rotation.x = -Math.PI / 2 * k;
-          door.position.y = 2.4 + Math.sin(k * Math.PI) * 1.4;
+          var u = k * k * (3 - 2 * k);
+          spin.rotation.x = -Math.PI / 2 * u;
+          root.position.y = 3.2 + Math.sin(u * Math.PI) * 1.2;
+          if (HK) HK.rattleDoor(door, .07 * (1 - k));
         }
         if (t >= .78 && !cut) {
           cut = true;
           FX.flash('#fff3d0', .55, .25);
+          FX.cutLine(
+            p.clone().add(new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(4)).add(up(3.3)),
+            p.clone().add(new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(-4)).add(up(3.3)),
+            0xffe08a, 1.2, .4);
+          FX.debris(p.clone().add(up(3.2)), 12, 16, 0x8b93a2);
           if (typeof hitstop === 'function') hitstop(.14);
           G.halve(e, { dir: d, power: 1.3, color: 0xffe08a, stand: .3 });
           addShake(2);
           try { sfx.sever(); } catch (err) {}
         }
         if (t > .78) {                                // the door falls past them
-          door.position.y -= dt * 9;
-          door.position.addScaledVector(d, dt * 3);
+          root.position.y -= dt * 9;
+          root.position.addScaledVector(d, dt * 3);
+          spin.rotation.x -= dt * .4;
         }
         if (this.t <= 0) {
-          scene.remove(door);
-          door.traverse(function (c) { if (c.isMesh) c.material.dispose(); });
+          if (HK && HK.dropDoor) HK.dropDoor(door);
+          scene.remove(root);
           return false;
         }
         return true;
