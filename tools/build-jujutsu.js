@@ -25,10 +25,14 @@ const three = fs.readFileSync(path.join(src, 'three.module.min.js'), 'utf8');
 const mqtt = fs.readFileSync(path.join(src, 'mqtt.min.js'), 'utf8');
 
 /* Order matters: each of these patches the one before it. vfx defines the
-   kit, combat re-points the game's own effects at it and adds the throw,
-   gojo builds the awakening on top, and mp shares all of it. */
-const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'combat.js', 'gojo.js', 'naoya.js',
-  'yuji.js', 'hakari.js', 'void.js', 'sukuna.js', 'parlor.js', 'mp.js']
+   kit, gore adds the ways of dying and the health lock, combat re-points
+   the game's own effects at the kit and adds the throw, hits layers the
+   reactions over all of them, gojo builds the awakening on top, finisher
+   sits after every fighter so it can send them all somewhere, and mp
+   shares the lot — last, so it still broadcasts through a cutscene. */
+const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'gore.js', 'combat.js', 'hits.js',
+  'gojo.js', 'naoya.js', 'yuji.js', 'hakari.js', 'void.js', 'sukuna.js', 'parlor.js',
+  'finisher.js', 'mp.js']
   .map(function (f) {
     return { name: f, code: fs.readFileSync(path.join(src, f), 'utf8') };
   });

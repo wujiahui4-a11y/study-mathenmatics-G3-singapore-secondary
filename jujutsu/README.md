@@ -82,6 +82,120 @@ is given a much stiffer spring than the rest of him: a strike that takes an
 eighth of a second on a loose spring never actually extends, and the whole
 thing reads as gliding.
 
+## Sukuna
+
+`F` a second time, while Yuji is already transformed, lets the thing inside
+him out. He goes down first — hands on his own head, shaking, losing — and
+what stands up has four eyes, a mouth on its cheek, and the King of Curses'
+hands.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Dismantle** | 解 — a net of cuts thrown across everything in front of him |
+| `2` | **Cleave** | 捌 — one cut, on one target, adjusted to whatever it has to go through |
+| `3` | **Fuga** | 竈 — the furnace opened, and an arrow of it loosed |
+| `4` | **Malevolent Shrine** | 伏魔御廚子 — the shrine, with no barrier, cutting everything inside it |
+
+### Dismantle is a net, not a slash
+
+From the source: Dismantle is not one cut aimed at one person. The slashes
+are **woven into an interconnected grid** across the whole space in front of
+him — the ways out as much as whoever is standing in it. Any one line of the
+net is survivable. Everything caught in all of them at once is not.
+
+So it is thrown as three lattices at different depths, thirty six metres
+deep and twenty four across, each line drawn on a frame later than the one
+before it so the net weaves rather than appearing; the same grid goes through
+the floor. The weave itself is a hundred small cuts and barely moves anybody.
+Three quarters of a second later everything inside it **comes apart along the
+lines**.
+
+And a body that had little enough left when the net closed does not fall
+over. Dismantle reduces people to cubes of flesh in the source, and it does
+here: the rig is cut into the eleven pieces the lattice cut it into plus the
+cubes between them, and they land where they were thrown and stay there.
+
+### Fuga is an arrow
+
+The Divine Flame was a beam, which is wrong. He opens the furnace and the
+fire that comes out of it is **drawn into a shape** — a head, a shaft, and
+four flights — held on the line by the front hand and drawn back against the
+shoulder by the other. Then it is loosed, and it is a real object travelling
+down the arena at forty two metres a second: slow enough to watch, hot enough
+that what it reaches is not put out afterwards, and it leaves the ground
+burning in a line behind it. Anything it kills **burns down to a husk**, which
+stays where it fell.
+
+### Malevolent Shrine has no barrier
+
+Every other domain closes a space off and works inside it. This one is put
+down in the space that was already there, which is the binding vow that buys
+its sure hit a radius nothing else gets. **So the city stays exactly where it
+is** — you can see it between the ribs — and the cuts fall on everything
+inside sixty two metres whether it is standing in the shrine or not.
+
+The shrine itself is built from what the source describes: ox skulls holding
+up the platform with their mouths open, a hip and gable roof with horns out
+of the ridge and human skulls hanging off the eaves, a pair of closed mouths
+in each gable, a **ribcage for a ceiling** over the yard, and four ways in
+that are four enormous mouths with human teeth and a tongue rolled out
+through them.
+
+The camera is only borrowed for the opening. After five seconds it is handed
+back and the shrine is simply somewhere you are now fighting — for thirteen
+and a half seconds it rains full length Cleaves across the whole radius,
+drops a lattice over anybody inside it three times a second, and cuts apart
+anything that runs out of health in there.
+
+## Finishers
+
+Every fighter has one, off the ordinary kit, in the way Naoya's awakening
+ends in one.
+
+When one of your abilities is about to take somebody out, **it does not take
+them out**. It takes them somewhere: a stage built well above the city where
+the two of you are the only things that exist for the next half a minute. The
+arena is never touched and every other player carries on watching the pair of
+you stand still.
+
+| | The cut | Ends |
+| --- | --- | --- |
+| Gojo | **THROUGHOUT HEAVEN AND EARTH** — blue takes them off the floor, red puts them through a wall, and what the two of them make between his hands does the rest | burnt |
+| Naoya | **TWENTY FOUR FRAMES** — hit from four sides inside a second, the tanto, and twenty four passes that each leave a line | in pieces |
+| Yuji | **BLACK FLASH** — divergent fist, the manji kick, down through the floor, and a hundredth of a second | face down |
+| Hakari | **PRIVATE PURE LOVE TRAIN** — the hands, the shutter, three sevens, and the thing the parlour was always going to send | in pieces |
+| Sukuna | **DISMANTLE** — one finger, one line, the net, the cleave, the furnace he does not bother using, and 解 | in cubes |
+
+Two rules hold for all five.
+
+**The health is locked.** Both fighters are held at a floor of one health for
+the whole cut, so a finisher thrown at somebody who was already on two health
+does not kill them in the first beat and leave the other twenty seconds
+playing to a corpse. The kill is applied at the end, by the victim, once the
+cut is over — the same way Naoya's is, because a hit arriving while their own
+copy of the cut is still running would be thrown away.
+
+**They do not all end limp.** A ragdoll is one ending out of three now.
+
+## Dying
+
+Dying used to burst the body into loose boxes, and then it was a ragdoll:
+the hips carry the momentum of whatever killed you, the joints swing on
+springs with nothing driving them, and it lands and settles into a heap. That
+is still the default. There are two more.
+
+**Cut apart.** A body Dismantle catches falls into the pieces it was cut
+into. The separation is real: every mesh in the rig is copied into the piece
+it belongs to, each piece starts with the world transform its joint had at
+the moment of the cut, and from there they are eleven independent bodies with
+their own momentum, their own bounce and their own blood. The cut faces are
+real geometry, so a piece looked at from the wrong end is open. They land
+where they were thrown and stay there until the respawn.
+
+**Burnt.** A body the Divine Flame catches chars from the inside out over a
+second and a half, burns where it is standing, goes down, and stays as a
+husk with the scorch mark it left under it.
+
 ## Gojo's awakening
 
 A meter under the ability bar fills while either fighter fights — fastest from hits you
@@ -178,15 +292,6 @@ fist, driven by one message; the finisher's damage is applied by the victim at
 the end of their own copy, because a hit arriving while a cut is running would
 be thrown away.
 
-## Dying
-
-Dying used to burst the body into loose boxes. The rig goes limp instead: the
-hips carry the momentum of whatever killed you, the body tumbles, the joints
-swing on springs with nothing driving them and lag behind the body when it
-turns, and it lands and settles into a heap that stays there until the
-respawn. Anything the rush catches gets the same treatment and picks itself up
-a couple of seconds after it stops rolling.
-
 ## Getting hit
 
 **No techniques while you are being hit.** Every cast is refused for as long
@@ -205,6 +310,49 @@ landing and a scramble back up.
 The dash was a single velocity impulse fighting a drag of ten, so it covered
 about two metres. It now drives the velocity for the length of the dash and
 covers about twelve, with a short window of invulnerability at the start.
+
+### The reactions
+
+The game shipped with five flinches — the head snapped back by a jab, doubled
+over by a gut punch, clutching a stab, jerked around by a barrage, staggered
+onto the heels — and the throw above. They were only ever played on the
+dummies and on other people's fighters: **nothing hurting you locally ever
+asked your own body to react to it.** It does now, in every mode, off the
+same table.
+
+There are eight more, because being cut open is not being punched in the head
+and being set on fire is not being punched in the gut:
+
+| | |
+| --- | --- |
+| `slash` | the body opens along the line of the cut first, and folds around it after |
+| `dismantle` | one jerk per cut, each dying inside a tenth of a second, each in its own direction, with less left every time |
+| `burn` | arms up over the face, turning away from it, shaking hard enough that nothing stays put |
+| `crumple` | the legs simply stop holding them up |
+| `whip` | the head goes first and everything else finds out late |
+| `spin` | spun off a glancing hit, arms trailing behind the turn |
+| `shock` | held, and trembling — a domain, a lock, more coming in than can go out |
+| `uplift` | taken off the ground, arched over the fist, everything hanging |
+
+And every reaction in the game, the five originals included, now gets a layer
+of **ring-out** over the top: the head carrying past where it was snapped to,
+the arms trailing, the knees giving a little and taking the weight back over
+the same beat. A flinch that arrives and stops dead reads as one frame of
+animation; a flinch that overshoots and settles reads as a body. Bodies also
+flash white for two frames when they are hit, cuts bleed along the way the
+cut went, and fire hits leave the victim alight.
+
+### The ground
+
+A crack used to be a handful of straight lines fanning out from a point.
+Ground does not break like that: it splits along a few main faults, each of
+which sheds branches that shed their own, and the surface between them breaks
+into plates. So the fracture web is drawn as a branching network at load,
+four of them to pick between, and a break puts one down along with a paler
+one just off it — the crumbled edge of the split catching the light, which is
+what gives it depth — a couple of faults running much further than the web
+does, slabs of the surface levered up out of the break and left standing, and
+the dust it throws.
 
 ## How it works
 
@@ -369,7 +517,7 @@ free-for-all, so there is no host to funnel through.
 The original game imports three.js from a CDN. Both builds vendor it instead,
 so the game works on a network that blocks the CDN.
 
-**One file** — `jujutsu-multiplayer.html` (1.1 MB). three.js is carried inside
+**One file** — `jujutsu-multiplayer.html` (1.6 MB). three.js is carried inside
 the page and handed to the module loader as a blob URL. Open it from disk or
 host it anywhere.
 
@@ -377,7 +525,7 @@ host it anywhere.
 node tools/build-jujutsu.js
 ```
 
-**Split** — `jujutsu-parts/`: a 138 kB shell plus three.js and the MQTT client
+**Split** — `jujutsu-parts/`: a 330 kB shell plus three.js and the MQTT client
 as separate files, for hosts that cannot serve one big document. The shell
 refers to them as `__PART_BASE__?p=N`, so whoever serves it substitutes its own
 address. Same Apps Script as the Baldi game, pointed at this folder:
@@ -407,14 +555,18 @@ disk.
 | File | What it does |
 | --- | --- |
 | `base.html` | the original game, untouched |
-| `vfx.js` | the effects kit: impact frames, rings, slashes, beams, domes |
+| `vfx.js` | the effects kit: impact frames, rings, cuts, lattices, fire, blood, fracture webs |
 | `anim.js` | joint springs, weight, breath, smears, camera and holds |
 | `ragdoll.js` | limp bodies, and the heaps they settle into |
+| `gore.js` | the other two ways of dying, and the health lock a finisher runs under |
 | `combat.js` | the longer dash, the throw, and the eight second fighter swap |
+| `hits.js` | eight more reactions, the ring-out over all of them, and the player finally playing them |
 | `gojo.js` | the awakening meter, Gojo's entrance and his four techniques |
 | `naoya.js` | Naoya's run, and the cut it ends in |
 | `yuji.js` | Yuji: his rig, his five moves and his transformation |
 | `hakari.js` | Hakari: his rig, his four moves and the machine in his domain |
+| `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
+| `finisher.js` | the stage above the city, and a long cut for every fighter |
 | `mp.js` | the online mode, appended inside the game's module |
 | `three.module.min.js` | vendored three.js 0.160.0 |
 | `mqtt.min.js` | vendored MQTT client |

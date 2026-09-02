@@ -651,6 +651,10 @@
     if (m.t === 'hit' && m.to === MP.id) {              // somebody landed one on us
       var k = null;
       if (m.kx || m.ky || m.kz) k = new THREE.Vector3(m.kx || 0, m.ky || 0, m.kz || 0);
+      /* how the body is meant to go if this is the one that does it —
+         cut apart, burnt, or simply limp */
+      if (m.dth && window.JJGORE) window.JJGORE.mark(player, m.dth);
+      if (m.rk && window.JJHITS) window.JJHITS.next(m.rk, m.rd || .5);
       hurtPlayer(m.d, k);
       /* the same flinch the dummies play, on us — but not while the hit is
          being shrugged off by spawn protection, and not on top of a hit
@@ -670,6 +674,10 @@
     if (m.t === 'proj' && m.to === MP.id) { applyProjPlayer(m.a); return; }
     if (m.t === 'ncine' && m.to === MP.id) {             // their rush caught us
       if (window.JJNAOYA) window.JJNAOYA.remoteCine(m.id);
+      return;
+    }
+    if (m.t === 'fcine' && m.to === MP.id) {             // their finisher caught us
+      if (window.JJFIN) window.JJFIN.remote(m.id, m.k);
       return;
     }
     if (m.t === 'dom') {                                // a domain opened near us
@@ -1070,6 +1078,9 @@
       msg.rd = opts.reactDur == null ? .5 : opts.reactDur;
       msg.rs = opts.side == null ? (Math.random() < .5 ? -1 : 1) : opts.side;
     }
+    /* and how the body should go if this is the hit that finishes them:
+       theirs to apply, like their health, but ours to ask for */
+    if (opts.death) msg.dth = opts.death;
     if (MP.relay) MP.relay.pub(msg);
     /* show it on them straight away; their own broadcast confirms it */
     if (opts.react) {
@@ -1084,6 +1095,16 @@
         Math.min(1.7, .6 + (knock ? knock.length() : 0) / 55));
     } else if (typeof spark === 'function') {
       spark(at, 0xff4455, 5, 10);
+    }
+    /* the confirm a local hit gets, on a remote body too */
+    if (window.JJHITS) {
+      window.JJHITS.flash(this.rig, opts.spark || 0xffffff, Math.min(1.8, .5 + amount / 30));
+      if (opts.react === 'slash' || opts.react === 'dismantle' || opts.bleed) {
+        window.JJFX.blood(at.clone(),
+          knock ? knock.clone().setY(.4).normalize() : new THREE.Vector3(0, 1, 0),
+          5 + Math.round(amount / 8), 1.1);
+      }
+      if (opts.react === 'burn') window.JJFX.fire(at.clone(), 5, 1, 2, .6);
     }
     if (typeof damageNumber === 'function') {
       damageNumber(this.pos.clone().add(new THREE.Vector3(0, 5.2, 0)), String(Math.round(amount)), '#ffd76a');

@@ -217,6 +217,131 @@
     return t;
   })();
 
+  /* a cut: a straight line with a hot core, tapered at both ends, which is
+     what a slash actually leaves behind — a crescent is the swing, this is
+     the wound */
+  T.cutline = (function () {
+    var c = canvas(256), g = c.getContext('2d');
+    var grad = g.createLinearGradient(0, 0, 256, 0);
+    grad.addColorStop(0, 'rgba(255,255,255,0)');
+    grad.addColorStop(.12, 'rgba(255,255,255,.55)');
+    grad.addColorStop(.5, 'rgba(255,255,255,1)');
+    grad.addColorStop(.88, 'rgba(255,255,255,.55)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    /* a lens rather than a bar: fat in the middle, nothing at the tips */
+    g.beginPath();
+    g.moveTo(0, 128);
+    g.quadraticCurveTo(128, 128 - 62, 256, 128);
+    g.quadraticCurveTo(128, 128 + 62, 0, 128);
+    g.fill();
+    g.globalCompositeOperation = 'lighter';
+    g.fillStyle = grad;
+    g.fillRect(0, 122, 256, 12);
+    return tex(c);
+  })();
+
+  /* a flame: a tongue of fire with licks coming off it, drawn pointing up */
+  T.flame = (function () {
+    var c = canvas(256), g = c.getContext('2d');
+    function tongue(x, w, h, alpha) {
+      var grad = g.createLinearGradient(0, 256 - h, 0, 256);
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(.35, 'rgba(255,255,255,' + alpha * .55 + ')');
+      grad.addColorStop(.8, 'rgba(255,255,255,' + alpha + ')');
+      grad.addColorStop(1, 'rgba(255,255,255,' + alpha * .7 + ')');
+      g.fillStyle = grad;
+      g.beginPath();
+      g.moveTo(x, 256 - h);
+      g.bezierCurveTo(x + w, 256 - h * .55, x - w * .4, 256 - h * .3, x + w * .9, 250);
+      g.lineTo(x - w * .9, 250);
+      g.bezierCurveTo(x + w * .4, 256 - h * .3, x - w, 256 - h * .55, x, 256 - h);
+      g.fill();
+    }
+    tongue(128, 62, 236, .95);
+    tongue(84, 30, 150, .6);
+    tongue(176, 26, 132, .6);
+    tongue(112, 16, 96, .5);
+    return tex(c);
+  })();
+
+  /* blood: a splatter of drops around a wet centre, for the ground and for
+     the hole a cut leaves */
+  T.blood = (function () {
+    var c = canvas(256), g = c.getContext('2d');
+    var i, a, d, r;
+    var core = g.createRadialGradient(128, 128, 4, 128, 128, 52);
+    core.addColorStop(0, 'rgba(255,255,255,.95)');
+    core.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = core;
+    g.beginPath(); g.arc(128, 128, 52, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.85)';
+    for (i = 0; i < 34; i++) {
+      a = Math.random() * TAU;
+      d = 24 + Math.random() * 104;
+      r = 2 + Math.random() * 9 * (1 - d / 150);
+      g.beginPath();
+      g.ellipse(128 + Math.cos(a) * d, 128 + Math.sin(a) * d, r, r * (.5 + Math.random()), a, 0, TAU);
+      g.fill();
+    }
+    return tex(c);
+  })();
+
+  /* THE FRACTURE WEB
+     Ground that has been hit does not crack in straight lines out of a
+     point. It splits along a few main faults, each of which sheds branches
+     that shed their own, and the surface between them breaks into plates.
+     Four are drawn at load and picked between, so putting one down costs a
+     single quad instead of fifty. */
+  var WEBS = (function () {
+    function split(g, x, y, a, len, w, depth) {
+      var steps = 4 + (Math.random() * 3 | 0);
+      for (var i = 0; i < steps; i++) {
+        var nx = x + Math.cos(a) * len / steps;
+        var ny = y + Math.sin(a) * len / steps;
+        /* the crumbled lip either side of the split, then the split */
+        g.strokeStyle = 'rgba(255,255,255,.16)';
+        g.lineWidth = w * 3.6;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(nx, ny); g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,' + (.72 + Math.random() * .28) + ')';
+        g.lineWidth = w;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(nx, ny); g.stroke();
+        x = nx; y = ny;
+        a += (Math.random() - .5) * .95;
+        w *= .84;
+        if (depth < 3 && Math.random() < .45) {
+          split(g, x, y, a + (Math.random() < .5 ? 1 : -1) * (.55 + Math.random() * .8),
+            len * (.3 + Math.random() * .35), w * .85, depth + 1);
+        }
+      }
+    }
+    var out = [], v, i, a;
+    for (v = 0; v < 4; v++) {
+      var c = canvas(512), g = c.getContext('2d');
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      /* the plates the surface has broken into, right under the hit */
+      for (i = 0; i < 9; i++) {
+        a = i / 9 * TAU;
+        var rr = 26 + Math.random() * 62;
+        g.fillStyle = 'rgba(255,255,255,.10)';
+        g.beginPath();
+        for (var k = 0; k < 5; k++) {
+          var pa = a + k / 5 * 1.3, pr = rr * (.5 + Math.random() * .8);
+          var px = 256 + Math.cos(pa) * pr, py = 256 + Math.sin(pa) * pr;
+          if (k === 0) g.moveTo(px, py); else g.lineTo(px, py);
+        }
+        g.closePath(); g.fill();
+      }
+      var mains = 7 + (v % 3);
+      for (i = 0; i < mains; i++) {
+        a = i / mains * TAU + Math.random() * .55;
+        split(g, 256, 256, a, 116 + Math.random() * 118, 6.5 - Math.random() * 2.6, 0);
+      }
+      out.push(tex(c));
+    }
+    return out;
+  })();
+
   /* ------------------------------------------------------------- geometry
      Shared, because these are spawned dozens at a time. */
   var PLANE = new THREE.PlaneGeometry(1, 1);
@@ -503,37 +628,296 @@
     }
   }
 
-  /* dark fracture lines running away from a point of impact */
+  /* a flat decal laid on the ground, which opens up and then fades */
+  function decal(map, pos, r, color, alpha, life, spin) {
+    var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
+      map: map, color: color, transparent: true, opacity: 0,
+      depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+      blending: THREE.NormalBlending
+    }));
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = spin == null ? Math.random() * TAU : spin;
+    m.position.set(pos.x, (pos.y || 0) + .06 + Math.random() * .03, pos.z);
+    m.renderOrder = 3;
+    m.scale.set(r * 2, r * 2, 1);
+    scene.add(m);
+    live++;
+    /* timed in seconds rather than in fractions of the life, so a mark
+       meant to stay — a scorch, a pool of blood — is not permanently
+       three frames into its own fade in */
+    var t = 0, out = Math.min(1.4, life * .45);
+    addFx({ t: life, update: function (dt) {
+      this.t -= dt; t += dt;
+      var open = Math.min(1, t / .1);                 // splits open in two frames
+      m.scale.set(r * 2 * (.35 + open * .65), r * 2 * (.35 + open * .65), 1);
+      m.material.opacity = alpha * Math.min(1, t / .07) * Math.min(1, this.t / out);
+      if (this.t <= 0) { kill(m); live--; return false; }
+      return true;
+    } });
+    return m;
+  }
+
+  /* how many ground decals are in the air right now: a busy domain would
+     otherwise put a thousand quads down and the frame rate with them */
+  var live = 0;
+
+  /* GROUND BREAKING UNDER SOMETHING
+     The web of fractures, a dark gap opening along it, plates of the
+     surface tipped up out of the gap, and the dust it throws. */
   function cracks(pos, n, len, color) {
     n = n || 7; len = len || 9;
     color = color == null ? 0x0a0d14 : color;
-    for (var i = 0; i < n; i++) {
-      var a = (i / n) * TAU + Math.random() * .4;
-      var l = len * (.5 + Math.random() * .8);
+    var R = len * 1.1, i;
+    var busy = live > 80;
+
+    /* the fissure, and a paler one just off it — the crumbled edge of the
+       break catching the light, which is what gives it depth */
+    var w0 = (Math.random() * WEBS.length) | 0;
+    var spin = Math.random() * TAU;
+    decal(WEBS[w0], pos, R, color, .92, 2.4 + Math.random() * 1.2, spin);
+    if (!busy) {
+      decal(WEBS[(w0 + 1) % WEBS.length], pos, R * 1.16, 0x9aa3b2, .3,
+        2.0 + Math.random(), spin + .3);
+    }
+
+    /* a couple of faults running much further than the web does */
+    var spikes = busy ? 0 : Math.min(4, 1 + (n / 3 | 0));
+    for (i = 0; i < spikes; i++) {
+      var a = Math.random() * TAU;
+      var l = len * (1.1 + Math.random() * 1.1);
       var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
-        map: T.bolt, color: color, transparent: true, opacity: .8,
+        map: T.bolt, color: color, transparent: true, opacity: .85,
         depthWrite: false, side: THREE.DoubleSide, toneMapped: false
       }));
       m.rotation.x = -Math.PI / 2;
       m.rotation.z = -a;
-      m.position.set(pos.x + Math.cos(a) * l * .5, pos.y + .07, pos.z + Math.sin(a) * l * .5);
-      /* a fracture is a line: the width stays hairline however long it runs */
-      var w = .5 + Math.random() * .45;
-      m.scale.set(.01, w, 1);
+      m.position.set(pos.x + Math.cos(a) * l * .5, (pos.y || 0) + .07, pos.z + Math.sin(a) * l * .5);
+      m.scale.set(.01, .35 + Math.random() * .3, 1);
       m.renderOrder = 3;
       scene.add(m);
+      live++;
       (function (m, l) {
-        var life = 1.3 + Math.random() * .7;
+        var life = 1.8 + Math.random() * .8;
         addFx({ t: life, update: function (dt) {
           this.t -= dt;
           var k = 1 - this.t / life;
-          m.scale.x = l * Math.min(1, k * 9);        // races outward
-          m.material.opacity = .8 * Math.max(0, 1 - Math.max(0, k - .45) / .55);
-          if (this.t <= 0) { kill(m); return false; }
+          m.scale.x = l * Math.min(1, k * 11);       // races outward
+          m.material.opacity = .85 * Math.max(0, 1 - Math.max(0, k - .5) / .5);
+          if (this.t <= 0) { kill(m); live--; return false; }
           return true;
         } });
       })(m, l);
     }
+
+    if (!busy) plates(pos, Math.min(5, 2 + (n / 2 | 0)), len);
+    dust(new THREE.Vector3(pos.x, (pos.y || 0), pos.z), Math.min(6, 2 + (n / 3 | 0)), 0xbcc3d0, len * .5, 2.2);
+  }
+
+  /* slabs of the surface levered up out of the break and left standing */
+  function plates(pos, n, len) {
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * TAU;
+      var d = len * (.2 + Math.random() * .5);
+      var w = len * (.18 + Math.random() * .28);
+      var m = new THREE.Mesh(CHUNK, new THREE.MeshStandardMaterial({ color: 0x3d4351, roughness: .95 }));
+      m.scale.set(w, .22 + Math.random() * .2, w * (.6 + Math.random() * .7));
+      m.position.set(pos.x + Math.cos(a) * d, (pos.y || 0) - .1, pos.z + Math.sin(a) * d);
+      m.rotation.y = Math.random() * TAU;
+      m.castShadow = true;
+      scene.add(m);
+      live++;
+      (function (m, a) {
+        var life = 3.4 + Math.random() * 2;
+        var tilt = (.2 + Math.random() * .5) * (Math.random() < .5 ? 1 : -1);
+        var rise = .12 + Math.random() * .34, t = 0;
+        addFx({ t: life, update: function (dt) {
+          this.t -= dt; t += dt;
+          var k = Math.min(1, t / .22);              // levered up in two frames
+          m.position.y = -.1 + rise * ease.out(k);
+          m.rotation.z = tilt * ease.out(k) * Math.cos(a);
+          m.rotation.x = tilt * ease.out(k) * Math.sin(a);
+          if (this.t < .8) {
+            m.material.transparent = true;
+            m.material.opacity = this.t / .8;
+            m.position.y -= dt * .5;                 // settles back into the ground
+          }
+          if (this.t <= 0) { scene.remove(m); m.material.dispose(); live--; return false; }
+          return true;
+        } });
+      })(m, a);
+    }
+  }
+
+  /* =====================================================================
+     THE CUT
+     A slash leaves a line, not a ball. This is that line: a quad held
+     between two points and turned edge-on to nobody, so it reads from
+     every angle, with a hot core that arrives on one frame.
+     ================================================================== */
+  var _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3(),
+    _mid = new THREE.Vector3(), _mat = new THREE.Matrix4();
+  function orientAlong(m, from, to) {
+    _x.subVectors(to, from);
+    var len = _x.length() || .001;
+    _x.multiplyScalar(1 / len);
+    _mid.addVectors(from, to).multiplyScalar(.5);
+    _z.subVectors(camera.position, _mid).normalize();
+    _y.crossVectors(_z, _x);
+    if (_y.lengthSq() < 1e-6) _y.set(0, 1, 0);
+    _y.normalize();
+    _z.crossVectors(_x, _y).normalize();
+    _mat.makeBasis(_x, _y, _z);
+    m.quaternion.setFromRotationMatrix(_mat);
+    m.position.copy(_mid);
+    return len;
+  }
+
+  /* one cut, drawn between two points in the world */
+  function cutLine(from, to, color, width, life, opt) {
+    opt = opt || {};
+    life = life || .28;
+    var m = billboard(T.cutline, color == null ? 0xffffff : color, 1);
+    m.renderOrder = 7;
+    scene.add(m);
+    var w = width || .5, t = 0, grow = opt.grow == null ? 1 : opt.grow;
+    var a = from.clone(), b = to.clone();
+    addFx({ t: life, update: function (dt) {
+      this.t -= dt; t += dt;
+      var k = Math.min(1, t / life);
+      /* it is drawn on in the first frames, then thins out and goes */
+      var draw = Math.min(1, k / .18);
+      var end = a.clone().lerp(b, grow ? ease.out(draw) : 1);
+      var len = orientAlong(m, a, end);
+      m.scale.set(len, w * (1 - k * .55), 1);
+      m.material.opacity = k < .2 ? 1 : Math.max(0, 1 - (k - .2) / .8);
+      if (this.t <= 0) { kill(m); return false; }
+      return true;
+    } });
+    return m;
+  }
+
+  /* the lattice: Dismantle is not one cut, it is a net of them woven
+     across everything in front of you, and what is caught in it comes
+     apart along the lines */
+  function lattice(center, dir, w, h, cols, rows, color, opt) {
+    opt = opt || {};
+    var side = new THREE.Vector3(dir.z, 0, -dir.x).normalize();
+    var up = new THREE.Vector3(0, 1, 0);
+    var stagger = opt.stagger == null ? 26 : opt.stagger;
+    var life = opt.life || .5;
+    var width = opt.width || .34;
+    var out = [], i;
+    function line(from, to, n) {
+      if (stagger <= 0) { cutLine(from, to, color, width, life, opt); return; }
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        cutLine(from, to, color, width, life, opt);
+        if (opt.spark !== false && Math.random() < .5) streaks(from.clone().lerp(to, Math.random()), color, 1, 6, .8);
+      }, n * stagger);
+    }
+    for (i = 0; i <= cols; i++) {                    // the uprights
+      var x = (i / cols - .5) * w;
+      var base = center.clone().addScaledVector(side, x);
+      line(base.clone().addScaledVector(up, -h / 2), base.clone().addScaledVector(up, h / 2), i);
+    }
+    for (i = 0; i <= rows; i++) {                    // and the crossings
+      var y = (i / rows - .5) * h;
+      var b2 = center.clone().addScaledVector(up, y);
+      line(b2.clone().addScaledVector(side, -w / 2), b2.clone().addScaledVector(side, w / 2), cols + 1 + i);
+    }
+    return out;
+  }
+
+  /* =====================================================================
+     FIRE
+     ================================================================== */
+  function flame(pos, size, life, color, rise) {
+    var m = billboard(T.flame, color == null ? 0xff8a2a : color, .95);
+    m.position.copy(pos);
+    m.renderOrder = 7;
+    scene.add(m);
+    var t = 0, wob = Math.random() * TAU, up = rise == null ? 3.2 : rise;
+    var drift = new THREE.Vector3((Math.random() - .5) * 1.4, 0, (Math.random() - .5) * 1.4);
+    life = life || .6;
+    addFx({ t: life, update: function (dt) {
+      this.t -= dt; t += dt;
+      var k = t / life;
+      m.position.y += up * dt * (1 - k * .5);
+      m.position.addScaledVector(drift, dt);
+      faceCam(m, 0);
+      var flick = 1 + Math.sin(t * 26 + wob) * .16;
+      m.scale.set(size * (.7 + k * .5) * flick, size * (1.35 - k * .45), 1);
+      /* fire goes from white hot through orange to smoke */
+      m.material.color.setHSL(.09 - k * .05, 1, Math.max(.16, .72 - k * .55));
+      m.material.opacity = .95 * Math.max(0, 1 - Math.pow(k, 2));
+      if (this.t <= 0) { kill(m); return false; }
+      return true;
+    } });
+    return m;
+  }
+
+  /* a body of fire: tongues, embers and the smoke off the top of it */
+  function fire(pos, n, radius, size, life) {
+    n = n || 8; radius = radius || 1.4; size = size || 2.4;
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * TAU, d = Math.random() * radius;
+      flame(pos.clone().add(new THREE.Vector3(Math.cos(a) * d, Math.random() * radius * .5, Math.sin(a) * d)),
+        size * (.6 + Math.random() * .8), (life || .7) * (.7 + Math.random() * .7));
+    }
+    streaks(pos.clone(), 0xffc46a, Math.max(2, n / 2 | 0), 10, 1);
+    dust(new THREE.Vector3(pos.x, pos.y + radius, pos.z), Math.max(2, n / 3 | 0), 0x2a2026, radius * 2, size);
+  }
+
+  /* what fire leaves on the ground */
+  function scorch(pos, r, life) {
+    return decal(WEBS[(Math.random() * WEBS.length) | 0], pos, r, 0x140a08, .8, life || 14);
+  }
+
+  /* =====================================================================
+     BLOOD
+     ================================================================== */
+  function blood(pos, dir, n, size) {
+    n = n || 10; size = size || 1.1;
+    var d = (dir || new THREE.Vector3(0, 1, 0)).clone().normalize();
+    for (var i = 0; i < n; i++) {
+      var m = billboard(T.streak, 0x9c0b22, 1, false);
+      m.position.copy(pos);
+      m.renderOrder = 7;
+      scene.add(m);
+      (function (m) {
+        var v = d.clone().multiplyScalar(6 + Math.random() * 13)
+          .add(new THREE.Vector3((Math.random() - .5) * 9, Math.random() * 6, (Math.random() - .5) * 9));
+        var life = .35 + Math.random() * .5, t = 0, s = size * (.5 + Math.random());
+        var landed = false;
+        addFx({ t: life, update: function (dt) {
+          this.t -= dt; t += dt;
+          v.y -= 30 * dt;
+          m.position.addScaledVector(v, dt);
+          if (m.position.y < .2 && !landed) {
+            landed = true;
+            decal(T.blood, new THREE.Vector3(m.position.x, 0, m.position.z),
+              .5 + Math.random() * .9, 0x6d0616, .85, 9 + Math.random() * 6);
+            this.t = 0;
+          }
+          var len = v.length() * .06;
+          orientAlong(m, m.position.clone().addScaledVector(v, -dt * 2), m.position);
+          m.scale.set(Math.max(.4, len) * s, .22 * s, 1);
+          m.material.opacity = Math.min(1, this.t * 4);
+          if (this.t <= 0) { kill(m); return false; }
+          return true;
+        } });
+      })(m);
+    }
+  }
+
+  /* the wet face of a cut, left on the piece it was cut from */
+  function gash(parent, w, h, color) {
+    var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
+      color: color == null ? 0x6d0a1c : color, side: THREE.DoubleSide, toneMapped: false
+    }));
+    m.scale.set(w, h, 1);
+    parent.add(m);
+    return m;
   }
 
   function debris(pos, n, spd, color) {
@@ -988,11 +1372,13 @@
     T: T, tex: T,
     impact: impact, cross: cross, streaks: streaks,
     ring: ring, rings: rings, speedRing: speedRing, slash: slash, wave: wave,
-    dust: dust, cracks: cracks, debris: debris, shockwave: shockwave,
+    dust: dust, cracks: cracks, debris: debris, shockwave: shockwave, plates: plates,
     beam: beam, orb: orb, mote: mote, converge: converge,
     aura: aura, dome: dome,
     flash: flash, mangaLines: mangaLines, letterbox: letterbox, tint: tint, zoom: zoom,
     heavyHit: heavyHit, trail: trail,
+    cutLine: cutLine, lattice: lattice, orientAlong: orientAlong, decal: decal,
+    flame: flame, fire: fire, scorch: scorch, blood: blood, gash: gash,
     billboard: billboard, faceCam: faceCam, ease: ease
   };
 })();
