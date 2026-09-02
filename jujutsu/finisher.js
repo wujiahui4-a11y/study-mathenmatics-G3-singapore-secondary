@@ -442,11 +442,12 @@
 
       var t = 0, hit = false, split = false, opened = false, clamp = false, cut = false;
       var top = null, bot = null;
-      var GAP = 4.4;
+      var GAP = 2.5;
       function pair(open) {
         if (!top || !bot) return;
-        top.rotation.x = -Math.PI / 2;
-        bot.rotation.x = -Math.PI / 2;
+        /* flat, but tipped toward the camera so the 777 still reads */
+        top.rotation.x = -Math.PI / 2 + .4;
+        bot.rotation.x = -Math.PI / 2 + .4;
         top.position.y = open;
         bot.position.y = -open;
         if (HK) {
@@ -476,7 +477,7 @@
           /* the last door goes over — it is a floor now */
           var k = (t - .22) / .22;
           var u = k * k * (3 - 2 * k);
-          incoming.rotation.x = -Math.PI / 2 * u;
+          incoming.rotation.x = (-Math.PI / 2 + .4) * u;
           if (HK) HK.rattleDoor(incoming, .05);
         }
         if (t >= .44 && !split) {
