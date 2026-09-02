@@ -287,6 +287,61 @@
     return tex(c);
   })();
 
+  /* Two textures the blood kit needs that the light kit does not.
+
+     Every other ring in here is T.ring, which is a soft filled disc that
+     happens to be brightest at its edge. Additive blending hides that:
+     the dim middle adds almost nothing. Normal blending does not — the
+     middle covers what is behind it, and a big ring becomes a red bubble
+     over half the arena. So blood gets a real annulus, empty inside.
+
+     T.splat is the same argument for impacts: no filled core, only the
+     blobs, so a splatter is a splatter and not a disc. */
+  T.bloodRing = (function () {
+    var c = canvas(256), g = c.getContext('2d'), h = 128;
+    var grad = g.createRadialGradient(h, h, h * .80, h, h, h);
+    grad.addColorStop(0, 'rgba(255,255,255,0)');
+    grad.addColorStop(.55, 'rgba(255,255,255,.85)');
+    grad.addColorStop(.82, 'rgba(255,255,255,1)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.beginPath(); g.arc(h, h, h, 0, TAU); g.fill();
+    /* broken up, because fluid does not throw a clean circle */
+    g.globalCompositeOperation = 'destination-out';
+    for (var i = 0; i < 26; i++) {
+      var a = Math.random() * TAU, d = h * (.82 + Math.random() * .16);
+      g.beginPath();
+      g.arc(h + Math.cos(a) * d, h + Math.sin(a) * d, 4 + Math.random() * 13, 0, TAU);
+      g.fill();
+    }
+    return tex(c);
+  })();
+
+  T.splat = (function () {
+    var c = canvas(256), g = c.getContext('2d'), i, a, d, r;
+    g.fillStyle = 'rgba(255,255,255,1)';
+    /* a ragged middle rather than a round one */
+    g.beginPath();
+    for (i = 0; i <= 26; i++) {
+      a = i / 26 * TAU;
+      r = 26 + Math.random() * 20;
+      g[i ? 'lineTo' : 'moveTo'](128 + Math.cos(a) * r, 128 + Math.sin(a) * r);
+    }
+    g.closePath(); g.fill();
+    /* and the thrown drops around it */
+    for (i = 0; i < 46; i++) {
+      a = Math.random() * TAU;
+      d = 46 + Math.random() * 82;
+      r = 2 + Math.random() * 10 * (1 - d / 150);
+      g.globalAlpha = .5 + Math.random() * .5;
+      g.beginPath();
+      g.ellipse(128 + Math.cos(a) * d, 128 + Math.sin(a) * d, r, r * (.45 + Math.random()), a, 0, TAU);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+    return tex(c);
+  })();
+
   /* the shell of a domain: latitudes, longitudes and the seams between
      them, so a transparent sphere reads as a sphere from any angle rather
      than as a wash of colour over half the screen */
@@ -446,7 +501,11 @@
     size = size || 1;
     color = color == null ? 0xffffff : color;
 
-    var star = billboard(T.star, 0xffffff, 1);
+    /* the flash frame, which is white for light and the hit's own colour
+       for anything dark enough that white would be the only bright thing
+       left on the screen */
+    var dark = isDark(color);
+    var star = billboard(T.star, dark ? color : 0xffffff, dark ? .75 : 1);
     star.position.copy(pos);
     star.scale.setScalar(size * 2.2);
     scene.add(star);
@@ -457,7 +516,7 @@
       faceCam(star, roll + k * .5);
       /* snap open, then thin out — the flash is over in three frames */
       star.scale.setScalar(size * (2.2 + ease.out(k) * 5.4));
-      star.material.opacity = k < .18 ? 1 : Math.max(0, 1 - (k - .18) / .82);
+      star.material.opacity = (dark ? .75 : 1) * (k < .18 ? 1 : Math.max(0, 1 - (k - .18) / .82));
       if (this.t <= 0) { kill(star); return false; }
       return true;
     } });
@@ -694,9 +753,16 @@
   /* GROUND BREAKING UNDER SOMETHING
      The web of fractures, a dark gap opening along it, plates of the
      surface tipped up out of the gap, and the dust it throws. */
-  function cracks(pos, n, len, color) {
+  /* `grit` tints the pale half of the break — the crumbled lip of the
+     fissure and the dust off it. It defaults to concrete, which is right
+     for a punch through a road and wrong under an effect that has gone
+     out of its way to be dark: pale blue-grey haze under dark red blood
+     is the one bright thing left in the frame. */
+  function cracks(pos, n, len, color, grit) {
     n = n || 7; len = len || 9;
     color = color == null ? 0x0a0d14 : color;
+    var lip = grit == null ? 0x9aa3b2 : grit;
+    var haze = grit == null ? 0xbcc3d0 : grit;
     var R = len * 1.1, i;
     var busy = live > 80;
 
@@ -706,7 +772,7 @@
     var spin = Math.random() * TAU;
     decal(WEBS[w0], pos, R, color, .92, 2.4 + Math.random() * 1.2, spin);
     if (!busy) {
-      decal(WEBS[(w0 + 1) % WEBS.length], pos, R * 1.16, 0x9aa3b2, .3,
+      decal(WEBS[(w0 + 1) % WEBS.length], pos, R * 1.16, lip, .3,
         2.0 + Math.random(), spin + .3);
     }
 
@@ -740,7 +806,7 @@
     }
 
     if (!busy) plates(pos, Math.min(5, 2 + (n / 2 | 0)), len);
-    dust(new THREE.Vector3(pos.x, (pos.y || 0), pos.z), Math.min(6, 2 + (n / 3 | 0)), 0xbcc3d0, len * .5, 2.2);
+    dust(new THREE.Vector3(pos.x, (pos.y || 0), pos.z), Math.min(6, 2 + (n / 3 | 0)), haze, len * .5, 2.2);
   }
 
   /* slabs of the surface levered up out of the break and left standing */
@@ -968,12 +1034,303 @@
 
   /* =====================================================================
      BLOOD
+
+     Blood is not light, and everything else in this kit is.
+
+     Every effect above this line is drawn with additive blending: it adds
+     its colour to whatever is behind it, which is exactly right for a
+     technique made of light and exactly wrong for one made of fluid. Add
+     red to a grey road and you get pink. Add it to itself where two
+     layers cross and you get white. So the old blood beam had a white
+     core and a glowing head, and it read as a laser somebody had tinted
+     red rather than as blood.
+
+     So this section is drawn the other way round, and the rules are:
+
+       · normal blending, never additive — it covers what is behind it
+         instead of brightening it
+       · the core is the DARKEST part, not the lightest. A rope of fluid
+         is dark in the middle where it is thickest and only catches a
+         little light at its edge, which is the opposite of a beam
+       · nothing white anywhere, and no star head or muzzle flare
+       · one narrow off-centre sheen for wetness, at low opacity, because
+         without it the whole thing is a flat shape
+
+     Everything Choso throws goes through here.
      ================================================================== */
+
+  /* the palette: all of it dark, and the "bright" one is still dark */
+  var BL = { deep: 0x1c0106, dark: 0x33020b, mid: 0x4e0512, lit: 0x6d0a1c, wet: 0x8c1526 };
+
+  /* Is this colour a dark one?
+
+     The generic hit effects — the white star of an impact, the white cross
+     of a heavy hit — are built for techniques made of light, and they are
+     applied by the damage path to every hit in the game including the ones
+     thrown by somebody whose whole technique is fluid. Rather than thread
+     a flag down through four call sites, the colour of the hit decides:
+     a dark spark means a dark hit, and the white parts are dropped. */
+  function isDark(color) {
+    var c = new THREE.Color(color);
+    return (c.r * .299 + c.g * .587 + c.b * .114) < .28;
+  }
+
+  /* a flat, non-additive piece of blood */
+  function bloodPlate(map, color, opacity) {
+    var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
+      map: map, color: color, transparent: true, opacity: opacity == null ? 1 : opacity,
+      blending: THREE.NormalBlending, depthWrite: false,
+      side: THREE.DoubleSide, toneMapped: false
+    }));
+    m.renderOrder = 8;
+    return m;
+  }
+
+  /* THE BEAM
+     A rope of blood under pressure, not a beam of light. Dark all the way
+     through, darkest in the middle, with a thin wet line off to one side
+     and the surface crawling along it so it reads as something being
+     pushed rather than something being shone. */
+  function bloodBeam(from, dir, len, opt) {
+    opt = opt || {};
+    var radius = opt.radius || 1.1;
+    var life = opt.life || .3;
+    var d = dir.clone().normalize();
+    var q = new THREE.Quaternion().setFromUnitVectors(UP, d);
+    var parts = [];
+
+    function tube(r, col, op, off) {
+      var m = new THREE.Mesh(CYL, new THREE.MeshBasicMaterial({
+        color: col, transparent: true, opacity: op, blending: THREE.NormalBlending,
+        depthWrite: false, side: THREE.DoubleSide, toneMapped: false
+      }));
+      m.quaternion.copy(q);
+      m.renderOrder = 8;
+      scene.add(m);
+      parts.push({ m: m, r: r, op: op, off: off || null });
+      return m;
+    }
+    /* outside in: rim, body, and a core darker than either */
+    tube(radius, BL.lit, .96);
+    tube(radius * .78, BL.mid, 1);
+    tube(radius * .44, BL.deep, 1);
+    /* the sheen: a thin bright-ish line held off the axis, never centred,
+       because a line down the middle is what makes a thing look lit */
+    var side = new THREE.Vector3(-d.z, 0, d.x);
+    if (side.lengthSq() < .01) side.set(1, 0, 0);
+    side.normalize();
+    tube(radius * .16, BL.wet, .5, side.clone().multiplyScalar(radius * .52));
+
+    /* the mouth of it, which is a splatter and not a flare */
+    var mouth = bloodPlate(T.splat, BL.dark, .9);
+    mouth.position.copy(from);
+    scene.add(mouth);
+
+    var t = 0;
+    addFx({ t: life, update: function (dt) {
+      this.t -= dt; t += dt;
+      var k = 1 - this.t / life;
+      var open = Math.min(1, k / .09);
+      var fade = k > .68 ? 1 - (k - .68) / .32 : 1;
+      /* fluid does not flicker, it swells — a slow wobble along its length */
+      var swell = 1 + Math.sin(t * 30) * .07;
+      var L = len * open;
+      var c = from.clone().addScaledVector(d, L / 2);
+      parts.forEach(function (p) {
+        p.m.position.copy(c);
+        if (p.off) p.m.position.add(p.off);
+        p.m.scale.set(p.r * swell, L, p.r * swell);
+        p.m.material.opacity = p.op * fade;
+      });
+      faceCam(mouth);
+      mouth.scale.setScalar(radius * (2.2 + open * 1.2));
+      mouth.material.opacity = .9 * fade;
+      if (this.t <= 0) {
+        parts.forEach(function (p) { kill(p.m); });
+        kill(mouth);
+        return false;
+      }
+      return true;
+    } });
+  }
+
+  /* a hit: a dark splatter that spreads and sinks, with droplets off it */
+  function bloodBurst(pos, size, dir) {
+    size = size || 2;
+    var p = bloodPlate(T.splat, BL.dark, .95);
+    p.position.copy(pos);
+    scene.add(p);
+    var spin = Math.random() * TAU;
+    var t = 0;
+    addFx({ t: .42, update: function (dt) {
+      this.t -= dt; t += dt;
+      var k = 1 - this.t / .42;
+      faceCam(p, spin);
+      /* it opens and stops: a splatter does not keep growing, and a plate
+         that keeps growing is a disc over the camera */
+      p.scale.setScalar(size * (.55 + ease.out(k) * .6));
+      p.material.opacity = .95 * (1 - k * k);
+      if (this.t <= 0) { kill(p); return false; }
+      return true;
+    } });
+    blood(pos.clone(), dir || new THREE.Vector3(0, 1, 0), Math.round(size * 2.4), size * .5);
+  }
+
+  /* a droplet: the small stuff, and none of it glows either */
+  function bloodMote(pos, size, life) {
+    var m = bloodPlate(T.splat, Math.random() < .5 ? BL.dark : BL.mid, .9);
+    m.position.copy(pos);
+    scene.add(m);
+    var t = 0, dur = life || .3, s = size || 1;
+    var drift = new THREE.Vector3((Math.random() - .5) * 3, -1 - Math.random() * 3, (Math.random() - .5) * 3);
+    addFx({ t: dur, update: function (dt) {
+      this.t -= dt; t += dt;
+      m.position.addScaledVector(drift, dt);
+      faceCam(m);
+      m.scale.setScalar(s * (1 - t / dur * .5));
+      m.material.opacity = .9 * (this.t / dur);
+      if (this.t <= 0) { kill(m); return false; }
+      return true;
+    } });
+  }
+
+  /* threads thrown off whatever it is doing */
+  function bloodThreads(pos, n, reach, life) {
+    n = n || 4;
+    for (var i = 0; i < n; i++) {
+      var m = bloodPlate(T.streak, i % 2 ? BL.mid : BL.dark, .95);
+      m.position.copy(pos);
+      scene.add(m);
+      (function (m) {
+        var a = Math.random() * TAU, e = (Math.random() - .5) * 1.4;
+        var v = new THREE.Vector3(Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e))
+          .multiplyScalar((reach || 12) * (.5 + Math.random()));
+        var dur = (life || 1) * (.6 + Math.random() * .6), t = 0;
+        addFx({ t: dur, update: function (dt) {
+          this.t -= dt; t += dt;
+          v.y -= 16 * dt;
+          m.position.addScaledVector(v, dt);
+          orientAlong(m, m.position.clone().addScaledVector(v, -dt * 2), m.position);
+          m.scale.set(Math.max(.5, v.length() * .05), .2, 1);
+          m.material.opacity = .95 * (this.t / dur);
+          if (this.t <= 0) { kill(m); return false; }
+          return true;
+        } });
+      })(m);
+    }
+  }
+
+  /* a mass of it — the meteorite, the orbs. A dark body with a wet rim,
+     so it has a silhouette without being a light source. */
+  function bloodMass(r) {
+    var g = new THREE.Group();
+    var body = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1),
+      new THREE.MeshStandardMaterial({
+        color: BL.mid, roughness: .28, metalness: .1, flatShading: true
+      }));
+    g.add(body);
+    /* the rim: a slightly larger dark shell, faces inward, so the edge of
+       the mass reads against whatever is behind it */
+    var rim = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1),
+      new THREE.MeshBasicMaterial({
+        color: BL.deep, side: THREE.BackSide, transparent: true, opacity: .95,
+        toneMapped: false, depthWrite: false
+      }));
+    rim.scale.setScalar(1.1);
+    g.add(rim);
+    g.__body = body;
+    return g;
+  }
+
+  /* rings, but sunk into the dark end of the palette and not additive */
+  function bloodRings(pos, n, opt) {
+    opt = opt || {};
+    n = n || 3;
+    for (var i = 0; i < n; i++) {
+      (function (idx) {
+        setTimeout(function () {
+          if (typeof scene === 'undefined') return;
+          var m = bloodPlate(T.bloodRing, idx % 2 ? BL.mid : BL.lit, .7);
+          m.position.copy(pos);
+          if (opt.ground) m.rotation.x = -Math.PI / 2;
+          scene.add(m);
+          var t = 0, dur = opt.life || .6, maxR = opt.maxR || 12;
+          addFx({ t: dur, update: function (dt) {
+            this.t -= dt; t += dt;
+            var k = t / dur;
+            if (!opt.ground) faceCam(m);
+            m.scale.setScalar(ease.out(k) * maxR);
+            m.material.opacity = .7 * (1 - k);
+            if (this.t <= 0) { kill(m); return false; }
+            return true;
+          } });
+        }, idx * (opt.gap == null ? 40 : opt.gap));
+      })(i);
+    }
+  }
+
+  /* a cut made of blood rather than of light: a dark edge with a wet lip */
+  function bloodCut(from, to, width, life) {
+    var w = width || 1, dur = life || .26;
+    var mid = from.clone().add(to).multiplyScalar(.5);
+    var len = from.distanceTo(to);
+    var made = [];
+    [[w, BL.lit, .9], [w * .55, BL.deep, 1]].forEach(function (spec) {
+      var m = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({
+        color: spec[1], transparent: true, opacity: spec[2],
+        blending: THREE.NormalBlending, depthWrite: false,
+        side: THREE.DoubleSide, toneMapped: false
+      }));
+      m.renderOrder = 8;
+      scene.add(m);
+      made.push({ m: m, w: spec[0], op: spec[2] });
+    });
+    var t = 0;
+    addFx({ t: dur, update: function (dt) {
+      this.t -= dt; t += dt;
+      var k = t / dur;
+      made.forEach(function (e) {
+        e.m.position.copy(mid);
+        orientAlong(e.m, from, to);
+        e.m.scale.set(len, e.w * (1 - k * .6), 1);
+        e.m.material.opacity = e.op * (1 - k);
+      });
+      if (this.t <= 0) { made.forEach(function (e) { kill(e.m); }); return false; }
+      return true;
+    } });
+  }
+
+  /* the aura for Flowing Red Scale: pressure, so it beats rather than
+     shines — a dark shell that swells on a pulse */
+  function bloodAura(getPos) {
+    var shell = new THREE.Mesh(new THREE.SphereGeometry(2.4, 20, 14),
+      new THREE.MeshBasicMaterial({
+        color: BL.mid, transparent: true, opacity: .3, blending: THREE.NormalBlending,
+        side: THREE.BackSide, depthWrite: false, toneMapped: false
+      }));
+    scene.add(shell);
+    var t = 0, live = true;
+    addFx({ t: 1e9, update: function (dt) {
+      if (!live) { kill(shell); return false; }
+      t += dt;
+      var beat = 1 + Math.sin(t * 4.4) * .09;        // a pulse, about a heart's
+      shell.position.copy(getPos()).add(new THREE.Vector3(0, 3, 0));
+      shell.scale.setScalar(beat);
+      shell.material.opacity = .24 + Math.sin(t * 4.4) * .08;
+      if (Math.random() < dt * 9) {
+        bloodMote(shell.position.clone().add(new THREE.Vector3(
+          (Math.random() - .5) * 5, (Math.random() - .5) * 5, (Math.random() - .5) * 5)), 1, .4);
+      }
+      return true;
+    } });
+    return { stop: function () { live = false; } };
+  }
+
   function blood(pos, dir, n, size) {
     n = n || 10; size = size || 1.1;
     var d = (dir || new THREE.Vector3(0, 1, 0)).clone().normalize();
     for (var i = 0; i < n; i++) {
-      var m = billboard(T.streak, 0x9c0b22, 1, false);
+      var m = billboard(T.streak, BL.lit, 1, false);
       m.position.copy(pos);
       m.renderOrder = 7;
       scene.add(m);
@@ -1556,11 +1913,13 @@
   /* a body being hit hard: flash frame, cross, spokes, ring, dust */
   function heavyHit(pos, color, power) {
     power = power || 1;
-    /* the white cross is the frame a heavy hit gets; a jab does not earn it */
-    if (power >= .95) cross(pos, 0xffffff, 2.6 * power, .2);
+    var dark = isDark(color);
+    /* the white cross is the frame a heavy hit gets; a jab does not earn it,
+       and neither does a hit whose own colour is darker than the road */
+    if (power >= .95 && !dark) cross(pos, 0xffffff, 2.6 * power, .2);
     impact(pos, color, 1.1 * power);
     ring(pos.clone(), color, { maxR: 5.5 * power, life: .34, ground: false });
-    dust(new THREE.Vector3(pos.x, 0, pos.z), 4, 0xd7dde8, 4, 2);
+    dust(new THREE.Vector3(pos.x, 0, pos.z), 4, dark ? 0x5a3038 : 0xd7dde8, 4, 2);
     addShake(.32 * power);
     if (typeof hitstop === 'function') hitstop(.05 * power);
   }
@@ -1586,8 +1945,13 @@
     aura: aura, dome: dome, barrier: barrier,
     flash: flash, mangaLines: mangaLines, letterbox: letterbox, tint: tint, zoom: zoom,
     heavyHit: heavyHit, trail: trail,
-    cutLine: cutLine, lattice: lattice, orientAlong: orientAlong, decal: decal,
+    isDark: isDark, cutLine: cutLine, lattice: lattice, orientAlong: orientAlong, decal: decal,
     flame: flame, fire: fire, scorch: scorch, blood: blood, gash: gash,
+    /* the dark kit: normal blending, no white anywhere, nothing that adds
+       its colour to what is behind it. Everything Choso throws uses these. */
+    bloodBeam: bloodBeam, bloodBurst: bloodBurst, bloodMote: bloodMote,
+    bloodThreads: bloodThreads, bloodMass: bloodMass, bloodRings: bloodRings,
+    bloodCut: bloodCut, bloodAura: bloodAura, bloodPlate: bloodPlate, BL: BL,
     billboard: billboard, faceCam: faceCam, ease: ease
   };
 })();

@@ -343,6 +343,62 @@
       CUT.nr.run(e, d, p, G);
     } },
 
+    /* 4 · Twenty Four Frames — he does not hit them with the last one.
+       The twenty four panes he printed them into stack up, the stack
+       closes, and what is left is one blank frame where somebody was. */
+    n4: { name: 'CUT FROM THE FILM', color: '#9fd8ff', hold: 1.2, run: function (e, d, p, G) {
+      var panes = [];
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      for (var i = 0; i < 12; i++) {
+        (function (n) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            var a = n / 12 * TAU;
+            /* the game's own glass frame, which is the thing his whole
+               technique puts people inside */
+            var m = makeGlassPane();
+            m.scale.setScalar(.62);
+            m.position.copy(p).add(new THREE.Vector3(
+              Math.cos(a) * 7, (n % 3 - 1) * 1.4, Math.sin(a) * 7));
+            m.lookAt(p);
+            scene.add(m);
+            panes.push({ m: m, from: m.position.clone() });
+            FX.streaks(m.position.clone(), 0x9fd8ff, 1, 9, .5);
+          }, n * 34);
+        })(i);
+      }
+      /* the stack closes on them */
+      var t = 0;
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        addFx({ t: .55, update: function (dt) {
+          this.t -= dt; t += dt;
+          var k = Math.min(1, t / .55);
+          panes.forEach(function (q) {
+            q.m.position.lerpVectors(q.from, p, k * k);
+            q.m.lookAt(p);
+            q.m.scale.setScalar(.62 * (1 - k * .35));
+          });
+          return this.t > 0;
+        } });
+      }, 440);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        panes.forEach(function (q) {
+          glassShards(q.m.position.clone(), 5);
+          scene.remove(q.m);
+          q.m.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+        });
+        FX.flash('#dff0ff', .5, .28);
+        if (typeof hitstop === 'function') hitstop(.16);
+        FX.cross(p, 0xffffff, 7, .26);
+        try { sfx.shatter(); } catch (er) {}
+        /* removed from the second: nothing falls over */
+        G.erase(e, { color: 0x9fd8ff });
+        addShake(2);
+      }, 1030);
+    } },
+
     /* ---------------------------------------------------------- YUJI */
     /* 1 · Divergent Fist — the second one arrives after the body has left */
     y1: { name: 'HIT TWICE', color: '#ff8a5c', hold: .85, run: function (e, d, p, G) {
@@ -714,16 +770,16 @@
        through. The tell is what comes out of the far side. */
     c1: { name: 'PIERCED', color: '#d4143c', hold: .8, run: function (e, d, p, G) {
       var thr = p.clone().addScaledVector(d, 26);
-      FX.cutLine(p.clone().addScaledVector(d, -6), thr, 0xffffff, .5, .3);
-      FX.beam(p.clone().addScaledVector(d, -4), d, 32, 0xd4143c, { radius: .5, life: .32 });
-      FX.impact(p.clone(), 0xd4143c, 2.2);
+      FX.bloodBeam(p.clone().addScaledVector(d, -4), d, 32, { radius: .55, life: .34 });
+      FX.bloodCut(p.clone().addScaledVector(d, -6), thr, .5, .3);
+      FX.bloodBurst(p.clone(), 2.2, d.clone());
       if (typeof hitstop === 'function') hitstop(.12);
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
         /* the jet out of the back of them, which is the whole picture */
         FX.blood(p.clone(), d.clone(), 12, 2.4);
-        FX.streaks(p.clone().addScaledVector(d, 4), 0x8b0f2a, 7, 22, 1.6);
-        FX.flash('#d4143c', .35, .2);
+        FX.bloodThreads(p.clone().addScaledVector(d, 4), 7, 22, 1.6);
+        FX.tint('#40040f', .4, .22);
         G.sever(e, { dir: d, power: 1.5, cubes: 6, color: 0x8b0f2a });
         addShake(1.5);
       }, 420);
@@ -735,28 +791,25 @@
       var n = 0;
       var iv = setInterval(function () {
         if (n++ > 13 || typeof scene === 'undefined') { clearInterval(iv); return; }
-        FX.beam(p.clone().addScaledVector(d, -7), d, 16, 0xd4143c,
-          { radius: .34 + Math.random() * .12, life: .13 });
-        FX.beam(p.clone().addScaledVector(d, -7), d, 16, 0xffffff,
-          { radius: .12, life: .12 });
+        FX.bloodBeam(p.clone().addScaledVector(d, -7), d, 16,
+          { radius: .36 + Math.random() * .12, life: .14 });
         FX.blood(p.clone(), d.clone(), 3, 1.1);
-        FX.mote(p.clone(), 0x8b0f2a, 2.4, .22);
+        FX.bloodMote(p.clone(), 1.2, .22);
         addShake(.3);
       }, 90);
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
-        FX.flash('#ffffff', .5, .25);
+        FX.tint('#40040f', .5, .28);
         if (typeof hitstop === 'function') hitstop(.14);
-        FX.rings(p.clone(), 0xd4143c, 3, { maxR: 11, life: .5, ground: false, gap: 40 });
-        G.erase(e, { color: 0x8b0f2a });
+        FX.bloodRings(p.clone(), 3, { maxR: 11, life: .5, gap: 40 });
+        G.erase(e, { color: 0x4e0512 });
         addShake(1.8);
       }, 1300);
     } },
 
     /* 2 · Blood Meteorite — the mass comes down and they are under it */
     c2: { name: 'UNDER IT', color: '#8b0f2a', hold: 1, run: function (e, d, p, G) {
-      var mass = new THREE.Mesh(new THREE.IcosahedronGeometry(3.2, 0),
-        new THREE.MeshBasicMaterial({ color: 0x8b0f2a, toneMapped: false }));
+      var mass = FX.bloodMass(3.2);
       mass.position.copy(p).add(up(34));
       scene.add(mass);
       var t = 0;
@@ -765,18 +818,17 @@
         var k = Math.min(1, t / .62);
         mass.position.y = p.y + 34 * (1 - k * k);
         mass.rotation.x += dt * 5; mass.rotation.y += dt * 4;
-        if (Math.random() < .6) FX.mote(mass.position.clone(), 0xd4143c, 2.6, .3);
+        if (Math.random() < .6) FX.bloodMote(mass.position.clone(), 1.6, .3);
         if (k < 1) return true;
         scene.remove(mass);
-        mass.material.dispose();
         return false;
       } });
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
-        FX.flash('#8b0f2a', .55, .25);
+        FX.tint('#40040f', .55, .28);
         if (typeof hitstop === 'function') hitstop(.16);
-        FX.impact(new THREE.Vector3(p.x, .4, p.z), 0x8b0f2a, 6);
-        FX.cracks(new THREE.Vector3(p.x, .1, p.z), 14, 20, 0x4a0512);
+        FX.bloodBurst(new THREE.Vector3(p.x, .4, p.z), 6, up(1));
+        FX.cracks(new THREE.Vector3(p.x, .1, p.z), 14, 20, 0x1c0106, 0x5a3038);
         FX.blood(p.clone(), up(1), 16, 3);
         G.flatten(e, { color: 0x8b0f2a });
         addShake(2.6);
@@ -793,23 +845,23 @@
             Math.cos(a) * 11, (ring - 1) * 5, Math.sin(a) * 11));
           setTimeout(function () {
             if (typeof scene === 'undefined') return;
-            FX.streaks(from, 0xd4143c, 2, 16, .9);
-            FX.converge(p.clone(), 0x8b0f2a, 6, 12, .5);
+            FX.bloodThreads(from, 2, 16, .9);
+            FX.bloodMote(from.clone(), 1.4, .5);
           }, n * 34);
         })(i);
       }
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
         /* held small and dark for a beat — that is what sells the burst */
-        FX.flash('#2a0208', .7, .18);
-        FX.impact(p.clone(), 0x4a0512, 2);
+        FX.tint('#0e0104', .8, .2);
+        FX.bloodBurst(p.clone(), 2, up(1));
         if (typeof hitstop === 'function') hitstop(.2);
       }, 800);
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
-        FX.flash('#ffd8e0', .8, .4);
-        FX.rings(p.clone(), 0xd4143c, 6, { maxR: 34, life: .9, ground: false, gap: 44 });
-        FX.debris(new THREE.Vector3(p.x, .2, p.z), 20, 22, 0x4a0512);
+        FX.bloodRings(p.clone(), 6, { maxR: 34, life: .9, gap: 44 });
+        FX.bloodThreads(p.clone(), 16, 30, 1.6);
+        FX.debris(new THREE.Vector3(p.x, .2, p.z), 20, 22, 0x1c0106);
         G.dice(e, { dir: d, power: 1.9, cubes: 26, color: 0x8b0f2a });
         addShake(3);
       }, 1000);
@@ -822,13 +874,13 @@
       var iv = setInterval(function () {
         if (n++ > 8 || typeof scene === 'undefined') { clearInterval(iv); return; }
         /* the swell: rings tight on the body, getting faster */
-        FX.rings(p.clone(), 0xd4143c, 1, { maxR: 2 + n * .5, life: .22, ground: false });
-        FX.mote(p.clone(), 0x8b0f2a, 2 + n * .3, .2);
+        FX.bloodRings(p.clone(), 1, { maxR: 2 + n * .5, life: .22 });
+        FX.bloodMote(p.clone(), 1 + n * .18, .2);
         addShake(.2 + n * .12);
       }, 95);
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
-        FX.flash('#ff2a4a', .6, .3);
+        FX.tint('#48060f', .6, .32);
         if (typeof hitstop === 'function') hitstop(.15);
         for (var i = 0; i < 10; i++) {
           var a = Math.random() * TAU, e2 = Math.random() * Math.PI - Math.PI / 2;
@@ -844,16 +896,14 @@
        still standing on it for a moment afterwards */
     cr: { name: 'OPENED', color: '#d4143c', hold: .9, run: function (e, d, p, G) {
       var side = new THREE.Vector3(-d.z, 0, d.x);
-      FX.cutLine(p.clone().addScaledVector(side, -5), p.clone().addScaledVector(side, 5),
-        0xd4143c, 1.1, .34);
-      FX.cutLine(p.clone().addScaledVector(side, -5), p.clone().addScaledVector(side, 5),
-        0xffffff, .34, .3);
+      FX.bloodCut(p.clone().addScaledVector(side, -5), p.clone().addScaledVector(side, 5),
+        1.2, .34);
       if (typeof hitstop === 'function') hitstop(.13);
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
         FX.blood(p.clone(), side.clone(), 9, 2);
         FX.blood(p.clone(), side.clone().negate(), 9, 2);
-        FX.flash('#d4143c', .4, .22);
+        FX.tint('#40040f', .45, .24);
         /* level, and it stands there a beat longer than the others do */
         G.halve(e, { dir: d, power: 1.1, tilt: 0, color: 0x8b0f2a, stand: .5 });
         addShake(1.4);
@@ -865,7 +915,7 @@
   var STYLE = {
     red: 'sever', rapid: 'flat', tf: 'ragdoll', palm: 'flat', lim: 'gone',
     aw_blue: 'gone', aw_red: 'dice', aw_purple: 'gone', aw_domain: 'ragdoll',
-    n1: 'dice', n2: 'sever', n3: 'ragdoll', nr: 'sever', nrf: 'sever',
+    n1: 'dice', n2: 'sever', n3: 'ragdoll', n4: 'gone', nr: 'sever', nrf: 'sever',
     y1: 'sever', y2: 'dice', y3: 'sever', y4: 'flat', yr: 'burn',
     h1: 'sever', h2: 'dice', h3: 'flat', h4: 'burn', hr: 'ragdoll',
     s1: 'dice', s2: 'sever', s3: 'burn', s4: 'dice',

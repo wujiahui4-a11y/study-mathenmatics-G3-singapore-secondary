@@ -1704,6 +1704,46 @@
         FX.cracks(pos.clone(), 14, 16, 0x14060a);
         if (close) addShake(1.4);
         break;
+      /* ------------------------------------------------------ CHOSO
+         All five of these are relayed through his own routines, so what
+         everybody else sees is the same dark blood the caster sees and
+         not a bright stand-in. The hits travel as their own messages. */
+      case 'c1':
+        setTimeout(function () {
+          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.lance(pos.clone(), yaw);
+        }, 300);
+        break;
+      case 'c1s':
+        /* the held stream: it is re-sent every tick it runs, so this is a
+           short burst that simply keeps being replaced */
+        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.stream(pos.clone(), yaw);
+        break;
+      case 'c2':
+        setTimeout(function () {
+          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.meteorite(pos.clone(), yaw);
+        }, 450);
+        break;
+      case 'c3':
+        setTimeout(function () {
+          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.supernova(pos.clone());
+        }, 500);
+        break;
+      case 'c4':
+        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.scale(pos.clone());
+        if (close) addShake(.7);
+        break;
+      case 'cr':
+        setTimeout(function () {
+          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.edge(pos.clone(), yaw);
+        }, 260);
+        break;
+      case 'n4':
+        /* the shot he framed, and the twenty four stills inside it */
+        if (window.JJNAOYA && window.JJNAOYA.remoteFrames) {
+          window.JJNAOYA.remoteFrames(pos.clone(), yaw, rig);
+        }
+        if (close) addShake(.5);
+        break;
       case 'nrush':
         FX.rings(pos, 0x9fd8ff, 3, { maxR: 15, life: .6, gap: 55 });
         FX.cracks(pos.clone(), 7, 10, 0x2a2018);

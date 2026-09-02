@@ -1776,6 +1776,14 @@
   updatePlayer = function (dt) {
     if (CINE.on) return;                            // the cut owns both of us
     if (RUSH.on) { stepRush(dt); return; }
+    /* Twenty Four Frames takes him off the field for its second, and an
+       action can end in ways that never reach its own last beat — a death,
+       a hit that clears it, a fighter swap. Anything but being inside that
+       second means he is on the field, so put him back. */
+    if (player.rig && player.rig.root && !player.rig.root.visible &&
+        !(player.action && player.action.type === 'n4')) {
+      player.rig.root.visible = true;
+    }
     _updatePlayer(dt);
   };
 
@@ -1805,6 +1813,372 @@
      Wrapped here because this file is the last one to touch the casts,
      so the awakened versions are covered too.
      ================================================================== */
+  /* =====================================================================
+     4 · TWENTY FOUR FRAMES   二十四枚
+
+     The bar was missing one, and the source says exactly what it should
+     be. Projection Sorcery "divides one second into twenty-four frames of
+     animation USING THE USER'S FIELD OF VIEW AS THE PROJECTION ANGLE OF
+     VIEW", and anyone who cannot keep to that rule spends a second inside
+     a frame.
+
+     His other three are all one man reaching one other man: a lunge, a
+     stab, a grab. Nothing on his bar used the half of the technique that
+     is about the field of view rather than about speed. So this is that
+     half. He frames what he is looking at — a real cone, drawn on the
+     floor, as wide as what he can see — and lays one second over it. He
+     is then in all twenty four frames of that second at once, and each
+     one lands as it comes up. Whatever is still standing in the cone at
+     the end of the second was not keeping up, and is put in a frame.
+
+     Which makes it the one thing he did not have: an opening move that
+     covers ground, sets up the frame-break on R, and ends with him
+     somewhere other than where he started.
+     ================================================================== */
+  var N4 = {
+    cd: 14,
+    lead: .3,               // framing the shot
+    run: 1,                 // one second, which is the whole point
+    tail: .28,
+    frames: 24,             // and this is why
+    reach: 34,              // how far he can see
+    spread: .52,            // half the angle of view, in radians
+    hit: 3,                 // what one frame catches, close to him
+    fan: .45,               // and how much more of it, the further out it is
+    dmg: 3.6,
+    proj: 7                 // twenty four of these is well past a frame
+  };
+
+  function n4Dir() {
+    var f = camForward();
+    f.y = 0;
+    return f.lengthSq() < .01 ? new THREE.Vector3(0, 0, 1) : f.normalize();
+  }
+
+  /* where frame number `i` of the second is. They sweep across the angle
+     of view and step away from him as they go, so the second reads as a
+     pan rather than as a ring of copies. */
+  function n4Spot(origin, dir, i) {
+    var k = i / (N4.frames - 1);
+    var side = new THREE.Vector3(-dir.z, 0, dir.x);
+    /* Four passes across the view while it advances. One pass leaves half
+       the cone never visited, and two only ever reach each edge at one
+       particular depth — so somebody standing wide and close is never in
+       any frame at all. Four crosses the whole width at every range. */
+    var sweep = Math.sin(k * Math.PI * 4) * N4.spread;
+    var depth = 5 + k * (N4.reach - 7);
+    return origin.clone()
+      .addScaledVector(dir, depth)
+      .addScaledVector(side, Math.tan(sweep) * depth * .55);
+  }
+
+  /* the strip on the floor: what he is looking at, marked out, with
+     sprocket holes down both edges of it */
+  function n4Strip(origin, dir) {
+    var side = new THREE.Vector3(-dir.z, 0, dir.x);
+    var made = [];
+    function edge(sign) {
+      var a = origin.clone().addScaledVector(dir, 4)
+        .addScaledVector(side, sign * Math.tan(N4.spread) * 4);
+      var b = origin.clone().addScaledVector(dir, N4.reach)
+        .addScaledVector(side, sign * Math.tan(N4.spread) * N4.reach);
+      FX.cutLine(a.setY(.08), b.setY(.08), 0x9fd8ff, .5, N4.lead + N4.run + .3);
+    }
+    edge(1); edge(-1);
+    /* the sprockets, marching away down both edges */
+    for (var i = 0; i < 16; i++) {
+      var d = 5 + i * ((N4.reach - 5) / 15);
+      for (var sgn = -1; sgn <= 1; sgn += 2) {
+        var at = origin.clone().addScaledVector(dir, d)
+          .addScaledVector(side, sgn * Math.tan(N4.spread) * d);
+        FX.decal(FX.T.ring, new THREE.Vector3(at.x, .06, at.z), .55, 0x9fd8ff, .5, .9);
+      }
+    }
+    return made;
+  }
+
+  /* One frame of the second: a still of him, held for a frame and gone.
+
+     Both halves of this are deliberately dim. Twenty four of them land in
+     one second and each one overlaps the six before it, so anything drawn
+     additively — which is what every other effect he has is drawn with —
+     stacks twenty four deep and the screen goes to white. A film frame is
+     a surface anyway: it is a pane with a picture on it, not a light. So
+     the pane is normally blended and mostly transparent, and only every
+     other frame gets one, which leaves the copies of him as the thing you
+     are actually looking at. */
+  function n4Still(pos, dir, n) {
+    if (!player.dead) {
+      player.rig.root.position.copy(pos);
+      player.rig.root.position.y = 0;
+      ghostAfterimage(player.rig, n % 2 ? 0x9fd8ff : 0xcfeaff, .26);
+    }
+    if (n % 2) return;
+    var pane = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 4.6),
+      new THREE.MeshBasicMaterial({
+        map: TEX_PANE, color: 0xdff0ff, transparent: true, opacity: .3,
+        blending: THREE.NormalBlending, depthWrite: false, side: THREE.DoubleSide,
+        toneMapped: false
+      }));
+    pane.position.copy(pos);
+    pane.position.y = 3;
+    pane.rotation.y = Math.atan2(-dir.x, -dir.z);
+    scene.add(pane);
+    var t = 0;
+    addFx({ t: .26, update: function (dt) {
+      this.t -= dt; t += dt;
+      var k = t / .26;
+      pane.material.opacity = .3 * (1 - k);
+      pane.scale.setScalar(1 + k * .22);
+      if (this.t <= 0) {
+        scene.remove(pane);
+        pane.material.dispose();
+        pane.geometry.dispose();
+        return false;
+      }
+      return true;
+    } });
+  }
+
+  function castN4() {
+    if (player.char !== 'naoya' || player.dead || cds.n4 > 0 || busy()) return;
+    cds.n4 = N4.cd;
+    player.action = {
+      type: 'n4', t: 0, dur: N4.lead + N4.run + N4.tail,
+      n: 0, home: player.pos.clone(), dir: n4Dir(), staged: false, caught: []
+    };
+    showSplash('TWENTY FOUR FRAMES', '\u4e8c\u5341\u56db\u679a', '#9fd8ff');
+    try { sfx.raise(); } catch (e) {}
+  }
+
+  function stepN4(a, dt) {
+    var origin = a.home.clone().add(new THREE.Vector3(0, 0, 0));
+
+    /* ---- framing the shot ---- */
+    if (a.t < N4.lead) {
+      if (!a.staged) {
+        a.staged = true;
+        n4Strip(origin, a.dir);
+        FX.mangaLines(.5, .3);
+        FX.speedRing(player.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0x9fd8ff, 7, .3);
+        addShake(.4);
+      }
+      return;
+    }
+
+    /* ---- the second itself, twenty four frames of it ---- */
+    if (a.t < N4.lead + N4.run) {
+      /* he is not in this second, so he is not on the field either */
+      player.rig.root.visible = false;
+      player.iframes = Math.max(player.iframes, .1);
+      var want = Math.min(N4.frames, Math.floor((a.t - N4.lead) / (N4.run / N4.frames)) + 1);
+      while (a.n < want) {
+        var spot = n4Spot(origin, a.dir, a.n);
+        n4Still(spot, a.dir, a.n);
+        /* what that frame catches */
+        /* a frame covers more ground the further away it is, because that
+           is what a cone of view does — it is the same angle either way */
+        var depth = spot.distanceTo(origin);
+        var reach = N4.hit + Math.tan(N4.spread) * depth * N4.fan;
+        var hits = enemiesNear(spot.clone().add(new THREE.Vector3(0, 2.5, 0)), reach);
+        for (var i = 0; i < hits.length; i++) {
+          var e = hits[i];
+          var kb = a.dir.clone().multiplyScalar(3).setY(.4);
+          e.damage(N4.dmg, kb, {
+            stun: .2, color: '#cfe4ff', spark: 0x9fd8ff,
+            react: a.n % 3 ? 'head' : 'stagger', reactDur: .3, side: a.n % 2 ? -1 : 1,
+            noFrameBonus: true
+          });
+          if (e.applyProj) e.applyProj(N4.proj, true);
+          if (a.caught.indexOf(e) < 0) a.caught.push(e);
+        }
+        if (hits.length && a.n % 3 === 0) { addShake(.14); try { sfx.punch(); } catch (er) {} }
+        a.n++;
+      }
+      /* he travels with the sequence, so the last frame is where he ends */
+      var here = n4Spot(origin, a.dir, Math.max(0, a.n - 1));
+      player.pos.x = here.x;
+      player.pos.z = here.z;
+      player.vel.set(0, 0, 0);
+      collideWorld(player.pos, 1);
+      return;
+    }
+
+    /* ---- and the second is over ---- */
+    if (!a.done) {
+      a.done = true;
+      player.rig.root.visible = true;
+      FX.flash('#dff0ff', .35, .22);
+      FX.speedRing(player.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0xbfe6ff, 9, .35);
+      FX.ring(new THREE.Vector3(player.pos.x, .1, player.pos.z), 0x9fd8ff,
+        { maxR: 8, life: .4 });
+      addShake(.8);
+      if (AN) AN.camKick(1);
+      if (typeof hitstop === 'function') hitstop(.08);
+      try { sfx.frame(); } catch (e) {}
+      /* whoever could not keep up spends the next second in a frame */
+      a.caught.forEach(function (e) {
+        if (!e || e.dead || e.frameT > 0) return;
+        e.enterFrame('player');
+      });
+      if (window.JJAW) window.JJAW.gain(10);
+    }
+  }
+
+  function poseN4(r, a) {
+    var t = a.t;
+    /* framing it: the near hand up, thumb and finger squared off, sighting
+       down it — a director looking through a shot */
+    if (t < N4.lead) {
+      var k = E.out(Math.min(1, t / N4.lead));
+      rp(r);
+      r.shoulderL.rotation.x = -1.5 * k;
+      r.shoulderR.rotation.x = -1.34 * k;
+      r.shoulderL.rotation.z = .34 * k;
+      r.shoulderR.rotation.z = -.5 * k;
+      r.elbowL.rotation.x = -1.1 * k;
+      r.elbowR.rotation.x = -1.5 * k;
+      r.neck.rotation.x = -.1 * k;
+      r.spine.rotation.x = -.08 * k;
+      r.hipL.rotation.x = -.24 * k; r.kneeL.rotation.x = .46 * k;
+      r.hipR.rotation.x = .2 * k; r.kneeR.rotation.x = .3 * k;
+      r.hips.position.y = r.hipsBaseY - .18 * k;
+      return true;
+    }
+    /* inside the second: the still every frame is printed from — one long
+       stride, arm trailing, nothing settled, because a frame is a moment
+       and not a stance */
+    if (t < N4.lead + N4.run) {
+      rp(r);
+      var s = (t - N4.lead) * 26;
+      r.spine.rotation.x = -.3;
+      r.neck.rotation.x = -.14;
+      r.shoulderR.rotation.x = -2.1;
+      r.elbowR.rotation.x = -.34;
+      r.shoulderL.rotation.x = 1.05;
+      r.elbowL.rotation.x = -.5;
+      r.hipL.rotation.x = -1.15 + Math.sin(s) * .12;
+      r.kneeL.rotation.x = 1.5;
+      r.hipR.rotation.x = .85;
+      r.kneeR.rotation.x = .2;
+      r.hips.position.y = r.hipsBaseY + .3;
+      return true;
+    }
+    /* landing out of it */
+    var out = E.out(Math.min(1, (t - N4.lead - N4.run) / N4.tail));
+    rp(r);
+    r.spine.rotation.x = .3 * (1 - out);
+    r.neck.rotation.x = .16 * (1 - out);
+    r.shoulderL.rotation.x = -.7 * (1 - out);
+    r.shoulderR.rotation.x = -.55 * (1 - out);
+    r.elbowL.rotation.x = -.75 * (1 - out);
+    r.elbowR.rotation.x = -.6 * (1 - out);
+    r.kneeL.rotation.x = .8 * (1 - out);
+    r.kneeR.rotation.x = .7 * (1 - out);
+    r.hips.position.y = r.hipsBaseY - .5 * (1 - out);
+    return true;
+  }
+
+  /* the pose every other client plays for it, off the broadcast action */
+  NA.poseN4 = poseN4;
+  NA.n4 = { spot: n4Spot, strip: n4Strip, still: n4Still, cfg: N4 };
+
+  /* WHAT EVERYBODY ELSE SEES
+     The caster's own position is broadcast every tick, so a remote Naoya
+     already travels the sweep and already poses off the action. What does
+     not travel is the shot he framed and the stills printed inside it, so
+     that is what this draws — and no damage, because every hit came as
+     its own message. */
+  NA.remoteFrames = function (pos, yaw, rig) {
+    var dir = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    var origin = pos.clone();
+    n4Strip(origin, dir);
+    FX.speedRing(pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0x9fd8ff, 7, .3);
+    for (var i = 0; i < N4.frames; i++) {
+      (function (n) {
+        setTimeout(function () {
+          if (typeof scene === 'undefined') return;
+          var spot = n4Spot(origin, dir, n);
+          /* the copy of them, off their rig rather than ours */
+          if (rig && rig.root) {
+            var keep = rig.root.position.clone();
+            rig.root.position.copy(spot);
+            rig.root.position.y = 0;
+            ghostAfterimage(rig, n % 2 ? 0x9fd8ff : 0xcfeaff, .26);
+            rig.root.position.copy(keep);
+          }
+          if (n % 2) return;
+          var pane = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 4.6),
+            new THREE.MeshBasicMaterial({
+              map: TEX_PANE, color: 0xdff0ff, transparent: true, opacity: .3,
+              blending: THREE.NormalBlending, depthWrite: false,
+              side: THREE.DoubleSide, toneMapped: false
+            }));
+          pane.position.copy(spot);
+          pane.position.y = 3;
+          pane.rotation.y = Math.atan2(-dir.x, -dir.z);
+          scene.add(pane);
+          var t = 0;
+          addFx({ t: .26, update: function (dt) {
+            this.t -= dt; t += dt;
+            pane.material.opacity = .3 * (1 - t / .26);
+            if (this.t <= 0) {
+              scene.remove(pane);
+              pane.material.dispose();
+              pane.geometry.dispose();
+              return false;
+            }
+            return true;
+          } });
+        }, N4.lead * 1000 + n * (N4.run * 1000 / N4.frames));
+      })(i);
+    }
+    setTimeout(function () {
+      if (typeof scene === 'undefined') return;
+      FX.speedRing(pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0xbfe6ff, 9, .35);
+      FX.ring(new THREE.Vector3(pos.x, .1, pos.z), 0x9fd8ff, { maxR: 8, life: .4 });
+    }, (N4.lead + N4.run) * 1000);
+  };
+
+  /* ------------------------------------------------------------- wiring */
+  CD.n4 = N4.cd;
+  cds.n4 = 0;
+  (function () {
+    var mv = CHARS.naoya.moves;
+    for (var i = 0; i < mv.length; i++) if (mv[i].cd === 'n4') return;
+    /* after "You're Not Toji" and before R, where the 4 key belongs */
+    var at3 = -1;
+    for (var j = 0; j < mv.length; j++) if (mv[j].cd === 'n3') at3 = j;
+    mv.splice(at3 + 1, 0, { key: '4', lbl: '24 Frames', cd: 'n4', max: N4.cd });
+  })();
+
+  var _stepActionN = stepAction;
+  stepAction = function (a, dt) {
+    if (a.type === 'n4') return stepN4(a, dt);
+    return _stepActionN(a, dt);
+  };
+
+  var _poseActionN = poseAction;
+  poseAction = function (r, a) {
+    if (a && a.type === 'n4' && poseN4(r, a)) return;
+    return _poseActionN(r, a);
+  };
+
+  window.addEventListener('keydown', function (e) {
+    if (!started || player.char !== 'naoya' || e.repeat) return;
+    if (e.code !== 'Digit4') return;
+    if (RUSH.on || CINE.on) return;
+    castN4();
+    e.stopImmediatePropagation();
+  }, true);
+
+  /* he must not be left invisible if the second is cut short */
+  var _switchCharN = switchChar;
+  switchChar = function (id) {
+    if (player.rig && player.rig.root) player.rig.root.visible = true;
+    return _switchCharN(id);
+  };
+
   function stunned() {
     if (CINE.on || RUSH.on) return true;
     if (player.react) return true;                  // mid flinch
@@ -1830,6 +2204,7 @@
   castN2 = guard(castN2);
   castN3 = guard(castN3);
   castNaoyaR = guard(castNaoyaR);
+  castN4 = guard(castN4);
   if (window.__game) {
     window.__game.castRed = castRed;
     window.__game.castRapid = castRapid;
@@ -1840,6 +2215,7 @@
     window.__game.castN2 = castN2;
     window.__game.castN3 = castN3;
     window.__game.castNaoyaR = castNaoyaR;
+    window.__game.castN4 = castN4;
   }
 
 })();

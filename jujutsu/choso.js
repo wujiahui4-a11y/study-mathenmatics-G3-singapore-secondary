@@ -34,7 +34,14 @@
   var E = FX.ease;
   var TAU = Math.PI * 2;
 
-  var BLOOD = 0x8b0f2a, BRIGHT = 0xd4143c, DARK = 0x4a0512, PALE = 0xf0d8dc;
+  /* The palette, and every entry in it is dark.
+
+     There is no bright red here on purpose. The hit confirm sets the
+     victim's emissive from `spark`, so a bright value makes the body they
+     are standing in glow — which is the same mistake as a glowing beam,
+     just on somebody else's mesh. A dark red emissive reads as blood
+     soaking through and adds almost nothing to the frame. */
+  var BLOOD = 0x4e0512, BRIGHT = 0x6d0a1c, DARK = 0x1c0106, PALE = 0x8c1526;
 
   var CH = window.JJCHOSO = { stream: null, scale: 0 };
 
@@ -172,14 +179,16 @@
      behind it rather than around it */
   function lance(from, dir, len, wide) {
     var to = from.clone().addScaledVector(dir, len);
-    FX.cutLine(from.clone(), to, 0xffdde4, wide * 1.5, .2);
-    FX.beam(from.clone(), dir, len, BRIGHT, { radius: wide * .5, life: .28 });
-    FX.beam(from.clone(), dir, len, 0xffffff, { radius: wide * .18, life: .24 });
+    /* the whole shot, drawn dark: a rope of blood with a darker core, a
+       cut of the same colour laid along it, and threads shed off it.
+       Nothing here brightens what is behind it. */
+    FX.bloodBeam(from.clone(), dir, len, { radius: wide * .52, life: .3 });
+    FX.bloodCut(from.clone(), to, wide * .5, .22);
     for (var i = 0; i < 7; i++) {
       var at = from.clone().addScaledVector(dir, len * (i + 1) / 8);
-      FX.streaks(at, BLOOD, 2, 14, 1.1);
+      FX.bloodThreads(at, 2, 13, 1);
     }
-    FX.impact(from.clone().addScaledVector(dir, 1.4), BRIGHT, 1.4);
+    FX.bloodBurst(from.clone().addScaledVector(dir, 1.4), 2, dir.clone());
   }
 
   function castPierce() {
@@ -195,8 +204,8 @@
     /* Convergence: it is pulled in before it is let go */
     if (a.t < .3) {
       var hands = p.pos.clone().addScaledVector(aim(), 1.1).add(new THREE.Vector3(0, 3.1, 0));
-      if (Math.random() < .8) FX.mote(hands, BLOOD, 3.4, .3);
-      if (a.t > .16 && Math.random() < .4) FX.streaks(hands, BRIGHT, 1, 5, .8);
+      if (Math.random() < .8) FX.bloodMote(hands, 1.5, .3);
+      if (a.t > .16 && Math.random() < .4) FX.bloodThreads(hands, 1, 5, .8);
       return;
     }
     if (!a.fired) {
@@ -204,7 +213,7 @@
       var d = aim();
       var from = p.pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, 3.1, 0));
       lance(from, d, PB.lance.range, PB.lance.width);
-      FX.flash('#ffd9dd', .3, .18);
+      FX.tint('#3a0410', .3, .18);
       FX.mangaLines(.6, .25);
       addShake(1);
       FX.zoom(-7, .35);
@@ -214,7 +223,7 @@
       p.vel.addScaledVector(d, -7);        // it has a recoil
       inLine(from, d, PB.lance.range, PB.lance.width, null).forEach(function (e) {
         e.damage(PB.lance.dmg * scale(), d.clone().multiplyScalar(16).setY(6), {
-          react: 'slash', reactDur: .5, spark: BRIGHT, color: '#ff5f7a',
+          react: 'slash', reactDur: .5, spark: BRIGHT, color: '#c8203c',
           bleed: true, death: 'sever'
         });
       });
@@ -241,7 +250,7 @@
     });
     if (AN) AN.camRelease();
     FX.letterbox(false);
-    if (window.JJNOTICE) window.JJNOTICE('HOLDING — RELEASE TO STOP', '#ff5f7a');
+    if (window.JJNOTICE) window.JJNOTICE('HOLDING — RELEASE TO STOP', '#c8203c');
     try { sfx.redFire(); } catch (e) {}
   }
 
@@ -256,7 +265,7 @@
     player.iframes = Math.max(player.iframes, .25);
     /* everything it was holding down is let go */
     s.hit.forEach(function (e) { if (e && e.pinned) e.pinned = 0; });
-    FX.streaks(player.pos.clone().add(new THREE.Vector3(0, 3, 0)), BLOOD, 6, 10, 1);
+    FX.bloodThreads(player.pos.clone().add(new THREE.Vector3(0, 3, 0)), 6, 10, 1);
   }
 
   /* where the stream comes out of: between the clamped hands */
@@ -300,11 +309,10 @@
     if (s.spit > .04) {
       s.spit = 0;
       var len = PB.stream.range;
-      FX.beam(from.clone(), d, len, BRIGHT, { radius: .5, life: .1 });
-      FX.beam(from.clone(), d, len, 0xffffff, { radius: .17, life: .09 });
-      FX.streaks(from.clone().addScaledVector(d, 2 + Math.random() * 20), BLOOD, 1, 16, 1);
+      FX.bloodBeam(from.clone(), d, len, { radius: .52, life: .12 });
+      FX.bloodThreads(from.clone().addScaledVector(d, 2 + Math.random() * 20), 1, 15, 1);
     }
-    if (Math.random() < dt * 26) FX.mote(from.clone(), BLOOD, 1.4, .2);
+    if (Math.random() < dt * 26) FX.bloodMote(from.clone(), .8, .2);
     addShake(.12);
 
     /* what it is on cannot move, and can again the moment it is not */
@@ -319,10 +327,10 @@
         e.lockT = Math.max(e.lockT || 0, .18);
         if (e.vel) e.vel.set(0, 0, 0);
         var at = e.pos.clone().add(new THREE.Vector3(0, 2.5, 0));
-        FX.impact(at, BRIGHT, 1);
+        FX.bloodBurst(at, 1.1, d.clone());
         FX.blood(at, d.clone(), 3, .9);
         e.damage(PB.stream.dps * .12 * scale(), null, {
-          react: 'shock', reactDur: .3, spark: BRIGHT, color: '#ff5f7a',
+          react: 'shock', reactDur: .3, spark: BRIGHT, color: '#c8203c',
           bleed: true, stun: .34, fin: false, pin: .3
         });
       });
@@ -360,23 +368,24 @@
     var hand = p.pos.clone().addScaledVector(d, .9).add(new THREE.Vector3(0, 4.2, 0));
     if (a.t < .45) {
       if (!a.orb) {
-        a.orb = FX.billboard(FX.T.star, BLOOD, .95);
+        a.orb = FX.bloodMass(.5);
         scene.add(a.orb);
-        FX.converge(hand, BRIGHT, 24, 10, .6);
+        for (var ci = 0; ci < 14; ci++) {
+          FX.bloodMote(hand.clone().add(new THREE.Vector3(
+            (Math.random() - .5) * 8, (Math.random() - .5) * 8, (Math.random() - .5) * 8)), 1.2, .5);
+        }
       }
       a.orb.position.copy(hand);
       a.orb.scale.setScalar(.8 + E.out(a.t / .45) * 3.2);
+      a.orb.rotation.y += dt * 2.4;
       return;
     }
     if (a.stage < 1) {
       a.stage = 1;
-      if (a.orb) { scene.remove(a.orb); a.orb.material.dispose(); a.orb = null; }
-      /* hardened, and thrown */
-      var rock = new THREE.Mesh(new THREE.SphereGeometry(1.5, 12, 10),
-        new THREE.MeshStandardMaterial({ color: DARK, roughness: .5 }));
-      var shell = FX.billboard(FX.T.star, BRIGHT, .8);
-      shell.scale.setScalar(5.5);
-      rock.add(shell);
+      if (a.orb) { scene.remove(a.orb); a.orb = null; }
+      /* hardened, and thrown. A solid dark mass with a darker rim — it is
+         a rock of blood, so it blocks the light rather than making any. */
+      var rock = FX.bloodMass(1.5);
       rock.position.copy(hand);
       scene.add(rock);
       var v = d.clone().multiplyScalar(46); v.y = 5;
@@ -386,7 +395,7 @@
         v.y -= 22 * dd;
         rock.position.addScaledVector(v, dd);
         rock.rotation.x += dd * 7; rock.rotation.z += dd * 5;
-        if (Math.random() < dd * 30) FX.mote(rock.position.clone(), BLOOD, 2, .3);
+        if (Math.random() < dd * 30) FX.bloodMote(rock.position.clone(), 1.4, .3);
         var near = null;
         for (var i = 0; i < enemies.length; i++) {
           var e = enemies[i];
@@ -396,10 +405,10 @@
         if (!done && (near || rock.position.y <= .8 || this.t <= 0)) {
           done = true;
           var at = rock.position.clone();
-          FX.impact(at, BRIGHT, 4);
-          FX.cross(at, 0xffdde4, 7, .3);
-          FX.rings(at, BLOOD, 4, { maxR: 20, life: .7, ground: false, gap: 40 });
-          FX.cracks(new THREE.Vector3(at.x, 0, at.z), 11, 17, 0x2a0810);
+          FX.bloodBurst(at, 4.5, new THREE.Vector3(0, 1, 0));
+          FX.bloodThreads(at, 10, 20, 1.4);
+          FX.bloodRings(at, 4, { maxR: 20, life: .7, gap: 40 });
+          FX.cracks(new THREE.Vector3(at.x, 0, at.z), 11, 17, 0x2a0810, 0x5a3038);
           FX.debris(new THREE.Vector3(at.x, 0, at.z), 16, 18, DARK);
           FX.blood(at, new THREE.Vector3(0, 1, 0), 14, 1.5);
           addShake(2);
@@ -409,7 +418,7 @@
             if (!e || e.dead || e.pos.distanceTo(at) > 12) return;
             var kb = e.pos.clone().sub(at).setY(0).normalize().multiplyScalar(28); kb.y = 13;
             e.damage(40 * scale(), kb, {
-              react: 'blow', reactDur: .9, spark: BRIGHT, color: '#ff5f7a', death: 'sever'
+              react: 'blow', reactDur: .9, spark: BRIGHT, color: '#c8203c', death: 'sever'
             });
           });
           if (window.JJAW) window.JJAW.gain(12);
@@ -434,14 +443,14 @@
     var p = player;
     var mid = p.pos.clone().add(new THREE.Vector3(0, 3, 0));
     if (a.t < .5) {
-      if (Math.random() < .9) FX.mote(mid, BLOOD, 5, .35);
+      if (Math.random() < .9) FX.bloodMote(mid, 2.4, .35);
       addShake(.2 + a.t * .5);
       return;
     }
     if (a.stage < 1) {
       a.stage = 1;
-      FX.flash('#ff9aae', .45, .3);
-      FX.rings(mid, BRIGHT, 4, { maxR: 16, life: .6, ground: false, gap: 34 });
+      FX.tint('#40040f', .5, .3);
+      FX.bloodRings(mid, 4, { maxR: 16, life: .6, gap: 34 });
       addShake(1.4);
       try { sfx.redFire(); } catch (e) {}
       /* orbs in every direction, each one going somewhere of its own */
@@ -452,17 +461,15 @@
             var ang = n / 18 * TAU + Math.random() * .3;
             var rise = -.15 + Math.random() * .5;
             var d = new THREE.Vector3(Math.cos(ang), rise, Math.sin(ang)).normalize();
-            var orb = FX.billboard(FX.T.star, n % 3 ? BRIGHT : BLOOD, .95);
-            orb.scale.setScalar(1.8);
+            var orb = FX.bloodMass(.62);
             orb.position.copy(mid);
             scene.add(orb);
             var sp = 34 + Math.random() * 16, t = 0, hit = false;
             addFx({ t: 1.4, update: function (dd) {
               this.t -= dd; t += dd;
               orb.position.addScaledVector(d, sp * dd);
-              FX.faceCam(orb, 0);
-              orb.material.opacity = Math.min(1, this.t / .4);
-              if (Math.random() < dd * 18) FX.mote(orb.position.clone(), BLOOD, 1, .2);
+              orb.rotation.x += dd * 6; orb.rotation.z += dd * 4;
+              if (Math.random() < dd * 18) FX.bloodMote(orb.position.clone(), .7, .2);
               if (!hit) {
                 for (var j = 0; j < enemies.length; j++) {
                   var e = enemies[j];
@@ -470,17 +477,16 @@
                   if (e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(orb.position) > 2.8) continue;
                   hit = true;
                   var at = orb.position.clone();
-                  FX.impact(at, BRIGHT, 1.6);
-                  FX.blood(at, d.clone(), 5, 1.1);
+                  FX.bloodBurst(at, 1.7, d.clone());
                   e.damage(15 * scale(), d.clone().multiplyScalar(11).setY(5), {
-                    react: 'slash', reactDur: .3, spark: BRIGHT, color: '#ff5f7a',
+                    react: 'slash', reactDur: .3, spark: BRIGHT, color: '#c8203c',
                     bleed: true, death: 'dice'
                   });
                   addShake(.4);
                   break;
                 }
               }
-              if (hit || this.t <= 0) { scene.remove(orb); orb.material.dispose(); return false; }
+              if (hit || this.t <= 0) { scene.remove(orb); return false; }
               return true;
             } });
           }, n * 26);
@@ -499,17 +505,17 @@
     start('c4', 1.1, 'c4', 'FLOWING RED SCALE', '\u8d64\u9c57');
     CH.scale = SCALE_DUR;
     player.iframes = Math.max(player.iframes, .5);
-    if (!CH.aura) CH.aura = FX.aura(function () { return player.pos; }, BRIGHT);
-    FX.flash('#ff6a80', .4, .4);
-    FX.rings(new THREE.Vector3(player.pos.x, .1, player.pos.z), BRIGHT, 4,
-      { maxR: 12, life: .7, gap: 50 });
+    if (!CH.aura) CH.aura = FX.bloodAura(function () { return player.pos; });
+    FX.tint('#48060f', .45, .45);
+    FX.bloodRings(new THREE.Vector3(player.pos.x, .1, player.pos.z), 4,
+      { maxR: 12, life: .7, gap: 50, ground: true });
     addShake(1.2);
     try { sfx.raise(); } catch (e) {}
   }
   function stepScale(a, dt) {
     var mid = player.pos.clone().add(new THREE.Vector3(0, 2.6, 0));
-    if (Math.random() < .7) FX.mote(mid, BRIGHT, 4, .4);
-    if (a.t > .4 && Math.random() < .2) FX.streaks(mid, BLOOD, 2, 8, 1);
+    if (Math.random() < .7) FX.bloodMote(mid, 2, .4);
+    if (a.t > .4 && Math.random() < .2) FX.bloodThreads(mid, 2, 8, 1);
   }
 
   /* =====================================================================
@@ -530,17 +536,16 @@
       a.stage = 1;
       var at = p.pos.clone().addScaledVector(d, 3).add(new THREE.Vector3(0, 2.8, 0));
       var side = new THREE.Vector3(-d.z, 0, d.x);
-      FX.cutLine(at.clone().addScaledVector(side, -5).add(new THREE.Vector3(0, 2.4, 0)),
-        at.clone().addScaledVector(side, 5).add(new THREE.Vector3(0, -2.4, 0)), 0xffdde4, 1.2, .3);
-      FX.slash(at, d, BRIGHT, 7, .22);
-      FX.impact(at, BRIGHT, 2.4);
-      FX.blood(at, d.clone().setY(.3), 8, 1.2);
+      FX.bloodCut(at.clone().addScaledVector(side, -5).add(new THREE.Vector3(0, 2.4, 0)),
+        at.clone().addScaledVector(side, 5).add(new THREE.Vector3(0, -2.4, 0)), 1.3, .3);
+      FX.bloodBurst(at, 2.6, d.clone().setY(.3));
+      FX.bloodThreads(at, 6, 15, 1.1);
       addShake(1.1);
       if (typeof hitstop === 'function') hitstop(.08);
       try { sfx.slash(); } catch (e) {}
       inLine(p.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), d, 9, 4, null).forEach(function (e) {
         e.damage(30 * scale(), d.clone().multiplyScalar(20).setY(8), {
-          react: 'slash', reactDur: .6, spark: BRIGHT, color: '#ff5f7a',
+          react: 'slash', reactDur: .6, spark: BRIGHT, color: '#c8203c',
           bleed: true, death: 'sever'
         });
       });
@@ -772,4 +777,109 @@
   };
 
   CH.stopStream = shutStream;
+
+  /* =====================================================================
+     WHAT EVERYBODY ELSE SEES
+     The same routines the caster runs, with the damage taken out. Every
+     hit already travels as its own message, so a ghost that dealt damage
+     would land twice; a ghost that drew a different effect would mean two
+     people in the same room watching two different fights.
+     ================================================================== */
+  function dirOf(yaw) { return new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)); }
+
+  CH.remote = {
+    lance: function (pos, yaw) {
+      var d = dirOf(yaw);
+      var from = pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, 3.1, 0));
+      lance(from, d, PB.lance.range, PB.lance.width);
+      FX.bloodThreads(from.clone(), 6, 10, 1);
+    },
+    /* one tick of the held stream, re-sent for as long as it is held */
+    stream: function (pos, yaw) {
+      var d = dirOf(yaw);
+      var from = pos.clone().addScaledVector(d, 1.2).add(new THREE.Vector3(0, HAND_Y, 0));
+      FX.bloodBeam(from, d, PB.stream.range, { radius: .52, life: .14 });
+      if (Math.random() < .5) {
+        FX.bloodThreads(from.clone().addScaledVector(d, 2 + Math.random() * 20), 1, 15, 1);
+      }
+    },
+    meteorite: function (pos, yaw) {
+      var d = dirOf(yaw);
+      var hand = pos.clone().addScaledVector(d, .9).add(new THREE.Vector3(0, 4.2, 0));
+      var rock = FX.bloodMass(1.5);
+      rock.position.copy(hand);
+      scene.add(rock);
+      var v = d.clone().multiplyScalar(46); v.y = 5;
+      var done = false;
+      addFx({ t: 3, update: function (dd) {
+        this.t -= dd;
+        v.y -= 22 * dd;
+        rock.position.addScaledVector(v, dd);
+        rock.rotation.x += dd * 7; rock.rotation.z += dd * 5;
+        if (Math.random() < dd * 30) FX.bloodMote(rock.position.clone(), 1.4, .3);
+        if (!done && (rock.position.y <= .8 || this.t <= 0)) {
+          done = true;
+          var at = rock.position.clone();
+          FX.bloodBurst(at, 4.5, new THREE.Vector3(0, 1, 0));
+          FX.bloodThreads(at, 10, 20, 1.4);
+          FX.bloodRings(at, 4, { maxR: 20, life: .7, gap: 40 });
+          FX.cracks(new THREE.Vector3(at.x, 0, at.z), 11, 17, 0x2a0810, 0x5a3038);
+          FX.debris(new THREE.Vector3(at.x, 0, at.z), 16, 18, DARK);
+          scene.remove(rock);
+          return false;
+        }
+        return true;
+      } });
+    },
+    supernova: function (pos) {
+      var mid = pos.clone().add(new THREE.Vector3(0, 3, 0));
+      FX.tint('#40040f', .5, .3);
+      FX.bloodRings(mid, 4, { maxR: 16, life: .6, gap: 34 });
+      for (var i = 0; i < 18; i++) {
+        (function (n) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            var ang = n / 18 * TAU + Math.random() * .3;
+            var d = new THREE.Vector3(Math.cos(ang), -.15 + Math.random() * .5, Math.sin(ang)).normalize();
+            var orb = FX.bloodMass(.62);
+            orb.position.copy(mid);
+            scene.add(orb);
+            var sp = 34 + Math.random() * 16;
+            addFx({ t: 1.4, update: function (dd) {
+              this.t -= dd;
+              orb.position.addScaledVector(d, sp * dd);
+              orb.rotation.x += dd * 6; orb.rotation.z += dd * 4;
+              if (Math.random() < dd * 18) FX.bloodMote(orb.position.clone(), .7, .2);
+              if (this.t <= 0) { scene.remove(orb); return false; }
+              return true;
+            } });
+          }, n * 26);
+        })(i);
+      }
+    },
+    scale: function (pos) {
+      FX.tint('#48060f', .45, .45);
+      FX.bloodRings(new THREE.Vector3(pos.x, .1, pos.z), 4,
+        { maxR: 12, life: .7, gap: 50, ground: true });
+      /* the pressure holds on them for as long as it holds on him */
+      var t = 0;
+      addFx({ t: SCALE_DUR, update: function (dd) {
+        this.t -= dd; t += dd;
+        if (Math.random() < dd * 7) {
+          FX.bloodMote(pos.clone().add(new THREE.Vector3(
+            (Math.random() - .5) * 4, 1 + Math.random() * 4, (Math.random() - .5) * 4)), 1.4, .4);
+        }
+        return this.t > 0;
+      } });
+    },
+    edge: function (pos, yaw) {
+      var d = dirOf(yaw);
+      var at = pos.clone().addScaledVector(d, 3).add(new THREE.Vector3(0, 2.8, 0));
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      FX.bloodCut(at.clone().addScaledVector(side, -5).add(new THREE.Vector3(0, 2.4, 0)),
+        at.clone().addScaledVector(side, 5).add(new THREE.Vector3(0, -2.4, 0)), 1.3, .3);
+      FX.bloodBurst(at, 2.6, d.clone().setY(.3));
+      FX.bloodThreads(at, 6, 15, 1.1);
+    }
+  };
 })();

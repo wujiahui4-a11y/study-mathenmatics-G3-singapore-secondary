@@ -212,13 +212,45 @@ From there:
 - His head, neck and collar are hidden while it runs, because the camera is
   inside them.
 
+### Blood is not light
+
+Everything else in the effects kit is drawn with **additive** blending: it
+adds its colour to whatever is behind it, which is exactly right for a
+technique made of light and exactly wrong for one made of fluid. Add red to a
+grey road and you get pink. Add it to itself where two layers cross and you
+get white. So the first version of Piercing Blood had a white core and a
+glowing head, and it read as a laser somebody had tinted red.
+
+So the blood kit is drawn the other way round, and the rules are:
+
+* **Normal blending, never additive.** It covers what is behind it instead of
+  brightening it.
+* **The core is the darkest part, not the lightest.** A rope of fluid is dark
+  in the middle where it is thickest and only catches a little light at its
+  edge — the opposite of a beam. One narrow off-centre sheen gives it
+  wetness; a bright line down the middle is the thing that makes something
+  look lit.
+* **Nothing white anywhere**, and no star head or muzzle flare.
+* **Its own ring and splatter textures.** Every other ring is a soft filled
+  disc that happens to be brightest at its edge. Additive blending hides
+  that; normal blending does not, and a big ring becomes a red bubble over
+  half the arena — so blood gets a real annulus, empty inside.
+
+Two knock-on fixes came out of it. The generic hit effects — the white star
+of an impact, the white cross of a heavy hit — are built for techniques made
+of light and get applied by the damage path to every hit in the game. Rather
+than thread a flag through four call sites, **the colour of the hit decides**:
+a dark spark drops the white parts. And `cracks()` now takes a tint for the
+pale half of a break, because pale blue-grey concrete haze under dark red
+blood was the one bright thing left in the frame.
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — thirty four of them, one
+and differently from every other skill in the game — thirty five of them, one
 per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -237,7 +269,7 @@ Three things a finisher deliberately is not:
 | `1` | **blown apart** — repulsion has nowhere to put them but outward | **framed** — stopped, and then shattered like the glass | **hit twice** — it folds them, and half a second later the rest of it arrives | **cut in half** — the shutter hits them, turns flat, and goes through | **pierced** — one line, and the jet out of the back of them |
 | `2` | **pummelled** — a dozen of them, and then the floor | **cut in two** — one level cut, and he walks on | **black flash** — the frame goes out and comes back as black line work | **riddled** — the other half of the machine, all of it | **under it** — the mass comes down and stays down |
 | `3` | **launched** — up, and a very small flash a long way overhead | **put through it** — the kick that ends the conversation | **spun apart** — it takes them up and it takes them apart | **floored** — three of his own, and then the ground | **supernova** — dark and small, and then not |
-| `4` | **pressed flat** — four rings, each one lower than the last | — | **driven down** — all of his weight, and a crater | **paid out** — the machine cashes them in | **burst** — the pressure is raised inside them |
+| `4` | **pressed flat** — four rings, each one lower than the last | **cut from the film** — twelve frames close on them and one blank is left | **driven down** — all of his weight, and a crater | **paid out** — the machine cashes them in | **burst** — the pressure is raised inside them |
 | `R` | **erased** — nothing is left standing and nothing falls over | **never saw it** — three places at once | **burned out** — from the inside | **run through** — shoulder first, and out the other side | **opened** — one level draw, and the top of them waits |
 
 Choso's held Piercing Blood has one of its own on top of that: it does not
@@ -370,6 +402,54 @@ technically correct and completely invisible — springs that settled inside a
 frame, a breath of a hundredth of a radian, weight shifts of a sixth of a unit
 on a figure five units tall. On an unskinned blocky character none of that can
 be seen. Everything is two to three times larger than felt right on paper.
+
+## Naoya Zen'in
+
+Projection Sorcery, which is two ideas rather than one. Everybody remembers
+the speed; the other half is that the technique traces movement at
+twenty-four frames a second **using the user's own field of view as the
+projection angle of view**, and anybody who cannot keep to that rule spends a
+second inside a frame.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Projection Breaker** | a lunge and a strike, and he finishes past you |
+| `2` | **Tanto** | the knife, and an execution on anybody nearly out |
+| `3` | **You're Not Toji** | a grab and a barrage, and a frame at the end of it |
+| `4` | **Twenty Four Frames** | 二十四枚 — see below |
+| `R` | **Projection Sorcery** | the teleport, or a frame-break on anybody already in one |
+
+### Twenty Four Frames
+
+His bar was missing a `4`, and the source says exactly what it should have
+been. The other three are all one man reaching one other man — a lunge, a
+stab, a grab — and none of them used the half of the technique that is about
+the field of view rather than about speed. So this is that half.
+
+He frames what he is looking at: a real cone, as wide as his angle of view,
+drawn on the floor as a film strip with sprocket holes down both edges. Then
+he lays one second over it and is in **all twenty four frames of that second
+at once** — twenty four stills of him standing inside the shot, lighting in
+sequence at twenty four a second, each one landing on whatever is near it.
+Whatever is still standing in the cone when the second ends was not keeping
+up, and is put in a frame.
+
+Three things fall out of that, and all three are the point:
+
+* **A frame covers more ground the further out it is**, because that is what
+  a cone of view does — it is the same angle either way. Close to him a still
+  catches three metres; at the far end it catches ten.
+* **The sweep crosses the width four times** while it advances. One pass
+  leaves half the cone never visited, and two only ever reach each edge at
+  one particular depth, so somebody standing wide and close was never in any
+  frame at all.
+* **He ends the second where the last frame was**, thirty-odd metres down the
+  road. So it opens a fight, covers ground, and sets up the frame-break on
+  `R` — which is the one thing his bar could not do before.
+
+He is not on the field for that second and cannot be hit during it. An action
+can end in ways that never reach its own last beat — a death, a hit, a
+fighter swap — so anything but being inside that second puts him back.
 
 ## Naoya's awakening
 
