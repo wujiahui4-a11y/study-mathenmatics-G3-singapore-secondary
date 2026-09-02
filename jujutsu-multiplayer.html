@@ -6877,7 +6877,7 @@ window.__game = {
   var SONG_VOL = .62;
   /* full volume inside this, silent past this. the domain is thirty-four
      metres, so anyone standing in it can still hear him */
-  var HEAR_NEAR = 10, HEAR_FAR = 42;
+  var HEAR_NEAR = 8, HEAR_FAR = 48;
   var songEl = null, songIds = {}, songFade = 0, songTriedHost = false, songArmed = false;
   var songGraph = null, songWant = 0;
 
@@ -6974,8 +6974,7 @@ window.__game = {
   function hearGain(dist) {
     if (dist <= HEAR_NEAR) return 1;
     if (dist >= HEAR_FAR) return 0;
-    var k = (dist - HEAR_NEAR) / (HEAR_FAR - HEAR_NEAR);
-    return (1 - k) * (1 - k);
+    return 1 - (dist - HEAR_NEAR) / (HEAR_FAR - HEAR_NEAR);
   }
 
   function songSource() {
@@ -7074,6 +7073,19 @@ window.__game = {
   AW.songSource = songSource;
   AW.HEAR_NEAR = HEAR_NEAR;
   AW.HEAR_FAR = HEAR_FAR;
+  AW.debugHear = function () {
+    var src = songSource();
+    var g = songGraph && songGraph.gain ? songGraph.gain.gain.value
+      : (songEl ? songEl.volume : 0);
+    return {
+      ids: Object.keys(songIds),
+      src: src ? { id: src.id, dist: +src.dist.toFixed(2), x: src.pos.x, z: src.pos.z } : null,
+      hear: src ? hearGain(src.dist) : 0,
+      vol: +g.toFixed(3),
+      t: songEl ? +songEl.currentTime.toFixed(2) : 0,
+      paused: !songEl || songEl.paused
+    };
+  };
 
   /* ------------------------------------------------------------ the look */
   function findBlindfold(rig) {
