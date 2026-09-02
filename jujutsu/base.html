@@ -1607,10 +1607,16 @@ function unframePlayer(shattered) {
 
 /* ---------------- camera ---------------- */
 let camYaw = Math.PI, camPitch = .22;
+let mapView = null;
 function camForward() {
   return new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw)).normalize();
 }
 function updateCamera(dt) {
+  if (mapView) {
+    camera.position.set(mapView.x, mapView.y, mapView.z);
+    camera.lookAt(mapView.lx, mapView.ly, mapView.lz);
+    return;
+  }
   const fwd = camForward();
   const dist = 9.5, height = 4.4;
   const target = player.pos.clone().add(new THREE.Vector3(0, 3, 0));
@@ -3193,6 +3199,7 @@ window.__game = {
   castN1, castN2, castN3, castNaoyaR,
   switchChar,
   setCam(yaw, pitch) { camYaw = yaw; camPitch = pitch; },
+  setMapView(v) { mapView = v; },
   face(y) { player.facing = y; },
   frameEnemy(i) { enemies[i].enterFrame("player"); },
   resetCds() { for (const k in cds) cds[k] = 0; player.rWindow = 0; },

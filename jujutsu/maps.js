@@ -248,7 +248,7 @@
 
   /* -------------------------------------------------------------- maps */
   function buildCity() {
-    setWorld(124, 0x87b8e8, 110, 320);
+    setWorld(124, 0x87b8e8, 140, 420);
     paintGround(function (g) {
       g.fillStyle = '#4e535a'; g.fillRect(0, 0, 256, 256);
       var i;
@@ -289,7 +289,7 @@
     zebra(-24, 0, 7, 20, false);
     lampsAt(40);
     cratesAlong(street);
-    crate(28, 28); crate(-28, 28); crate(28, -28); crate(-28, -28);
+    crate(23, 23); crate(-23, 23); crate(23, -23); crate(-23, -23);
     spawns = [
       { x: -16, z: 18 }, { x: 16, z: 18 }, { x: -16, z: -18 }, { x: 16, z: -18 },
       { x: 0, z: 22 }, { x: 0, z: -22 }
@@ -297,7 +297,7 @@
   }
 
   function buildCrossing() {
-    setWorld(176, 0x6e8aaa, 140, 420);
+    setWorld(176, 0x6e8aaa, 180, 560);
     paintGround(function (g) {
       g.fillStyle = '#3e444c'; g.fillRect(0, 0, 256, 256);
       var i;
@@ -326,14 +326,14 @@
       [50, 90, 22, 20, 44],
       [90, 50, 20, 22, 42],
       [90, 90, 24, 22, 50, true],
-      [50, 128, 24, 18, 36],
-      [128, 50, 18, 24, 34],
-      [92, 130, 20, 16, 32],
-      [130, 92, 16, 20, 30],
-      [132, 132, 22, 22, 54, true],
-      [158, 100, 16, 18, 28],
-      [100, 158, 18, 16, 28],
-      [158, 158, 16, 16, 46, true]
+      [50, 122, 22, 18, 36],
+      [122, 50, 18, 22, 34],
+      [88, 122, 20, 16, 32],
+      [122, 88, 16, 20, 30],
+      [122, 122, 22, 22, 54, true],
+      [148, 96, 16, 18, 28],
+      [96, 148, 18, 16, 28],
+      [148, 148, 18, 18, 46, true]
     ], street, plaza, mats);
     sidewalks(street);
     lampsAt(56);
@@ -350,7 +350,7 @@
   }
 
   function buildCampus() {
-    setWorld(164, 0xb4cce0, 130, 380);
+    setWorld(164, 0xb4cce0, 160, 480);
     paintGround(function (g) {
       g.fillStyle = '#7a8a6e'; g.fillRect(0, 0, 256, 256);
       var i;
@@ -395,11 +395,25 @@
       [120, 74, 16, 20, 14, false, a],
       [-120, 74, 16, 20, 14, false, a],
       [120, -76, 16, 18, 12, false, a],
-      [-120, -76, 16, 18, 12, false, a]
+      [-120, -76, 16, 18, 12, false, a],
+      [46, 46, 14, 14, 10, false, stoneMat],
+      [-46, 46, 14, 14, 10, false, stoneMat],
+      [46, -46, 14, 14, 10, false, stoneMat],
+      [-46, -46, 14, 14, 10, false, stoneMat],
+      [104, 36, 16, 16, 14, false, b],
+      [-104, 36, 16, 16, 14, false, b],
+      [104, -36, 16, 16, 14, false, a],
+      [-104, -36, 16, 16, 14, false, a]
     ], 0, plaza, schoolMats);
     var path = new THREE.MeshStandardMaterial({ color: 0xb8a888, roughness: .95 });
-    flat(0, 0, 16, 68, .05, path);
-    flat(0, 0, 80, 14, .05, path);
+    var yard = new THREE.MeshStandardMaterial({ color: 0xc4b49a, roughness: .96 });
+    flat(0, 0, 78, 66, .04, yard);
+    flat(0, 0, 16, 68, .06, path);
+    flat(0, 0, 80, 14, .06, path);
+    flat(0, 33.2, 78, 1.5, .12, stoneMat);
+    flat(0, -33.2, 78, 1.5, .12, stoneMat);
+    flat(39.2, 0, 1.5, 64, .12, stoneMat);
+    flat(-39.2, 0, 1.5, 64, .12, stoneMat);
     lamp(-22, 22); lamp(22, 22); lamp(-22, -22); lamp(22, -22);
     lamp(-40, 0); lamp(40, 0); lamp(0, 40); lamp(0, -40);
     crate(-30, -42); crate(30, -42); crate(-30, 42); crate(30, 42);
@@ -411,7 +425,7 @@
   }
 
   function buildYard() {
-    setWorld(184, 0x8aa0a8, 150, 440);
+    setWorld(184, 0x8aa0a8, 180, 540);
     paintGround(function (g) {
       g.fillStyle = '#5a5e62'; g.fillRect(0, 0, 256, 256);
       var i;
@@ -429,12 +443,14 @@
     rules = { street: 0, plaza: plaza };
     var y0 = yardMats[0], y1 = yardMats[1];
     drop([
+      [-148, 58, 28, 22, 15, false, y0],
       [-100, 58, 44, 22, 16, false, y0],
       [-48, 58, 40, 22, 14, false, y1],
       [4, 58, 40, 22, 15, false, y0],
       [54, 58, 36, 22, 18, false, rustMat],
       [104, 58, 36, 22, 16, false, y1],
       [148, 58, 28, 22, 17, false, rustMat],
+      [-148, -58, 28, 22, 14, false, y1],
       [-100, -58, 44, 22, 15, false, y1],
       [-48, -58, 40, 22, 14, false, y0],
       [4, -58, 40, 22, 16, false, y1],
