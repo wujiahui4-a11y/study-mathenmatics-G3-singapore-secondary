@@ -146,7 +146,8 @@
   var MP = window.MPJJ = {
     active: false, code: null, id: uid(), name: '',
     relay: null, fighters: {},        // id -> { id, name, char, e (Enemy), tx, tz, tyaw, ... }
-    sendAcc: 0, kills: 0, deaths: 0, joined: false
+    sendAcc: 0, kills: 0, deaths: 0, joined: false,
+    map: 'city', host: false
   };
 
   function el(id) { return document.getElementById(id); }
@@ -158,7 +159,7 @@
       '#jjLobby{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;',
       'background:radial-gradient(ellipse at 50% 0%,rgba(154,28,46,.38),transparent 52%),rgba(8,7,11,.94);',
       'color:#efe6d4;font-family:Barlow,"Segoe UI",Arial,sans-serif}',
-      '#jjLobby .box{width:min(520px,92vw);background:linear-gradient(180deg,rgba(16,12,12,.92),rgba(8,7,10,.92));',
+      '#jjLobby .box{width:min(640px,94vw);background:linear-gradient(180deg,rgba(16,12,12,.92),rgba(8,7,10,.92));',
       'border:1px solid rgba(212,180,90,.4);padding:28px 26px;',
       'box-shadow:0 24px 60px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,230,160,.1)}',
       '#jjLobby h2{margin:0 0 6px;font-family:Cinzel,serif;font-size:26px;letter-spacing:3px;color:#f3dd8c}',
@@ -177,6 +178,13 @@
       'margin-top:12px;font-size:13px;min-height:58px}',
       '#jjStatus{font-size:12px;color:#9a9080;margin-top:12px;min-height:16px}',
       '#jjStatus.err{color:#ff8f84}',
+      '#jjMaps{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 4px}',
+      '#jjMaps button{display:block;text-align:left;padding:10px 12px;background:transparent;',
+      'border:1px solid rgba(212,180,90,.28);color:#efe6d4;cursor:pointer;font:inherit;border-radius:0}',
+      '#jjMaps button.on{border-color:#f3dd8c;background:rgba(40,28,12,.7)}',
+      '#jjMaps .mn{display:block;font-family:Cinzel,serif;letter-spacing:1.6px;color:#f3dd8c;font-size:12px}',
+      '#jjMaps .ms{display:block;font-size:11px;color:#9a9080;margin-top:3px;line-height:1.35}',
+      '#jjMapNow{font-family:Cinzel,serif;letter-spacing:2px;color:#f3dd8c;text-align:center;margin:8px 0 2px}',
       '#jjScore{position:fixed;right:14px;top:96px;z-index:20;display:none;min-width:186px;',
       'background:rgba(8,7,10,.72);border:1px solid rgba(212,180,90,.28);',
       'padding:8px 10px;font:12px/1.6 Barlow,"Segoe UI",Arial,sans-serif;color:#efe6d4}',
@@ -248,10 +256,12 @@
     wrap.innerHTML = [
       '<div id="jjLobby"><div class="box">',
       '  <h2>ONLINE MATCH</h2>',
-      '  <div class="sub">The same city, five sorcerers. Create a room or join one. Dummies step out',
-      '    when the match starts, and C still switches fighter.</div>',
+      '  <div class="sub">Pick a map, create a room, or join one. Dummies step out when the match',
+      '    starts, and C still switches fighter. The creator\'s map is the one everybody gets.</div>',
       '  <label>YOUR NAME</label><input id="jjName" maxlength="10" placeholder="PLAYER">',
       '  <div id="jjJoinBox">',
+      '    <label>MAP — THE CREATOR PICKS</label>',
+      '    <div id="jjMaps"></div>',
       '    <label>ROOM CODE (leave empty to create one)</label>',
       '    <input id="jjCode" maxlength="6" placeholder="E.G. K4RM2P">',
       '    <div class="row"><button id="jjCreate">CREATE A ROOM</button>',
@@ -260,6 +270,7 @@
       '  <div id="jjRoomBox" style="display:none">',
       '    <label>ROOM CODE — TELL YOUR FRIENDS</label>',
       '    <div class="code" id="jjCodeOut">------</div>',
+      '    <div id="jjMapNow">CITY STREETS</div>',
       '    <div class="list" id="jjList"></div>',
       '    <div class="row"><button id="jjFight">ENTER THE ARENA</button>',
       '    <button id="jjLeave" class="ghost">LEAVE</button></div>',
@@ -298,6 +309,7 @@
       openLobby();
     });
 
+    fillMapPick();
     el('jjBack').addEventListener('click', closeLobby);
     el('jjCreate').addEventListener('click', function () { createRoom(); });
     el('jjJoin').addEventListener('click', function () { joinRoom(); });
@@ -442,8 +454,57 @@
     return v;
   }
 
+  function fillMapPick() {
+    var host = el('jjMaps');
+    if (!host) return;
+    host.innerHTML = '';
+    var maps = (window.JJMAP && window.JJMAP.list) || [
+      { id: 'city', name: 'CITY STREETS', sub: 'the plaza you already know' }
+    ];
+    maps.forEach(function (m) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.map = m.id;
+      if (m.id === MP.map) b.className = 'on';
+      b.innerHTML = '<span class="mn">' + m.name + '</span><span class="ms">' + m.sub + '</span>';
+      b.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        MP.map = m.id;
+        host.querySelectorAll('button').forEach(function (x) {
+          x.classList.toggle('on', x.dataset.map === m.id);
+        });
+      });
+      host.appendChild(b);
+    });
+  }
+
+  function mapName(id) {
+    return (window.JJMAP && window.JJMAP.nameOf) ? window.JJMAP.nameOf(id) : 'CITY STREETS';
+  }
+
+  function applyMap(id, fromPeer) {
+    if (!id) return;
+    if (fromPeer && MP.host) {
+      if (MP.relay) MP.relay.pub(hello('map'));
+      return;
+    }
+    MP.map = id;
+    if (window.JJMAP) window.JJMAP.load(id);
+    var now = el('jjMapNow');
+    if (now) now.textContent = mapName(id);
+  }
+
+  function hello(kind) {
+    return { t: kind || 'hi', id: MP.id, n: MP.name, c: player.char, map: MP.map };
+  }
+
   function createRoom() {
     MP.name = myName();
+    MP.host = true;
+    var picked = document.querySelector('#jjMaps button.on');
+    if (picked && picked.dataset.map) MP.map = picked.dataset.map;
+    applyMap(MP.map, false);
     var code = (el('jjCode').value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || roomCode();
     connect(code);
   }
@@ -451,6 +512,7 @@
     var code = (el('jjCode').value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (code.length < 4) { status('Type the room code your friend sent you.', true); return; }
     MP.name = myName();
+    MP.host = false;
     connect(code);
   }
 
@@ -471,7 +533,9 @@
       MP.joined = true;
       renderList();
       status('Room ' + code + ' is open. Anyone with the code can walk in.');
-      MP.relay.pub({ t: 'hi', id: MP.id, n: MP.name, c: player.char });
+      applyMap(MP.map, false);
+      MP.relay.pub(hello('hi'));
+      if (MP.host) MP.relay.pub(hello('map'));
     }).catch(function (e) {
       el('jjCreate').disabled = el('jjJoin').disabled = false;
       status('Could not reach a relay (' + (e && e.message ? e.message : 'blocked') + ').', true);
@@ -485,6 +549,7 @@
     }
     for (var id in MP.fighters) dropFighter(id);
     MP.relay = null; MP.active = false; MP.joined = false; MP.fighters = {};
+    MP.host = false;
     el('jjScore').style.display = 'none';
     el('jjFeed').innerHTML = '';
     el('jjLook').style.display = 'none';
@@ -519,14 +584,18 @@
       enemies.splice(i, 1);
     }
     player.hp = player.maxHp; player.dead = false; player.proj = 0;
-    player.pos.set((Math.random() - .5) * 30, 0, (Math.random() - .5) * 30);
+    applyMap(MP.map, false);
+    var sp = (window.JJMAP && window.JJMAP.spawn) ? window.JJMAP.spawn() : { x: (Math.random() - .5) * 30, z: (Math.random() - .5) * 30 };
+    player.pos.set(sp.x, 0, sp.z);
+    collideWorld(player.pos, 1.2);
     el('jjScore').style.display = 'block';
     updateScore();
-    feed('You entered room ' + MP.code);
+    feed('You entered room ' + MP.code + ' — ' + mapName(MP.map));
     if (window.__game && !window.__game.started) window.__game.start();
     var cv = renderer.domElement;
     if (cv && cv.requestPointerLock) { try { cv.requestPointerLock(); } catch (e) {} }
-    MP.relay.pub({ t: 'hi', id: MP.id, n: MP.name, c: player.char });
+    MP.relay.pub(hello('hi'));
+    if (MP.host) MP.relay.pub(hello('map'));
     setTag(player.rig, MP.name, player.char);
     MP.myChar = player.char;
     MP.wasDead = false;
@@ -622,14 +691,23 @@
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (m.t === 'map' && m.map) {
+      applyMap(m.map, true);
+      return;
+    }
     if (m.t === 'hi') {
       var f = fighterFor(m.id, m.n, m.c);
       f.seen = nowS();
       feed('<b>' + esc(m.n || '???') + '</b> joined');
-      if (MP.relay) MP.relay.pub({ t: 'hi2', id: MP.id, n: MP.name, c: player.char });
+      if (m.map) applyMap(m.map, true);
+      if (MP.relay) MP.relay.pub(hello('hi2'));
       return;
     }
-    if (m.t === 'hi2') { fighterFor(m.id, m.n, m.c).seen = nowS(); return; }
+    if (m.t === 'hi2') {
+      fighterFor(m.id, m.n, m.c).seen = nowS();
+      if (m.map) applyMap(m.map, true);
+      return;
+    }
     if (m.t === 'bye') {
       if (MP.fighters[m.id]) feed('<b>' + esc(MP.fighters[m.id].name) + '</b> left');
       dropFighter(m.id); renderList(); updateScore();

@@ -395,7 +395,7 @@ import * as THREE from "three";
      NAOYA — Projection Sorcery, 24 FPS rule, frames, bleed
    ============================================================ */
 
-const ARENA = 88;
+let ARENA = 88;
 let timeScale = 1, hitstopT = 0;
 
 /* ---------------- renderer / scene ---------------- */
@@ -411,7 +411,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87b8e8);
 scene.fog = new THREE.Fog(0x87b8e8, 90, 260);
 
-const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 500);
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 900);
 
 const hemi = new THREE.HemisphereLight(0xcfe4ff, 0x4a4438, 0.9);
 scene.add(hemi);
@@ -488,40 +488,31 @@ const buildingMats = [
   new THREE.MeshStandardMaterial({ map: buildingTex("#a89a8c", "#c8ecff"), roughness: .8 }),
   new THREE.MeshStandardMaterial({ map: buildingTex("#7f8a99", "#ffd27a"), roughness: .8 }),
 ];
-function addBuilding(x, z, w, d, h) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), buildingMats[Math.floor(Math.random() * 3)]);
+function addBuilding(x, z, w, d, h, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat || buildingMats[Math.floor(Math.random() * 3)]);
   m.position.set(x, h / 2, z);
   m.castShadow = m.receiveShadow = true;
   scene.add(m);
-  buildingAABBs.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h });
-}
-{
-  let s = 12;
-  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 14; i++) {
-    const a = i / 14 * Math.PI * 2;
-    const r = 62 + rnd() * 16;
-    addBuilding(Math.cos(a) * r, Math.sin(a) * r, 14 + rnd() * 10, 14 + rnd() * 10, 22 + rnd() * 34);
-  }
-  addBuilding(-34, -30, 12, 12, 16);
-  addBuilding(36, -34, 13, 13, 20);
-  addBuilding(-38, 34, 12, 12, 14);
-  addBuilding(34, 36, 12, 14, 18);
+  const pad = .6;
+  buildingAABBs.push({
+    minX: x - w / 2 - pad, maxX: x + w / 2 + pad,
+    minZ: z - d / 2 - pad, maxZ: z + d / 2 + pad,
+    h, mesh: m, extras: []
+  });
+  return m;
 }
 
-/* crates */
+/* crates — maps.js puts them on sidewalks, never inside a wall */
+const crateMat = new THREE.MeshStandardMaterial({ color: 0xb98a4a, roughness: .9 });
+const crateGeo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
 const crates = [];
-{
-  const cmat = new THREE.MeshStandardMaterial({ color: 0xb98a4a, roughness: .9 });
-  const cgeo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
-  for (let i = 0; i < 18; i++) {
-    const m = new THREE.Mesh(cgeo, cmat);
-    const a = Math.random() * Math.PI * 2, r = 12 + Math.random() * 34;
-    m.position.set(Math.cos(a) * r, 0.8, Math.sin(a) * r);
-    m.castShadow = m.receiveShadow = true;
-    scene.add(m);
-    crates.push({ mesh: m, vel: new THREE.Vector3(), av: new THREE.Vector3() });
-  }
+function addCrate(x, z) {
+  const m = new THREE.Mesh(crateGeo, crateMat);
+  m.position.set(x, 0.8, z);
+  m.castShadow = m.receiveShadow = true;
+  scene.add(m);
+  crates.push({ mesh: m, vel: new THREE.Vector3(), av: new THREE.Vector3() });
+  return m;
 }
 
 /* ============================================================
