@@ -6815,6 +6815,10 @@ window.__game = {
    is three minutes and a bit, which is not a fight — and it fades when
    the meter runs out, when he goes down, or when the last awakened Gojo
    in the room drops the state.
+
+   The track sits on that Gojo. Anyone close enough hears it, louder the
+   closer they are, and from the side he is standing on. Walk away and it
+   falls off; walk back in and it is still the same song, not a restart.
    ===================================================================== */
 (function () {
   'use strict';
@@ -6840,7 +6844,11 @@ window.__game = {
   var SONG_HOST = 'https://raw.githubusercontent.com/wujiahui4-a11y/' +
     'study-mathenmatics-G3-singapore-secondary/main/Final_Encore_Full_Version.mp3';
   var SONG_VOL = .62;
+  /* full volume inside this, silent past this. the domain is thirty-four
+     metres, so anyone standing in it can still hear him */
+  var HEAR_NEAR = 10, HEAR_FAR = 42;
   var songEl = null, songIds = {}, songFade = 0, songTriedHost = false, songArmed = false;
+  var songGraph = null, songWant = 0;
 
   function songUrl() {
     var href = '';
@@ -6859,7 +6867,8 @@ window.__game = {
     var a = new Audio();
     a.preload = 'auto';
     a.loop = false;
-    a.volume = SONG_VOL;
+    a.crossOrigin = 'anonymous';
+    a.volume = 1;
     a.src = songUrl();
     a.addEventListener('error', function () {
       if (songTriedHost) return;
@@ -6872,7 +6881,35 @@ window.__game = {
       }
     });
     songEl = a;
+    attachSong(a);
     return a;
+  }
+
+  /* the element is the clock; the graph puts it on him in the world */
+  function attachSong(a) {
+    if (songGraph) return songGraph;
+    var ac = null;
+    try { ac = audio(); } catch (e) {}
+    if (!ac) return null;
+    try {
+      var src = ac.createMediaElementSource(a);
+      var gain = ac.createGain();
+      var panner = ac.createPanner();
+      panner.panningModel = 'equalpower';
+      panner.distanceModel = 'linear';
+      panner.refDistance = 1000;
+      panner.maxDistance = 10000;
+      panner.rolloffFactor = 0;
+      panner.coneInnerAngle = 360;
+      gain.gain.value = 0;
+      src.connect(panner);
+      panner.connect(gain);
+      gain.connect(ac.destination);
+      songGraph = { ac: ac, src: src, gain: gain, panner: panner };
+    } catch (e) {
+      songGraph = null;
+    }
+    return songGraph;
   }
 
   function armSong() {
@@ -6884,14 +6921,18 @@ window.__game = {
   window.addEventListener('pointerdown', armSong);
   window.addEventListener('keydown', armSong);
 
-  function playSong() {
+  function playSong(restart) {
     var a = ensureSong();
+    attachSong(a);
     songFade = 0;
-    try { a.pause(); } catch (e) {}
-    try { a.currentTime = 0; } catch (e) {}
-    a.volume = SONG_VOL;
-    var p = a.play();
-    if (p && p.catch) p.catch(function () {});
+    if (restart) {
+      try { a.pause(); } catch (e) {}
+      try { a.currentTime = 0; } catch (e) {}
+    }
+    if (a.paused) {
+      var p = a.play();
+      if (p && p.catch) p.catch(function () {});
+    }
   }
 
   function fadeSong() {
@@ -6899,30 +6940,109 @@ window.__game = {
     songFade = 1;
   }
 
+  function hearGain(dist) {
+    if (dist <= HEAR_NEAR) return 1;
+    if (dist >= HEAR_FAR) return 0;
+    var k = (dist - HEAR_NEAR) / (HEAR_FAR - HEAR_NEAR);
+    return (1 - k) * (1 - k);
+  }
+
+  function songSource() {
+    var best = null, bestD = 1e9, pos, d;
+    if (songIds.local && (AW.cine || AW.active) && player && player.pos) {
+      return { pos: player.pos, dist: 0, id: 'local' };
+    }
+    var fs = window.MPJJ && window.MPJJ.fighters;
+    if (fs) {
+      for (var id in songIds) {
+        if (id === 'local') continue;
+        var f = fs[id];
+        if (!f || !f.e || !f.e.pos) continue;
+        pos = f.e.pos;
+        d = player.pos.distanceTo(pos);
+        if (d < bestD) { bestD = d; best = { pos: pos, dist: d, id: id }; }
+      }
+    }
+    return best;
+  }
+
+  function setListener(ac, from) {
+    var l = ac.listener;
+    var p = player.pos;
+    var fx = Math.sin(player.facing), fz = Math.cos(player.facing);
+    if (l.positionX) {
+      l.positionX.value = p.x;
+      l.positionY.value = p.y + 3.4;
+      l.positionZ.value = p.z;
+      l.forwardX.value = fx;
+      l.forwardY.value = 0;
+      l.forwardZ.value = fz;
+      l.upX.value = 0; l.upY.value = 1; l.upZ.value = 0;
+    } else if (l.setPosition) {
+      l.setPosition(p.x, p.y + 3.4, p.z);
+      l.setOrientation(fx, 0, fz, 0, 1, 0);
+    }
+    if (!from || !songGraph || !songGraph.panner) return;
+    var pan = songGraph.panner;
+    var x = from.x, y = from.y + 3.2, z = from.z;
+    if (pan.positionX) {
+      pan.positionX.value = x;
+      pan.positionY.value = y;
+      pan.positionZ.value = z;
+    } else if (pan.setPosition) {
+      pan.setPosition(x, y, z);
+    }
+  }
+
   function stepSong(dt) {
-    if (!songFade || !songEl) return;
-    songEl.volume = Math.max(0, songEl.volume - dt * .9);
-    if (songEl.volume <= .02) {
-      try { songEl.pause(); songEl.currentTime = 0; } catch (e) {}
-      songEl.volume = SONG_VOL;
-      songFade = 0;
+    var src = Object.keys(songIds).length ? songSource() : null;
+    var want = 0;
+    if (songFade) {
+      songWant = Math.max(0, songWant - dt * .9);
+      want = songWant;
+      if (want <= .02) {
+        try { songEl.pause(); songEl.currentTime = 0; } catch (e) {}
+        songFade = 0;
+        songWant = 0;
+        want = 0;
+      }
+    } else if (src) {
+      want = SONG_VOL * hearGain(src.dist);
+      songWant = want;
+      if (songEl && songEl.paused && want > 0.01) playSong(false);
+    } else {
+      want = 0;
+      songWant = 0;
+    }
+    if (songGraph && songGraph.gain) {
+      songGraph.gain.gain.value = want;
+      if (songGraph.ac && src) setListener(songGraph.ac, src.pos);
+    } else if (songEl) {
+      songEl.volume = Math.max(0, Math.min(1, want));
     }
   }
 
   /* on: a Gojo in the room just started the entrance. off: that Gojo
-     is no longer awakened. The track restarts for a new entrance and
-     only fades when nobody in the room is still in it. */
+     is no longer awakened. A new entrance restarts the track so the
+     cut lands on the first beat; walking into range of one that is
+     already running does not. */
   function theme(on, id) {
     id = id || 'local';
     if (on) {
       var first = !songIds[id];
       songIds[id] = 1;
-      if (first || songEl && (songEl.paused || songFade)) playSong();
+      if (first) playSong(true);
+      else playSong(false);
     } else {
       delete songIds[id];
       if (!Object.keys(songIds).length) fadeSong();
     }
   }
+
+  AW.hearGain = hearGain;
+  AW.songSource = songSource;
+  AW.HEAR_NEAR = HEAR_NEAR;
+  AW.HEAR_FAR = HEAR_FAR;
 
   /* ------------------------------------------------------------ the look */
   function findBlindfold(rig) {
@@ -23258,6 +23378,10 @@ window.__game = {
    is three minutes and a bit, which is not a fight — and it fades when
    the meter runs out, when he goes down, or when the last awakened Gojo
    in the room drops the state.
+
+   The track sits on that Gojo. Anyone close enough hears it, louder the
+   closer they are, and from the side he is standing on. Walk away and it
+   falls off; walk back in and it is still the same song, not a restart.
    ===================================================================== */
 (function () {
   'use strict';
@@ -23283,7 +23407,11 @@ window.__game = {
   var SONG_HOST = 'https://raw.githubusercontent.com/wujiahui4-a11y/' +
     'study-mathenmatics-G3-singapore-secondary/main/Final_Encore_Full_Version.mp3';
   var SONG_VOL = .62;
+  /* full volume inside this, silent past this. the domain is thirty-four
+     metres, so anyone standing in it can still hear him */
+  var HEAR_NEAR = 10, HEAR_FAR = 42;
   var songEl = null, songIds = {}, songFade = 0, songTriedHost = false, songArmed = false;
+  var songGraph = null, songWant = 0;
 
   function songUrl() {
     var href = '';
@@ -23302,7 +23430,8 @@ window.__game = {
     var a = new Audio();
     a.preload = 'auto';
     a.loop = false;
-    a.volume = SONG_VOL;
+    a.crossOrigin = 'anonymous';
+    a.volume = 1;
     a.src = songUrl();
     a.addEventListener('error', function () {
       if (songTriedHost) return;
@@ -23315,7 +23444,35 @@ window.__game = {
       }
     });
     songEl = a;
+    attachSong(a);
     return a;
+  }
+
+  /* the element is the clock; the graph puts it on him in the world */
+  function attachSong(a) {
+    if (songGraph) return songGraph;
+    var ac = null;
+    try { ac = audio(); } catch (e) {}
+    if (!ac) return null;
+    try {
+      var src = ac.createMediaElementSource(a);
+      var gain = ac.createGain();
+      var panner = ac.createPanner();
+      panner.panningModel = 'equalpower';
+      panner.distanceModel = 'linear';
+      panner.refDistance = 1000;
+      panner.maxDistance = 10000;
+      panner.rolloffFactor = 0;
+      panner.coneInnerAngle = 360;
+      gain.gain.value = 0;
+      src.connect(panner);
+      panner.connect(gain);
+      gain.connect(ac.destination);
+      songGraph = { ac: ac, src: src, gain: gain, panner: panner };
+    } catch (e) {
+      songGraph = null;
+    }
+    return songGraph;
   }
 
   function armSong() {
@@ -23327,14 +23484,18 @@ window.__game = {
   window.addEventListener('pointerdown', armSong);
   window.addEventListener('keydown', armSong);
 
-  function playSong() {
+  function playSong(restart) {
     var a = ensureSong();
+    attachSong(a);
     songFade = 0;
-    try { a.pause(); } catch (e) {}
-    try { a.currentTime = 0; } catch (e) {}
-    a.volume = SONG_VOL;
-    var p = a.play();
-    if (p && p.catch) p.catch(function () {});
+    if (restart) {
+      try { a.pause(); } catch (e) {}
+      try { a.currentTime = 0; } catch (e) {}
+    }
+    if (a.paused) {
+      var p = a.play();
+      if (p && p.catch) p.catch(function () {});
+    }
   }
 
   function fadeSong() {
@@ -23342,30 +23503,109 @@ window.__game = {
     songFade = 1;
   }
 
+  function hearGain(dist) {
+    if (dist <= HEAR_NEAR) return 1;
+    if (dist >= HEAR_FAR) return 0;
+    var k = (dist - HEAR_NEAR) / (HEAR_FAR - HEAR_NEAR);
+    return (1 - k) * (1 - k);
+  }
+
+  function songSource() {
+    var best = null, bestD = 1e9, pos, d;
+    if (songIds.local && (AW.cine || AW.active) && player && player.pos) {
+      return { pos: player.pos, dist: 0, id: 'local' };
+    }
+    var fs = window.MPJJ && window.MPJJ.fighters;
+    if (fs) {
+      for (var id in songIds) {
+        if (id === 'local') continue;
+        var f = fs[id];
+        if (!f || !f.e || !f.e.pos) continue;
+        pos = f.e.pos;
+        d = player.pos.distanceTo(pos);
+        if (d < bestD) { bestD = d; best = { pos: pos, dist: d, id: id }; }
+      }
+    }
+    return best;
+  }
+
+  function setListener(ac, from) {
+    var l = ac.listener;
+    var p = player.pos;
+    var fx = Math.sin(player.facing), fz = Math.cos(player.facing);
+    if (l.positionX) {
+      l.positionX.value = p.x;
+      l.positionY.value = p.y + 3.4;
+      l.positionZ.value = p.z;
+      l.forwardX.value = fx;
+      l.forwardY.value = 0;
+      l.forwardZ.value = fz;
+      l.upX.value = 0; l.upY.value = 1; l.upZ.value = 0;
+    } else if (l.setPosition) {
+      l.setPosition(p.x, p.y + 3.4, p.z);
+      l.setOrientation(fx, 0, fz, 0, 1, 0);
+    }
+    if (!from || !songGraph || !songGraph.panner) return;
+    var pan = songGraph.panner;
+    var x = from.x, y = from.y + 3.2, z = from.z;
+    if (pan.positionX) {
+      pan.positionX.value = x;
+      pan.positionY.value = y;
+      pan.positionZ.value = z;
+    } else if (pan.setPosition) {
+      pan.setPosition(x, y, z);
+    }
+  }
+
   function stepSong(dt) {
-    if (!songFade || !songEl) return;
-    songEl.volume = Math.max(0, songEl.volume - dt * .9);
-    if (songEl.volume <= .02) {
-      try { songEl.pause(); songEl.currentTime = 0; } catch (e) {}
-      songEl.volume = SONG_VOL;
-      songFade = 0;
+    var src = Object.keys(songIds).length ? songSource() : null;
+    var want = 0;
+    if (songFade) {
+      songWant = Math.max(0, songWant - dt * .9);
+      want = songWant;
+      if (want <= .02) {
+        try { songEl.pause(); songEl.currentTime = 0; } catch (e) {}
+        songFade = 0;
+        songWant = 0;
+        want = 0;
+      }
+    } else if (src) {
+      want = SONG_VOL * hearGain(src.dist);
+      songWant = want;
+      if (songEl && songEl.paused && want > 0.01) playSong(false);
+    } else {
+      want = 0;
+      songWant = 0;
+    }
+    if (songGraph && songGraph.gain) {
+      songGraph.gain.gain.value = want;
+      if (songGraph.ac && src) setListener(songGraph.ac, src.pos);
+    } else if (songEl) {
+      songEl.volume = Math.max(0, Math.min(1, want));
     }
   }
 
   /* on: a Gojo in the room just started the entrance. off: that Gojo
-     is no longer awakened. The track restarts for a new entrance and
-     only fades when nobody in the room is still in it. */
+     is no longer awakened. A new entrance restarts the track so the
+     cut lands on the first beat; walking into range of one that is
+     already running does not. */
   function theme(on, id) {
     id = id || 'local';
     if (on) {
       var first = !songIds[id];
       songIds[id] = 1;
-      if (first || songEl && (songEl.paused || songFade)) playSong();
+      if (first) playSong(true);
+      else playSong(false);
     } else {
       delete songIds[id];
       if (!Object.keys(songIds).length) fadeSong();
     }
   }
+
+  AW.hearGain = hearGain;
+  AW.songSource = songSource;
+  AW.HEAR_NEAR = HEAR_NEAR;
+  AW.HEAR_FAR = HEAR_FAR;
 
   /* ------------------------------------------------------------ the look */
   function findBlindfold(rig) {

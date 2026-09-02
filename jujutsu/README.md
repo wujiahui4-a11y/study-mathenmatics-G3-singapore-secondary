@@ -242,8 +242,10 @@ The entrance is three and a half seconds and cannot be interrupted: the ground
 cracks, the air is pulled in, the blindfold comes away on a white frame with
 the six eyes lit behind it, a column of cursed energy goes up and the name
 card lands. You are untouchable for all of it. **Final Encore** (the full
-version) starts on the first frame of that cut — on your screen and on
-everybody else's — and fades when the awakening ends. The other players see the
+version) starts on the first frame of that cut and sits on that Gojo: anyone
+close enough hears it, louder the closer they are, and from the side he is
+standing on. Walk away and it falls off; walk back in and the same song is
+still going. It fades when the awakening ends. The other players see the
 column, the shockwave and the poses, and their copy of you loses the blindfold
 on the same beat you do.
 
