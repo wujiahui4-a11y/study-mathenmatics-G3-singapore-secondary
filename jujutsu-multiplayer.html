@@ -17458,8 +17458,10 @@ window.__game = {
     zebra(22, 0, 7, 20, false);
     zebra(-22, 0, 7, 20, false);
     lampsAt(street);
-    cratesAlong(street);
-    crate(23, 23); crate(-23, 23); crate(23, -23); crate(-23, -23);
+    /* alley mouths — the curb itself is too tight for a crate */
+    crate(21, 46); crate(-21, 46); crate(21, -46); crate(-21, -46);
+    crate(46, 21); crate(-46, 21); crate(46, -21); crate(-46, -21);
+    crate(21, 76); crate(-21, 76); crate(21, -76); crate(-21, -76);
     spawns = [
       { x: -16, z: 18 }, { x: 16, z: 18 }, { x: -16, z: -18 }, { x: 16, z: -18 },
       { x: 0, z: 22 }, { x: 0, z: -22 }
@@ -17495,8 +17497,9 @@ window.__game = {
     zebra(0, -34, 24, 8, true);
     zebra(34, 0, 8, 24, false);
     zebra(-34, 0, 8, 24, false);
-    cratesAlong(street);
-    crate(32, 32); crate(-32, 32); crate(32, -32); crate(-32, -32);
+    crate(30, 64); crate(-30, 64); crate(30, -64); crate(-30, -64);
+    crate(64, 30); crate(-64, 30); crate(64, -30); crate(-64, -30);
+    crate(30, 98); crate(-30, 98); crate(30, -98); crate(-30, -98);
     spawns = [
       { x: -24, z: 24 }, { x: 24, z: 24 }, { x: -24, z: -24 }, { x: 24, z: -24 },
       { x: 0, z: 30 }, { x: 0, z: -30 }, { x: 30, z: 0 }, { x: -30, z: 0 }
