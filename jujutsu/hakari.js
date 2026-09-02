@@ -272,6 +272,18 @@
     var hazK = mat(0x2a2c32, { rough: .8, metal: .08 });
     var rv = mat(0xc8d0da, { rough: .4, metal: .3 });
 
+    /* two leaves, so the finisher can open them and clamp them */
+    var left = new THREE.Group();
+    left.position.x = -1.72;
+    left.userData.homeX = -1.72;
+    g.add(left);
+    var right = new THREE.Group();
+    right.position.x = 1.72;
+    right.userData.homeX = 1.72;
+    g.add(right);
+    g.userData.left = left;
+    g.userData.right = right;
+
     /* the frame the shutter rides in — same from either side */
     box(g, 7.55, .42, .96, steel, 0, 3.22, 0);
     box(g, 7.7, .14, 1.02, gold, 0, 3.46, 0);
@@ -296,9 +308,7 @@
 
       var side;
       for (side = -1; side <= 1; side += 2) {
-        var leaf = new THREE.Group();
-        leaf.position.set(side * 1.72, 0, .08 * zS);
-        g.add(leaf);
+        var leaf = side < 0 ? left : right;
 
         box(leaf, 3.28, 6.05, .14, steel, 0, 0, 0);
         var s;
@@ -323,12 +333,9 @@
         box(leaf, .34, .08, .08, ink, side * -.9, -.15, .34 * zS);
         box(leaf, .22, .1, .1, goldH, 0, 2.88, .32 * zS);
         box(leaf, .12, 6.0, .22, steel, side * 1.52, 0, .08 * zS);
+        /* the inner edge that meets the other leaf when they clamp */
+        box(leaf, .14, 6.1, .28, goldH, side * -1.62, 0, .2 * zS);
       }
-
-      box(g, .18, 6.15, .2, steelD, 0, 0, .18 * zS);
-      box(g, .1, 6.05, .24, ink, 0, 0, .22 * zS);
-      box(g, .34, .42, .16, gold, 0, .15, .4 * zS);
-      box(g, .14, .18, .12, ink, 0, .15, .48 * zS);
 
       var r;
       for (r = -3; r <= 3; r++) box(g, .1, .1, .1, rv, r * 1.05, 3.22, .5 * zS);
@@ -359,6 +366,11 @@
     return g;
   }
   HK.makeDoor = makeDoor;
+  HK.openDoor = function (door, amount) {
+    if (!door || !door.userData.left || !door.userData.right) return;
+    door.userData.left.position.x = door.userData.left.userData.homeX - amount;
+    door.userData.right.position.x = door.userData.right.userData.homeX + amount;
+  };
   HK.dropDoor = function (door) {
     if (!door) return;
     if (door.parent) door.parent.remove(door);
