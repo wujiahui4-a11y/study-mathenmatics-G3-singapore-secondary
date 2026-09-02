@@ -8491,6 +8491,14 @@ window.__game = {
   castRapid = function () { return AW.active ? castRedMax() : _castRapid(); };
   castTwofold = function () { return AW.active ? castPurple() : _castTwofold(); };
   castPalm = function () { return AW.active ? castDomain() : _castPalm(); };
+  if (window.__game) {
+    window.__game.castRed = castRed;
+    window.__game.castRapid = castRapid;
+    window.__game.castTwofold = castTwofold;
+    window.__game.castPalm = castPalm;
+    window.__game.castRedMax = castRedMax;
+  }
+  AW.castRedMax = castRedMax;
 
   window.addEventListener('keydown', function (e) {
     if (e.code !== 'KeyF' || e.repeat || !started) return;
@@ -10372,7 +10380,7 @@ window.__game = {
       if (!v) return false;
       startCine(entHandle(v), selfHandle());
     }
-    n = n | 0;
+    n = (n | 0) - 1;                               // 1-based, as the cut is numbered
     if (CINE.beat >= 0 && CINE.beat !== n && BEATS[CINE.beat].exit) BEATS[CINE.beat].exit();
     CINE.beat = n;
     CINE.bt = 0;
@@ -10486,6 +10494,17 @@ window.__game = {
   castN2 = guard(castN2);
   castN3 = guard(castN3);
   castNaoyaR = guard(castNaoyaR);
+  if (window.__game) {
+    window.__game.castRed = castRed;
+    window.__game.castRapid = castRapid;
+    window.__game.castTwofold = castTwofold;
+    window.__game.castPalm = castPalm;
+    window.__game.castLimitless = castLimitless;
+    window.__game.castN1 = castN1;
+    window.__game.castN2 = castN2;
+    window.__game.castN3 = castN3;
+    window.__game.castNaoyaR = castNaoyaR;
+  }
 
 })();
 

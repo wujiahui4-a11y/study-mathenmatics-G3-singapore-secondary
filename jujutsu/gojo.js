@@ -1370,6 +1370,14 @@
   castRapid = function () { return AW.active ? castRedMax() : _castRapid(); };
   castTwofold = function () { return AW.active ? castPurple() : _castTwofold(); };
   castPalm = function () { return AW.active ? castDomain() : _castPalm(); };
+  if (window.__game) {
+    window.__game.castRed = castRed;
+    window.__game.castRapid = castRapid;
+    window.__game.castTwofold = castTwofold;
+    window.__game.castPalm = castPalm;
+    window.__game.castRedMax = castRedMax;
+  }
+  AW.castRedMax = castRedMax;
 
   window.addEventListener('keydown', function (e) {
     if (e.code !== 'KeyF' || e.repeat || !started) return;
