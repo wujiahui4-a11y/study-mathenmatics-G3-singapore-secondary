@@ -747,7 +747,7 @@ address. Same Apps Script as the Baldi game, pointed at this folder:
 ```javascript
 const BASE = 'https://raw.githubusercontent.com/wujiahui4-a11y/'
   + 'study-mathenmatics-G3-singapore-secondary/'
-  + 'cursor/gojo-blue-maximum-0a77/jujutsu-parts/';
+  + 'cursor/jujutsu-kaisen-multiplayer-0a77/jujutsu-parts/';
 
 function doGet(e) {
   if (e.parameter.p) {
