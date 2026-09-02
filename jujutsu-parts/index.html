@@ -10608,11 +10608,11 @@ window.__game = {
       var i, g;
       for (i = 0; i < 8; i++) {
         g = x.createLinearGradient(0, i * 8, 0, i * 8 + 8);
-        g.addColorStop(0, '#d4dbe4');
-        g.addColorStop(.28, '#9aa4b2');
-        g.addColorStop(.5, '#5c6574');
-        g.addColorStop(.72, '#b4bcc8');
-        g.addColorStop(1, '#6a7382');
+        g.addColorStop(0, '#f2f6fb');
+        g.addColorStop(.28, '#b8c2d0');
+        g.addColorStop(.5, '#6e7888');
+        g.addColorStop(.72, '#d0d8e2');
+        g.addColorStop(1, '#8a93a2');
         x.fillStyle = g;
         x.fillRect(0, i * 8, w, 8);
       }
@@ -10666,8 +10666,8 @@ window.__game = {
       opt = opt || {};
       var m = new THREE.MeshStandardMaterial({
         color: c,
-        roughness: opt.rough == null ? .42 : opt.rough,
-        metalness: opt.metal == null ? .72 : opt.metal,
+        roughness: opt.rough == null ? .55 : opt.rough,
+        metalness: opt.metal == null ? .22 : opt.metal,
         emissive: opt.emit || 0x000000,
         emissiveIntensity: opt.emitI || 0,
         map: opt.map || null,
@@ -10680,6 +10680,14 @@ window.__game = {
       }
       return m;
     }
+    function lit(c, opt) {
+      opt = opt || {};
+      var m = new THREE.MeshBasicMaterial({
+        color: c, toneMapped: false, map: opt.map || null,
+        transparent: !!opt.alpha, opacity: opt.alpha == null ? 1 : opt.alpha
+      });
+      return m;
+    }
     function box(par, w, h, d, m, x, y, z) {
       var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
       mesh.position.set(x || 0, y || 0, z || 0);
@@ -10689,109 +10697,100 @@ window.__game = {
       return mesh;
     }
 
-    var steel = mat(0xb8c2ce, { rough: .38, metal: .78 });
-    var steelD = mat(0x5a6270, { rough: .48, metal: .7 });
-    var steelR = mat(0xe8eef4, { rough: .34, metal: .82, map: DOOR_SLAT });
-    var ink = mat(0x1a1c22, { rough: .88, metal: .08 });
-    var gold = mat(0xffd24a, { rough: .26, metal: .88, emit: 0xffaa22, emitI: .42, gold: 1 });
-    var goldH = mat(0xffe08a, { rough: .2, metal: .9, emit: 0xffc44d, emitI: .7, gold: 1 });
-    var pink = mat(0xff4f8b, { rough: .4, metal: .35, emit: 0xff2a6a, emitI: .28, gold: 1 });
-    var glass = mat(0xffffff, { rough: .08, metal: .25, map: DOOR_GLASS, alpha: .82 });
-    var plate = mat(0xffffff, { rough: .45, metal: .2, map: DOOR_PLATE });
-    var hazY = mat(0xffcc33, { rough: .55, metal: .25, emit: 0xaa8800, emitI: .12 });
-    var hazK = mat(0x14161a, { rough: .8, metal: .1 });
+    var steel = mat(0xc5ced8, { rough: .48, metal: .28 });
+    var steelD = mat(0x6a7382, { rough: .58, metal: .18 });
+    var steelR = mat(0xffffff, { rough: .42, metal: .2, map: DOOR_SLAT });
+    var ink = mat(0x2a2e36, { rough: .82, metal: .06 });
+    var gold = lit(0xffd24a);
+    var goldH = lit(0xffe08a);
+    var pink = lit(0xff4f8b);
+    var glass = lit(0xffffff, { map: DOOR_GLASS });
+    var plate = lit(0xffffff, { map: DOOR_PLATE });
+    var hazY = lit(0xffcc33);
+    var hazK = mat(0x2a2c32, { rough: .8, metal: .08 });
+    var rv = mat(0xc8d0da, { rough: .4, metal: .3 });
 
-    /* the frame the shutter rides in */
-    box(g, 7.55, .42, .86, steel, 0, 3.22, 0);
-    box(g, 7.7, .12, .94, gold, 0, 3.46, 0);
-    box(g, .38, 6.6, .86, steel, -3.58, 0, 0);
-    box(g, .38, 6.6, .86, steel, 3.58, 0, 0);
-    box(g, 7.55, .34, .92, steelD, 0, -3.28, 0);
-    box(g, 7.2, 6.35, .16, steelD, 0, 0, -.28);     // the back plate
-    box(g, 7.35, 6.5, .1, ink, 0, 0, -.22);          // the well it sits in
+    /* the frame the shutter rides in — same from either side */
+    box(g, 7.55, .42, .96, steel, 0, 3.22, 0);
+    box(g, 7.7, .14, 1.02, gold, 0, 3.46, 0);
+    box(g, .38, 6.6, .96, steel, -3.58, 0, 0);
+    box(g, .38, 6.6, .96, steel, 3.58, 0, 0);
+    box(g, 7.55, .34, 1.0, steelD, 0, -3.28, 0);
+    box(g, 7.05, 6.15, .2, steelD, 0, 0, 0);
 
-    /* gold cursed-energy rim, slightly proud of the steel */
-    box(g, 7.85, .07, .07, goldH, 0, 3.58, .38);
-    box(g, 7.85, .07, .07, goldH, 0, -3.48, .38);
-    box(g, .07, 7.1, .07, goldH, -3.82, 0, .38);
-    box(g, .07, 7.1, .07, goldH, 3.82, 0, .38);
-
-    var side;
-    for (side = -1; side <= 1; side += 2) {
-      var leaf = new THREE.Group();
-      leaf.position.set(side * 1.72, 0, .06);
-      g.add(leaf);
-
-      box(leaf, 3.28, 6.05, .22, steel, 0, 0, -.04);
-      /* corrugated slats — the shutter itself */
-      var s;
-      for (s = 0; s < 10; s++) {
-        var sy = -2.62 + s * .38;
-        var slat = box(leaf, 3.12, .3, .42, steelR, 0, sy, .12);
-        slat.userData.home = slat.position.clone();
-        g.userData.slats.push(slat);
-        box(leaf, 3.12, .06, .46, steelD, 0, sy - .16, .14);
-      }
-      /* the window in the top third, with the 777 on the glass */
-      box(leaf, 2.55, 1.85, .1, ink, 0, 2.08, .16);
-      box(leaf, 2.36, 1.66, .06, glass, 0, 2.08, .22);
-      box(leaf, 2.58, .1, .16, gold, 0, 2.96, .24);
-      box(leaf, 2.58, .1, .16, gold, 0, 1.2, .24);
-      box(leaf, .1, 1.86, .16, gold, -1.24, 2.08, .24);
-      box(leaf, .1, 1.86, .16, gold, 1.24, 2.08, .24);
-      box(leaf, 2.4, .06, .12, gold, 0, 2.08, .26);
-      box(leaf, .06, 1.66, .12, gold, 0, 2.08, .26);
-
-      /* the line across it that belongs to the train */
-      box(leaf, 3.16, .28, .14, plate, 0, 1.02, .28);
-      box(leaf, 3.16, .05, .16, pink, 0, 1.18, .3);
-
-      /* grab bar, and a lamp over the glass */
-      box(leaf, .08, .72, .08, ink, side * -.9, -.15, .36);
-      box(leaf, .34, .08, .08, ink, side * -.9, -.15, .36);
-      box(leaf, .22, .1, .12, goldH, 0, 2.88, .34);
-
-      /* outer stiffener */
-      box(leaf, .12, 6.0, .48, steel, side * 1.52, 0, .1);
-    }
-
-    /* the meeting stile, rubber and latch */
-    box(g, .18, 6.15, .62, steelD, 0, 0, .16);
-    box(g, .1, 6.05, .68, ink, 0, 0, .2);
-    box(g, .34, .42, .28, gold, 0, .15, .42);
-    box(g, .14, .18, .16, ink, 0, .15, .52);
-
-    /* rubber sweep, and the hazard blocks on the sill */
-    box(g, 7.1, .16, .7, ink, 0, -3.08, .18);
+    /* rubber sweep and hazard blocks on the sill */
+    box(g, 7.1, .16, .86, ink, 0, -3.08, 0);
     var h;
     for (h = 0; h < 9; h++) {
-      box(g, .72, .12, .78, h % 2 ? hazY : hazK, -2.88 + h * .72, -3.38, .2);
+      box(g, .72, .12, .96, h % 2 ? hazY : hazK, -2.88 + h * .72, -3.38, 0);
     }
 
-    /* rivets along the header and the posts */
-    var r, rv = mat(0x9aa3b0, { rough: .3, metal: .88 });
-    for (r = -3; r <= 3; r++) {
-      box(g, .1, .1, .12, rv, r * 1.05, 3.22, .46);
-    }
-    for (r = -2; r <= 2; r++) {
-      box(g, .1, .1, .12, rv, -3.58, r * 1.15, .46);
-      box(g, .1, .1, .12, rv, 3.58, r * 1.15, .46);
-    }
+    /* both skins: the player stands on -Z, the throw goes toward +Z */
+    function skin(zS) {
+      box(g, 7.85, .07, .07, goldH, 0, 3.58, .44 * zS);
+      box(g, 7.85, .07, .07, goldH, 0, -3.48, .44 * zS);
+      box(g, .07, 7.1, .07, goldH, -3.82, 0, .44 * zS);
+      box(g, .07, 7.1, .07, goldH, 3.82, 0, .44 * zS);
 
-    /* cursed-energy rings, front and back, so it reads when it flies */
-    var glow = FX.billboard(FX.T.ring, 0xffcc4d, .55);
-    glow.scale.set(9.4, 9.4, 1);
-    glow.position.z = .62;
+      var side;
+      for (side = -1; side <= 1; side += 2) {
+        var leaf = new THREE.Group();
+        leaf.position.set(side * 1.72, 0, .08 * zS);
+        g.add(leaf);
+
+        box(leaf, 3.28, 6.05, .14, steel, 0, 0, 0);
+        var s;
+        for (s = 0; s < 10; s++) {
+          var sy = -2.62 + s * .38;
+          var slat = box(leaf, 3.12, .3, .2, steelR, 0, sy, .12 * zS);
+          slat.userData.home = slat.position.clone();
+          g.userData.slats.push(slat);
+          box(leaf, 3.12, .06, .24, steelD, 0, sy - .16, .14 * zS);
+        }
+        box(leaf, 2.55, 1.85, .08, ink, 0, 2.08, .14 * zS);
+        box(leaf, 2.36, 1.66, .05, glass, 0, 2.08, .2 * zS);
+        box(leaf, 2.58, .1, .12, gold, 0, 2.96, .22 * zS);
+        box(leaf, 2.58, .1, .12, gold, 0, 1.2, .22 * zS);
+        box(leaf, .1, 1.86, .12, gold, -1.24, 2.08, .22 * zS);
+        box(leaf, .1, 1.86, .12, gold, 1.24, 2.08, .22 * zS);
+        box(leaf, 2.4, .06, .1, gold, 0, 2.08, .24 * zS);
+        box(leaf, .06, 1.66, .1, gold, 0, 2.08, .24 * zS);
+        box(leaf, 3.16, .28, .12, plate, 0, 1.02, .26 * zS);
+        box(leaf, 3.16, .05, .14, pink, 0, 1.18, .28 * zS);
+        box(leaf, .08, .72, .08, ink, side * -.9, -.15, .34 * zS);
+        box(leaf, .34, .08, .08, ink, side * -.9, -.15, .34 * zS);
+        box(leaf, .22, .1, .1, goldH, 0, 2.88, .32 * zS);
+        box(leaf, .12, 6.0, .22, steel, side * 1.52, 0, .08 * zS);
+      }
+
+      box(g, .18, 6.15, .2, steelD, 0, 0, .18 * zS);
+      box(g, .1, 6.05, .24, ink, 0, 0, .22 * zS);
+      box(g, .34, .42, .16, gold, 0, .15, .4 * zS);
+      box(g, .14, .18, .12, ink, 0, .15, .48 * zS);
+
+      var r;
+      for (r = -3; r <= 3; r++) box(g, .1, .1, .1, rv, r * 1.05, 3.22, .5 * zS);
+      for (r = -2; r <= 2; r++) {
+        box(g, .1, .1, .1, rv, -3.58, r * 1.15, .5 * zS);
+        box(g, .1, .1, .1, rv, 3.58, r * 1.15, .5 * zS);
+      }
+    }
+    skin(-1);
+    skin(1);
+
+    var glow = FX.billboard(FX.T.ring, 0xffcc4d, .5);
+    glow.scale.set(8.2, 8.2, 1);
+    glow.position.z = -.58;
     g.add(glow);
     g.userData.glow = glow;
     var glowB = FX.billboard(FX.T.ring, 0xff4f8b, .32);
-    glowB.scale.set(8.2, 8.2, 1);
-    glowB.position.z = -.42;
+    glowB.scale.set(7.4, 7.4, 1);
+    glowB.position.z = .58;
     g.add(glowB);
     g.userData.glowB = glowB;
-    var star = FX.billboard(FX.T.star, 0xffe08a, .4);
-    star.scale.set(3.2, 3.2, 1);
-    star.position.set(0, .15, .7);
+    var star = FX.billboard(FX.T.star, 0xffe08a, .35);
+    star.scale.set(2.8, 2.8, 1);
+    star.position.set(0, .15, -.68);
     g.add(star);
     g.userData.star = star;
 
@@ -10816,7 +10815,9 @@ window.__game = {
     if (door.userData.star) door.userData.star.material.opacity = .28 + k * .3;
     var golds = door.userData.golds || [];
     for (var i = 0; i < golds.length; i++) {
-      golds[i].emissiveIntensity = (golds[i].userData.baseEmit || .3) + k * .45;
+      if (golds[i].isMeshStandardMaterial) {
+        golds[i].emissiveIntensity = (golds[i].userData.baseEmit || .3) + k * .45;
+      }
     }
   };
   HK.rattleDoor = function (door, amt) {
@@ -27182,11 +27183,11 @@ window.__game = {
       var i, g;
       for (i = 0; i < 8; i++) {
         g = x.createLinearGradient(0, i * 8, 0, i * 8 + 8);
-        g.addColorStop(0, '#d4dbe4');
-        g.addColorStop(.28, '#9aa4b2');
-        g.addColorStop(.5, '#5c6574');
-        g.addColorStop(.72, '#b4bcc8');
-        g.addColorStop(1, '#6a7382');
+        g.addColorStop(0, '#f2f6fb');
+        g.addColorStop(.28, '#b8c2d0');
+        g.addColorStop(.5, '#6e7888');
+        g.addColorStop(.72, '#d0d8e2');
+        g.addColorStop(1, '#8a93a2');
         x.fillStyle = g;
         x.fillRect(0, i * 8, w, 8);
       }
@@ -27240,8 +27241,8 @@ window.__game = {
       opt = opt || {};
       var m = new THREE.MeshStandardMaterial({
         color: c,
-        roughness: opt.rough == null ? .42 : opt.rough,
-        metalness: opt.metal == null ? .72 : opt.metal,
+        roughness: opt.rough == null ? .55 : opt.rough,
+        metalness: opt.metal == null ? .22 : opt.metal,
         emissive: opt.emit || 0x000000,
         emissiveIntensity: opt.emitI || 0,
         map: opt.map || null,
@@ -27254,6 +27255,14 @@ window.__game = {
       }
       return m;
     }
+    function lit(c, opt) {
+      opt = opt || {};
+      var m = new THREE.MeshBasicMaterial({
+        color: c, toneMapped: false, map: opt.map || null,
+        transparent: !!opt.alpha, opacity: opt.alpha == null ? 1 : opt.alpha
+      });
+      return m;
+    }
     function box(par, w, h, d, m, x, y, z) {
       var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
       mesh.position.set(x || 0, y || 0, z || 0);
@@ -27263,109 +27272,100 @@ window.__game = {
       return mesh;
     }
 
-    var steel = mat(0xb8c2ce, { rough: .38, metal: .78 });
-    var steelD = mat(0x5a6270, { rough: .48, metal: .7 });
-    var steelR = mat(0xe8eef4, { rough: .34, metal: .82, map: DOOR_SLAT });
-    var ink = mat(0x1a1c22, { rough: .88, metal: .08 });
-    var gold = mat(0xffd24a, { rough: .26, metal: .88, emit: 0xffaa22, emitI: .42, gold: 1 });
-    var goldH = mat(0xffe08a, { rough: .2, metal: .9, emit: 0xffc44d, emitI: .7, gold: 1 });
-    var pink = mat(0xff4f8b, { rough: .4, metal: .35, emit: 0xff2a6a, emitI: .28, gold: 1 });
-    var glass = mat(0xffffff, { rough: .08, metal: .25, map: DOOR_GLASS, alpha: .82 });
-    var plate = mat(0xffffff, { rough: .45, metal: .2, map: DOOR_PLATE });
-    var hazY = mat(0xffcc33, { rough: .55, metal: .25, emit: 0xaa8800, emitI: .12 });
-    var hazK = mat(0x14161a, { rough: .8, metal: .1 });
+    var steel = mat(0xc5ced8, { rough: .48, metal: .28 });
+    var steelD = mat(0x6a7382, { rough: .58, metal: .18 });
+    var steelR = mat(0xffffff, { rough: .42, metal: .2, map: DOOR_SLAT });
+    var ink = mat(0x2a2e36, { rough: .82, metal: .06 });
+    var gold = lit(0xffd24a);
+    var goldH = lit(0xffe08a);
+    var pink = lit(0xff4f8b);
+    var glass = lit(0xffffff, { map: DOOR_GLASS });
+    var plate = lit(0xffffff, { map: DOOR_PLATE });
+    var hazY = lit(0xffcc33);
+    var hazK = mat(0x2a2c32, { rough: .8, metal: .08 });
+    var rv = mat(0xc8d0da, { rough: .4, metal: .3 });
 
-    /* the frame the shutter rides in */
-    box(g, 7.55, .42, .86, steel, 0, 3.22, 0);
-    box(g, 7.7, .12, .94, gold, 0, 3.46, 0);
-    box(g, .38, 6.6, .86, steel, -3.58, 0, 0);
-    box(g, .38, 6.6, .86, steel, 3.58, 0, 0);
-    box(g, 7.55, .34, .92, steelD, 0, -3.28, 0);
-    box(g, 7.2, 6.35, .16, steelD, 0, 0, -.28);     // the back plate
-    box(g, 7.35, 6.5, .1, ink, 0, 0, -.22);          // the well it sits in
+    /* the frame the shutter rides in — same from either side */
+    box(g, 7.55, .42, .96, steel, 0, 3.22, 0);
+    box(g, 7.7, .14, 1.02, gold, 0, 3.46, 0);
+    box(g, .38, 6.6, .96, steel, -3.58, 0, 0);
+    box(g, .38, 6.6, .96, steel, 3.58, 0, 0);
+    box(g, 7.55, .34, 1.0, steelD, 0, -3.28, 0);
+    box(g, 7.05, 6.15, .2, steelD, 0, 0, 0);
 
-    /* gold cursed-energy rim, slightly proud of the steel */
-    box(g, 7.85, .07, .07, goldH, 0, 3.58, .38);
-    box(g, 7.85, .07, .07, goldH, 0, -3.48, .38);
-    box(g, .07, 7.1, .07, goldH, -3.82, 0, .38);
-    box(g, .07, 7.1, .07, goldH, 3.82, 0, .38);
-
-    var side;
-    for (side = -1; side <= 1; side += 2) {
-      var leaf = new THREE.Group();
-      leaf.position.set(side * 1.72, 0, .06);
-      g.add(leaf);
-
-      box(leaf, 3.28, 6.05, .22, steel, 0, 0, -.04);
-      /* corrugated slats — the shutter itself */
-      var s;
-      for (s = 0; s < 10; s++) {
-        var sy = -2.62 + s * .38;
-        var slat = box(leaf, 3.12, .3, .42, steelR, 0, sy, .12);
-        slat.userData.home = slat.position.clone();
-        g.userData.slats.push(slat);
-        box(leaf, 3.12, .06, .46, steelD, 0, sy - .16, .14);
-      }
-      /* the window in the top third, with the 777 on the glass */
-      box(leaf, 2.55, 1.85, .1, ink, 0, 2.08, .16);
-      box(leaf, 2.36, 1.66, .06, glass, 0, 2.08, .22);
-      box(leaf, 2.58, .1, .16, gold, 0, 2.96, .24);
-      box(leaf, 2.58, .1, .16, gold, 0, 1.2, .24);
-      box(leaf, .1, 1.86, .16, gold, -1.24, 2.08, .24);
-      box(leaf, .1, 1.86, .16, gold, 1.24, 2.08, .24);
-      box(leaf, 2.4, .06, .12, gold, 0, 2.08, .26);
-      box(leaf, .06, 1.66, .12, gold, 0, 2.08, .26);
-
-      /* the line across it that belongs to the train */
-      box(leaf, 3.16, .28, .14, plate, 0, 1.02, .28);
-      box(leaf, 3.16, .05, .16, pink, 0, 1.18, .3);
-
-      /* grab bar, and a lamp over the glass */
-      box(leaf, .08, .72, .08, ink, side * -.9, -.15, .36);
-      box(leaf, .34, .08, .08, ink, side * -.9, -.15, .36);
-      box(leaf, .22, .1, .12, goldH, 0, 2.88, .34);
-
-      /* outer stiffener */
-      box(leaf, .12, 6.0, .48, steel, side * 1.52, 0, .1);
-    }
-
-    /* the meeting stile, rubber and latch */
-    box(g, .18, 6.15, .62, steelD, 0, 0, .16);
-    box(g, .1, 6.05, .68, ink, 0, 0, .2);
-    box(g, .34, .42, .28, gold, 0, .15, .42);
-    box(g, .14, .18, .16, ink, 0, .15, .52);
-
-    /* rubber sweep, and the hazard blocks on the sill */
-    box(g, 7.1, .16, .7, ink, 0, -3.08, .18);
+    /* rubber sweep and hazard blocks on the sill */
+    box(g, 7.1, .16, .86, ink, 0, -3.08, 0);
     var h;
     for (h = 0; h < 9; h++) {
-      box(g, .72, .12, .78, h % 2 ? hazY : hazK, -2.88 + h * .72, -3.38, .2);
+      box(g, .72, .12, .96, h % 2 ? hazY : hazK, -2.88 + h * .72, -3.38, 0);
     }
 
-    /* rivets along the header and the posts */
-    var r, rv = mat(0x9aa3b0, { rough: .3, metal: .88 });
-    for (r = -3; r <= 3; r++) {
-      box(g, .1, .1, .12, rv, r * 1.05, 3.22, .46);
-    }
-    for (r = -2; r <= 2; r++) {
-      box(g, .1, .1, .12, rv, -3.58, r * 1.15, .46);
-      box(g, .1, .1, .12, rv, 3.58, r * 1.15, .46);
-    }
+    /* both skins: the player stands on -Z, the throw goes toward +Z */
+    function skin(zS) {
+      box(g, 7.85, .07, .07, goldH, 0, 3.58, .44 * zS);
+      box(g, 7.85, .07, .07, goldH, 0, -3.48, .44 * zS);
+      box(g, .07, 7.1, .07, goldH, -3.82, 0, .44 * zS);
+      box(g, .07, 7.1, .07, goldH, 3.82, 0, .44 * zS);
 
-    /* cursed-energy rings, front and back, so it reads when it flies */
-    var glow = FX.billboard(FX.T.ring, 0xffcc4d, .55);
-    glow.scale.set(9.4, 9.4, 1);
-    glow.position.z = .62;
+      var side;
+      for (side = -1; side <= 1; side += 2) {
+        var leaf = new THREE.Group();
+        leaf.position.set(side * 1.72, 0, .08 * zS);
+        g.add(leaf);
+
+        box(leaf, 3.28, 6.05, .14, steel, 0, 0, 0);
+        var s;
+        for (s = 0; s < 10; s++) {
+          var sy = -2.62 + s * .38;
+          var slat = box(leaf, 3.12, .3, .2, steelR, 0, sy, .12 * zS);
+          slat.userData.home = slat.position.clone();
+          g.userData.slats.push(slat);
+          box(leaf, 3.12, .06, .24, steelD, 0, sy - .16, .14 * zS);
+        }
+        box(leaf, 2.55, 1.85, .08, ink, 0, 2.08, .14 * zS);
+        box(leaf, 2.36, 1.66, .05, glass, 0, 2.08, .2 * zS);
+        box(leaf, 2.58, .1, .12, gold, 0, 2.96, .22 * zS);
+        box(leaf, 2.58, .1, .12, gold, 0, 1.2, .22 * zS);
+        box(leaf, .1, 1.86, .12, gold, -1.24, 2.08, .22 * zS);
+        box(leaf, .1, 1.86, .12, gold, 1.24, 2.08, .22 * zS);
+        box(leaf, 2.4, .06, .1, gold, 0, 2.08, .24 * zS);
+        box(leaf, .06, 1.66, .1, gold, 0, 2.08, .24 * zS);
+        box(leaf, 3.16, .28, .12, plate, 0, 1.02, .26 * zS);
+        box(leaf, 3.16, .05, .14, pink, 0, 1.18, .28 * zS);
+        box(leaf, .08, .72, .08, ink, side * -.9, -.15, .34 * zS);
+        box(leaf, .34, .08, .08, ink, side * -.9, -.15, .34 * zS);
+        box(leaf, .22, .1, .1, goldH, 0, 2.88, .32 * zS);
+        box(leaf, .12, 6.0, .22, steel, side * 1.52, 0, .08 * zS);
+      }
+
+      box(g, .18, 6.15, .2, steelD, 0, 0, .18 * zS);
+      box(g, .1, 6.05, .24, ink, 0, 0, .22 * zS);
+      box(g, .34, .42, .16, gold, 0, .15, .4 * zS);
+      box(g, .14, .18, .12, ink, 0, .15, .48 * zS);
+
+      var r;
+      for (r = -3; r <= 3; r++) box(g, .1, .1, .1, rv, r * 1.05, 3.22, .5 * zS);
+      for (r = -2; r <= 2; r++) {
+        box(g, .1, .1, .1, rv, -3.58, r * 1.15, .5 * zS);
+        box(g, .1, .1, .1, rv, 3.58, r * 1.15, .5 * zS);
+      }
+    }
+    skin(-1);
+    skin(1);
+
+    var glow = FX.billboard(FX.T.ring, 0xffcc4d, .5);
+    glow.scale.set(8.2, 8.2, 1);
+    glow.position.z = -.58;
     g.add(glow);
     g.userData.glow = glow;
     var glowB = FX.billboard(FX.T.ring, 0xff4f8b, .32);
-    glowB.scale.set(8.2, 8.2, 1);
-    glowB.position.z = -.42;
+    glowB.scale.set(7.4, 7.4, 1);
+    glowB.position.z = .58;
     g.add(glowB);
     g.userData.glowB = glowB;
-    var star = FX.billboard(FX.T.star, 0xffe08a, .4);
-    star.scale.set(3.2, 3.2, 1);
-    star.position.set(0, .15, .7);
+    var star = FX.billboard(FX.T.star, 0xffe08a, .35);
+    star.scale.set(2.8, 2.8, 1);
+    star.position.set(0, .15, -.68);
     g.add(star);
     g.userData.star = star;
 
@@ -27390,7 +27390,9 @@ window.__game = {
     if (door.userData.star) door.userData.star.material.opacity = .28 + k * .3;
     var golds = door.userData.golds || [];
     for (var i = 0; i < golds.length; i++) {
-      golds[i].emissiveIntensity = (golds[i].userData.baseEmit || .3) + k * .45;
+      if (golds[i].isMeshStandardMaterial) {
+        golds[i].emissiveIntensity = (golds[i].userData.baseEmit || .3) + k * .45;
+      }
     }
   };
   HK.rattleDoor = function (door, amt) {
