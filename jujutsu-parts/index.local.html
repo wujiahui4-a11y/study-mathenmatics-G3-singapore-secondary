@@ -6809,6 +6809,12 @@ window.__game = {
 
    The meter, the entrance and all four techniques are shared over the
    network by mp.js, so the other screens see the same fight.
+
+   The entrance plays Final Encore (the full version sitting on main).
+   The thirty-four seconds of the awakened kit stay that long — the song
+   is three minutes and a bit, which is not a fight — and it fades when
+   the meter runs out, when he goes down, or when the last awakened Gojo
+   in the room drops the state.
    ===================================================================== */
 (function () {
   'use strict';
@@ -6822,12 +6828,101 @@ window.__game = {
     cine: false, ct: 0, cineStage: 0,
     aura: null, orbs: null,
     gain: gain, awaken: awaken, isAwake: function () { return AW.active; },
-    setLook: setLook, remote: remoteAwaken
+    setLook: setLook, remote: remoteAwaken, theme: theme
   };
 
   /* how much a hit is worth: taking one is worth more than landing one,
      which is what keeps a losing fight interesting */
   var GAIN_DEALT = .55, GAIN_TAKEN = .95, GAIN_IDLE = 1.15;
+
+  /* ----------------------------------------------------------- the song */
+  var SONG_FILE = 'Final_Encore_Full_Version.mp3';
+  var SONG_HOST = 'https://raw.githubusercontent.com/wujiahui4-a11y/' +
+    'study-mathenmatics-G3-singapore-secondary/main/Final_Encore_Full_Version.mp3';
+  var SONG_VOL = .62;
+  var songEl = null, songIds = {}, songFade = 0, songTriedHost = false, songArmed = false;
+
+  function songUrl() {
+    var href = '';
+    try { href = String(location.href || ''); } catch (e) {}
+    if (/googleusercontent|script\.google|^about:|^blob:/i.test(href)) return SONG_HOST;
+    try {
+      if (/\/jujutsu-parts\//.test(href)) return new URL('../' + SONG_FILE, href).href;
+      return new URL(SONG_FILE, href).href;
+    } catch (e) {
+      return SONG_FILE;
+    }
+  }
+
+  function ensureSong() {
+    if (songEl) return songEl;
+    var a = new Audio();
+    a.preload = 'auto';
+    a.loop = false;
+    a.volume = SONG_VOL;
+    a.src = songUrl();
+    a.addEventListener('error', function () {
+      if (songTriedHost) return;
+      songTriedHost = true;
+      a.src = SONG_HOST;
+      a.load();
+      if (Object.keys(songIds).length) {
+        var p = a.play();
+        if (p && p.catch) p.catch(function () {});
+      }
+    });
+    songEl = a;
+    return a;
+  }
+
+  function armSong() {
+    if (songArmed) return;
+    songArmed = true;
+    try { audio(); } catch (e) {}
+    ensureSong();
+  }
+  window.addEventListener('pointerdown', armSong);
+  window.addEventListener('keydown', armSong);
+
+  function playSong() {
+    var a = ensureSong();
+    songFade = 0;
+    try { a.pause(); } catch (e) {}
+    try { a.currentTime = 0; } catch (e) {}
+    a.volume = SONG_VOL;
+    var p = a.play();
+    if (p && p.catch) p.catch(function () {});
+  }
+
+  function fadeSong() {
+    if (!songEl || songEl.paused) return;
+    songFade = 1;
+  }
+
+  function stepSong(dt) {
+    if (!songFade || !songEl) return;
+    songEl.volume = Math.max(0, songEl.volume - dt * .9);
+    if (songEl.volume <= .02) {
+      try { songEl.pause(); songEl.currentTime = 0; } catch (e) {}
+      songEl.volume = SONG_VOL;
+      songFade = 0;
+    }
+  }
+
+  /* on: a Gojo in the room just started the entrance. off: that Gojo
+     is no longer awakened. The track restarts for a new entrance and
+     only fades when nobody in the room is still in it. */
+  function theme(on, id) {
+    id = id || 'local';
+    if (on) {
+      var first = !songIds[id];
+      songIds[id] = 1;
+      if (first || songEl && (songEl.paused || songFade)) playSong();
+    } else {
+      delete songIds[id];
+      if (!Object.keys(songIds).length) fadeSong();
+    }
+  }
 
   /* ------------------------------------------------------------ the look */
   function findBlindfold(rig) {
@@ -7015,6 +7110,7 @@ window.__game = {
     if (window.MPJJ && window.MPJJ.relay) {
       window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'awaken' });
     }
+    theme(true, 'local');
   }
 
   function say(text) {
@@ -7294,6 +7390,7 @@ window.__game = {
     if (AW.aura) { AW.aura.stop(); AW.aura = null; }
     setLook(player.rig, false);
     swapMoves(false);
+    theme(false, 'local');
     FX.ring(new THREE.Vector3(player.pos.x, .1, player.pos.z), 0x6fb4ff, { maxR: 8, life: .7 });
     if (window.JJNOTICE) window.JJNOTICE('AWAKENING ENDED', '#8fa4c8');
   }
@@ -7867,7 +7964,7 @@ window.__game = {
   /* --------------------------------------------------------- per frame */
   var _updatePlayer = updatePlayer;
   updatePlayer = function (dt) {
-    if (AW.cine) { renderBar(); return; }             // the entrance owns the frame
+    if (AW.cine) { stepSong(dt); renderBar(); return; } // the entrance owns the frame
     _updatePlayer(dt);
     if (held && held !== player.action) { cleanup(held); held = null; }
     if (player.action && player.action.type.indexOf('aw_') === 0) held = player.action;
@@ -7880,6 +7977,7 @@ window.__game = {
     } else if (player.char === 'gojo' && !player.dead) {
       gain(GAIN_IDLE * dt);
     }
+    stepSong(dt);
     renderBar();
   };
 
@@ -7964,7 +8062,10 @@ window.__game = {
   var _stepDeath = null;
   addFx({ t: 1e9, update: function () {
     if (player.dead && AW.active) endAwake();
-    if (player.dead && AW.cine) { AW.cine = false; FX.letterbox(false); hud(true); }
+    if (player.dead && AW.cine) {
+      AW.cine = false; FX.letterbox(false); hud(true);
+      theme(false, 'local');
+    }
     return true;
   } });
 
@@ -7978,6 +8079,7 @@ window.__game = {
       fighter.aura.stop();
       fighter.aura = null;
     }
+    theme(!!on, fighter.id || 'remote');
   }
 
   renderBar();
@@ -15271,6 +15373,7 @@ window.__game = {
     var f = MP.fighters[id];
     if (!f) return;
     if (f.aura) { f.aura.stop(); f.aura = null; }
+    if (window.JJAW && window.JJAW.theme) window.JJAW.theme(false, id);
     if (f.e && f.e.rag && window.JJRAG) window.JJRAG.stop(f.e);
     var i = enemies.indexOf(f.e);
     if (i >= 0) enemies.splice(i, 1);
@@ -15384,6 +15487,7 @@ window.__game = {
       /* their blindfold comes off partway through their entrance, not at
          the end of it, so it is applied on the same beat they see */
       if (m.k === 'awaken' && window.JJAW) {
+        if (window.JJAW.theme) window.JJAW.theme(true, m.id);
         setTimeout(function () {
           if (MP.fighters[m.id] === cf) { cf.aw = true; window.JJAW.remote(cf, true); }
         }, 1300);
@@ -23148,6 +23252,12 @@ window.__game = {
 
    The meter, the entrance and all four techniques are shared over the
    network by mp.js, so the other screens see the same fight.
+
+   The entrance plays Final Encore (the full version sitting on main).
+   The thirty-four seconds of the awakened kit stay that long — the song
+   is three minutes and a bit, which is not a fight — and it fades when
+   the meter runs out, when he goes down, or when the last awakened Gojo
+   in the room drops the state.
    ===================================================================== */
 (function () {
   'use strict';
@@ -23161,12 +23271,101 @@ window.__game = {
     cine: false, ct: 0, cineStage: 0,
     aura: null, orbs: null,
     gain: gain, awaken: awaken, isAwake: function () { return AW.active; },
-    setLook: setLook, remote: remoteAwaken
+    setLook: setLook, remote: remoteAwaken, theme: theme
   };
 
   /* how much a hit is worth: taking one is worth more than landing one,
      which is what keeps a losing fight interesting */
   var GAIN_DEALT = .55, GAIN_TAKEN = .95, GAIN_IDLE = 1.15;
+
+  /* ----------------------------------------------------------- the song */
+  var SONG_FILE = 'Final_Encore_Full_Version.mp3';
+  var SONG_HOST = 'https://raw.githubusercontent.com/wujiahui4-a11y/' +
+    'study-mathenmatics-G3-singapore-secondary/main/Final_Encore_Full_Version.mp3';
+  var SONG_VOL = .62;
+  var songEl = null, songIds = {}, songFade = 0, songTriedHost = false, songArmed = false;
+
+  function songUrl() {
+    var href = '';
+    try { href = String(location.href || ''); } catch (e) {}
+    if (/googleusercontent|script\.google|^about:|^blob:/i.test(href)) return SONG_HOST;
+    try {
+      if (/\/jujutsu-parts\//.test(href)) return new URL('../' + SONG_FILE, href).href;
+      return new URL(SONG_FILE, href).href;
+    } catch (e) {
+      return SONG_FILE;
+    }
+  }
+
+  function ensureSong() {
+    if (songEl) return songEl;
+    var a = new Audio();
+    a.preload = 'auto';
+    a.loop = false;
+    a.volume = SONG_VOL;
+    a.src = songUrl();
+    a.addEventListener('error', function () {
+      if (songTriedHost) return;
+      songTriedHost = true;
+      a.src = SONG_HOST;
+      a.load();
+      if (Object.keys(songIds).length) {
+        var p = a.play();
+        if (p && p.catch) p.catch(function () {});
+      }
+    });
+    songEl = a;
+    return a;
+  }
+
+  function armSong() {
+    if (songArmed) return;
+    songArmed = true;
+    try { audio(); } catch (e) {}
+    ensureSong();
+  }
+  window.addEventListener('pointerdown', armSong);
+  window.addEventListener('keydown', armSong);
+
+  function playSong() {
+    var a = ensureSong();
+    songFade = 0;
+    try { a.pause(); } catch (e) {}
+    try { a.currentTime = 0; } catch (e) {}
+    a.volume = SONG_VOL;
+    var p = a.play();
+    if (p && p.catch) p.catch(function () {});
+  }
+
+  function fadeSong() {
+    if (!songEl || songEl.paused) return;
+    songFade = 1;
+  }
+
+  function stepSong(dt) {
+    if (!songFade || !songEl) return;
+    songEl.volume = Math.max(0, songEl.volume - dt * .9);
+    if (songEl.volume <= .02) {
+      try { songEl.pause(); songEl.currentTime = 0; } catch (e) {}
+      songEl.volume = SONG_VOL;
+      songFade = 0;
+    }
+  }
+
+  /* on: a Gojo in the room just started the entrance. off: that Gojo
+     is no longer awakened. The track restarts for a new entrance and
+     only fades when nobody in the room is still in it. */
+  function theme(on, id) {
+    id = id || 'local';
+    if (on) {
+      var first = !songIds[id];
+      songIds[id] = 1;
+      if (first || songEl && (songEl.paused || songFade)) playSong();
+    } else {
+      delete songIds[id];
+      if (!Object.keys(songIds).length) fadeSong();
+    }
+  }
 
   /* ------------------------------------------------------------ the look */
   function findBlindfold(rig) {
@@ -23354,6 +23553,7 @@ window.__game = {
     if (window.MPJJ && window.MPJJ.relay) {
       window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'awaken' });
     }
+    theme(true, 'local');
   }
 
   function say(text) {
@@ -23633,6 +23833,7 @@ window.__game = {
     if (AW.aura) { AW.aura.stop(); AW.aura = null; }
     setLook(player.rig, false);
     swapMoves(false);
+    theme(false, 'local');
     FX.ring(new THREE.Vector3(player.pos.x, .1, player.pos.z), 0x6fb4ff, { maxR: 8, life: .7 });
     if (window.JJNOTICE) window.JJNOTICE('AWAKENING ENDED', '#8fa4c8');
   }
@@ -24206,7 +24407,7 @@ window.__game = {
   /* --------------------------------------------------------- per frame */
   var _updatePlayer = updatePlayer;
   updatePlayer = function (dt) {
-    if (AW.cine) { renderBar(); return; }             // the entrance owns the frame
+    if (AW.cine) { stepSong(dt); renderBar(); return; } // the entrance owns the frame
     _updatePlayer(dt);
     if (held && held !== player.action) { cleanup(held); held = null; }
     if (player.action && player.action.type.indexOf('aw_') === 0) held = player.action;
@@ -24219,6 +24420,7 @@ window.__game = {
     } else if (player.char === 'gojo' && !player.dead) {
       gain(GAIN_IDLE * dt);
     }
+    stepSong(dt);
     renderBar();
   };
 
@@ -24303,7 +24505,10 @@ window.__game = {
   var _stepDeath = null;
   addFx({ t: 1e9, update: function () {
     if (player.dead && AW.active) endAwake();
-    if (player.dead && AW.cine) { AW.cine = false; FX.letterbox(false); hud(true); }
+    if (player.dead && AW.cine) {
+      AW.cine = false; FX.letterbox(false); hud(true);
+      theme(false, 'local');
+    }
     return true;
   } });
 
@@ -24317,6 +24522,7 @@ window.__game = {
       fighter.aura.stop();
       fighter.aura = null;
     }
+    theme(!!on, fighter.id || 'remote');
   }
 
   renderBar();
@@ -31610,6 +31816,7 @@ window.__game = {
     var f = MP.fighters[id];
     if (!f) return;
     if (f.aura) { f.aura.stop(); f.aura = null; }
+    if (window.JJAW && window.JJAW.theme) window.JJAW.theme(false, id);
     if (f.e && f.e.rag && window.JJRAG) window.JJRAG.stop(f.e);
     var i = enemies.indexOf(f.e);
     if (i >= 0) enemies.splice(i, 1);
@@ -31723,6 +31930,7 @@ window.__game = {
       /* their blindfold comes off partway through their entrance, not at
          the end of it, so it is applied on the same beat they see */
       if (m.k === 'awaken' && window.JJAW) {
+        if (window.JJAW.theme) window.JJAW.theme(true, m.id);
         setTimeout(function () {
           if (MP.fighters[m.id] === cf) { cf.aw = true; window.JJAW.remote(cf, true); }
         }, 1300);
