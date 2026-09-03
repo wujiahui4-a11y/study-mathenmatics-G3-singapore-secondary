@@ -1728,11 +1728,11 @@
         break;
       case 'ca3':
         setTimeout(function () {
-          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.nova(pos.clone());
+          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.saw(pos.clone(), yaw);
         }, 620);
         break;
       case 'ca4':
-        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.flow(pos.clone());
+        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.pillar(pos.clone(), yaw);
         break;
       case 'c1':
         setTimeout(function () {

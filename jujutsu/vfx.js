@@ -1945,7 +1945,7 @@
     aura: aura, dome: dome, barrier: barrier,
     flash: flash, mangaLines: mangaLines, letterbox: letterbox, tint: tint, zoom: zoom,
     heavyHit: heavyHit, trail: trail,
-    isDark: isDark, cutLine: cutLine, lattice: lattice, orientAlong: orientAlong, decal: decal,
+    isDark: isDark, WEBS: WEBS, cutLine: cutLine, lattice: lattice, orientAlong: orientAlong, decal: decal,
     flame: flame, fire: fire, scorch: scorch, blood: blood, gash: gash,
     /* the dark kit: normal blending, no white anywhere, nothing that adds
        its colour to what is behind it. Everything Choso throws uses these. */

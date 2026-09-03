@@ -235,8 +235,8 @@ the source.
 | --- | --- | --- |
 | `1` | **Convergence** | 収束 · 穿血 — the compression, and then the shot |
 | `2` | **Blood Meteorite** | 血隕 · 極 — seven of them, walked up the road |
-| `3` | **Supernova** | 超新星 · 極 — buckshot, in every direction |
-| `4` | **Flowing Blood** | 血流操術 — he works on himself |
+| `3` | **Blood Saw** | 血鋸 — a toothed disc, thrown, and it does not stop |
+| `4` | **Blood Pillar** | 血柱 — the ground comes up, and then it comes apart |
 
 **Convergence** is the one worth reading the source on. He compresses blood
 between his palms and condenses it *to its limit*, then claps and fires it
@@ -251,15 +251,22 @@ bombardment walked up the ground in front of him rather than one thrown rock.
 It is area denial: five targets spread down a corridor take between eighty
 and a hundred and seventy.
 
-**Supernova** is Convergence split into many small orbs and fired *like
-buckshot*, which is the word the source uses — a technique he built himself
-by honing blood manipulation for a hundred and fifty years. So the awakened
-one is a full sphere of forty four, not a ring.
+**Blood Saw** is his hardening taken past a knife. Blood Edge is a hardened
+melee weapon and Blood Meteorite is a hardened solid, so the awakened version
+of that idea is a disc with fourteen teeth on it, thrown — and the point of a
+saw is that it does not stop at the first person. It travels sixty two metres
+and cuts everything it is touching on a timer as it passes through, so a line
+of three all take it. Its finisher takes them **across the middle**.
 
-**Flowing Blood** is the one the whole roster lacked. He manipulates his own
-blood flow to avoid fatal damage, clot wounds and move blood to vital areas,
-so for nine seconds he repairs himself — and the hit that would finish him
-**clots** instead, once, which buys a moment rather than immunity.
+**Blood Pillar** is the long one, and it is a sequence rather than a hit.
+Both palms go flat on the road; a column of broken ground comes up under
+whoever is standing nine metres in front of him and **carries them up with
+it**, held at the top. Then he puts a hand on the stone and it starts to
+bleed — his blood goes into the column and webs through it along the cracks,
+which is drawn as real web decals spreading over all four faces. Then the
+whole thing goes: the slabs become independent pieces thrown outward, and
+whatever was riding the top **comes apart with it**. Anything standing near
+the base takes the stone as well.
 
 Three things hold for the whole of it on top of the four:
 
@@ -372,8 +379,8 @@ Fuga **burns them to ash**, and Malevolent Shrine **cuts them to pieces**.
 
 Awakened Choso's four end the way those particular techniques end people:
 Convergence gets them **before the sound** does, the bombardment **buries**
-them, the buckshot **shoots them to pieces** from every direction at once,
-and Flowing Blood takes theirs instead and leaves them **drained**.
+them, the saw takes them **across the middle**, and the pillar goes with
+them still on top of it — **taken with it**.
 
 Choso's are all pressure and none of them is a spray. Piercing Blood tapped
 **pierces** — one line through, and the picture is the jet out of the far

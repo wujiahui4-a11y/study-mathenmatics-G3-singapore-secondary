@@ -966,65 +966,62 @@
       }, 780);
     } },
 
-    /* 3 · the buckshot — from every direction at once, inward */
-    ca3: { name: 'SHOT TO PIECES', color: '#c8203c', hold: 1.2, run: function (e, d, p, G) {
-      for (var i = 0; i < 20; i++) {
-        (function (n) {
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            var u = (n + .5) / 20;
-            var phi = Math.acos(1 - 2 * u);
-            var th = Math.PI * (1 + Math.sqrt(5)) * n;
-            var from = p.clone().add(new THREE.Vector3(
-              Math.sin(phi) * Math.cos(th) * 9,
-              Math.abs(Math.cos(phi)) * 6,
-              Math.sin(phi) * Math.sin(th) * 9));
-            FX.bloodThreads(from, 1, 12, .5);
-            FX.bloodCut(from, p.clone(), .5, .16);
-            if (n % 4 === 0) addShake(.3);
-          }, n * 42);
-        })(i);
-      }
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        FX.tint('#0e0104', .8, .18);
-        if (typeof hitstop === 'function') hitstop(.18);
-      }, 880);
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        FX.bloodRings(p.clone(), 5, { maxR: 26, life: .8, gap: 34 });
-        FX.bloodThreads(p.clone(), 18, 30, 1.6);
-        G.dice(e, { dir: d, power: 2, cubes: 28, color: 0x8b0f2a });
-        addShake(2.6);
-      }, 1000);
-    } },
-
-    /* 4 · Flowing Blood — he takes theirs instead, and it goes to him */
-    ca4: { name: 'DRAINED', color: '#8b0f2a', hold: 1.3, run: function (e, d, p, G) {
-      var back = player.pos.clone().add(up(2.8));
+    /* 3 · the saw — it does not stop, so it goes all the way across */
+    ca3: { name: 'SAWN IN HALF', color: '#c8203c', hold: 1, run: function (e, d, p, G) {
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      var from = p.clone().addScaledVector(side, -8);
+      var to = p.clone().addScaledVector(side, 8);
+      /* the blade coming across, drawn as it goes rather than all at once */
       var n = 0;
       var iv = setInterval(function () {
-        if (n++ > 15 || typeof scene === 'undefined') { clearInterval(iv); return; }
-        /* threads running OUT of them and back into him */
-        FX.bloodCut(p.clone().add(new THREE.Vector3(
-          (Math.random() - .5) * 3, (Math.random() - .5) * 3, (Math.random() - .5) * 3)),
-          back.clone(), .35, .22);
-        FX.bloodMote(p.clone(), 1.2, .3);
-        if (n % 3 === 0) {
-          FX.bloodRings(back.clone(), 1, { maxR: 4, life: .3 });
-          addShake(.2);
-        }
-      }, 70);
+        if (n++ > 9 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        var k = n / 9;
+        var here = from.clone().lerp(to, k);
+        FX.bloodBurst(here, 1.6, side.clone());
+        FX.bloodThreads(here, 3, 14, .8);
+        FX.bloodCut(from.clone(), here, .8, .2);
+        addShake(.35);
+      }, 55);
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
-        FX.tint('#40040f', .5, .28);
-        FX.bloodBurst(p.clone(), 3, up(1));
-        if (typeof hitstop === 'function') hitstop(.15);
-        /* nothing left in them to fall over with */
-        G.flatten(e, { color: 0x8b0f2a });
-        addShake(1.8);
-      }, 1150);
+        FX.bloodCut(from.clone(), to.clone(), 1.4, .34);
+        FX.tint('#40040f', .5, .26);
+        if (typeof hitstop === 'function') hitstop(.16);
+        FX.blood(p.clone(), side.clone(), 11, 2.2);
+        FX.blood(p.clone(), side.clone().negate(), 11, 2.2);
+        /* level, and the top of them goes with the blade */
+        G.halve(e, { dir: side, power: 1.6, tilt: 0, color: 0x8b0f2a, stand: .3 });
+        addShake(2);
+      }, 620);
     } },
+
+    /* 4 · the pillar — they are already on top of it, and it goes */
+    ca4: { name: 'TAKEN WITH IT', color: '#8b0f2a', hold: 1.35, run: function (e, d, p, G) {
+      /* the stone under them webs over first */
+      var n = 0;
+      var iv = setInterval(function () {
+        if (n++ > 11 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        var a2 = Math.random() * TAU;
+        var at = p.clone().add(new THREE.Vector3(
+          Math.cos(a2) * 2.6, -2 - Math.random() * 4, Math.sin(a2) * 2.6));
+        FX.bloodCut(at, at.clone().add(up(3 + Math.random() * 4)), .45, .5);
+        FX.bloodMote(at, 1.3, .5);
+        if (n % 3 === 0) addShake(.3);
+      }, 80);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.tint('#40040f', .6, .34);
+        if (typeof hitstop === 'function') hitstop(.18);
+        FX.bloodBurst(p.clone(), 7, up(1));
+        FX.bloodThreads(p.clone(), 24, 32, 1.7);
+        FX.bloodRings(p.clone(), 5, { maxR: 26, life: .85, gap: 40 });
+        FX.debris(new THREE.Vector3(p.x, p.y - 3, p.z), 22, 24, 0x4a4f5c);
+        FX.dust(new THREE.Vector3(p.x, 1, p.z), 12, 0xb9bfc9, 14, 5);
+        /* the column goes and they go with it */
+        G.sever(e, { dir: up(1), power: 2.2, cubes: 14 });
+        addShake(3);
+      }, 1180);
+    } }
   };
 
   /* what each one leaves behind, for the kill that lands at the end */
@@ -1036,7 +1033,7 @@
     h1: 'sever', h2: 'dice', h3: 'flat', h4: 'burn', hr: 'ragdoll',
     s1: 'dice', s2: 'sever', s3: 'burn', s4: 'dice',
     c1: 'sever', c1s: 'gone', c2: 'flat', c3: 'dice', c4: 'sever', cr: 'sever',
-    ca1: 'sever', ca2: 'flat', ca3: 'dice', ca4: 'flat'
+    ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever'
   };
 
   /* =====================================================================

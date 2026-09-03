@@ -5158,7 +5158,7 @@ window.__game = {
     aura: aura, dome: dome, barrier: barrier,
     flash: flash, mangaLines: mangaLines, letterbox: letterbox, tint: tint, zoom: zoom,
     heavyHit: heavyHit, trail: trail,
-    isDark: isDark, cutLine: cutLine, lattice: lattice, orientAlong: orientAlong, decal: decal,
+    isDark: isDark, WEBS: WEBS, cutLine: cutLine, lattice: lattice, orientAlong: orientAlong, decal: decal,
     flame: flame, fire: fire, scorch: scorch, blood: blood, gash: gash,
     /* the dark kit: normal blending, no white anywhere, nothing that adds
        its colour to what is behind it. Everything Choso throws uses these. */
@@ -13373,7 +13373,7 @@ window.__game = {
      soaking through and adds almost nothing to the frame. */
   var BLOOD = 0x4e0512, BRIGHT = 0x6d0a1c, DARK = 0x1c0106, PALE = 0x8c1526;
 
-  var CH = window.JJCHOSO = { stream: null, scale: 0, flow: 0, clot: false };
+  var CH = window.JJCHOSO = { stream: null, scale: 0 };
 
   var CHOSO_CFG = {
     choso: true, face: true,
@@ -13507,7 +13507,7 @@ window.__game = {
   cds.ca1 = 0; cds.ca2 = 0; cds.ca3 = 0; cds.ca4 = 0;
   var CCD = { c1: 8, c2: 9, c3: 12, c4: 22, cr: 7,
     /* the four he gets when the curse half is out */
-    ca1: 7, ca2: 10, ca3: 13, ca4: 18 };
+    ca1: 7, ca2: 10, ca3: 11, ca4: 20 };
 
   CHARS.choso = {
     name: 'CHOSO', sub: 'BLOOD MANIPULATION — DEATH PAINTING',
@@ -14250,98 +14250,378 @@ window.__game = {
     }
   }
 
-  /* ---------------------------------------------- 3 · THE BUCKSHOT --- */
-  function castNova() {
-    if (!ready('ca3')) return;
-    start('ca3', 1.5, 'ca3', 'SUPERNOVA', '超新星 · 極');
-    player.iframes = Math.max(player.iframes, .6);
+  /* --------------------------------------------- 3 · THE SAW BLADE --- */
+  /* He hardens blood into solids — that is how Blood Edge and Blood
+     Meteorite both work — so the awakened version of that is not a bigger
+     knife. It is a disc with teeth on it, thrown, and it does not stop at
+     the first person: a saw goes through and keeps going. */
+  var SAW = { range: 62, speed: 30, radius: 3.4, dmg: 22, tick: .22 };
+
+  function buildSaw() {
+    var g = new THREE.Group();
+    var disc = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 2.9, .34, 22),
+      new THREE.MeshStandardMaterial({ color: 0x4e0512, roughness: .3, flatShading: true }));
+    disc.rotation.x = Math.PI / 2;
+    g.add(disc);
+    /* the dark rim, so the shape reads against the road */
+    var rim = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, .26, 22),
+      new THREE.MeshBasicMaterial({ color: 0x1c0106, side: THREE.BackSide,
+        transparent: true, opacity: .95, depthWrite: false, toneMapped: false }));
+    rim.rotation.x = Math.PI / 2;
+    rim.scale.setScalar(1.06);
+    g.add(rim);
+    /* the teeth */
+    for (var i = 0; i < 14; i++) {
+      var a = i / 14 * TAU;
+      var t = new THREE.Mesh(new THREE.BoxGeometry(.5, .8, .3),
+        new THREE.MeshStandardMaterial({ color: 0x6d0a1c, roughness: .26, flatShading: true }));
+      t.position.set(Math.cos(a) * 3.1, Math.sin(a) * 3.1, 0);
+      t.rotation.z = a + .5;
+      g.add(t);
+    }
+    var hub = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, .42, 10),
+      new THREE.MeshStandardMaterial({ color: 0x1c0106, roughness: .5, flatShading: true }));
+    hub.rotation.x = Math.PI / 2;
+    g.add(hub);
+    return g;
   }
-  function stepNova(a, dt) {
-    var p = player;
-    var mid = p.pos.clone().add(new THREE.Vector3(0, 3.2, 0));
-    if (a.t < .62) {
-      /* Convergence again, and it splits while it condenses */
-      if (Math.random() < .95) {
-        var ang = Math.random() * TAU, rr = 6 * (1 - a.t / .62);
-        FX.bloodMote(mid.clone().add(new THREE.Vector3(
-          Math.cos(ang) * rr, (Math.random() - .5) * rr, Math.sin(ang) * rr)), 2, .3);
+
+  function throwSaw(from, dir, ghost) {
+    var g = buildSaw();
+    g.position.copy(from);
+    scene.add(g);
+    var travelled = 0, spin = 0, cut = {};
+    addFx({ t: 5, update: function (dt) {
+      this.t -= dt;
+      var step = SAW.speed * dt;
+      travelled += step;
+      g.position.addScaledVector(dir, step);
+      spin += dt * 26;
+      g.rotation.z = spin;                       // the blade turns in its own plane
+      g.lookAt(g.position.clone().addScaledVector(dir, 1));
+      g.rotateZ(spin);
+      if (Math.random() < dt * 30) {
+        FX.bloodThreads(g.position.clone(), 1, 9, .6);
       }
-      addShake(.25 + a.t * .8);
+      /* the line it leaves in the ground under itself */
+      if (Math.random() < dt * 12) {
+        FX.bloodCut(
+          new THREE.Vector3(g.position.x, .08, g.position.z).addScaledVector(dir, -2),
+          new THREE.Vector3(g.position.x, .08, g.position.z), .5, .5);
+      }
+      /* it saws: everything it is touching is cut again on a timer, and
+         nothing stops it going through */
+      if (!ghost) {
+        for (var i = 0; i < enemies.length; i++) {
+          var e = enemies[i];
+          if (!e || e.dead) continue;
+          if (e.pos.clone().add(new THREE.Vector3(0, 2.4, 0))
+            .distanceTo(g.position) > SAW.radius) { cut[i] = 0; continue; }
+          cut[i] = (cut[i] || 0) - dt;
+          if (cut[i] > 0) continue;
+          cut[i] = SAW.tick;
+          FX.bloodBurst(e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 1.8, dir.clone());
+          e.damage(SAW.dmg * scale(), dir.clone().multiplyScalar(6).setY(2), {
+            react: 'slash', reactDur: .3, spark: BRIGHT, color: '#c8203c',
+            bleed: true, death: 'sever', psn: awake(), stun: .2
+          });
+          addShake(.35);
+        }
+      }
+      if (travelled < SAW.range && this.t > 0) return true;
+      /* and it comes apart where it stops */
+      FX.bloodBurst(g.position.clone(), 3.4, dir.clone());
+      FX.bloodThreads(g.position.clone(), 12, 20, 1.3);
+      FX.bloodRings(g.position.clone(), 3, { maxR: 12, life: .6, gap: 40 });
+      scene.remove(g);
+      g.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+      return false;
+    } });
+  }
+
+  function castSaw() {
+    if (!ready('ca3')) return;
+    start('ca3', 1.05, 'ca3', 'BLOOD SAW', '血鋸');
+    player.iframes = Math.max(player.iframes, .4);
+  }
+  function stepSaw(a, dt) {
+    var p = player, d = aim();
+    var hand = p.pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, 3.4, 0));
+    if (a.t < .5) {
+      /* it is drawn out and set spinning before it goes */
+      if (!a.disc) {
+        a.disc = buildSaw();
+        scene.add(a.disc);
+      }
+      var k = a.t / .5;
+      a.disc.position.copy(hand);
+      a.disc.scale.setScalar(.25 + E.out(k) * .75);
+      a.disc.lookAt(hand.clone().addScaledVector(d, 1));
+      a.disc.rotateZ(a.t * (6 + k * 30));
+      if (Math.random() < dt * 20) FX.bloodMote(hand.clone(), 1.4, .3);
+      addShake(.2 + k * .5);
       return;
     }
     if (a.stage < 1) {
       a.stage = 1;
-      FX.tint('#0e0104', .8, .18);
-      FX.bloodRings(mid, 5, { maxR: 20, life: .7, gap: 26 });
-      addShake(2);
-      if (typeof hitstop === 'function') hitstop(.14);
-      try { sfx.redFire(); } catch (e) {}
-      /* forty four of them, in every direction — buckshot, not a ring */
-      for (var i = 0; i < 44; i++) {
-        (function (n) {
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            /* an even spread over the whole sphere */
-            var u = (n + .5) / 44;
-            var phi = Math.acos(1 - 2 * u);
-            var theta = Math.PI * (1 + Math.sqrt(5)) * n;
-            var dir = new THREE.Vector3(
-              Math.sin(phi) * Math.cos(theta),
-              Math.abs(Math.cos(phi)) * .55,
-              Math.sin(phi) * Math.sin(theta)).normalize();
-            var orb = FX.bloodMass(.5);
-            orb.position.copy(mid);
-            scene.add(orb);
-            var sp = 40 + Math.random() * 20, hit = false;
-            addFx({ t: 1.5, update: function (dd) {
-              this.t -= dd;
-              orb.position.addScaledVector(dir, sp * dd);
-              orb.rotation.x += dd * 7; orb.rotation.z += dd * 5;
-              if (Math.random() < dd * 16) FX.bloodMote(orb.position.clone(), .7, .2);
-              if (!hit) {
-                for (var j = 0; j < enemies.length; j++) {
-                  var en = enemies[j];
-                  if (!en || en.dead) continue;
-                  if (en.pos.clone().add(new THREE.Vector3(0, 2.4, 0))
-                    .distanceTo(orb.position) > 2.9) continue;
-                  hit = true;
-                  FX.bloodBurst(orb.position.clone(), 1.6, dir.clone());
-                  en.damage(13 * scale(), dir.clone().multiplyScalar(10).setY(4), {
-                    react: 'slash', reactDur: .28, spark: BRIGHT, color: '#c8203c',
-                    bleed: true, death: 'dice', psn: awake()
-                  });
-                  addShake(.3);
-                  break;
-                }
-              }
-              if (hit || this.t <= 0) { scene.remove(orb); return false; }
-              return true;
-            } });
-          }, n * 11);
-        })(i);
+      if (a.disc) {
+        scene.remove(a.disc);
+        a.disc.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+        a.disc = null;
       }
-      if (window.JJAW) window.JJAW.gain(14);
+      throwSaw(hand.clone(), d.clone());
+      FX.bloodBurst(hand.clone(), 2, d.clone());
+      FX.mangaLines(.6, .25);
+      addShake(1.2);
+      if (AN) AN.camKick(1.1);
+      p.vel.addScaledVector(d, -6);
+      try { sfx.slash(); } catch (e) {}
+      if (window.JJAW) window.JJAW.gain(12);
     }
   }
 
-  /* ------------------------------------------- 4 · HIS OWN BLOOD ----- */
-  var FLOW = { dur: 9, heal: 7, cut: .45 };
-  function castFlow() {
-    if (!ready('ca4')) return;
-    start('ca4', 1, 'ca4', 'FLOWING BLOOD', '血流操術');
-    player.iframes = Math.max(player.iframes, .8);
-    CH.flow = FLOW.dur;
-    CH.clot = true;                 // one fatal hit is clotted, once
-    FX.tint('#2a0208', .4, .5);
-    FX.bloodRings(new THREE.Vector3(player.pos.x, .1, player.pos.z), 3,
-      { maxR: 10, life: .6, gap: 45, ground: true });
-    addShake(.8);
-    try { sfx.raise(); } catch (e) {}
+  /* ------------------------------------------ 4 · THE ROCK PILLAR ---- */
+  /* Both hands to the ground, and a column of it comes up under whoever
+     is standing there and takes them with it. Then he puts a hand on the
+     column, and it starts to bleed: his blood goes into the stone, webs
+     through it along the cracks, and takes the whole thing apart. What is
+     riding the top comes apart with it. */
+  var PILLAR = {
+    reach: 9,        // how far in front of him it comes up
+    grab: 7,         // who gets carried
+    height: 17,
+    rise: .55,
+    hand: 1.25,      // when he touches it
+    blow: 2.15       // when it goes
+  };
+
+  function buildPillar(at) {
+    var g = new THREE.Group();
+    var rock = new THREE.MeshStandardMaterial({ color: 0x4a4f5c, roughness: .95, flatShading: true });
+    var dark = new THREE.MeshStandardMaterial({ color: 0x33373f, roughness: .96, flatShading: true });
+    /* a stack of slabs rather than one box, so it reads as broken ground
+       that has been pushed up rather than as a pillar somebody built */
+    var y = 0;
+    for (var i = 0; i < 6; i++) {
+      var h = PILLAR.height / 6;
+      var w = 5.4 - i * .34 + (Math.random() - .5) * .8;
+      var slab = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), i % 2 ? dark : rock);
+      slab.position.set((Math.random() - .5) * .7, y + h / 2, (Math.random() - .5) * .7);
+      slab.rotation.y = Math.random() * .5;
+      slab.castShadow = true;
+      g.add(slab);
+      y += h;
+    }
+    g.position.set(at.x, -PILLAR.height, at.z);
+    g.__slabs = g.children.slice();
+    scene.add(g);
+    return g;
   }
-  function stepFlow(a, dt) {
-    var mid = player.pos.clone().add(new THREE.Vector3(0, 2.6, 0));
-    if (Math.random() < .6) FX.bloodMote(mid, 1.6, .4);
-    if (a.t > .3 && Math.random() < .2) FX.bloodThreads(mid, 1, 6, .8);
+
+  /* the blood going into the stone: web decals down all four faces */
+  function bleedPillar(g, at, n) {
+    var webs = FX.WEBS;
+    for (var i = 0; i < n; i++) {
+      var face = i % 4;
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 5.4),
+        new THREE.MeshBasicMaterial({
+          map: webs ? webs[(Math.random() * webs.length) | 0] : FX.T.blood,
+          color: 0x5e0714, transparent: true, opacity: 0,
+          blending: THREE.NormalBlending, depthWrite: false,
+          side: THREE.DoubleSide, toneMapped: false
+        }));
+      var ang = face * Math.PI / 2;
+      var h = 2 + Math.random() * (PILLAR.height - 4);
+      m.position.set(Math.sin(ang) * 2.75, h, Math.cos(ang) * 2.75);
+      m.rotation.y = ang;
+      m.renderOrder = 8;
+      g.add(m);
+      (function (m) {
+        var t = 0;
+        addFx({ t: 1.6, update: function (dt) {
+          this.t -= dt; t += dt;
+          m.material.opacity = Math.min(.9, t * 1.6);
+          if (this.t <= 0) return false;
+          return true;
+        } });
+      })(m);
+    }
+  }
+
+  function castPillar() {
+    if (!ready('ca4')) return;
+    var a = start('ca4', 2.6, 'ca4', 'BLOOD PILLAR', '血柱');
+    a.at = null; a.g = null; a.rider = null;
+    player.iframes = Math.max(player.iframes, 2.4);
+  }
+
+  function stepPillar(a, dt) {
+    var p = player, d = aim();
+    p.vel.x = 0; p.vel.z = 0;
+
+    /* ---- both hands down ---- */
+    if (a.t < PILLAR.rise) {
+      if (Math.random() < .5) {
+        FX.bloodMote(p.pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, .4, 0)), 1.2, .3);
+      }
+      addShake(.3 + a.t);
+      return;
+    }
+
+    /* ---- and the ground comes up ---- */
+    if (a.stage < 1) {
+      a.stage = 1;
+      var at = p.pos.clone().addScaledVector(d, PILLAR.reach);
+      a.at = new THREE.Vector3(at.x, 0, at.z);
+      a.g = buildPillar(a.at);
+      FX.cracks(a.at.clone(), 14, 20, 0x2a2630, 0x8a8f9c);
+      FX.debris(a.at.clone(), 18, 20, 0x4a4f5c);
+      FX.dust(a.at.clone(), 10, 0xb9bfc9, 12, 4);
+      FX.rings(new THREE.Vector3(a.at.x, .12, a.at.z), 0x8a8f9c, 3,
+        { maxR: 14, life: .6, gap: 40 });
+      addShake(2.2);
+      if (typeof hitstop === 'function') hitstop(.12);
+      try { sfx.redBoom(); } catch (e) {}
+      /* whoever was standing on it goes up with it */
+      var best = null, bd = PILLAR.grab;
+      enemies.forEach(function (e) {
+        if (!e || e.dead) return;
+        var dist = e.pos.distanceTo(a.at);
+        if (dist < bd) { bd = dist; best = e; }
+      });
+      a.rider = best;
+      if (best) {
+        best.damage(24 * scale(), null, {
+          react: 'uplift', reactDur: .6, spark: BRIGHT, color: '#c8203c',
+          psn: awake(), noFrameBonus: true
+        });
+      }
+      if (window.JJAW) window.JJAW.gain(12);
+    }
+
+    /* the column rising, and the rider riding it */
+    if (a.g) {
+      var k = Math.min(1, (a.t - PILLAR.rise) / .5);
+      a.g.position.y = -PILLAR.height + E.out(k) * PILLAR.height;
+      if (k < 1 && Math.random() < dt * 22) {
+        FX.dust(new THREE.Vector3(a.at.x + (Math.random() - .5) * 6, 1,
+          a.at.z + (Math.random() - .5) * 6), 2, 0xb9bfc9, 7, 3);
+      }
+    }
+    if (a.rider && !a.rider.dead && a.t < PILLAR.blow) {
+      var top = new THREE.Vector3(a.at.x, PILLAR.height * Math.min(1,
+        (a.t - PILLAR.rise) / .5) + .2, a.at.z);
+      a.rider.anchorT = .25;
+      a.rider.anchorPos.copy(top);
+      a.rider.pos.lerp(top, Math.min(1, dt * 14));
+    }
+
+    /* ---- his hand goes on it, and it starts to bleed ---- */
+    if (a.t >= PILLAR.hand && a.stage < 2) {
+      a.stage = 2;
+      var base = new THREE.Vector3(a.at.x, 2.4, a.at.z);
+      FX.bloodBurst(base.clone(), 2.2, new THREE.Vector3(0, 1, 0));
+      bleedPillar(a.g, a.at, 16);
+      addShake(.7);
+      try { sfx.stab(); } catch (e) {}
+    }
+    /* it oozes: blood running up and down the stone */
+    if (a.stage >= 2 && a.t < PILLAR.blow && Math.random() < dt * 34) {
+      var hgt = Math.random() * PILLAR.height;
+      var ang2 = Math.random() * TAU;
+      FX.bloodMote(new THREE.Vector3(
+        a.at.x + Math.cos(ang2) * 2.9, hgt, a.at.z + Math.sin(ang2) * 2.9), 1.3, .6);
+      if (Math.random() < .3) {
+        FX.bloodCut(
+          new THREE.Vector3(a.at.x + Math.cos(ang2) * 2.9, hgt, a.at.z + Math.sin(ang2) * 2.9),
+          new THREE.Vector3(a.at.x + Math.cos(ang2) * 2.9, Math.max(0, hgt - 4),
+            a.at.z + Math.sin(ang2) * 2.9), .4, .5);
+      }
+      addShake(.16);
+    }
+
+    /* ---- and then the whole thing goes ---- */
+    if (a.t >= PILLAR.blow && a.stage < 3) {
+      a.stage = 3;
+      var c = new THREE.Vector3(a.at.x, PILLAR.height * .5, a.at.z);
+      FX.tint('#40040f', .6, .35);
+      if (typeof hitstop === 'function') hitstop(.18);
+      FX.bloodBurst(c.clone(), 8, new THREE.Vector3(0, 1, 0));
+      FX.bloodThreads(c.clone(), 26, 34, 1.8);
+      FX.bloodRings(c.clone(), 6, { maxR: 30, life: .9, gap: 40 });
+      FX.bloodRings(new THREE.Vector3(a.at.x, .12, a.at.z), 4,
+        { maxR: 26, life: .8, gap: 46, ground: true });
+      FX.cracks(new THREE.Vector3(a.at.x, 0, a.at.z), 16, 24, 0x1c0106, 0x5a3038);
+      addShake(3);
+      FX.zoom(-12, .7);
+      if (AN) AN.camKick(2);
+      try { sfx.blast(); } catch (e) {}
+
+      /* the stone goes outward as real pieces */
+      if (a.g) {
+        a.g.__slabs.forEach(function (sl) {
+          var wp = new THREE.Vector3();
+          sl.getWorldPosition(wp);
+          scene.remove(a.g);
+          var chunk = new THREE.Mesh(sl.geometry, sl.material);
+          chunk.position.copy(wp);
+          scene.add(chunk);
+          var v = new THREE.Vector3((Math.random() - .5) * 26, 6 + Math.random() * 16,
+            (Math.random() - .5) * 26);
+          var av = new THREE.Vector3((Math.random() - .5) * 7, (Math.random() - .5) * 7,
+            (Math.random() - .5) * 7);
+          addFx({ t: 4, update: function (dd) {
+            this.t -= dd;
+            v.y -= 32 * dd;
+            chunk.position.addScaledVector(v, dd);
+            chunk.rotation.x += av.x * dd;
+            chunk.rotation.y += av.y * dd;
+            chunk.rotation.z += av.z * dd;
+            if (chunk.position.y < 1) { v.y = Math.abs(v.y) * .3; v.multiplyScalar(.6); }
+            if (this.t <= 0) { scene.remove(chunk); return false; }
+            return true;
+          } });
+        });
+        FX.debris(new THREE.Vector3(a.at.x, 2, a.at.z), 26, 26, 0x4a4f5c);
+        FX.dust(new THREE.Vector3(a.at.x, 1, a.at.z), 14, 0xb9bfc9, 16, 5);
+        a.g = null;
+      }
+
+      /* and the one riding the top comes apart with it */
+      if (a.rider && !a.rider.dead) {
+        var r = a.rider;
+        r.anchorT = 0;
+        var up = new THREE.Vector3(0, 26, 0);
+        r.damage(96 * scale(), up, {
+          react: 'uplift', reactDur: .8, spark: BRIGHT, color: '#c8203c',
+          death: 'sever', psn: awake(), ragdoll: true
+        });
+        if (!r.dead && window.JJGORE) {
+          /* it does not kill them, but it still takes them apart where
+             they were: the pieces are the point of the move */
+          try { window.JJGORE.sever(r, { dir: up.clone().normalize(), power: 1.7, cubes: 12 }); } catch (e) {}
+        }
+      }
+      /* everything standing near the base takes the stone */
+      enemies.forEach(function (e) {
+        if (!e || e.dead || e === a.rider) return;
+        if (e.pos.distanceTo(a.at) > 16) return;
+        var kb = e.pos.clone().sub(a.at).setY(0).normalize().multiplyScalar(24); kb.y = 14;
+        e.damage(38 * scale(), kb, {
+          react: 'blow', reactDur: .8, spark: BRIGHT, color: '#c8203c',
+          death: 'sever', psn: awake()
+        });
+      });
+    }
+  }
+
+  /* it must not be left standing if the cast is cut short */
+  function dropPillar(a) {
+    if (a && a.g) {
+      scene.remove(a.g);
+      a.g = null;
+    }
+    if (a && a.rider) { a.rider.anchorT = 0; a.rider = null; }
   }
 
   /* =====================================================================
@@ -14477,33 +14757,52 @@ window.__game = {
       }
       case 'ca3': {
         rp(r);
-        /* arms drawn in, then flung wide open */
-        var pull = out(Math.min(1, t / .62));
-        var open = t > .62 ? out(Math.min(1, (t - .62) / .3)) : 0;
-        r.shoulderL.rotation.x = -1.1 * pull + .6 * open;
-        r.shoulderR.rotation.x = -1.1 * pull + .6 * open;
-        r.shoulderL.rotation.z = .9 * pull - 1.7 * open;
-        r.shoulderR.rotation.z = -.9 * pull + 1.7 * open;
-        r.elbowL.rotation.x = -1.7 * pull + 1.6 * open;
-        r.elbowR.rotation.x = -1.7 * pull + 1.6 * open;
-        r.spine.rotation.x = .3 * pull - .55 * open;
-        r.neck.rotation.x = .2 * pull - .6 * open;
-        r.hips.position.y = r.hipsBaseY - .4 * pull + .5 * open;
+        /* held out flat while it spins up, then thrown across the body */
+        var hold = out(Math.min(1, t / .5));
+        var thr = t > .5 ? out(Math.min(1, (t - .5) / .28)) : 0;
+        r.shoulderR.rotation.x = -1.45 * hold + .5 * thr;
+        r.shoulderR.rotation.z = -.5 * hold + 1.5 * thr;
+        r.elbowR.rotation.x = -.5 * hold - .3 * thr;
+        r.shoulderL.rotation.x = -.5 * hold;
+        r.shoulderL.rotation.z = .3 * hold;
+        r.elbowL.rotation.x = -1.1 * hold;
+        r.spine.rotation.x = -.1 * hold + .26 * thr;
+        r.spine.rotation.y = .3 * hold - .7 * thr;
+        r.neck.rotation.x = -.06 * hold;
+        r.hipL.rotation.x = -.24 * hold; r.kneeL.rotation.x = .42 * hold;
+        r.hips.position.y = r.hipsBaseY - .16 * hold;
         return true;
       }
       case 'ca4': {
         rp(r);
-        /* a hand flat over his own chest: he is working on himself */
-        var k4 = out(Math.min(1, t / .45));
-        r.shoulderR.rotation.x = -1.5 * k4;
-        r.shoulderR.rotation.z = -.7 * k4;
-        r.elbowR.rotation.x = -1.9 * k4;
-        r.shoulderL.rotation.x = -.3 * k4;
-        r.elbowL.rotation.x = -.5 * k4;
-        r.spine.rotation.x = .22 * k4;
-        r.neck.rotation.x = .26 * k4;
-        r.hips.position.y = r.hipsBaseY - .24 * k4;
-        r.kneeL.rotation.x = .4 * k4; r.kneeR.rotation.x = .36 * k4;
+        /* both palms flat on the road, then one hand up onto the stone */
+        if (t < PILLAR.hand) {
+          var dn = out(Math.min(1, t / PILLAR.rise));
+          r.shoulderL.rotation.x = 1.05 * dn;
+          r.shoulderR.rotation.x = 1.05 * dn;
+          r.shoulderL.rotation.z = .3 * dn;
+          r.shoulderR.rotation.z = -.3 * dn;
+          r.elbowL.rotation.x = -.2 * dn;
+          r.elbowR.rotation.x = -.2 * dn;
+          r.spine.rotation.x = .95 * dn;
+          r.neck.rotation.x = -.55 * dn;
+          r.hipL.rotation.x = -.5 * dn; r.kneeL.rotation.x = 1.15 * dn;
+          r.hipR.rotation.x = -.35 * dn; r.kneeR.rotation.x = .95 * dn;
+          r.hips.position.y = r.hipsBaseY - 1.15 * dn;
+          return true;
+        }
+        /* up, and the near hand pressed flat against the column */
+        var up2 = out(Math.min(1, (t - PILLAR.hand) / .5));
+        r.shoulderR.rotation.x = 1.05 - 2.6 * up2;
+        r.shoulderR.rotation.z = -.3 + .1 * up2;
+        r.elbowR.rotation.x = -.2 - .1 * up2;
+        r.shoulderL.rotation.x = 1.05 - 1.5 * up2;
+        r.elbowL.rotation.x = -.2 - .5 * up2;
+        r.spine.rotation.x = .95 - .85 * up2;
+        r.neck.rotation.x = -.55 + .3 * up2;
+        r.hipL.rotation.x = -.5 + .4 * up2; r.kneeL.rotation.x = 1.15 - .85 * up2;
+        r.hipR.rotation.x = -.35 + .35 * up2; r.kneeR.rotation.x = .95 - .7 * up2;
+        r.hips.position.y = r.hipsBaseY - 1.15 + .95 * up2;
         return true;
       }
     }
@@ -14558,7 +14857,6 @@ window.__game = {
     A.chosoT = 0;
     if (A.chosoAura) { A.chosoAura.stop(); A.chosoAura = null; }
     swapChosoBar(false);
-    CH.flow = 0; CH.clot = false;
     if (quiet) return;
     if (window.JJNOTICE) window.JJNOTICE('THE MARK CLOSES', '#c8203c');
     FX.bloodRings(new THREE.Vector3(player.pos.x, .1, player.pos.z), 2,
@@ -14581,8 +14879,8 @@ window.__game = {
       case 'caw': return stepAwakenChoso(a, dt);
       case 'ca1': return stepConverge(a, dt);
       case 'ca2': return stepBarrage(a, dt);
-      case 'ca3': return stepNova(a, dt);
-      case 'ca4': return stepFlow(a, dt);
+      case 'ca3': return stepSaw(a, dt);
+      case 'ca4': return stepPillar(a, dt);
     }
     return _stepAction(a, dt);
   };
@@ -14638,19 +14936,6 @@ window.__game = {
         if (A.chosoT <= 0) endAwaken(false);
       }
     }
-    /* Flowing Blood: he moves it to where it is needed, so the wound
-       closes over the next few seconds */
-    if (CH.flow > 0) {
-      CH.flow = Math.max(0, CH.flow - dt);
-      if (!player.dead && player.hp < player.maxHp) {
-        player.hp = Math.min(player.maxHp, player.hp + FLOW.heal * dt);
-      }
-      if (Math.random() < dt * 5) {
-        FX.bloodMote(player.pos.clone().add(new THREE.Vector3(
-          (Math.random() - .5) * 2, 1 + Math.random() * 3, (Math.random() - .5) * 2)), 1, .4);
-      }
-      if (CH.flow <= 0 && CH.clot) CH.clot = false;
-    }
     /* poison he was handed by somebody else's awakening */
     stepVenom(player, dt, true);
     if (CH.stream) {
@@ -14696,32 +14981,12 @@ window.__game = {
     var hit = true;
     if (e.code === 'Digit1') (on ? castConverge : castPierce)();
     else if (e.code === 'Digit2') (on ? castBarrage : castMeteorite)();
-    else if (e.code === 'Digit3') (on ? castNova : castSupernova)();
-    else if (e.code === 'Digit4') (on ? castFlow : castScale)();
+    else if (e.code === 'Digit3') (on ? castSaw : castSupernova)();
+    else if (e.code === 'Digit4') (on ? castPillar : castScale)();
     else if (e.code === 'KeyR') castEdge();
     else hit = false;
     if (hit) e.stopImmediatePropagation();
   }, true);
-
-  /* "Manipulate his blood flow to avoid fatal damage." Once, while it
-     holds: the hit that would finish him clots instead, and that spends
-     it — so it buys a moment, not immunity. */
-  var _hurtPlayerCh = hurtPlayer;
-  hurtPlayer = function (amount, knock, opts) {
-    if (player.char === 'choso' && CH.flow > 0 && CH.clot && !player.dead &&
-        player.hp - amount <= 0) {
-      CH.clot = false;
-      amount = Math.max(0, player.hp - 1);
-      FX.bloodBurst(player.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 2.4,
-        new THREE.Vector3(0, 1, 0));
-      FX.bloodRings(player.pos.clone().add(new THREE.Vector3(0, 2, 0)), 3,
-        { maxR: 8, life: .5, gap: 30 });
-      if (window.JJNOTICE) window.JJNOTICE('CLOTTED', '#c8203c');
-      addShake(1.2);
-      if (typeof hitstop === 'function') hitstop(.14);
-    }
-    return _hurtPlayerCh(amount, knock, opts);
-  };
 
   /* =====================================================================
      THE BAR
@@ -14732,8 +14997,8 @@ window.__game = {
     { key: 'Q', lbl: 'Dash', cd: 'dash', max: 1 },
     { key: '1', lbl: 'Convergence', cd: 'ca1', max: CCD.ca1 },
     { key: '2', lbl: 'Blood Meteorite', cd: 'ca2', max: CCD.ca2 },
-    { key: '3', lbl: 'Supernova', cd: 'ca3', max: CCD.ca3 },
-    { key: '4', lbl: 'Flowing Blood', cd: 'ca4', max: CCD.ca4 },
+    { key: '3', lbl: 'Blood Saw', cd: 'ca3', max: CCD.ca3 },
+    { key: '4', lbl: 'Blood Pillar', cd: 'ca4', max: CCD.ca4 },
     { key: 'R', lbl: 'Blood Edge', cd: 'cr', max: CCD.cr }
   ];
   function swapChosoBar(on) {
@@ -14819,48 +15084,39 @@ window.__game = {
         dropMass(at, i * 120, 1.3 + Math.random() * .8);
       }
     },
-    nova: function (pos) {
-      var mid = pos.clone().add(new THREE.Vector3(0, 3.2, 0));
-      FX.tint('#0e0104', .6, .18);
-      FX.bloodRings(mid, 5, { maxR: 20, life: .7, gap: 26 });
-      for (var i = 0; i < 44; i++) {
-        (function (n) {
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            var u = (n + .5) / 44;
-            var phi = Math.acos(1 - 2 * u);
-            var th = Math.PI * (1 + Math.sqrt(5)) * n;
-            var dir = new THREE.Vector3(
-              Math.sin(phi) * Math.cos(th),
-              Math.abs(Math.cos(phi)) * .55,
-              Math.sin(phi) * Math.sin(th)).normalize();
-            var orb = FX.bloodMass(.5);
-            orb.position.copy(mid);
-            scene.add(orb);
-            var sp = 40 + Math.random() * 20;
-            addFx({ t: 1.5, update: function (dd) {
-              this.t -= dd;
-              orb.position.addScaledVector(dir, sp * dd);
-              orb.rotation.x += dd * 7;
-              if (this.t <= 0) { scene.remove(orb); return false; }
-              return true;
-            } });
-          }, n * 11);
-        })(i);
-      }
+    saw: function (pos, yaw) {
+      var d = dirOf(yaw);
+      var hand = pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, 3.4, 0));
+      FX.bloodBurst(hand.clone(), 2, d.clone());
+      throwSaw(hand.clone(), d.clone(), true);
     },
-    flow: function (pos) {
-      FX.tint('#2a0208', .3, .5);
-      FX.bloodRings(new THREE.Vector3(pos.x, .1, pos.z), 3,
-        { maxR: 10, life: .6, gap: 45, ground: true });
+    pillar: function (pos, yaw) {
+      var d = dirOf(yaw);
+      var at = pos.clone().addScaledVector(d, PILLAR.reach);
+      at.y = 0;
+      var g = buildPillar(at);
+      FX.cracks(at.clone(), 14, 20, 0x2a2630, 0x8a8f9c);
+      FX.debris(at.clone(), 18, 20, 0x4a4f5c);
+      FX.dust(at.clone(), 10, 0xb9bfc9, 12, 4);
       var t = 0;
-      addFx({ t: FLOW.dur, update: function (dd) {
+      addFx({ t: PILLAR.blow - PILLAR.rise, update: function (dd) {
         this.t -= dd; t += dd;
-        if (Math.random() < dd * 5) {
-          FX.bloodMote(pos.clone().add(new THREE.Vector3(
-            (Math.random() - .5) * 2, 1 + Math.random() * 3, (Math.random() - .5) * 2)), 1, .4);
+        g.position.y = -PILLAR.height + E.out(Math.min(1, t / .5)) * PILLAR.height;
+        if (t > PILLAR.hand - PILLAR.rise && !g.__bled) {
+          g.__bled = true;
+          bleedPillar(g, at, 16);
+          FX.bloodBurst(new THREE.Vector3(at.x, 2.4, at.z), 2.2, new THREE.Vector3(0, 1, 0));
         }
-        return this.t > 0;
+        if (this.t > 0) return true;
+        var c = new THREE.Vector3(at.x, PILLAR.height * .5, at.z);
+        FX.bloodBurst(c.clone(), 8, new THREE.Vector3(0, 1, 0));
+        FX.bloodThreads(c.clone(), 26, 34, 1.8);
+        FX.bloodRings(c.clone(), 6, { maxR: 30, life: .9, gap: 40 });
+        FX.cracks(new THREE.Vector3(at.x, 0, at.z), 16, 24, 0x1c0106, 0x5a3038);
+        FX.debris(new THREE.Vector3(at.x, 2, at.z), 26, 26, 0x4a4f5c);
+        FX.dust(new THREE.Vector3(at.x, 1, at.z), 14, 0xb9bfc9, 16, 5);
+        scene.remove(g);
+        return false;
       } });
     },
     lance: function (pos, yaw) {
@@ -18688,65 +18944,62 @@ window.__game = {
       }, 780);
     } },
 
-    /* 3 · the buckshot — from every direction at once, inward */
-    ca3: { name: 'SHOT TO PIECES', color: '#c8203c', hold: 1.2, run: function (e, d, p, G) {
-      for (var i = 0; i < 20; i++) {
-        (function (n) {
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            var u = (n + .5) / 20;
-            var phi = Math.acos(1 - 2 * u);
-            var th = Math.PI * (1 + Math.sqrt(5)) * n;
-            var from = p.clone().add(new THREE.Vector3(
-              Math.sin(phi) * Math.cos(th) * 9,
-              Math.abs(Math.cos(phi)) * 6,
-              Math.sin(phi) * Math.sin(th) * 9));
-            FX.bloodThreads(from, 1, 12, .5);
-            FX.bloodCut(from, p.clone(), .5, .16);
-            if (n % 4 === 0) addShake(.3);
-          }, n * 42);
-        })(i);
-      }
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        FX.tint('#0e0104', .8, .18);
-        if (typeof hitstop === 'function') hitstop(.18);
-      }, 880);
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        FX.bloodRings(p.clone(), 5, { maxR: 26, life: .8, gap: 34 });
-        FX.bloodThreads(p.clone(), 18, 30, 1.6);
-        G.dice(e, { dir: d, power: 2, cubes: 28, color: 0x8b0f2a });
-        addShake(2.6);
-      }, 1000);
-    } },
-
-    /* 4 · Flowing Blood — he takes theirs instead, and it goes to him */
-    ca4: { name: 'DRAINED', color: '#8b0f2a', hold: 1.3, run: function (e, d, p, G) {
-      var back = player.pos.clone().add(up(2.8));
+    /* 3 · the saw — it does not stop, so it goes all the way across */
+    ca3: { name: 'SAWN IN HALF', color: '#c8203c', hold: 1, run: function (e, d, p, G) {
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      var from = p.clone().addScaledVector(side, -8);
+      var to = p.clone().addScaledVector(side, 8);
+      /* the blade coming across, drawn as it goes rather than all at once */
       var n = 0;
       var iv = setInterval(function () {
-        if (n++ > 15 || typeof scene === 'undefined') { clearInterval(iv); return; }
-        /* threads running OUT of them and back into him */
-        FX.bloodCut(p.clone().add(new THREE.Vector3(
-          (Math.random() - .5) * 3, (Math.random() - .5) * 3, (Math.random() - .5) * 3)),
-          back.clone(), .35, .22);
-        FX.bloodMote(p.clone(), 1.2, .3);
-        if (n % 3 === 0) {
-          FX.bloodRings(back.clone(), 1, { maxR: 4, life: .3 });
-          addShake(.2);
-        }
-      }, 70);
+        if (n++ > 9 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        var k = n / 9;
+        var here = from.clone().lerp(to, k);
+        FX.bloodBurst(here, 1.6, side.clone());
+        FX.bloodThreads(here, 3, 14, .8);
+        FX.bloodCut(from.clone(), here, .8, .2);
+        addShake(.35);
+      }, 55);
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
-        FX.tint('#40040f', .5, .28);
-        FX.bloodBurst(p.clone(), 3, up(1));
-        if (typeof hitstop === 'function') hitstop(.15);
-        /* nothing left in them to fall over with */
-        G.flatten(e, { color: 0x8b0f2a });
-        addShake(1.8);
-      }, 1150);
+        FX.bloodCut(from.clone(), to.clone(), 1.4, .34);
+        FX.tint('#40040f', .5, .26);
+        if (typeof hitstop === 'function') hitstop(.16);
+        FX.blood(p.clone(), side.clone(), 11, 2.2);
+        FX.blood(p.clone(), side.clone().negate(), 11, 2.2);
+        /* level, and the top of them goes with the blade */
+        G.halve(e, { dir: side, power: 1.6, tilt: 0, color: 0x8b0f2a, stand: .3 });
+        addShake(2);
+      }, 620);
     } },
+
+    /* 4 · the pillar — they are already on top of it, and it goes */
+    ca4: { name: 'TAKEN WITH IT', color: '#8b0f2a', hold: 1.35, run: function (e, d, p, G) {
+      /* the stone under them webs over first */
+      var n = 0;
+      var iv = setInterval(function () {
+        if (n++ > 11 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        var a2 = Math.random() * TAU;
+        var at = p.clone().add(new THREE.Vector3(
+          Math.cos(a2) * 2.6, -2 - Math.random() * 4, Math.sin(a2) * 2.6));
+        FX.bloodCut(at, at.clone().add(up(3 + Math.random() * 4)), .45, .5);
+        FX.bloodMote(at, 1.3, .5);
+        if (n % 3 === 0) addShake(.3);
+      }, 80);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.tint('#40040f', .6, .34);
+        if (typeof hitstop === 'function') hitstop(.18);
+        FX.bloodBurst(p.clone(), 7, up(1));
+        FX.bloodThreads(p.clone(), 24, 32, 1.7);
+        FX.bloodRings(p.clone(), 5, { maxR: 26, life: .85, gap: 40 });
+        FX.debris(new THREE.Vector3(p.x, p.y - 3, p.z), 22, 24, 0x4a4f5c);
+        FX.dust(new THREE.Vector3(p.x, 1, p.z), 12, 0xb9bfc9, 14, 5);
+        /* the column goes and they go with it */
+        G.sever(e, { dir: up(1), power: 2.2, cubes: 14 });
+        addShake(3);
+      }, 1180);
+    } }
   };
 
   /* what each one leaves behind, for the kill that lands at the end */
@@ -18758,7 +19011,7 @@ window.__game = {
     h1: 'sever', h2: 'dice', h3: 'flat', h4: 'burn', hr: 'ragdoll',
     s1: 'dice', s2: 'sever', s3: 'burn', s4: 'dice',
     c1: 'sever', c1s: 'gone', c2: 'flat', c3: 'dice', c4: 'sever', cr: 'sever',
-    ca1: 'sever', ca2: 'flat', ca3: 'dice', ca4: 'flat'
+    ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever'
   };
 
   /* =====================================================================
@@ -21200,11 +21453,11 @@ window.__game = {
         break;
       case 'ca3':
         setTimeout(function () {
-          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.nova(pos.clone());
+          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.saw(pos.clone(), yaw);
         }, 620);
         break;
       case 'ca4':
-        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.flow(pos.clone());
+        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.pillar(pos.clone(), yaw);
         break;
       case 'c1':
         setTimeout(function () {
@@ -26459,7 +26712,7 @@ window.__game = {
     aura: aura, dome: dome, barrier: barrier,
     flash: flash, mangaLines: mangaLines, letterbox: letterbox, tint: tint, zoom: zoom,
     heavyHit: heavyHit, trail: trail,
-    isDark: isDark, cutLine: cutLine, lattice: lattice, orientAlong: orientAlong, decal: decal,
+    isDark: isDark, WEBS: WEBS, cutLine: cutLine, lattice: lattice, orientAlong: orientAlong, decal: decal,
     flame: flame, fire: fire, scorch: scorch, blood: blood, gash: gash,
     /* the dark kit: normal blending, no white anywhere, nothing that adds
        its colour to what is behind it. Everything Choso throws uses these. */
@@ -34674,7 +34927,7 @@ window.__game = {
      soaking through and adds almost nothing to the frame. */
   var BLOOD = 0x4e0512, BRIGHT = 0x6d0a1c, DARK = 0x1c0106, PALE = 0x8c1526;
 
-  var CH = window.JJCHOSO = { stream: null, scale: 0, flow: 0, clot: false };
+  var CH = window.JJCHOSO = { stream: null, scale: 0 };
 
   var CHOSO_CFG = {
     choso: true, face: true,
@@ -34808,7 +35061,7 @@ window.__game = {
   cds.ca1 = 0; cds.ca2 = 0; cds.ca3 = 0; cds.ca4 = 0;
   var CCD = { c1: 8, c2: 9, c3: 12, c4: 22, cr: 7,
     /* the four he gets when the curse half is out */
-    ca1: 7, ca2: 10, ca3: 13, ca4: 18 };
+    ca1: 7, ca2: 10, ca3: 11, ca4: 20 };
 
   CHARS.choso = {
     name: 'CHOSO', sub: 'BLOOD MANIPULATION — DEATH PAINTING',
@@ -35551,98 +35804,378 @@ window.__game = {
     }
   }
 
-  /* ---------------------------------------------- 3 · THE BUCKSHOT --- */
-  function castNova() {
-    if (!ready('ca3')) return;
-    start('ca3', 1.5, 'ca3', 'SUPERNOVA', '超新星 · 極');
-    player.iframes = Math.max(player.iframes, .6);
+  /* --------------------------------------------- 3 · THE SAW BLADE --- */
+  /* He hardens blood into solids — that is how Blood Edge and Blood
+     Meteorite both work — so the awakened version of that is not a bigger
+     knife. It is a disc with teeth on it, thrown, and it does not stop at
+     the first person: a saw goes through and keeps going. */
+  var SAW = { range: 62, speed: 30, radius: 3.4, dmg: 22, tick: .22 };
+
+  function buildSaw() {
+    var g = new THREE.Group();
+    var disc = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 2.9, .34, 22),
+      new THREE.MeshStandardMaterial({ color: 0x4e0512, roughness: .3, flatShading: true }));
+    disc.rotation.x = Math.PI / 2;
+    g.add(disc);
+    /* the dark rim, so the shape reads against the road */
+    var rim = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, .26, 22),
+      new THREE.MeshBasicMaterial({ color: 0x1c0106, side: THREE.BackSide,
+        transparent: true, opacity: .95, depthWrite: false, toneMapped: false }));
+    rim.rotation.x = Math.PI / 2;
+    rim.scale.setScalar(1.06);
+    g.add(rim);
+    /* the teeth */
+    for (var i = 0; i < 14; i++) {
+      var a = i / 14 * TAU;
+      var t = new THREE.Mesh(new THREE.BoxGeometry(.5, .8, .3),
+        new THREE.MeshStandardMaterial({ color: 0x6d0a1c, roughness: .26, flatShading: true }));
+      t.position.set(Math.cos(a) * 3.1, Math.sin(a) * 3.1, 0);
+      t.rotation.z = a + .5;
+      g.add(t);
+    }
+    var hub = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, .42, 10),
+      new THREE.MeshStandardMaterial({ color: 0x1c0106, roughness: .5, flatShading: true }));
+    hub.rotation.x = Math.PI / 2;
+    g.add(hub);
+    return g;
   }
-  function stepNova(a, dt) {
-    var p = player;
-    var mid = p.pos.clone().add(new THREE.Vector3(0, 3.2, 0));
-    if (a.t < .62) {
-      /* Convergence again, and it splits while it condenses */
-      if (Math.random() < .95) {
-        var ang = Math.random() * TAU, rr = 6 * (1 - a.t / .62);
-        FX.bloodMote(mid.clone().add(new THREE.Vector3(
-          Math.cos(ang) * rr, (Math.random() - .5) * rr, Math.sin(ang) * rr)), 2, .3);
+
+  function throwSaw(from, dir, ghost) {
+    var g = buildSaw();
+    g.position.copy(from);
+    scene.add(g);
+    var travelled = 0, spin = 0, cut = {};
+    addFx({ t: 5, update: function (dt) {
+      this.t -= dt;
+      var step = SAW.speed * dt;
+      travelled += step;
+      g.position.addScaledVector(dir, step);
+      spin += dt * 26;
+      g.rotation.z = spin;                       // the blade turns in its own plane
+      g.lookAt(g.position.clone().addScaledVector(dir, 1));
+      g.rotateZ(spin);
+      if (Math.random() < dt * 30) {
+        FX.bloodThreads(g.position.clone(), 1, 9, .6);
       }
-      addShake(.25 + a.t * .8);
+      /* the line it leaves in the ground under itself */
+      if (Math.random() < dt * 12) {
+        FX.bloodCut(
+          new THREE.Vector3(g.position.x, .08, g.position.z).addScaledVector(dir, -2),
+          new THREE.Vector3(g.position.x, .08, g.position.z), .5, .5);
+      }
+      /* it saws: everything it is touching is cut again on a timer, and
+         nothing stops it going through */
+      if (!ghost) {
+        for (var i = 0; i < enemies.length; i++) {
+          var e = enemies[i];
+          if (!e || e.dead) continue;
+          if (e.pos.clone().add(new THREE.Vector3(0, 2.4, 0))
+            .distanceTo(g.position) > SAW.radius) { cut[i] = 0; continue; }
+          cut[i] = (cut[i] || 0) - dt;
+          if (cut[i] > 0) continue;
+          cut[i] = SAW.tick;
+          FX.bloodBurst(e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 1.8, dir.clone());
+          e.damage(SAW.dmg * scale(), dir.clone().multiplyScalar(6).setY(2), {
+            react: 'slash', reactDur: .3, spark: BRIGHT, color: '#c8203c',
+            bleed: true, death: 'sever', psn: awake(), stun: .2
+          });
+          addShake(.35);
+        }
+      }
+      if (travelled < SAW.range && this.t > 0) return true;
+      /* and it comes apart where it stops */
+      FX.bloodBurst(g.position.clone(), 3.4, dir.clone());
+      FX.bloodThreads(g.position.clone(), 12, 20, 1.3);
+      FX.bloodRings(g.position.clone(), 3, { maxR: 12, life: .6, gap: 40 });
+      scene.remove(g);
+      g.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+      return false;
+    } });
+  }
+
+  function castSaw() {
+    if (!ready('ca3')) return;
+    start('ca3', 1.05, 'ca3', 'BLOOD SAW', '血鋸');
+    player.iframes = Math.max(player.iframes, .4);
+  }
+  function stepSaw(a, dt) {
+    var p = player, d = aim();
+    var hand = p.pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, 3.4, 0));
+    if (a.t < .5) {
+      /* it is drawn out and set spinning before it goes */
+      if (!a.disc) {
+        a.disc = buildSaw();
+        scene.add(a.disc);
+      }
+      var k = a.t / .5;
+      a.disc.position.copy(hand);
+      a.disc.scale.setScalar(.25 + E.out(k) * .75);
+      a.disc.lookAt(hand.clone().addScaledVector(d, 1));
+      a.disc.rotateZ(a.t * (6 + k * 30));
+      if (Math.random() < dt * 20) FX.bloodMote(hand.clone(), 1.4, .3);
+      addShake(.2 + k * .5);
       return;
     }
     if (a.stage < 1) {
       a.stage = 1;
-      FX.tint('#0e0104', .8, .18);
-      FX.bloodRings(mid, 5, { maxR: 20, life: .7, gap: 26 });
-      addShake(2);
-      if (typeof hitstop === 'function') hitstop(.14);
-      try { sfx.redFire(); } catch (e) {}
-      /* forty four of them, in every direction — buckshot, not a ring */
-      for (var i = 0; i < 44; i++) {
-        (function (n) {
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            /* an even spread over the whole sphere */
-            var u = (n + .5) / 44;
-            var phi = Math.acos(1 - 2 * u);
-            var theta = Math.PI * (1 + Math.sqrt(5)) * n;
-            var dir = new THREE.Vector3(
-              Math.sin(phi) * Math.cos(theta),
-              Math.abs(Math.cos(phi)) * .55,
-              Math.sin(phi) * Math.sin(theta)).normalize();
-            var orb = FX.bloodMass(.5);
-            orb.position.copy(mid);
-            scene.add(orb);
-            var sp = 40 + Math.random() * 20, hit = false;
-            addFx({ t: 1.5, update: function (dd) {
-              this.t -= dd;
-              orb.position.addScaledVector(dir, sp * dd);
-              orb.rotation.x += dd * 7; orb.rotation.z += dd * 5;
-              if (Math.random() < dd * 16) FX.bloodMote(orb.position.clone(), .7, .2);
-              if (!hit) {
-                for (var j = 0; j < enemies.length; j++) {
-                  var en = enemies[j];
-                  if (!en || en.dead) continue;
-                  if (en.pos.clone().add(new THREE.Vector3(0, 2.4, 0))
-                    .distanceTo(orb.position) > 2.9) continue;
-                  hit = true;
-                  FX.bloodBurst(orb.position.clone(), 1.6, dir.clone());
-                  en.damage(13 * scale(), dir.clone().multiplyScalar(10).setY(4), {
-                    react: 'slash', reactDur: .28, spark: BRIGHT, color: '#c8203c',
-                    bleed: true, death: 'dice', psn: awake()
-                  });
-                  addShake(.3);
-                  break;
-                }
-              }
-              if (hit || this.t <= 0) { scene.remove(orb); return false; }
-              return true;
-            } });
-          }, n * 11);
-        })(i);
+      if (a.disc) {
+        scene.remove(a.disc);
+        a.disc.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+        a.disc = null;
       }
-      if (window.JJAW) window.JJAW.gain(14);
+      throwSaw(hand.clone(), d.clone());
+      FX.bloodBurst(hand.clone(), 2, d.clone());
+      FX.mangaLines(.6, .25);
+      addShake(1.2);
+      if (AN) AN.camKick(1.1);
+      p.vel.addScaledVector(d, -6);
+      try { sfx.slash(); } catch (e) {}
+      if (window.JJAW) window.JJAW.gain(12);
     }
   }
 
-  /* ------------------------------------------- 4 · HIS OWN BLOOD ----- */
-  var FLOW = { dur: 9, heal: 7, cut: .45 };
-  function castFlow() {
-    if (!ready('ca4')) return;
-    start('ca4', 1, 'ca4', 'FLOWING BLOOD', '血流操術');
-    player.iframes = Math.max(player.iframes, .8);
-    CH.flow = FLOW.dur;
-    CH.clot = true;                 // one fatal hit is clotted, once
-    FX.tint('#2a0208', .4, .5);
-    FX.bloodRings(new THREE.Vector3(player.pos.x, .1, player.pos.z), 3,
-      { maxR: 10, life: .6, gap: 45, ground: true });
-    addShake(.8);
-    try { sfx.raise(); } catch (e) {}
+  /* ------------------------------------------ 4 · THE ROCK PILLAR ---- */
+  /* Both hands to the ground, and a column of it comes up under whoever
+     is standing there and takes them with it. Then he puts a hand on the
+     column, and it starts to bleed: his blood goes into the stone, webs
+     through it along the cracks, and takes the whole thing apart. What is
+     riding the top comes apart with it. */
+  var PILLAR = {
+    reach: 9,        // how far in front of him it comes up
+    grab: 7,         // who gets carried
+    height: 17,
+    rise: .55,
+    hand: 1.25,      // when he touches it
+    blow: 2.15       // when it goes
+  };
+
+  function buildPillar(at) {
+    var g = new THREE.Group();
+    var rock = new THREE.MeshStandardMaterial({ color: 0x4a4f5c, roughness: .95, flatShading: true });
+    var dark = new THREE.MeshStandardMaterial({ color: 0x33373f, roughness: .96, flatShading: true });
+    /* a stack of slabs rather than one box, so it reads as broken ground
+       that has been pushed up rather than as a pillar somebody built */
+    var y = 0;
+    for (var i = 0; i < 6; i++) {
+      var h = PILLAR.height / 6;
+      var w = 5.4 - i * .34 + (Math.random() - .5) * .8;
+      var slab = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), i % 2 ? dark : rock);
+      slab.position.set((Math.random() - .5) * .7, y + h / 2, (Math.random() - .5) * .7);
+      slab.rotation.y = Math.random() * .5;
+      slab.castShadow = true;
+      g.add(slab);
+      y += h;
+    }
+    g.position.set(at.x, -PILLAR.height, at.z);
+    g.__slabs = g.children.slice();
+    scene.add(g);
+    return g;
   }
-  function stepFlow(a, dt) {
-    var mid = player.pos.clone().add(new THREE.Vector3(0, 2.6, 0));
-    if (Math.random() < .6) FX.bloodMote(mid, 1.6, .4);
-    if (a.t > .3 && Math.random() < .2) FX.bloodThreads(mid, 1, 6, .8);
+
+  /* the blood going into the stone: web decals down all four faces */
+  function bleedPillar(g, at, n) {
+    var webs = FX.WEBS;
+    for (var i = 0; i < n; i++) {
+      var face = i % 4;
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 5.4),
+        new THREE.MeshBasicMaterial({
+          map: webs ? webs[(Math.random() * webs.length) | 0] : FX.T.blood,
+          color: 0x5e0714, transparent: true, opacity: 0,
+          blending: THREE.NormalBlending, depthWrite: false,
+          side: THREE.DoubleSide, toneMapped: false
+        }));
+      var ang = face * Math.PI / 2;
+      var h = 2 + Math.random() * (PILLAR.height - 4);
+      m.position.set(Math.sin(ang) * 2.75, h, Math.cos(ang) * 2.75);
+      m.rotation.y = ang;
+      m.renderOrder = 8;
+      g.add(m);
+      (function (m) {
+        var t = 0;
+        addFx({ t: 1.6, update: function (dt) {
+          this.t -= dt; t += dt;
+          m.material.opacity = Math.min(.9, t * 1.6);
+          if (this.t <= 0) return false;
+          return true;
+        } });
+      })(m);
+    }
+  }
+
+  function castPillar() {
+    if (!ready('ca4')) return;
+    var a = start('ca4', 2.6, 'ca4', 'BLOOD PILLAR', '血柱');
+    a.at = null; a.g = null; a.rider = null;
+    player.iframes = Math.max(player.iframes, 2.4);
+  }
+
+  function stepPillar(a, dt) {
+    var p = player, d = aim();
+    p.vel.x = 0; p.vel.z = 0;
+
+    /* ---- both hands down ---- */
+    if (a.t < PILLAR.rise) {
+      if (Math.random() < .5) {
+        FX.bloodMote(p.pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, .4, 0)), 1.2, .3);
+      }
+      addShake(.3 + a.t);
+      return;
+    }
+
+    /* ---- and the ground comes up ---- */
+    if (a.stage < 1) {
+      a.stage = 1;
+      var at = p.pos.clone().addScaledVector(d, PILLAR.reach);
+      a.at = new THREE.Vector3(at.x, 0, at.z);
+      a.g = buildPillar(a.at);
+      FX.cracks(a.at.clone(), 14, 20, 0x2a2630, 0x8a8f9c);
+      FX.debris(a.at.clone(), 18, 20, 0x4a4f5c);
+      FX.dust(a.at.clone(), 10, 0xb9bfc9, 12, 4);
+      FX.rings(new THREE.Vector3(a.at.x, .12, a.at.z), 0x8a8f9c, 3,
+        { maxR: 14, life: .6, gap: 40 });
+      addShake(2.2);
+      if (typeof hitstop === 'function') hitstop(.12);
+      try { sfx.redBoom(); } catch (e) {}
+      /* whoever was standing on it goes up with it */
+      var best = null, bd = PILLAR.grab;
+      enemies.forEach(function (e) {
+        if (!e || e.dead) return;
+        var dist = e.pos.distanceTo(a.at);
+        if (dist < bd) { bd = dist; best = e; }
+      });
+      a.rider = best;
+      if (best) {
+        best.damage(24 * scale(), null, {
+          react: 'uplift', reactDur: .6, spark: BRIGHT, color: '#c8203c',
+          psn: awake(), noFrameBonus: true
+        });
+      }
+      if (window.JJAW) window.JJAW.gain(12);
+    }
+
+    /* the column rising, and the rider riding it */
+    if (a.g) {
+      var k = Math.min(1, (a.t - PILLAR.rise) / .5);
+      a.g.position.y = -PILLAR.height + E.out(k) * PILLAR.height;
+      if (k < 1 && Math.random() < dt * 22) {
+        FX.dust(new THREE.Vector3(a.at.x + (Math.random() - .5) * 6, 1,
+          a.at.z + (Math.random() - .5) * 6), 2, 0xb9bfc9, 7, 3);
+      }
+    }
+    if (a.rider && !a.rider.dead && a.t < PILLAR.blow) {
+      var top = new THREE.Vector3(a.at.x, PILLAR.height * Math.min(1,
+        (a.t - PILLAR.rise) / .5) + .2, a.at.z);
+      a.rider.anchorT = .25;
+      a.rider.anchorPos.copy(top);
+      a.rider.pos.lerp(top, Math.min(1, dt * 14));
+    }
+
+    /* ---- his hand goes on it, and it starts to bleed ---- */
+    if (a.t >= PILLAR.hand && a.stage < 2) {
+      a.stage = 2;
+      var base = new THREE.Vector3(a.at.x, 2.4, a.at.z);
+      FX.bloodBurst(base.clone(), 2.2, new THREE.Vector3(0, 1, 0));
+      bleedPillar(a.g, a.at, 16);
+      addShake(.7);
+      try { sfx.stab(); } catch (e) {}
+    }
+    /* it oozes: blood running up and down the stone */
+    if (a.stage >= 2 && a.t < PILLAR.blow && Math.random() < dt * 34) {
+      var hgt = Math.random() * PILLAR.height;
+      var ang2 = Math.random() * TAU;
+      FX.bloodMote(new THREE.Vector3(
+        a.at.x + Math.cos(ang2) * 2.9, hgt, a.at.z + Math.sin(ang2) * 2.9), 1.3, .6);
+      if (Math.random() < .3) {
+        FX.bloodCut(
+          new THREE.Vector3(a.at.x + Math.cos(ang2) * 2.9, hgt, a.at.z + Math.sin(ang2) * 2.9),
+          new THREE.Vector3(a.at.x + Math.cos(ang2) * 2.9, Math.max(0, hgt - 4),
+            a.at.z + Math.sin(ang2) * 2.9), .4, .5);
+      }
+      addShake(.16);
+    }
+
+    /* ---- and then the whole thing goes ---- */
+    if (a.t >= PILLAR.blow && a.stage < 3) {
+      a.stage = 3;
+      var c = new THREE.Vector3(a.at.x, PILLAR.height * .5, a.at.z);
+      FX.tint('#40040f', .6, .35);
+      if (typeof hitstop === 'function') hitstop(.18);
+      FX.bloodBurst(c.clone(), 8, new THREE.Vector3(0, 1, 0));
+      FX.bloodThreads(c.clone(), 26, 34, 1.8);
+      FX.bloodRings(c.clone(), 6, { maxR: 30, life: .9, gap: 40 });
+      FX.bloodRings(new THREE.Vector3(a.at.x, .12, a.at.z), 4,
+        { maxR: 26, life: .8, gap: 46, ground: true });
+      FX.cracks(new THREE.Vector3(a.at.x, 0, a.at.z), 16, 24, 0x1c0106, 0x5a3038);
+      addShake(3);
+      FX.zoom(-12, .7);
+      if (AN) AN.camKick(2);
+      try { sfx.blast(); } catch (e) {}
+
+      /* the stone goes outward as real pieces */
+      if (a.g) {
+        a.g.__slabs.forEach(function (sl) {
+          var wp = new THREE.Vector3();
+          sl.getWorldPosition(wp);
+          scene.remove(a.g);
+          var chunk = new THREE.Mesh(sl.geometry, sl.material);
+          chunk.position.copy(wp);
+          scene.add(chunk);
+          var v = new THREE.Vector3((Math.random() - .5) * 26, 6 + Math.random() * 16,
+            (Math.random() - .5) * 26);
+          var av = new THREE.Vector3((Math.random() - .5) * 7, (Math.random() - .5) * 7,
+            (Math.random() - .5) * 7);
+          addFx({ t: 4, update: function (dd) {
+            this.t -= dd;
+            v.y -= 32 * dd;
+            chunk.position.addScaledVector(v, dd);
+            chunk.rotation.x += av.x * dd;
+            chunk.rotation.y += av.y * dd;
+            chunk.rotation.z += av.z * dd;
+            if (chunk.position.y < 1) { v.y = Math.abs(v.y) * .3; v.multiplyScalar(.6); }
+            if (this.t <= 0) { scene.remove(chunk); return false; }
+            return true;
+          } });
+        });
+        FX.debris(new THREE.Vector3(a.at.x, 2, a.at.z), 26, 26, 0x4a4f5c);
+        FX.dust(new THREE.Vector3(a.at.x, 1, a.at.z), 14, 0xb9bfc9, 16, 5);
+        a.g = null;
+      }
+
+      /* and the one riding the top comes apart with it */
+      if (a.rider && !a.rider.dead) {
+        var r = a.rider;
+        r.anchorT = 0;
+        var up = new THREE.Vector3(0, 26, 0);
+        r.damage(96 * scale(), up, {
+          react: 'uplift', reactDur: .8, spark: BRIGHT, color: '#c8203c',
+          death: 'sever', psn: awake(), ragdoll: true
+        });
+        if (!r.dead && window.JJGORE) {
+          /* it does not kill them, but it still takes them apart where
+             they were: the pieces are the point of the move */
+          try { window.JJGORE.sever(r, { dir: up.clone().normalize(), power: 1.7, cubes: 12 }); } catch (e) {}
+        }
+      }
+      /* everything standing near the base takes the stone */
+      enemies.forEach(function (e) {
+        if (!e || e.dead || e === a.rider) return;
+        if (e.pos.distanceTo(a.at) > 16) return;
+        var kb = e.pos.clone().sub(a.at).setY(0).normalize().multiplyScalar(24); kb.y = 14;
+        e.damage(38 * scale(), kb, {
+          react: 'blow', reactDur: .8, spark: BRIGHT, color: '#c8203c',
+          death: 'sever', psn: awake()
+        });
+      });
+    }
+  }
+
+  /* it must not be left standing if the cast is cut short */
+  function dropPillar(a) {
+    if (a && a.g) {
+      scene.remove(a.g);
+      a.g = null;
+    }
+    if (a && a.rider) { a.rider.anchorT = 0; a.rider = null; }
   }
 
   /* =====================================================================
@@ -35778,33 +36311,52 @@ window.__game = {
       }
       case 'ca3': {
         rp(r);
-        /* arms drawn in, then flung wide open */
-        var pull = out(Math.min(1, t / .62));
-        var open = t > .62 ? out(Math.min(1, (t - .62) / .3)) : 0;
-        r.shoulderL.rotation.x = -1.1 * pull + .6 * open;
-        r.shoulderR.rotation.x = -1.1 * pull + .6 * open;
-        r.shoulderL.rotation.z = .9 * pull - 1.7 * open;
-        r.shoulderR.rotation.z = -.9 * pull + 1.7 * open;
-        r.elbowL.rotation.x = -1.7 * pull + 1.6 * open;
-        r.elbowR.rotation.x = -1.7 * pull + 1.6 * open;
-        r.spine.rotation.x = .3 * pull - .55 * open;
-        r.neck.rotation.x = .2 * pull - .6 * open;
-        r.hips.position.y = r.hipsBaseY - .4 * pull + .5 * open;
+        /* held out flat while it spins up, then thrown across the body */
+        var hold = out(Math.min(1, t / .5));
+        var thr = t > .5 ? out(Math.min(1, (t - .5) / .28)) : 0;
+        r.shoulderR.rotation.x = -1.45 * hold + .5 * thr;
+        r.shoulderR.rotation.z = -.5 * hold + 1.5 * thr;
+        r.elbowR.rotation.x = -.5 * hold - .3 * thr;
+        r.shoulderL.rotation.x = -.5 * hold;
+        r.shoulderL.rotation.z = .3 * hold;
+        r.elbowL.rotation.x = -1.1 * hold;
+        r.spine.rotation.x = -.1 * hold + .26 * thr;
+        r.spine.rotation.y = .3 * hold - .7 * thr;
+        r.neck.rotation.x = -.06 * hold;
+        r.hipL.rotation.x = -.24 * hold; r.kneeL.rotation.x = .42 * hold;
+        r.hips.position.y = r.hipsBaseY - .16 * hold;
         return true;
       }
       case 'ca4': {
         rp(r);
-        /* a hand flat over his own chest: he is working on himself */
-        var k4 = out(Math.min(1, t / .45));
-        r.shoulderR.rotation.x = -1.5 * k4;
-        r.shoulderR.rotation.z = -.7 * k4;
-        r.elbowR.rotation.x = -1.9 * k4;
-        r.shoulderL.rotation.x = -.3 * k4;
-        r.elbowL.rotation.x = -.5 * k4;
-        r.spine.rotation.x = .22 * k4;
-        r.neck.rotation.x = .26 * k4;
-        r.hips.position.y = r.hipsBaseY - .24 * k4;
-        r.kneeL.rotation.x = .4 * k4; r.kneeR.rotation.x = .36 * k4;
+        /* both palms flat on the road, then one hand up onto the stone */
+        if (t < PILLAR.hand) {
+          var dn = out(Math.min(1, t / PILLAR.rise));
+          r.shoulderL.rotation.x = 1.05 * dn;
+          r.shoulderR.rotation.x = 1.05 * dn;
+          r.shoulderL.rotation.z = .3 * dn;
+          r.shoulderR.rotation.z = -.3 * dn;
+          r.elbowL.rotation.x = -.2 * dn;
+          r.elbowR.rotation.x = -.2 * dn;
+          r.spine.rotation.x = .95 * dn;
+          r.neck.rotation.x = -.55 * dn;
+          r.hipL.rotation.x = -.5 * dn; r.kneeL.rotation.x = 1.15 * dn;
+          r.hipR.rotation.x = -.35 * dn; r.kneeR.rotation.x = .95 * dn;
+          r.hips.position.y = r.hipsBaseY - 1.15 * dn;
+          return true;
+        }
+        /* up, and the near hand pressed flat against the column */
+        var up2 = out(Math.min(1, (t - PILLAR.hand) / .5));
+        r.shoulderR.rotation.x = 1.05 - 2.6 * up2;
+        r.shoulderR.rotation.z = -.3 + .1 * up2;
+        r.elbowR.rotation.x = -.2 - .1 * up2;
+        r.shoulderL.rotation.x = 1.05 - 1.5 * up2;
+        r.elbowL.rotation.x = -.2 - .5 * up2;
+        r.spine.rotation.x = .95 - .85 * up2;
+        r.neck.rotation.x = -.55 + .3 * up2;
+        r.hipL.rotation.x = -.5 + .4 * up2; r.kneeL.rotation.x = 1.15 - .85 * up2;
+        r.hipR.rotation.x = -.35 + .35 * up2; r.kneeR.rotation.x = .95 - .7 * up2;
+        r.hips.position.y = r.hipsBaseY - 1.15 + .95 * up2;
         return true;
       }
     }
@@ -35859,7 +36411,6 @@ window.__game = {
     A.chosoT = 0;
     if (A.chosoAura) { A.chosoAura.stop(); A.chosoAura = null; }
     swapChosoBar(false);
-    CH.flow = 0; CH.clot = false;
     if (quiet) return;
     if (window.JJNOTICE) window.JJNOTICE('THE MARK CLOSES', '#c8203c');
     FX.bloodRings(new THREE.Vector3(player.pos.x, .1, player.pos.z), 2,
@@ -35882,8 +36433,8 @@ window.__game = {
       case 'caw': return stepAwakenChoso(a, dt);
       case 'ca1': return stepConverge(a, dt);
       case 'ca2': return stepBarrage(a, dt);
-      case 'ca3': return stepNova(a, dt);
-      case 'ca4': return stepFlow(a, dt);
+      case 'ca3': return stepSaw(a, dt);
+      case 'ca4': return stepPillar(a, dt);
     }
     return _stepAction(a, dt);
   };
@@ -35939,19 +36490,6 @@ window.__game = {
         if (A.chosoT <= 0) endAwaken(false);
       }
     }
-    /* Flowing Blood: he moves it to where it is needed, so the wound
-       closes over the next few seconds */
-    if (CH.flow > 0) {
-      CH.flow = Math.max(0, CH.flow - dt);
-      if (!player.dead && player.hp < player.maxHp) {
-        player.hp = Math.min(player.maxHp, player.hp + FLOW.heal * dt);
-      }
-      if (Math.random() < dt * 5) {
-        FX.bloodMote(player.pos.clone().add(new THREE.Vector3(
-          (Math.random() - .5) * 2, 1 + Math.random() * 3, (Math.random() - .5) * 2)), 1, .4);
-      }
-      if (CH.flow <= 0 && CH.clot) CH.clot = false;
-    }
     /* poison he was handed by somebody else's awakening */
     stepVenom(player, dt, true);
     if (CH.stream) {
@@ -35997,32 +36535,12 @@ window.__game = {
     var hit = true;
     if (e.code === 'Digit1') (on ? castConverge : castPierce)();
     else if (e.code === 'Digit2') (on ? castBarrage : castMeteorite)();
-    else if (e.code === 'Digit3') (on ? castNova : castSupernova)();
-    else if (e.code === 'Digit4') (on ? castFlow : castScale)();
+    else if (e.code === 'Digit3') (on ? castSaw : castSupernova)();
+    else if (e.code === 'Digit4') (on ? castPillar : castScale)();
     else if (e.code === 'KeyR') castEdge();
     else hit = false;
     if (hit) e.stopImmediatePropagation();
   }, true);
-
-  /* "Manipulate his blood flow to avoid fatal damage." Once, while it
-     holds: the hit that would finish him clots instead, and that spends
-     it — so it buys a moment, not immunity. */
-  var _hurtPlayerCh = hurtPlayer;
-  hurtPlayer = function (amount, knock, opts) {
-    if (player.char === 'choso' && CH.flow > 0 && CH.clot && !player.dead &&
-        player.hp - amount <= 0) {
-      CH.clot = false;
-      amount = Math.max(0, player.hp - 1);
-      FX.bloodBurst(player.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 2.4,
-        new THREE.Vector3(0, 1, 0));
-      FX.bloodRings(player.pos.clone().add(new THREE.Vector3(0, 2, 0)), 3,
-        { maxR: 8, life: .5, gap: 30 });
-      if (window.JJNOTICE) window.JJNOTICE('CLOTTED', '#c8203c');
-      addShake(1.2);
-      if (typeof hitstop === 'function') hitstop(.14);
-    }
-    return _hurtPlayerCh(amount, knock, opts);
-  };
 
   /* =====================================================================
      THE BAR
@@ -36033,8 +36551,8 @@ window.__game = {
     { key: 'Q', lbl: 'Dash', cd: 'dash', max: 1 },
     { key: '1', lbl: 'Convergence', cd: 'ca1', max: CCD.ca1 },
     { key: '2', lbl: 'Blood Meteorite', cd: 'ca2', max: CCD.ca2 },
-    { key: '3', lbl: 'Supernova', cd: 'ca3', max: CCD.ca3 },
-    { key: '4', lbl: 'Flowing Blood', cd: 'ca4', max: CCD.ca4 },
+    { key: '3', lbl: 'Blood Saw', cd: 'ca3', max: CCD.ca3 },
+    { key: '4', lbl: 'Blood Pillar', cd: 'ca4', max: CCD.ca4 },
     { key: 'R', lbl: 'Blood Edge', cd: 'cr', max: CCD.cr }
   ];
   function swapChosoBar(on) {
@@ -36120,48 +36638,39 @@ window.__game = {
         dropMass(at, i * 120, 1.3 + Math.random() * .8);
       }
     },
-    nova: function (pos) {
-      var mid = pos.clone().add(new THREE.Vector3(0, 3.2, 0));
-      FX.tint('#0e0104', .6, .18);
-      FX.bloodRings(mid, 5, { maxR: 20, life: .7, gap: 26 });
-      for (var i = 0; i < 44; i++) {
-        (function (n) {
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            var u = (n + .5) / 44;
-            var phi = Math.acos(1 - 2 * u);
-            var th = Math.PI * (1 + Math.sqrt(5)) * n;
-            var dir = new THREE.Vector3(
-              Math.sin(phi) * Math.cos(th),
-              Math.abs(Math.cos(phi)) * .55,
-              Math.sin(phi) * Math.sin(th)).normalize();
-            var orb = FX.bloodMass(.5);
-            orb.position.copy(mid);
-            scene.add(orb);
-            var sp = 40 + Math.random() * 20;
-            addFx({ t: 1.5, update: function (dd) {
-              this.t -= dd;
-              orb.position.addScaledVector(dir, sp * dd);
-              orb.rotation.x += dd * 7;
-              if (this.t <= 0) { scene.remove(orb); return false; }
-              return true;
-            } });
-          }, n * 11);
-        })(i);
-      }
+    saw: function (pos, yaw) {
+      var d = dirOf(yaw);
+      var hand = pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, 3.4, 0));
+      FX.bloodBurst(hand.clone(), 2, d.clone());
+      throwSaw(hand.clone(), d.clone(), true);
     },
-    flow: function (pos) {
-      FX.tint('#2a0208', .3, .5);
-      FX.bloodRings(new THREE.Vector3(pos.x, .1, pos.z), 3,
-        { maxR: 10, life: .6, gap: 45, ground: true });
+    pillar: function (pos, yaw) {
+      var d = dirOf(yaw);
+      var at = pos.clone().addScaledVector(d, PILLAR.reach);
+      at.y = 0;
+      var g = buildPillar(at);
+      FX.cracks(at.clone(), 14, 20, 0x2a2630, 0x8a8f9c);
+      FX.debris(at.clone(), 18, 20, 0x4a4f5c);
+      FX.dust(at.clone(), 10, 0xb9bfc9, 12, 4);
       var t = 0;
-      addFx({ t: FLOW.dur, update: function (dd) {
+      addFx({ t: PILLAR.blow - PILLAR.rise, update: function (dd) {
         this.t -= dd; t += dd;
-        if (Math.random() < dd * 5) {
-          FX.bloodMote(pos.clone().add(new THREE.Vector3(
-            (Math.random() - .5) * 2, 1 + Math.random() * 3, (Math.random() - .5) * 2)), 1, .4);
+        g.position.y = -PILLAR.height + E.out(Math.min(1, t / .5)) * PILLAR.height;
+        if (t > PILLAR.hand - PILLAR.rise && !g.__bled) {
+          g.__bled = true;
+          bleedPillar(g, at, 16);
+          FX.bloodBurst(new THREE.Vector3(at.x, 2.4, at.z), 2.2, new THREE.Vector3(0, 1, 0));
         }
-        return this.t > 0;
+        if (this.t > 0) return true;
+        var c = new THREE.Vector3(at.x, PILLAR.height * .5, at.z);
+        FX.bloodBurst(c.clone(), 8, new THREE.Vector3(0, 1, 0));
+        FX.bloodThreads(c.clone(), 26, 34, 1.8);
+        FX.bloodRings(c.clone(), 6, { maxR: 30, life: .9, gap: 40 });
+        FX.cracks(new THREE.Vector3(at.x, 0, at.z), 16, 24, 0x1c0106, 0x5a3038);
+        FX.debris(new THREE.Vector3(at.x, 2, at.z), 26, 26, 0x4a4f5c);
+        FX.dust(new THREE.Vector3(at.x, 1, at.z), 14, 0xb9bfc9, 16, 5);
+        scene.remove(g);
+        return false;
       } });
     },
     lance: function (pos, yaw) {
@@ -39989,65 +40498,62 @@ window.__game = {
       }, 780);
     } },
 
-    /* 3 · the buckshot — from every direction at once, inward */
-    ca3: { name: 'SHOT TO PIECES', color: '#c8203c', hold: 1.2, run: function (e, d, p, G) {
-      for (var i = 0; i < 20; i++) {
-        (function (n) {
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            var u = (n + .5) / 20;
-            var phi = Math.acos(1 - 2 * u);
-            var th = Math.PI * (1 + Math.sqrt(5)) * n;
-            var from = p.clone().add(new THREE.Vector3(
-              Math.sin(phi) * Math.cos(th) * 9,
-              Math.abs(Math.cos(phi)) * 6,
-              Math.sin(phi) * Math.sin(th) * 9));
-            FX.bloodThreads(from, 1, 12, .5);
-            FX.bloodCut(from, p.clone(), .5, .16);
-            if (n % 4 === 0) addShake(.3);
-          }, n * 42);
-        })(i);
-      }
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        FX.tint('#0e0104', .8, .18);
-        if (typeof hitstop === 'function') hitstop(.18);
-      }, 880);
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        FX.bloodRings(p.clone(), 5, { maxR: 26, life: .8, gap: 34 });
-        FX.bloodThreads(p.clone(), 18, 30, 1.6);
-        G.dice(e, { dir: d, power: 2, cubes: 28, color: 0x8b0f2a });
-        addShake(2.6);
-      }, 1000);
-    } },
-
-    /* 4 · Flowing Blood — he takes theirs instead, and it goes to him */
-    ca4: { name: 'DRAINED', color: '#8b0f2a', hold: 1.3, run: function (e, d, p, G) {
-      var back = player.pos.clone().add(up(2.8));
+    /* 3 · the saw — it does not stop, so it goes all the way across */
+    ca3: { name: 'SAWN IN HALF', color: '#c8203c', hold: 1, run: function (e, d, p, G) {
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      var from = p.clone().addScaledVector(side, -8);
+      var to = p.clone().addScaledVector(side, 8);
+      /* the blade coming across, drawn as it goes rather than all at once */
       var n = 0;
       var iv = setInterval(function () {
-        if (n++ > 15 || typeof scene === 'undefined') { clearInterval(iv); return; }
-        /* threads running OUT of them and back into him */
-        FX.bloodCut(p.clone().add(new THREE.Vector3(
-          (Math.random() - .5) * 3, (Math.random() - .5) * 3, (Math.random() - .5) * 3)),
-          back.clone(), .35, .22);
-        FX.bloodMote(p.clone(), 1.2, .3);
-        if (n % 3 === 0) {
-          FX.bloodRings(back.clone(), 1, { maxR: 4, life: .3 });
-          addShake(.2);
-        }
-      }, 70);
+        if (n++ > 9 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        var k = n / 9;
+        var here = from.clone().lerp(to, k);
+        FX.bloodBurst(here, 1.6, side.clone());
+        FX.bloodThreads(here, 3, 14, .8);
+        FX.bloodCut(from.clone(), here, .8, .2);
+        addShake(.35);
+      }, 55);
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
-        FX.tint('#40040f', .5, .28);
-        FX.bloodBurst(p.clone(), 3, up(1));
-        if (typeof hitstop === 'function') hitstop(.15);
-        /* nothing left in them to fall over with */
-        G.flatten(e, { color: 0x8b0f2a });
-        addShake(1.8);
-      }, 1150);
+        FX.bloodCut(from.clone(), to.clone(), 1.4, .34);
+        FX.tint('#40040f', .5, .26);
+        if (typeof hitstop === 'function') hitstop(.16);
+        FX.blood(p.clone(), side.clone(), 11, 2.2);
+        FX.blood(p.clone(), side.clone().negate(), 11, 2.2);
+        /* level, and the top of them goes with the blade */
+        G.halve(e, { dir: side, power: 1.6, tilt: 0, color: 0x8b0f2a, stand: .3 });
+        addShake(2);
+      }, 620);
     } },
+
+    /* 4 · the pillar — they are already on top of it, and it goes */
+    ca4: { name: 'TAKEN WITH IT', color: '#8b0f2a', hold: 1.35, run: function (e, d, p, G) {
+      /* the stone under them webs over first */
+      var n = 0;
+      var iv = setInterval(function () {
+        if (n++ > 11 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        var a2 = Math.random() * TAU;
+        var at = p.clone().add(new THREE.Vector3(
+          Math.cos(a2) * 2.6, -2 - Math.random() * 4, Math.sin(a2) * 2.6));
+        FX.bloodCut(at, at.clone().add(up(3 + Math.random() * 4)), .45, .5);
+        FX.bloodMote(at, 1.3, .5);
+        if (n % 3 === 0) addShake(.3);
+      }, 80);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.tint('#40040f', .6, .34);
+        if (typeof hitstop === 'function') hitstop(.18);
+        FX.bloodBurst(p.clone(), 7, up(1));
+        FX.bloodThreads(p.clone(), 24, 32, 1.7);
+        FX.bloodRings(p.clone(), 5, { maxR: 26, life: .85, gap: 40 });
+        FX.debris(new THREE.Vector3(p.x, p.y - 3, p.z), 22, 24, 0x4a4f5c);
+        FX.dust(new THREE.Vector3(p.x, 1, p.z), 12, 0xb9bfc9, 14, 5);
+        /* the column goes and they go with it */
+        G.sever(e, { dir: up(1), power: 2.2, cubes: 14 });
+        addShake(3);
+      }, 1180);
+    } }
   };
 
   /* what each one leaves behind, for the kill that lands at the end */
@@ -40059,7 +40565,7 @@ window.__game = {
     h1: 'sever', h2: 'dice', h3: 'flat', h4: 'burn', hr: 'ragdoll',
     s1: 'dice', s2: 'sever', s3: 'burn', s4: 'dice',
     c1: 'sever', c1s: 'gone', c2: 'flat', c3: 'dice', c4: 'sever', cr: 'sever',
-    ca1: 'sever', ca2: 'flat', ca3: 'dice', ca4: 'flat'
+    ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever'
   };
 
   /* =====================================================================
@@ -42501,11 +43007,11 @@ window.__game = {
         break;
       case 'ca3':
         setTimeout(function () {
-          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.nova(pos.clone());
+          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.saw(pos.clone(), yaw);
         }, 620);
         break;
       case 'ca4':
-        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.flow(pos.clone());
+        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.pillar(pos.clone(), yaw);
         break;
       case 'c1':
         setTimeout(function () {
