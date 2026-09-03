@@ -881,8 +881,8 @@
       var yaw = m.y == null ? 0 : m.y, dur = m.dur || 8;
       if (m.k === 'shrine' && window.JJSUKUNA && window.JJSUKUNA.remote) {
         window.JJSUKUNA.remote.shrine(dc, yaw, dur);
-      } else if (m.k === 'parlour' && window.JJPARLOR && window.JJPARLOR.remote) {
-        window.JJPARLOR.remote(dc, yaw, dur);
+      } else if (m.k === 'gamble' && window.JJGAMBLE && window.JJGAMBLE.remote) {
+        window.JJGAMBLE.remote(dc, yaw, dur);
       } else if (window.JJVOID && window.JJVOID.remote) {
         window.JJVOID.remote(dc, yaw, dur);
       }

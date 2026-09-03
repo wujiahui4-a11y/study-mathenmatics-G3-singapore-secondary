@@ -144,6 +144,10 @@
   function castShutter() {
     if (!ready('h1')) return;
     var a = start('h1', 1.35, 'h1', 'SHUTTER', 'PRIVATE PURE LOVE TRAIN');
+    /* the ground he fights on turns into where his furniture came from */
+    if (window.JJGAMBLE && Math.random() < .4) window.JJGAMBLE.scene(player.pos);
+    /* a shutter door is a visual move; with balls already out it is both */
+    if (window.JJGAMBLE) window.JJGAMBLE.move(1);
     a.dir = aim();
     a.door = makeDoor();
     a.door.position.copy(player.pos).addScaledVector(a.dir, 2.6).add(new THREE.Vector3(0, 3.4, 0));
@@ -596,6 +600,10 @@
   function castBalls() {
     if (!ready('h2')) return;
     var a = start('h2', 1.5, 'h2', 'BALL BARRAGE', 'THE OTHER HALF OF THE MACHINE');
+    /* the ground he fights on turns into where his furniture came from */
+    if (window.JJGAMBLE && Math.random() < .4) window.JJGAMBLE.scene(player.pos);
+    /* reserve balls are a visual move */
+    if (window.JJGAMBLE) window.JJGAMBLE.move(1);
     a.dir = aim();
     a.fired = 0;
     try { sfx.whoosh(); } catch (e) {}
@@ -712,6 +720,8 @@
   function castGuard() {
     if (!ready('hr')) return;
     var a = start('hr', GUARD.hold + .5, 'hr', 'DOOR GUARD', 'GO ON, THEN');
+    /* the ground he fights on turns into where his furniture came from */
+    if (window.JJGAMBLE && Math.random() < .4) window.JJGAMBLE.scene(player.pos);
     a.dir = aim();
     a.doors = [];
     a.sprung = false;
@@ -761,6 +771,9 @@
     });
     player.iframes = Math.max(player.iframes, .4);
     if (window.JJNOTICE) window.JJNOTICE('THROUGH THE DOORS', '#ffd964');
+    /* a Door Guard only springs when somebody actually committed, so
+       reaching here is the "successful" one the source counts */
+    if (window.JJGAMBLE) window.JJGAMBLE.move(1);
     if (window.MPJJ && window.MPJJ.relay) {
       window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'hrx' });
     }
@@ -854,6 +867,8 @@
   function castFever() {
     if (!ready('h4')) return;
     var a = start('h4', 1.5, 'h4', 'FEVER BREAKER', 'PICK A DIRECTION');
+    /* the ground he fights on turns into where his furniture came from */
+    if (window.JJGAMBLE && Math.random() < .4) window.JJGAMBLE.scene(player.pos);
     a.dir = aim();
     a.tgt = null;
     a.doors = [];
@@ -949,6 +964,9 @@
       p.vel.y = 6;
 
       if (a.tgt && !a.tgt.dead) {
+        /* the source counts a LANDED Fever Breaker, so it is reported here
+           where a target actually exists rather than at the cast */
+        if (window.JJGAMBLE) window.JJGAMBLE.move(1);
         a.tgt.anchorT = 0;
         var kb = go.clone().multiplyScalar(FEVER.launch);
         kb.y = 15;
@@ -1017,94 +1035,23 @@
   function castDomain() {
     if (!ready('hdom')) return;
     if (HK.fever > 0) return;
-    var a = start('hdom', 6.2, 'hdom', 'DOMAIN EXPANSION', 'IDLE DEATH GAMBLE');
-    buildUI();
+    /* the action is held open by gamble.js for as long as the domain runs */
+    var a = start('hdom', 1e9, 'hdom', '', '');
     a.center = player.pos.clone();
-    a.spin = 0;
-    a.roll = null;
-    player.iframes = Math.max(player.iframes, 1.4);
-    FX.letterbox(true);
-    FX.tint('#1a1204', .4, 6);
-    try { sfx.raise(); } catch (e) {}
+    player.iframes = Math.max(player.iframes, 2);
+    if (window.JJGAMBLE) window.JJGAMBLE.begin(a.center.clone(), player.facing);
     if (window.MPJJ && window.MPJJ.relay) {
       window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'hdom' });
     }
   }
 
   var DOM_R = 32;
+  /* The domain itself lives in gamble.js now — the white, the machines,
+     the Richii scenarios and the payout. All this does is start it. */
   function stepDomain(a, dt) {
-    var p = player;
-    p.vel.set(0, 0, 0);
-    p.iframes = Math.max(p.iframes, .5);
-
-    if (a.stage < 1 && a.t >= .85) {                 // it opens
-      a.stage = 1;
-      FX.dome(new THREE.Vector3(a.center.x, 1, a.center.z), DOM_R, 0xffcc4d, 5.4);
-      FX.flash('#fff3d0', .9, .5);
-      FX.rings(new THREE.Vector3(a.center.x, .15, a.center.z), 0xffd964, 4, { maxR: DOM_R, life: .8, gap: 55 });
-      FX.cracks(a.center.clone(), 12, 20, 0x2a2008);
-      FX.debris(a.center.clone(), 14, 15, 0x6b5a30);
-      FX.zoom(16, .8);
-      addShake(1.4);
-      hitstop(.14);
-      /* the sure hit is the rules, not a wound: everything inside is held
-         for a moment while it is told how the game works */
-      enemies.forEach(function (e) {
-        if (!e || e.dead || e.pos.distanceTo(a.center) > DOM_R) return;
-        e.stunT = Math.max(e.stunT || 0, 1.4);
-        e.lockT = Math.max(e.lockT || 0, 1.2);
-        e.damage(8, null, { react: 'pummel', reactDur: 1.1, noFrameBonus: true, spark: 0xffd964 });
-      });
-      if (window.MPJJ && window.MPJJ.relay) {
-        window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id, k: 'parlour',
-          x: Math.round(a.center.x * 10) / 10, z: Math.round(a.center.z * 10) / 10,
-          y: Math.round(player.facing * 100) / 100,
-          r: DOM_R, d: 1.4, dur: 9.6 });
-      }
-      ui.style.display = 'block';
-      ui.className = '';
-      spin(a);
-      try { sfx.frame(); } catch (e) {}
+    if (window.JJGAMBLE && !window.JJGAMBLE.on) {
+      window.JJGAMBLE.begin(a.center.clone(), player.facing);
     }
-    if (a.stage < 1) return;
-
-    /* the machine: three reels, landing one at a time */
-    a.rt = (a.rt || 0) + dt;
-    var els = reelEls();
-    if (a.roll) {
-      for (var i = 0; i < 3; i++) {
-        if (a.rt >= a.roll.stop[i]) {
-          if (!a.roll.done[i]) {
-            a.roll.done[i] = 1;
-            els[i].classList.remove('spin');
-            els[i].textContent = a.roll.face[i];
-            els[i].classList.toggle('hit', a.roll.face[i] === a.roll.face[0]);
-            FX.streaks(p.pos.clone().add(new THREE.Vector3(0, 4, 0)), 0xffd964, 5, 9, 1);
-            addShake(.25);
-            try { sfx.hit(); } catch (e) {}
-            /* two the same, and the third still going */
-            if (i === 1 && a.roll.face[0] === a.roll.face[1]) {
-              ui.classList.add('reach');
-              ui.querySelector('.cap').textContent = 'R E A C H !!';
-              FX.zoom(-9, .8);
-              addShake(.5);
-            }
-          }
-        } else if (!a.roll.done[i]) {
-          els[i].textContent = REELS[(Math.random() * REELS.length) | 0];
-        }
-      }
-      if (a.rt >= a.roll.stop[2] + .55) {
-        if (a.roll.win) { jackpot(a); }
-        else if (a.t < a.dur - 1.4) { spin(a); }     // miss: it simply runs again
-      }
-    }
-    if (Math.random() < .5) {
-      var ang = Math.random() * Math.PI * 2, rr = Math.random() * DOM_R;
-      FX.streaks(new THREE.Vector3(a.center.x + Math.cos(ang) * rr, .5 + Math.random() * 12,
-        a.center.z + Math.sin(ang) * rr), 0xffd964, 1, 5, 1);
-    }
-    if (a.t > a.dur - .3) { ui.style.display = 'none'; FX.letterbox(false); }
   }
 
   function spin(a) {

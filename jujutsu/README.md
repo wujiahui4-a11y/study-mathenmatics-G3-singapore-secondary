@@ -76,21 +76,65 @@ one is made, so a fight leaves a row of different machines behind it rather
 than six of the same one. The slats keep their metal shading and are only
 tinted, so a red machine still reads as a shutter.
 
-The domain's sure hit is the rules rather than a wound: everything inside is
-held for a moment and told how the game works. Then it runs a machine. Three
-reels land one at a time, and when the first two match the third takes its time
-about it. Three sevens and he is given **unlimited cursed energy and an
-automatic reverse cursed technique** — no cooldowns at all, eleven health a
-second, and a floor of one health that cannot be gone through. Miss and the
-domain simply runs again, which is what it does in the manga.
+### Idle Death Gamble
 
-The real odds are one in two hundred and thirty nine and the real song is four
-minutes and eleven seconds. Neither of those is a game, so the reels open at
-three in ten and improve every time they miss — and that carries across
-domains, the way the increased probability does — and the round is twenty
-eight seconds rather than four minutes.
+The domain, rebuilt to the source rather than as a room with a slot machine
+in it. `F` opens it, and it opens in six beats:
 
-## Yuji Itadori
+1. **The hand sign**, with **DOMAIN EXPANSION** thrown across the screen on
+   two green bands. The banner is a flat overlay; everything behind it is
+   the real 3D scene, shot from a camera put on his face.
+2. **The surroundings go white** — and stay white.
+3. Out of the white, **two lines of machines**.
+4. Those lines **turn from upright to flat**, up and over.
+5. **Four more lines** join them.
+6. And it settles into **six machines standing around the floor**.
+
+Then it is a game rather than an attack. Everyone caught inside is **frozen
+in place** in a neutral stage, the rules are written down the left of every
+screen **in rainbow**, and the caster is **untouchable** for the whole of it.
+
+**Two visual moves open a Richii.** The source lists what counts, and so does
+this: reserve balls, a shutter door, a *landed* Fever Breaker, and a Door
+Guard that actually caught something. Balls and doors together count as both.
+The dropkick reports itself where a target exists rather than at the cast,
+and the guard reports itself only when it springs — a guard nobody swung at
+is not a successful one.
+
+**A Richii is a little scene with Tze in it**, played out on a deck off to
+one side so the caster can watch it. Transit Card Richii (☆☆★) has him
+walking at a train checkpoint: through it pays, flying upward is a retry.
+Travel Emergency Richii (☆★★) has him running for the bathroom: in pays,
+falling is a retry. Two numbered symbols show at the start, and a third lands
+between them at the end — matching on a win.
+
+**Four rolls.** The fourth is a guaranteed pity jackpot at **half** the usual
+period if anybody was caught in there. An **odd** jackpot raises the next
+domain's odds; an **even** one makes the next domain's Richii twice as fast;
+dying loses both.
+
+And the payout: the machines come apart, and a cutscene takes his **side face
+shouting**, then swings out front for him **dancing** inside an enormous
+yellow aura with the rainbow running through it, then the pose, and then the
+camera gives itself back with the aura still on him and the fever running.
+
+Two things learned building it. The domain is **not an action** once it is
+open — holding one for its whole length left the caster standing still inside
+his own domain, unable to make the two moves it was asking him for, so the
+action covers the opening only and the game runs on its own tick. And the
+aura's first version stacked seven large additive sheets and a wide column on
+top of each other, which turned the screen white and removed the one shot the
+cutscene exists for.
+
+### He drags the scenery around with him
+
+Everything he throws is a piece of somebody else's building — a train door,
+a parlour's balls, a machine. So the ground he fights on keeps turning into
+the place those came from: a subway platform, a parlour floor, the crossing,
+an arcade. It lasts a few seconds and goes, and it does not fire inside the
+domain, which has a floor of its own.
+
+## Yuji Itadori## Yuji Itadori
 
 A third fighter, on the same bones as the other two: a rig config, an entry in
 `CHARS`, and moves that live in `stepAction` and `poseAction`. Pink crop,

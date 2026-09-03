@@ -33,7 +33,7 @@ const mqtt = fs.readFileSync(path.join(src, 'mqtt.min.js'), 'utf8');
    shares the lot — last, so it still broadcasts through a cutscene. */
 const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'gore.js', 'punch-sfx.js', 'red-sfx.js', 'combat.js', 'hits.js',
   'dash.js', 'gojo.js', 'naoya.js', 'yuji.js', 'hakari.js', 'choso.js', 'void.js',
-  'sukuna.js', 'parlor.js', 'finisher.js', 'maps.js', 'mp.js']
+  'sukuna.js', 'gamble.js', 'finisher.js', 'maps.js', 'mp.js']
   .map(function (f) {
     return { name: f, code: fs.readFileSync(path.join(src, f), 'utf8') };
   });
