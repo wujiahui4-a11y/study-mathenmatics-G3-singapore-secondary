@@ -1329,10 +1329,15 @@
           r.hips.position.y = r.hipsBaseY + .3 - .5 * k2 + bob * .5;
           return true;
         }
-        /* the dropkick: both feet out, body flat, arms back */
+        /* The dropkick: both feet out, body flat, arms back.
+
+           The lean goes on the spine and NOT on r.body. resetPose only
+           clears the joints in JOINTS, and body is not one of them — so
+           anything a player pose writes there is never cleared again and
+           the fighter is left permanently folded over once the action
+           ends. Only the enemy code resets it, and only explicitly. */
         var k3 = E.out(Math.min(1, (t - .28 - FEVER.hold) / .22));
-        r.body.rotation.x = -1.05 * k3;
-        r.spine.rotation.x = -.34 * k3;
+        r.spine.rotation.x = -1.15 * k3;
         r.hipL.rotation.x = -1.55 * k3; r.kneeL.rotation.x = .12 * k3;
         r.hipR.rotation.x = -1.7 * k3; r.kneeR.rotation.x = .1 * k3;
         r.shoulderL.rotation.x = 1.5 * k3; r.shoulderR.rotation.x = 1.5 * k3;

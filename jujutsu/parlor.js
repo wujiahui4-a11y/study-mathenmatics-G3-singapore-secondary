@@ -264,16 +264,19 @@
     shakeMag = Math.max(0, shakeMag - dt * 2);
   }
 
+  /* The domain lives on `hdom` now — `h4` is Fever Breaker. Keying this
+     off the old name meant a dropkick built the parlour, took the camera
+     into the domain framing and never gave either of them back. */
   var _stepAction = stepAction;
   stepAction = function (a, dt) {
-    if (a.type === 'h4') { stageStep(a, dt); return _stepAction(a, dt); }
+    if (a.type === 'hdom') { stageStep(a, dt); return _stepAction(a, dt); }
     return _stepAction(a, dt);
   };
 
   var _updateCamera = updateCamera;
   updateCamera = function (dt) {
     var a = player.action;
-    if (a && a.type === 'h4' && AN) { camera(a, dt); return; }
+    if (a && a.type === 'hdom' && AN) { camera(a, dt); return; }
     return _updateCamera(dt);
   };
 
@@ -316,7 +319,7 @@
       return true;
     }
     var a = player.action;
-    if (P.on && !(a && a.type === 'h4')) close();
+    if (P.on && !(a && a.type === 'hdom')) close();
     return true;
   } });
 })();
