@@ -805,6 +805,7 @@
       if (m.dth && window.JJGORE) window.JJGORE.mark(player, m.dth);
       /* pinned by a stream: it holds for as long as it keeps arriving */
       if (m.pin) player.pinned = Math.max(player.pinned || 0, m.pin / 100);
+      if (m.psn) player.psn = Math.max(player.psn || 0, m.psn / 10);
       if (m.rk && window.JJHITS) window.JJHITS.next(m.rk, m.rd || .5);
       hurtPlayer(m.d, k);
       /* the same flinch the dummies play, on us — but not while the hit is
@@ -1302,6 +1303,8 @@
        theirs to apply, like their health, but ours to ask for */
     if (opts.death) msg.dth = opts.death;
     if (opts.pin) msg.pin = Math.round(opts.pin * 100);
+    /* Death Painting blood keeps working after it lands */
+    if (opts.psn) msg.psn = Math.round((opts.psn === true ? 6 : opts.psn) * 10);
     if (MP.relay) MP.relay.pub(msg);
     /* show it on them straight away; their own broadcast confirms it */
     if (opts.react) {
@@ -1708,6 +1711,10 @@
          All five of these are relayed through his own routines, so what
          everybody else sees is the same dark blood the caster sees and
          not a bright stand-in. The hits travel as their own messages. */
+      case 'caw':
+        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.awaken(pos.clone());
+        if (close) addShake(1);
+        break;
       case 'c1':
         setTimeout(function () {
           if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.lance(pos.clone(), yaw);

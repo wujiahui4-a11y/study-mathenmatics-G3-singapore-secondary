@@ -13432,34 +13432,90 @@ window.__game = {
       return m;
     }
     var i;
-    /* the hair, pulled back and up */
-    var cap = box(1.0, .3, 1.0, hair); cap.position.set(0, .97, -.02); head.add(cap);
-    var backh = box(.94, .56, .3, hairD); backh.position.set(0, .7, -.42); head.add(backh);
-    /* the knot on top */
-    var knot = box(.44, .38, .44, hair); knot.position.set(0, 1.26, -.08); head.add(knot);
-    var tie = box(.5, .1, .5, 0x3a1018); tie.position.set(0, 1.06, -.08); head.add(tie);
-    var tuft = box(.28, .26, .28, hairD); tuft.position.set(0, 1.5, -.12); head.add(tuft);
-    /* two long strands down the front of the face */
+    /* THE HAIR
+       The old version had one flat slab for a fringe, which is the one
+       thing his hair is not. What it actually is: a mass swept up and
+       back into the knot, and then a ragged fringe of separate points
+       hanging over the forehead at different lengths and different
+       angles, with a long strand down each side of the face. So the
+       fringe is built as nine separate spikes rather than a block —
+       every one a different width, length and tilt, because a row of
+       matching teeth reads as a comb. */
+    var cap = box(1.02, .32, 1.02, hair); cap.position.set(0, .97, -.02); head.add(cap);
+    var backh = box(.96, .62, .34, hairD); backh.position.set(0, .68, -.44); head.add(backh);
+    /* swept up at the sides, into the knot */
     for (i = -1; i <= 1; i += 2) {
-      var strand = box(.16, 1.15, .16, hair);
-      strand.position.set(i * .42, .42, .38);
-      strand.rotation.x = -.05;
+      var sweep = box(.2, .5, .74, hair);
+      sweep.position.set(i * .46, .86, -.1);
+      sweep.rotation.z = i * .16;
+      head.add(sweep);
+    }
+    /* the knot, and the tie under it */
+    var tie = box(.5, .12, .5, 0x3a1018); tie.position.set(0, 1.1, -.08); head.add(tie);
+    var knot = box(.46, .4, .46, hair); knot.position.set(0, 1.32, -.09); head.add(knot);
+    var knot2 = box(.34, .26, .34, hairD); knot2.position.set(0, 1.56, -.13); head.add(knot2);
+    var tuft = box(.16, .3, .16, hairD);
+    tuft.position.set(.1, 1.7, -.16); tuft.rotation.z = -.4; head.add(tuft);
+
+    /* The fringe: nine points, none of them the same length, width or
+       angle. They hang from the hairline onto the FOREHEAD and stop
+       there — the eyes at .55 and the mark at .42 stay clear, with only
+       the two long accents reaching down past the brow. A fringe that
+       covers the face hides the two things that identify him. */
+    var SPIKE = [
+      /*  x     len   w     tilt   z   */
+      [-.42, .26, .17, .32, .40],
+      [-.31, .20, .13, .16, .44],
+      [-.21, .38, .15, -.10, .44],
+      [-.08, .22, .14, .05, .47],
+      [.04, .34, .16, -.20, .46],
+      [.16, .19, .12, .20, .45],
+      [.26, .30, .15, -.15, .43],
+      [.38, .24, .14, -.33, .40],
+      [-.13, .16, .11, .42, .48]
+    ];
+    for (i = 0; i < SPIKE.length; i++) {
+      var sp = SPIKE[i];
+      var pt = box(sp[2], sp[1], .13, i % 3 ? hair : hairD);
+      /* hung from the hairline, so the length grows downward */
+      pt.position.set(sp[0], .94 - sp[1] / 2, sp[4]);
+      pt.rotation.z = sp[3];
+      head.add(pt);
+      /* a darker tip, which is what makes it read as a point */
+      var tip = box(sp[2] * .62, .14, .12, hairD);
+      tip.position.set(sp[0] - Math.sin(sp[3]) * (sp[1] / 2), .94 - sp[1] - .04, sp[4] + .01);
+      tip.rotation.z = sp[3];
+      head.add(tip);
+    }
+
+    /* The long strand down each side of the face, past the jaw. Held out
+       at the edge of the head and forward of it, so it frames the face
+       rather than sitting on top of it. */
+    for (i = -1; i <= 1; i += 2) {
+      var strand = box(.16, 1.3, .2, hair);
+      strand.position.set(i * .5, .34, .34);
+      strand.rotation.z = i * .06;
       head.add(strand);
-      var tipS = box(.13, .34, .13, hairD);
-      tipS.position.set(i * .44, -.2, .38);
+      var tipS = box(.12, .28, .16, hairD);
+      tipS.position.set(i * .54, -.4, .34);
+      tipS.rotation.z = i * .12;
       head.add(tipS);
     }
-    var fringe = box(.9, .22, .14, hair); fringe.position.set(0, .86, .44); head.add(fringe);
 
-    /* the eyes, and the mark across the bridge of his nose */
+    /* the eyes, the shadow around them, and the mark across the bridge
+       of his nose — the one he opens when he needs ammunition */
     for (i = -1; i <= 1; i += 2) {
-      var eye = box(.15, .09, .05, 0x1a1420, true);
-      eye.position.set(i * .21, .56, .46);
+      var shade = box(.28, .19, .04, 0x6b4a63, true);
+      shade.position.set(i * .21, .57, .455);
+      head.add(shade);
+      var eye = box(.16, .085, .05, 0x1a1420, true);
+      eye.position.set(i * .21, .55, .46);
       head.add(eye);
     }
-    var mark = box(.78, .11, .06, 0x1a1018, true);
+    var mark = box(.8, .12, .06, 0x1a1018, true);
     mark.position.set(0, .42, .46);
     head.add(mark);
+    r.chosoMark = mark;
 
     /* the collar, standing up the way it does */
     var collar = box(1.02, .46, .8, 0x101018);
@@ -13481,7 +13537,7 @@ window.__game = {
   };
 
   /* ------------------------------------------------------------- roster */
-  cds.c1 = 0; cds.c2 = 0; cds.c3 = 0; cds.c4 = 0; cds.cr = 0;
+  cds.c1 = 0; cds.c2 = 0; cds.c3 = 0; cds.c4 = 0; cds.cr = 0; cds.caw = 0;
   var CCD = { c1: 8, c2: 9, c3: 12, c4: 22, cr: 7 };
 
   CHARS.choso = {
@@ -13494,7 +13550,8 @@ window.__game = {
       { key: '2', lbl: 'Blood Meteorite', cd: 'c2', max: CCD.c2 },
       { key: '3', lbl: 'Supernova', cd: 'c3', max: CCD.c3 },
       { key: '4', lbl: 'Flowing Red Scale', cd: 'c4', max: CCD.c4 },
-      { key: 'R', lbl: 'Blood Edge', cd: 'cr', max: CCD.cr }
+      { key: 'R', lbl: 'Blood Edge', cd: 'cr', max: CCD.cr },
+      { key: 'F', lbl: 'Death Painting', cd: 'caw', max: 1 }
     ]
   };
   try { CHARS.choso.portrait = makePortrait(CHOSO_CFG); } catch (e) {}
@@ -13515,7 +13572,41 @@ window.__game = {
     return new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing));
   }
   /* Flowing Red Scale is a multiplier on everything he does with his body */
-  function scale() { return CH.scale > 0 ? 1.35 : 1; }
+  function scale() {
+    /* Flowing Red Scale, or the awakening — which holds it open for its
+       whole duration rather than making him spend a slot on it */
+    if (CH.scale > 0) return 1.35;
+    return (window.JJAW && window.JJAW.choso) ? 1.35 : 1;
+  }
+  function awake() { return !!(window.JJAW && window.JJAW.choso); }
+
+  /* THE POISON
+     The one thing that is his and nobody else's. Death Painting blood is
+     poisonous to humans when it mixes with theirs — the backlash off it
+     put Naoya Zen'in on the floor — so while the curse half of him is out,
+     everything he lands keeps working after it has landed. */
+  function venom(ent, secs) {
+    if (!ent || ent.dead) return;
+    ent.psn = Math.max(ent.psn || 0, secs == null ? 6 : secs);
+  }
+  function stepVenom(ent, dt, isPlayer) {
+    if (!ent || !ent.psn || ent.psn <= 0) return;
+    ent.psn = Math.max(0, ent.psn - dt);
+    ent.psnAcc = (ent.psnAcc || 0) + dt;
+    if (ent.psnAcc >= .5) {
+      ent.psnAcc = 0;
+      if (isPlayer) {
+        if (!ent.dead) hurtPlayer(4, null);
+      } else if (!ent.dead) {
+        ent.damage(4, null, { spark: 0x4e0512, color: '#c8203c', noFrameBonus: true });
+      }
+    }
+    if (Math.random() < dt * 7) {
+      FX.bloodMote(ent.pos.clone().add(new THREE.Vector3(
+        (Math.random() - .5) * 2, 1 + Math.random() * 3.4, (Math.random() - .5) * 2)), 1, .5);
+    }
+  }
+  CH.venom = venom;
 
   function inLine(from, dir, range, width, skip) {
     var out = [];
@@ -13587,7 +13678,7 @@ window.__game = {
       p.vel.addScaledVector(d, -7);        // it has a recoil
       inLine(from, d, PB.lance.range, PB.lance.width, null).forEach(function (e) {
         e.damage(PB.lance.dmg * scale(), d.clone().multiplyScalar(16).setY(6), {
-          react: 'slash', reactDur: .5, spark: BRIGHT, color: '#c8203c',
+          react: 'slash', reactDur: .5, spark: BRIGHT, color: '#c8203c', psn: awake(),
           bleed: true, death: 'sever'
         });
       });
@@ -13694,7 +13785,7 @@ window.__game = {
         FX.bloodBurst(at, 1.1, d.clone());
         FX.blood(at, d.clone(), 3, .9);
         e.damage(PB.stream.dps * .12 * scale(), null, {
-          react: 'shock', reactDur: .3, spark: BRIGHT, color: '#c8203c',
+          react: 'shock', reactDur: .3, spark: BRIGHT, color: '#c8203c', psn: awake(),
           bleed: true, stun: .34, fin: false, pin: .3
         });
       });
@@ -13782,7 +13873,7 @@ window.__game = {
             if (!e || e.dead || e.pos.distanceTo(at) > 12) return;
             var kb = e.pos.clone().sub(at).setY(0).normalize().multiplyScalar(28); kb.y = 13;
             e.damage(40 * scale(), kb, {
-              react: 'blow', reactDur: .9, spark: BRIGHT, color: '#c8203c', death: 'sever'
+              react: 'blow', reactDur: .9, spark: BRIGHT, color: '#c8203c', death: 'sever', psn: awake()
             });
           });
           if (window.JJAW) window.JJAW.gain(12);
@@ -13843,7 +13934,7 @@ window.__game = {
                   var at = orb.position.clone();
                   FX.bloodBurst(at, 1.7, d.clone());
                   e.damage(15 * scale(), d.clone().multiplyScalar(11).setY(5), {
-                    react: 'slash', reactDur: .3, spark: BRIGHT, color: '#c8203c',
+                    react: 'slash', reactDur: .3, spark: BRIGHT, color: '#c8203c', psn: awake(),
                     bleed: true, death: 'dice'
                   });
                   addShake(.4);
@@ -13909,7 +14000,7 @@ window.__game = {
       try { sfx.slash(); } catch (e) {}
       inLine(p.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), d, 9, 4, null).forEach(function (e) {
         e.damage(30 * scale(), d.clone().multiplyScalar(20).setY(8), {
-          react: 'slash', reactDur: .6, spark: BRIGHT, color: '#c8203c',
+          react: 'slash', reactDur: .6, spark: BRIGHT, color: '#c8203c', psn: awake(),
           bleed: true, death: 'sever'
         });
       });
@@ -14043,6 +14134,145 @@ window.__game = {
   }
 
   /* =====================================================================
+     F · DEATH PAINTING   呪胎九相図
+
+     What the meter buys for him, and it is built out of the three things
+     the source actually says about him rather than out of a bigger beam.
+
+       · He is a Cursed Womb: Death Painting — half human, half cursed
+         spirit, and a hundred and fifty years old. The curse half is what
+         comes out here.
+       · "He can make this mark bleed at will in order to produce
+         ammunition for his cursed technique." So the awakening opens the
+         mark across the bridge of his nose, and it runs.
+       · He has NO LACK OF BLOOD, which is why his blood manipulation goes
+         further than a sorcerer's. So the cost of using it drops: his
+         cooldowns run at four times the speed.
+       · Death Painting blood is POISONOUS to humans when it mixes with
+         theirs, and the backlash off it put Naoya Zen'in on the floor.
+         So everything he lands keeps working for six seconds after it
+         has landed.
+
+     Flowing Red Scale stays open for the whole of it too, so he does not
+     spend a slot re-buying his own damage.
+     ================================================================== */
+  var AWAKE_DUR = 26;
+
+  function awakenChoso() {
+    if (player.char !== 'choso' || player.dead || busy()) return false;
+    if (CH.stream) shutStream();
+    start('caw', 2.2, 'c1', 'DEATH PAINTING', '\u546a\u80ce\u4e5d\u76f8\u56f3');
+    cds.c1 = 0;
+    player.iframes = Math.max(player.iframes, 2.6);
+    FX.letterbox(true);
+    FX.tint('#2a0208', .55, 2.2);
+    if (AN) AN.camRelease();
+    if (window.MPJJ && window.MPJJ.relay) {
+      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'caw' });
+    }
+    return true;
+  }
+
+  function stepAwakenChoso(a, dt) {
+    var p = player;
+    p.vel.set(0, 0, 0);
+    var face = p.pos.clone().add(new THREE.Vector3(0, 4.1, 0));
+    if (Math.random() < .7) FX.bloodMote(p.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 2, .5);
+
+    /* the mark opens */
+    if (a.t >= .7 && a.stage < 1) {
+      a.stage = 1;
+      FX.bloodBurst(face.clone(), 1.6, new THREE.Vector3(0, -1, 0));
+      FX.tint('#40040f', .6, .3);
+      addShake(.8);
+      if (typeof hitstop === 'function') hitstop(.12);
+      try { sfx.stab(); } catch (e) {}
+    }
+    /* and it runs, because there is no shortage of it */
+    if (a.t >= .7 && a.t < 1.6 && Math.random() < dt * 26) {
+      FX.blood(face.clone(), new THREE.Vector3(0, -1, .3), 2, .8);
+    }
+    /* the curse half surfaces */
+    if (a.t >= 1.5 && a.stage < 2) {
+      a.stage = 2;
+      FX.bloodRings(new THREE.Vector3(p.pos.x, .12, p.pos.z), 5,
+        { maxR: 22, life: .8, gap: 55, ground: true });
+      FX.bloodThreads(p.pos.clone().add(new THREE.Vector3(0, 3, 0)), 20, 26, 1.6);
+      /* narrow: the camera sits about eight metres behind his shoulder,
+         and anything wider than this is a red tube across the whole lens
+         instead of a column standing behind him */
+      FX.bloodBeam(p.pos.clone(), new THREE.Vector3(0, 1, 0), 44, { radius: .8, life: 1 });
+      FX.cracks(new THREE.Vector3(p.pos.x, 0, p.pos.z), 11, 15, 0x1c0106, 0x5a3038);
+      FX.debris(p.pos.clone(), 12, 15, 0x1c0106);
+      FX.tint('#48060f', .5, .5);
+      FX.zoom(-11, .7);
+      addShake(1.4);
+      try { sfx.raise(); } catch (e) {}
+      var A = window.JJAW;
+      if (A) {
+        A.choso = true;
+        A.chosoT = AWAKE_DUR;
+        if (!A.chosoAura) A.chosoAura = FX.bloodAura(function () { return player.pos; });
+      }
+    }
+    if (a.t >= a.dur - .1) FX.letterbox(false);
+  }
+
+  function poseAwakenChoso(r, a) {
+    rp(r);
+    var t = a.t, out = E.out;
+    if (t < .7) {
+      /* two fingers to the mark on his own nose, and he opens it */
+      var k = out(t / .7);
+      r.shoulderR.rotation.x = -.3 - 2.3 * k;
+      r.shoulderR.rotation.z = -.24 * k;
+      r.elbowR.rotation.x = -.4 - 1.7 * k;
+      r.shoulderL.rotation.x = -.2 * k;
+      r.spine.rotation.x = .1 * k;
+      r.neck.rotation.x = .12 * k;
+      r.hips.position.y = r.hipsBaseY - .12 * k;
+      return true;
+    }
+    if (t < 1.5) {
+      /* the hand comes away and the head goes back */
+      var k2 = out((t - .7) / .8);
+      r.shoulderR.rotation.x = -2.6 + 1.5 * k2;
+      r.elbowR.rotation.x = -2.1 + 1.2 * k2;
+      r.spine.rotation.x = .1 - .34 * k2;
+      r.neck.rotation.x = .12 - .5 * k2;
+      r.hips.position.y = r.hipsBaseY - .12 - .18 * k2;
+      r.kneeL.rotation.x = .4 * k2; r.kneeR.rotation.x = .36 * k2;
+      return true;
+    }
+    /* arms down and open, weight settled: nothing is being held back now */
+    var k3 = out(Math.min(1, (t - 1.5) / .7));
+    r.spine.rotation.x = -.24 + .16 * k3;
+    r.neck.rotation.x = -.38 + .3 * k3;
+    r.shoulderL.rotation.x = -.2 * (1 - k3) - .12;
+    r.shoulderR.rotation.x = -1.1 * (1 - k3) - .12;
+    r.shoulderL.rotation.z = .5 * k3;
+    r.shoulderR.rotation.z = -.5 * k3;
+    r.elbowL.rotation.x = -.3 * k3;
+    r.elbowR.rotation.x = -.9 * (1 - k3) - .3 * k3;
+    r.kneeL.rotation.x = .4 * (1 - k3); r.kneeR.rotation.x = .36 * (1 - k3);
+    r.hips.position.y = r.hipsBaseY - .3 * (1 - k3);
+    return true;
+  }
+
+  function endAwaken(quiet) {
+    var A = window.JJAW;
+    if (!A || !A.choso) return;
+    A.choso = false;
+    A.chosoT = 0;
+    if (A.chosoAura) { A.chosoAura.stop(); A.chosoAura = null; }
+    if (quiet) return;
+    if (window.JJNOTICE) window.JJNOTICE('THE MARK CLOSES', '#c8203c');
+    FX.bloodRings(new THREE.Vector3(player.pos.x, .1, player.pos.z), 2,
+      { maxR: 9, life: .6, ground: true });
+  }
+  CH.endAwaken = endAwaken;
+
+  /* =====================================================================
      WIRING
      ================================================================== */
   var _stepAction = stepAction;
@@ -14054,12 +14284,14 @@ window.__game = {
       case 'c3': return stepSupernova(a, dt);
       case 'c4': return stepScale(a, dt);
       case 'cr': return stepEdge(a, dt);
+      case 'caw': return stepAwakenChoso(a, dt);
     }
     return _stepAction(a, dt);
   };
 
   var _poseAction = poseAction;
   poseAction = function (r, a) {
+    if (a && a.type === 'caw' && poseAwakenChoso(r, a)) return;
     if (r === player.rig && player.char === 'choso' && poseChoso(r, a)) return;
     /* a remote Choso holding the stream poses off the same table */
     if (a && (a.type === 'c1s' || (a.type || '').charAt(0) === 'c') && poseChoso(r, a)) return;
@@ -14092,12 +14324,39 @@ window.__game = {
       CH.scale = Math.max(0, CH.scale - dt);
       if (CH.scale <= 0 && CH.aura) { CH.aura.stop(); CH.aura = null; }
     }
+    /* the awakening runs out, and while it is up the cooldowns barely
+       matter — he is not short of blood */
+    var A = window.JJAW;
+    if (A && A.choso) {
+      if (player.char !== 'choso' || player.dead) { endAwaken(!!player.dead); }
+      else {
+        A.chosoT -= dt;
+        for (var ck in CCD) { if (cds[ck] > 0) cds[ck] = Math.max(0, cds[ck] - dt * 3); }
+        if (Math.random() < .25) {
+          FX.bloodMote(player.pos.clone().add(new THREE.Vector3(
+            (Math.random() - .5) * 2, .5 + Math.random() * 4, (Math.random() - .5) * 2)), 1.2, .5);
+        }
+        if (A.chosoT <= 0) endAwaken(false);
+      }
+    }
+    /* poison he was handed by somebody else's awakening */
+    stepVenom(player, dt, true);
     if (CH.stream) {
       if (player.dead || player.char !== 'choso') shutStream();
       else stepStream(dt);
     }
     /* being held down by somebody else's stream: the keys stop answering */
     if (player.pinned > 0) player.pinned = Math.max(0, player.pinned - dt);
+  };
+
+  /* A hit tagged `psn` leaves the poison behind in whatever it landed on.
+     Applied here rather than at the five call sites so a hit relayed from
+     another client lands the same way a local one does. */
+  var _enemyDamage = Enemy.prototype.damage;
+  Enemy.prototype.damage = function (amount, knock, opts) {
+    var r = _enemyDamage.call(this, amount, knock, opts);
+    if (opts && opts.psn && !this.dead) venom(this, opts.psn === true ? 6 : opts.psn);
+    return r;
   };
 
   /* whatever the stream is on cannot walk out of it */
@@ -14107,6 +14366,7 @@ window.__game = {
       this.pinned = Math.max(0, this.pinned - dt);
       if (this.vel) this.vel.set(0, 0, 0);
     }
+    stepVenom(this, dt, false);
     return _enemyUpdate.call(this, dt);
   };
 
@@ -14124,6 +14384,16 @@ window.__game = {
     if (hit) e.stopImmediatePropagation();
   }, true);
 
+  /* F: the shared meter, spent on the half of him that is a curse */
+  window.addEventListener('keydown', function (e) {
+    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (player.char !== 'choso') return;
+    var A = window.JJAW;
+    if (!A || !A.ready || A.active || A.cine || A.choso) return;
+    if (window.JJNAOYA && window.JJNAOYA.busy()) return;
+    if (awakenChoso()) { A.charge = 0; A.ready = false; }
+  });
+
   /* letting go is what ends the stream — and what decides which of the two
      Piercing Blood was in the first place */
   window.addEventListener('keyup', function (e) {
@@ -14136,6 +14406,7 @@ window.__game = {
   var _switchChar = switchChar;
   switchChar = function (id, quiet) {
     if (CH.stream) shutStream();
+    endAwaken(true);
     if (CH.scale > 0) { CH.scale = 0; if (CH.aura) { CH.aura.stop(); CH.aura = null; } }
     return _switchChar(id, quiet);
   };
@@ -14152,6 +14423,24 @@ window.__game = {
   function dirOf(yaw) { return new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)); }
 
   CH.remote = {
+    /* the mark opening, and the curse coming up out of him */
+    awaken: function (pos) {
+      var face = pos.clone().add(new THREE.Vector3(0, 4.1, 0));
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.bloodBurst(face.clone(), 1.6, new THREE.Vector3(0, -1, 0));
+        FX.blood(face.clone(), new THREE.Vector3(0, -1, .3), 6, .9);
+      }, 700);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.bloodRings(new THREE.Vector3(pos.x, .12, pos.z), 5,
+          { maxR: 22, life: .8, gap: 55, ground: true });
+        FX.bloodThreads(pos.clone().add(new THREE.Vector3(0, 3, 0)), 20, 26, 1.6);
+        FX.bloodBeam(pos.clone(), new THREE.Vector3(0, 1, 0), 44, { radius: .8, life: 1 });
+        FX.cracks(new THREE.Vector3(pos.x, 0, pos.z), 11, 15, 0x1c0106, 0x5a3038);
+        FX.debris(pos.clone(), 12, 15, 0x1c0106);
+      }, 1500);
+    },
     lance: function (pos, yaw) {
       var d = dirOf(yaw);
       var from = pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, 3.1, 0));
@@ -19449,6 +19738,7 @@ window.__game = {
       if (m.dth && window.JJGORE) window.JJGORE.mark(player, m.dth);
       /* pinned by a stream: it holds for as long as it keeps arriving */
       if (m.pin) player.pinned = Math.max(player.pinned || 0, m.pin / 100);
+      if (m.psn) player.psn = Math.max(player.psn || 0, m.psn / 10);
       if (m.rk && window.JJHITS) window.JJHITS.next(m.rk, m.rd || .5);
       hurtPlayer(m.d, k);
       /* the same flinch the dummies play, on us — but not while the hit is
@@ -19946,6 +20236,8 @@ window.__game = {
        theirs to apply, like their health, but ours to ask for */
     if (opts.death) msg.dth = opts.death;
     if (opts.pin) msg.pin = Math.round(opts.pin * 100);
+    /* Death Painting blood keeps working after it lands */
+    if (opts.psn) msg.psn = Math.round((opts.psn === true ? 6 : opts.psn) * 10);
     if (MP.relay) MP.relay.pub(msg);
     /* show it on them straight away; their own broadcast confirms it */
     if (opts.react) {
@@ -20352,6 +20644,10 @@ window.__game = {
          All five of these are relayed through his own routines, so what
          everybody else sees is the same dark blood the caster sees and
          not a bright stand-in. The hits travel as their own messages. */
+      case 'caw':
+        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.awaken(pos.clone());
+        if (close) addShake(1);
+        break;
       case 'c1':
         setTimeout(function () {
           if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.lance(pos.clone(), yaw);

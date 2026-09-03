@@ -186,6 +186,7 @@ of the pressure behind the point of it.
 | `3` | **Supernova** | 超新星 — eighteen orbs put out around him and opened at once |
 | `4` | **Flowing Red Scale** | 赤鱗 — his own blood pressure raised; everything lands about a third harder while it holds |
 | `R` | **Blood Edge** | 血刃 — a blade drawn out and taken across whatever is close |
+| `F` | **Death Painting** | 呪胎九相図 — the awakening; see below |
 
 ### Piercing Blood has a tap and a hold
 
@@ -211,6 +212,48 @@ From there:
   a stun that is applied once.
 - His head, neck and collar are hidden while it runs, because the camera is
   inside them.
+
+### Death Painting is the awakening
+
+What the shared meter buys him, built out of the three things the source
+actually says about him rather than out of a bigger beam.
+
+He is a **Cursed Womb: Death Painting** — half human, half cursed spirit, a
+hundred and fifty years old and the eldest of nine brothers. `F` lets the
+curse half up. It takes about two seconds: two fingers to the mark across the
+bridge of his nose, and he **opens it**, because the source is explicit that
+he can make that mark bleed at will *in order to produce ammunition for his
+cursed technique*. Then the ground goes and a column of it stands up behind
+him.
+
+For twenty six seconds after that:
+
+* **Flowing Red Scale stays open**, so he is not spending a slot re-buying
+  his own damage — everything lands about a third harder for the whole of it.
+* **His cooldowns run at four times the speed.** He has *no lack of blood*,
+  which is the stated reason his blood manipulation goes further than a
+  sorcerer's, so the cost of using it is what drops.
+* **Everything he lands keeps working.** Death Painting blood is poisonous to
+  humans when it mixes with theirs — the backlash off it put Naoya Zen'in on
+  the floor — so every hit leaves six seconds of it behind, ticking twice a
+  second, on dummies and on other players alike.
+
+The poison is applied by the damage path rather than at the five call sites
+that throw it, so a hit relayed from another client lands exactly the way a
+local one does. Switching fighter, or dying, closes the mark.
+
+### The hair
+
+The reference is all points, and the first version had one flat slab for a
+fringe — which is the one thing his hair is not. It is now a mass swept up
+into the knot at the back, and a **fringe of nine separate spikes**, every one
+a different width, length and tilt, because a row of matching teeth reads as a
+comb. They hang onto the forehead and stop there: the eyes and the mark sit
+below them, and only two long accents reach past the brow. A fringe that
+covers the face hides the two things that identify him. The long strand down
+each side is held out at the edge of the head and forward of it so it frames
+the face rather than sitting on top of it, and the purple shadow around the
+eyes is in there too.
 
 ### Blood is not light
 
