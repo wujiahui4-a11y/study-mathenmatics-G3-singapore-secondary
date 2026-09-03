@@ -1715,6 +1715,25 @@
         if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.awaken(pos.clone());
         if (close) addShake(1);
         break;
+      /* the four he only has while the mark is open */
+      case 'ca1':
+        setTimeout(function () {
+          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.converge(pos.clone(), yaw);
+        }, 720);
+        break;
+      case 'ca2':
+        setTimeout(function () {
+          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.barrage(pos.clone(), yaw);
+        }, 500);
+        break;
+      case 'ca3':
+        setTimeout(function () {
+          if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.nova(pos.clone());
+        }, 620);
+        break;
+      case 'ca4':
+        if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.flow(pos.clone());
+        break;
       case 'c1':
         setTimeout(function () {
           if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.lance(pos.clone(), yaw);

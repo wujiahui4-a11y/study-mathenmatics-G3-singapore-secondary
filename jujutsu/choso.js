@@ -43,7 +43,7 @@
      soaking through and adds almost nothing to the frame. */
   var BLOOD = 0x4e0512, BRIGHT = 0x6d0a1c, DARK = 0x1c0106, PALE = 0x8c1526;
 
-  var CH = window.JJCHOSO = { stream: null, scale: 0 };
+  var CH = window.JJCHOSO = { stream: null, scale: 0, flow: 0, clot: false };
 
   var CHOSO_CFG = {
     choso: true, face: true,
@@ -174,7 +174,10 @@
 
   /* ------------------------------------------------------------- roster */
   cds.c1 = 0; cds.c2 = 0; cds.c3 = 0; cds.c4 = 0; cds.cr = 0; cds.caw = 0;
-  var CCD = { c1: 8, c2: 9, c3: 12, c4: 22, cr: 7 };
+  cds.ca1 = 0; cds.ca2 = 0; cds.ca3 = 0; cds.ca4 = 0;
+  var CCD = { c1: 8, c2: 9, c3: 12, c4: 22, cr: 7,
+    /* the four he gets when the curse half is out */
+    ca1: 7, ca2: 10, ca3: 13, ca4: 18 };
 
   CHARS.choso = {
     name: 'CHOSO', sub: 'BLOOD MANIPULATION — DEATH PAINTING',
@@ -770,6 +773,248 @@
   }
 
   /* =====================================================================
+     THE FOUR HE GETS WHEN THE CURSE HALF IS OUT
+
+     Not four bigger versions of the same shot. Each one is built on a
+     different line from the source:
+
+       1  Convergence is a real step, not flavour. He compresses blood
+          between his palms and condenses it to its limit, then claps and
+          fires it from his fingertips at the SPEED OF SOUND. The source
+          also says the compression TAKES TIME and leaves him open to
+          anything fast — so the charge here is a genuine window with no
+          invulnerability in it, and what comes out is instant.
+       2  He hardens blood into a solid. Awake, that is not one rock: it
+          is a bombardment of them.
+       3  Supernova is Convergence split into many small orbs and fired
+          in every direction LIKE BUCKSHOT — a technique he made himself
+          by honing blood manipulation for a hundred and fifty years. So
+          the awakened one is a sphere of it, not a ring.
+       4  He manipulates his own blood flow to avoid fatal damage, clot
+          wounds and move blood to vital areas. That is the one thing the
+          whole roster lacks: a fighter who repairs himself.
+     ================================================================== */
+
+  /* ---------------------------------------------- 1 · CONVERGENCE ---- */
+  function castConverge() {
+    if (!ready('ca1')) return;
+    var a = start('ca1', 1.05, 'ca1', 'CONVERGENCE', '収束 · 穿血');
+    a.fired = false;
+    /* deliberately NO iframes: the compression is the opening */
+  }
+  function stepConverge(a, dt) {
+    var p = player, d = aim();
+    var palms = p.pos.clone().addScaledVector(d, 1.1).add(new THREE.Vector3(0, 3.2, 0));
+    if (a.t < .72) {
+      /* it condenses between the palms, and gets tighter as it goes */
+      var k = a.t / .72;
+      var r = 3.4 * (1 - k * .78);
+      for (var i = 0; i < 2; i++) {
+        var ang = Math.random() * TAU, e2 = (Math.random() - .5) * 2;
+        FX.bloodMote(palms.clone().add(new THREE.Vector3(
+          Math.cos(ang) * r, e2 * r * .5, Math.sin(ang) * r)), 1 + k, .22);
+      }
+      if (Math.random() < dt * 14) FX.bloodThreads(palms.clone(), 1, 4, .4);
+      addShake(.12 + k * .5);
+      return;
+    }
+    if (!a.fired) {
+      a.fired = true;
+      /* the clap, and then it is already there */
+      FX.bloodBurst(palms.clone(), 2.4, d.clone());
+      FX.tint('#40040f', .45, .2);
+      FX.mangaLines(.8, .3);
+      if (typeof hitstop === 'function') hitstop(.11);
+      addShake(1.6);
+      if (AN) AN.camKick(1.5);
+      FX.zoom(-9, .4);
+      try { sfx.stab(); } catch (e) {}
+      var from = palms.clone();
+      /* at the speed of sound there is no travel to watch: the whole line
+         lands on the frame it is fired on, and it does not stop at the
+         first body it meets */
+      FX.bloodBeam(from.clone(), d, 96, { radius: 1.1, life: .34 });
+      FX.bloodCut(from.clone(), from.clone().addScaledVector(d, 96), 1, .26);
+      for (var j = 1; j <= 10; j++) {
+        FX.bloodThreads(from.clone().addScaledVector(d, j * 9), 2, 15, 1);
+      }
+      p.vel.addScaledVector(d, -13);
+      inLine(from, d, 96, 3.2, null).forEach(function (en) {
+        en.damage(74 * scale(), d.clone().multiplyScalar(22).setY(7), {
+          react: 'slash', reactDur: .6, spark: BRIGHT, color: '#c8203c',
+          bleed: true, death: 'sever', psn: awake()
+        });
+        FX.bloodBurst(en.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 2, d.clone());
+      });
+      if (window.JJAW) window.JJAW.gain(10);
+    }
+  }
+
+  /* ------------------------------------------- 2 · THE BOMBARDMENT --- */
+  function castBarrage() {
+    if (!ready('ca2')) return;
+    start('ca2', 1.2, 'ca2', 'BLOOD METEORITE', '血隠 · 極');
+    player.iframes = Math.max(player.iframes, .4);
+  }
+  function dropMass(at, delay, size) {
+    setTimeout(function () {
+      if (typeof scene === 'undefined') return;
+      var rock = FX.bloodMass(size);
+      rock.position.set(at.x, 42, at.z);
+      scene.add(rock);
+      var v = -46, done = false;
+      addFx({ t: 3, update: function (dd) {
+        this.t -= dd;
+        v -= 42 * dd;
+        rock.position.y += v * dd;
+        rock.rotation.x += dd * 5; rock.rotation.z += dd * 4;
+        if (Math.random() < dd * 24) FX.bloodMote(rock.position.clone(), 1.4, .3);
+        if (!done && (rock.position.y <= size || this.t <= 0)) {
+          done = true;
+          var floor = new THREE.Vector3(at.x, .4, at.z);
+          FX.bloodBurst(floor, size * 2.4, new THREE.Vector3(0, 1, 0));
+          FX.bloodThreads(floor, 8, 17, 1.2);
+          FX.bloodRings(floor, 2, { maxR: 12, life: .55, gap: 40 });
+          FX.cracks(new THREE.Vector3(at.x, 0, at.z), 8, 12, 0x1c0106, 0x5a3038);
+          FX.debris(new THREE.Vector3(at.x, 0, at.z), 10, 14, DARK);
+          addShake(1);
+          try { sfx.redBoom(); } catch (e) {}
+          enemies.forEach(function (en) {
+            if (!en || en.dead || en.pos.distanceTo(floor) > 9) return;
+            var kb = en.pos.clone().sub(floor).setY(0).normalize().multiplyScalar(20); kb.y = 12;
+            en.damage(30 * scale(), kb, {
+              react: 'blow', reactDur: .8, spark: BRIGHT, color: '#c8203c',
+              death: 'flat', psn: awake()
+            });
+          });
+          scene.remove(rock);
+          return false;
+        }
+        return true;
+      } });
+    }, delay);
+  }
+  function stepBarrage(a, dt) {
+    var p = player, d = aim();
+    if (a.t < .5) {
+      if (Math.random() < .8) {
+        FX.bloodMote(p.pos.clone().add(new THREE.Vector3(0, 4.4, 0)), 2.4, .4);
+      }
+      addShake(.2);
+      return;
+    }
+    if (a.stage < 1) {
+      a.stage = 1;
+      FX.tint('#40040f', .4, .35);
+      addShake(1.2);
+      try { sfx.raise(); } catch (e) {}
+      /* seven of them, walked up the ground in front of him */
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      for (var i = 0; i < 7; i++) {
+        var at = p.pos.clone()
+          .addScaledVector(d, 10 + i * 5.5)
+          .addScaledVector(side, (Math.random() - .5) * 14);
+        dropMass(at, i * 120, 1.3 + Math.random() * .8);
+      }
+      if (window.JJAW) window.JJAW.gain(12);
+    }
+  }
+
+  /* ---------------------------------------------- 3 · THE BUCKSHOT --- */
+  function castNova() {
+    if (!ready('ca3')) return;
+    start('ca3', 1.5, 'ca3', 'SUPERNOVA', '超新星 · 極');
+    player.iframes = Math.max(player.iframes, .6);
+  }
+  function stepNova(a, dt) {
+    var p = player;
+    var mid = p.pos.clone().add(new THREE.Vector3(0, 3.2, 0));
+    if (a.t < .62) {
+      /* Convergence again, and it splits while it condenses */
+      if (Math.random() < .95) {
+        var ang = Math.random() * TAU, rr = 6 * (1 - a.t / .62);
+        FX.bloodMote(mid.clone().add(new THREE.Vector3(
+          Math.cos(ang) * rr, (Math.random() - .5) * rr, Math.sin(ang) * rr)), 2, .3);
+      }
+      addShake(.25 + a.t * .8);
+      return;
+    }
+    if (a.stage < 1) {
+      a.stage = 1;
+      FX.tint('#0e0104', .8, .18);
+      FX.bloodRings(mid, 5, { maxR: 20, life: .7, gap: 26 });
+      addShake(2);
+      if (typeof hitstop === 'function') hitstop(.14);
+      try { sfx.redFire(); } catch (e) {}
+      /* forty four of them, in every direction — buckshot, not a ring */
+      for (var i = 0; i < 44; i++) {
+        (function (n) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            /* an even spread over the whole sphere */
+            var u = (n + .5) / 44;
+            var phi = Math.acos(1 - 2 * u);
+            var theta = Math.PI * (1 + Math.sqrt(5)) * n;
+            var dir = new THREE.Vector3(
+              Math.sin(phi) * Math.cos(theta),
+              Math.abs(Math.cos(phi)) * .55,
+              Math.sin(phi) * Math.sin(theta)).normalize();
+            var orb = FX.bloodMass(.5);
+            orb.position.copy(mid);
+            scene.add(orb);
+            var sp = 40 + Math.random() * 20, hit = false;
+            addFx({ t: 1.5, update: function (dd) {
+              this.t -= dd;
+              orb.position.addScaledVector(dir, sp * dd);
+              orb.rotation.x += dd * 7; orb.rotation.z += dd * 5;
+              if (Math.random() < dd * 16) FX.bloodMote(orb.position.clone(), .7, .2);
+              if (!hit) {
+                for (var j = 0; j < enemies.length; j++) {
+                  var en = enemies[j];
+                  if (!en || en.dead) continue;
+                  if (en.pos.clone().add(new THREE.Vector3(0, 2.4, 0))
+                    .distanceTo(orb.position) > 2.9) continue;
+                  hit = true;
+                  FX.bloodBurst(orb.position.clone(), 1.6, dir.clone());
+                  en.damage(13 * scale(), dir.clone().multiplyScalar(10).setY(4), {
+                    react: 'slash', reactDur: .28, spark: BRIGHT, color: '#c8203c',
+                    bleed: true, death: 'dice', psn: awake()
+                  });
+                  addShake(.3);
+                  break;
+                }
+              }
+              if (hit || this.t <= 0) { scene.remove(orb); return false; }
+              return true;
+            } });
+          }, n * 11);
+        })(i);
+      }
+      if (window.JJAW) window.JJAW.gain(14);
+    }
+  }
+
+  /* ------------------------------------------- 4 · HIS OWN BLOOD ----- */
+  var FLOW = { dur: 9, heal: 7, cut: .45 };
+  function castFlow() {
+    if (!ready('ca4')) return;
+    start('ca4', 1, 'ca4', 'FLOWING BLOOD', '血流操術');
+    player.iframes = Math.max(player.iframes, .8);
+    CH.flow = FLOW.dur;
+    CH.clot = true;                 // one fatal hit is clotted, once
+    FX.tint('#2a0208', .4, .5);
+    FX.bloodRings(new THREE.Vector3(player.pos.x, .1, player.pos.z), 3,
+      { maxR: 10, life: .6, gap: 45, ground: true });
+    addShake(.8);
+    try { sfx.raise(); } catch (e) {}
+  }
+  function stepFlow(a, dt) {
+    var mid = player.pos.clone().add(new THREE.Vector3(0, 2.6, 0));
+    if (Math.random() < .6) FX.bloodMote(mid, 1.6, .4);
+    if (a.t > .3 && Math.random() < .2) FX.bloodThreads(mid, 1, 6, .8);
+  }
+
+  /* =====================================================================
      F · DEATH PAINTING   呪胎九相図
 
      What the meter buys for him, and it is built out of the three things
@@ -850,8 +1095,89 @@
         A.chosoT = AWAKE_DUR;
         if (!A.chosoAura) A.chosoAura = FX.bloodAura(function () { return player.pos; });
       }
+      swapChosoBar(true);
     }
     if (a.t >= a.dur - .1) FX.letterbox(false);
+  }
+
+  /* the awakened four. Convergence is the one that matters: both palms
+     brought together in front of the chest and squeezed, then a clap and
+     both arms straight down the line — which is the pose the technique is
+     drawn in, and the reason the charge reads as a charge. */
+  function poseChosoAwake(r, a) {
+    var t = a.t, out = E.out;
+    switch (a.type) {
+      case 'ca1': {
+        rp(r);
+        if (t < .72) {
+          var k = out(t / .72);
+          /* palms in, and closing */
+          r.shoulderL.rotation.x = -1.24 * k;
+          r.shoulderR.rotation.x = -1.24 * k;
+          r.shoulderL.rotation.z = .82 * k - .3 * k * k;
+          r.shoulderR.rotation.z = -.82 * k + .3 * k * k;
+          r.elbowL.rotation.x = -1.5 * k;
+          r.elbowR.rotation.x = -1.5 * k;
+          r.spine.rotation.x = .2 * k;
+          r.neck.rotation.x = .16 * k;
+          r.hips.position.y = r.hipsBaseY - .3 * k;
+          r.kneeL.rotation.x = .5 * k; r.kneeR.rotation.x = .46 * k;
+        } else {
+          /* clapped, and pointed */
+          var f = out(Math.min(1, (t - .72) / .16));
+          poseClamp(r, f, 0);
+        }
+        return true;
+      }
+      case 'ca2': {
+        rp(r);
+        /* both arms up over the head, then thrown down */
+        var up = out(Math.min(1, t / .5));
+        var thr = t > .5 ? out(Math.min(1, (t - .5) / .3)) : 0;
+        r.shoulderL.rotation.x = -2.5 * up + 2.9 * thr;
+        r.shoulderR.rotation.x = -2.5 * up + 2.9 * thr;
+        r.shoulderL.rotation.z = .34 * up;
+        r.shoulderR.rotation.z = -.34 * up;
+        r.elbowL.rotation.x = -.5 * up;
+        r.elbowR.rotation.x = -.5 * up;
+        r.spine.rotation.x = -.3 * up + .5 * thr;
+        r.neck.rotation.x = -.34 * up + .5 * thr;
+        r.hips.position.y = r.hipsBaseY + .16 * up - .4 * thr;
+        return true;
+      }
+      case 'ca3': {
+        rp(r);
+        /* arms drawn in, then flung wide open */
+        var pull = out(Math.min(1, t / .62));
+        var open = t > .62 ? out(Math.min(1, (t - .62) / .3)) : 0;
+        r.shoulderL.rotation.x = -1.1 * pull + .6 * open;
+        r.shoulderR.rotation.x = -1.1 * pull + .6 * open;
+        r.shoulderL.rotation.z = .9 * pull - 1.7 * open;
+        r.shoulderR.rotation.z = -.9 * pull + 1.7 * open;
+        r.elbowL.rotation.x = -1.7 * pull + 1.6 * open;
+        r.elbowR.rotation.x = -1.7 * pull + 1.6 * open;
+        r.spine.rotation.x = .3 * pull - .55 * open;
+        r.neck.rotation.x = .2 * pull - .6 * open;
+        r.hips.position.y = r.hipsBaseY - .4 * pull + .5 * open;
+        return true;
+      }
+      case 'ca4': {
+        rp(r);
+        /* a hand flat over his own chest: he is working on himself */
+        var k4 = out(Math.min(1, t / .45));
+        r.shoulderR.rotation.x = -1.5 * k4;
+        r.shoulderR.rotation.z = -.7 * k4;
+        r.elbowR.rotation.x = -1.9 * k4;
+        r.shoulderL.rotation.x = -.3 * k4;
+        r.elbowL.rotation.x = -.5 * k4;
+        r.spine.rotation.x = .22 * k4;
+        r.neck.rotation.x = .26 * k4;
+        r.hips.position.y = r.hipsBaseY - .24 * k4;
+        r.kneeL.rotation.x = .4 * k4; r.kneeR.rotation.x = .36 * k4;
+        return true;
+      }
+    }
+    return false;
   }
 
   function poseAwakenChoso(r, a) {
@@ -901,6 +1227,8 @@
     A.choso = false;
     A.chosoT = 0;
     if (A.chosoAura) { A.chosoAura.stop(); A.chosoAura = null; }
+    swapChosoBar(false);
+    CH.flow = 0; CH.clot = false;
     if (quiet) return;
     if (window.JJNOTICE) window.JJNOTICE('THE MARK CLOSES', '#c8203c');
     FX.bloodRings(new THREE.Vector3(player.pos.x, .1, player.pos.z), 2,
@@ -921,6 +1249,10 @@
       case 'c4': return stepScale(a, dt);
       case 'cr': return stepEdge(a, dt);
       case 'caw': return stepAwakenChoso(a, dt);
+      case 'ca1': return stepConverge(a, dt);
+      case 'ca2': return stepBarrage(a, dt);
+      case 'ca3': return stepNova(a, dt);
+      case 'ca4': return stepFlow(a, dt);
     }
     return _stepAction(a, dt);
   };
@@ -928,6 +1260,7 @@
   var _poseAction = poseAction;
   poseAction = function (r, a) {
     if (a && a.type === 'caw' && poseAwakenChoso(r, a)) return;
+    if (a && poseChosoAwake(r, a)) return;
     if (r === player.rig && player.char === 'choso' && poseChoso(r, a)) return;
     /* a remote Choso holding the stream poses off the same table */
     if (a && (a.type === 'c1s' || (a.type || '').charAt(0) === 'c') && poseChoso(r, a)) return;
@@ -975,6 +1308,19 @@
         if (A.chosoT <= 0) endAwaken(false);
       }
     }
+    /* Flowing Blood: he moves it to where it is needed, so the wound
+       closes over the next few seconds */
+    if (CH.flow > 0) {
+      CH.flow = Math.max(0, CH.flow - dt);
+      if (!player.dead && player.hp < player.maxHp) {
+        player.hp = Math.min(player.maxHp, player.hp + FLOW.heal * dt);
+      }
+      if (Math.random() < dt * 5) {
+        FX.bloodMote(player.pos.clone().add(new THREE.Vector3(
+          (Math.random() - .5) * 2, 1 + Math.random() * 3, (Math.random() - .5) * 2)), 1, .4);
+      }
+      if (CH.flow <= 0 && CH.clot) CH.clot = false;
+    }
     /* poison he was handed by somebody else's awakening */
     stepVenom(player, dt, true);
     if (CH.stream) {
@@ -1006,19 +1352,65 @@
     return _enemyUpdate.call(this, dt);
   };
 
-  /* his keys */
+  /* His keys — and the awakened four are routed from inside this one
+     rather than from a second listener of their own. Both would be in the
+     capture phase, and capture listeners on the same element run in the
+     order they were added, so the first one registered takes the key and
+     stops the event before the second ever sees it. One handler that
+     picks by state is the only version of this that works. */
   window.addEventListener('keydown', function (e) {
     if (!started || player.char !== 'choso' || e.repeat) return;
-    if (player.react || (player.action && (player.action.type === 'kb' || player.action.type === 'void'))) return;
+    if (player.react || (player.action && (player.action.type === 'kb' ||
+        player.action.type === 'void' || player.action.type === 'caw'))) return;
+    var on = awake();
     var hit = true;
-    if (e.code === 'Digit1') castPierce();
-    else if (e.code === 'Digit2') castMeteorite();
-    else if (e.code === 'Digit3') castSupernova();
-    else if (e.code === 'Digit4') castScale();
+    if (e.code === 'Digit1') (on ? castConverge : castPierce)();
+    else if (e.code === 'Digit2') (on ? castBarrage : castMeteorite)();
+    else if (e.code === 'Digit3') (on ? castNova : castSupernova)();
+    else if (e.code === 'Digit4') (on ? castFlow : castScale)();
     else if (e.code === 'KeyR') castEdge();
     else hit = false;
     if (hit) e.stopImmediatePropagation();
   }, true);
+
+  /* "Manipulate his blood flow to avoid fatal damage." Once, while it
+     holds: the hit that would finish him clots instead, and that spends
+     it — so it buys a moment, not immunity. */
+  var _hurtPlayerCh = hurtPlayer;
+  hurtPlayer = function (amount, knock, opts) {
+    if (player.char === 'choso' && CH.flow > 0 && CH.clot && !player.dead &&
+        player.hp - amount <= 0) {
+      CH.clot = false;
+      amount = Math.max(0, player.hp - 1);
+      FX.bloodBurst(player.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 2.4,
+        new THREE.Vector3(0, 1, 0));
+      FX.bloodRings(player.pos.clone().add(new THREE.Vector3(0, 2, 0)), 3,
+        { maxR: 8, life: .5, gap: 30 });
+      if (window.JJNOTICE) window.JJNOTICE('CLOTTED', '#c8203c');
+      addShake(1.2);
+      if (typeof hitstop === 'function') hitstop(.14);
+    }
+    return _hurtPlayerCh(amount, knock, opts);
+  };
+
+  /* =====================================================================
+     THE BAR
+     ================================================================== */
+  var BASE_MOVES = CHARS.choso.moves.slice();
+  var CAW_MOVES = [
+    { key: 'LMB', lbl: 'Punch', cd: 'm1', max: .3 },
+    { key: 'Q', lbl: 'Dash', cd: 'dash', max: 1 },
+    { key: '1', lbl: 'Convergence', cd: 'ca1', max: CCD.ca1 },
+    { key: '2', lbl: 'Blood Meteorite', cd: 'ca2', max: CCD.ca2 },
+    { key: '3', lbl: 'Supernova', cd: 'ca3', max: CCD.ca3 },
+    { key: '4', lbl: 'Flowing Blood', cd: 'ca4', max: CCD.ca4 },
+    { key: 'R', lbl: 'Blood Edge', cd: 'cr', max: CCD.cr }
+  ];
+  function swapChosoBar(on) {
+    CHARS.choso.moves = on ? CAW_MOVES : BASE_MOVES;
+    if (player.char === 'choso') { try { buildMovesBar(); } catch (e) {} }
+  }
+  CH.swapBar = swapChosoBar;
 
   /* F: the shared meter, spent on the half of him that is a curse */
   window.addEventListener('keydown', function (e) {
@@ -1076,6 +1468,70 @@
         FX.cracks(new THREE.Vector3(pos.x, 0, pos.z), 11, 15, 0x1c0106, 0x5a3038);
         FX.debris(pos.clone(), 12, 15, 0x1c0106);
       }, 1500);
+    },
+    /* the awakened four, damage-free */
+    converge: function (pos, yaw) {
+      var d = dirOf(yaw);
+      var from = pos.clone().addScaledVector(d, 1.1).add(new THREE.Vector3(0, 3.2, 0));
+      FX.bloodBurst(from.clone(), 2.4, d.clone());
+      FX.bloodBeam(from.clone(), d, 96, { radius: 1.1, life: .34 });
+      FX.bloodCut(from.clone(), from.clone().addScaledVector(d, 96), 1, .26);
+      for (var j = 1; j <= 10; j++) {
+        FX.bloodThreads(from.clone().addScaledVector(d, j * 9), 2, 15, 1);
+      }
+    },
+    barrage: function (pos, yaw) {
+      var d = dirOf(yaw);
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      for (var i = 0; i < 7; i++) {
+        var at = pos.clone().addScaledVector(d, 10 + i * 5.5)
+          .addScaledVector(side, (Math.random() - .5) * 14);
+        dropMass(at, i * 120, 1.3 + Math.random() * .8);
+      }
+    },
+    nova: function (pos) {
+      var mid = pos.clone().add(new THREE.Vector3(0, 3.2, 0));
+      FX.tint('#0e0104', .6, .18);
+      FX.bloodRings(mid, 5, { maxR: 20, life: .7, gap: 26 });
+      for (var i = 0; i < 44; i++) {
+        (function (n) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            var u = (n + .5) / 44;
+            var phi = Math.acos(1 - 2 * u);
+            var th = Math.PI * (1 + Math.sqrt(5)) * n;
+            var dir = new THREE.Vector3(
+              Math.sin(phi) * Math.cos(th),
+              Math.abs(Math.cos(phi)) * .55,
+              Math.sin(phi) * Math.sin(th)).normalize();
+            var orb = FX.bloodMass(.5);
+            orb.position.copy(mid);
+            scene.add(orb);
+            var sp = 40 + Math.random() * 20;
+            addFx({ t: 1.5, update: function (dd) {
+              this.t -= dd;
+              orb.position.addScaledVector(dir, sp * dd);
+              orb.rotation.x += dd * 7;
+              if (this.t <= 0) { scene.remove(orb); return false; }
+              return true;
+            } });
+          }, n * 11);
+        })(i);
+      }
+    },
+    flow: function (pos) {
+      FX.tint('#2a0208', .3, .5);
+      FX.bloodRings(new THREE.Vector3(pos.x, .1, pos.z), 3,
+        { maxR: 10, life: .6, gap: 45, ground: true });
+      var t = 0;
+      addFx({ t: FLOW.dur, update: function (dd) {
+        this.t -= dd; t += dd;
+        if (Math.random() < dd * 5) {
+          FX.bloodMote(pos.clone().add(new THREE.Vector3(
+            (Math.random() - .5) * 2, 1 + Math.random() * 3, (Math.random() - .5) * 2)), 1, .4);
+        }
+        return this.t > 0;
+      } });
     },
     lance: function (pos, yaw) {
       var d = dirOf(yaw);

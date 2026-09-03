@@ -226,17 +226,60 @@ he can make that mark bleed at will *in order to produce ammunition for his
 cursed technique*. Then the ground goes and a column of it stands up behind
 him.
 
-For twenty six seconds after that:
+For twenty six seconds after that his bar swaps to **four techniques he only
+has while the mark is open**, the way Sukuna's does for Yuji. None of them is
+a bigger version of the same shot — each is built on a different line from
+the source.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Convergence** | 収束 · 穿血 — the compression, and then the shot |
+| `2` | **Blood Meteorite** | 血隕 · 極 — seven of them, walked up the road |
+| `3` | **Supernova** | 超新星 · 極 — buckshot, in every direction |
+| `4` | **Flowing Blood** | 血流操術 — he works on himself |
+
+**Convergence** is the one worth reading the source on. He compresses blood
+between his palms and condenses it *to its limit*, then claps and fires it
+from his fingertips at the **speed of sound**. The source also says the
+compression takes time and leaves him open to anything fast — so the charge
+here is a real window with **no invulnerability in it**, and what comes out
+is instant: no travel to watch, ninety six metres of line on the frame it is
+fired on, and it does not stop at the first body it meets.
+
+**Blood Meteorite** is his hardening applied seven times instead of once — a
+bombardment walked up the ground in front of him rather than one thrown rock.
+It is area denial: five targets spread down a corridor take between eighty
+and a hundred and seventy.
+
+**Supernova** is Convergence split into many small orbs and fired *like
+buckshot*, which is the word the source uses — a technique he built himself
+by honing blood manipulation for a hundred and fifty years. So the awakened
+one is a full sphere of forty four, not a ring.
+
+**Flowing Blood** is the one the whole roster lacked. He manipulates his own
+blood flow to avoid fatal damage, clot wounds and move blood to vital areas,
+so for nine seconds he repairs himself — and the hit that would finish him
+**clots** instead, once, which buys a moment rather than immunity.
+
+Three things hold for the whole of it on top of the four:
 
 * **Flowing Red Scale stays open**, so he is not spending a slot re-buying
-  his own damage — everything lands about a third harder for the whole of it.
-* **His cooldowns run at four times the speed.** He has *no lack of blood*,
-  which is the stated reason his blood manipulation goes further than a
-  sorcerer's, so the cost of using it is what drops.
+  his own damage — everything lands about a third harder.
+* **His cooldowns run faster.** He has *no lack of blood*, which is the
+  stated reason his blood manipulation goes further than a sorcerer's, so the
+  cost of using it is what drops.
 * **Everything he lands keeps working.** Death Painting blood is poisonous to
   humans when it mixes with theirs — the backlash off it put Naoya Zen'in on
   the floor — so every hit leaves six seconds of it behind, ticking twice a
   second, on dummies and on other players alike.
+
+One implementation note worth keeping. His four awakened keys are routed from
+**inside his existing key handler** rather than from a second listener of
+their own. Both would be in the capture phase, and capture listeners on the
+same element run in the order they were added — so the handler registered
+first takes the key and stops the event before the second ever sees it. The
+symptom was the awakened `1` quietly dealing exactly base Piercing Blood's
+damage. One handler that picks by state is the only version that works.
 
 The poison is applied by the damage path rather than at the five call sites
 that throw it, so a hit relayed from another client lands exactly the way a
@@ -293,7 +336,7 @@ blood was the one bright thing left in the frame.
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — thirty five of them, one
+and differently from every other skill in the game — thirty nine of them, one
 per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -326,6 +369,11 @@ with the beam and the legs are left standing in the road until they find out.
 
 Sukuna's four: Dismantle **dismantles**, Cleave **cleaves** on the diagonal,
 Fuga **burns them to ash**, and Malevolent Shrine **cuts them to pieces**.
+
+Awakened Choso's four end the way those particular techniques end people:
+Convergence gets them **before the sound** does, the bombardment **buries**
+them, the buckshot **shoots them to pieces** from every direction at once,
+and Flowing Blood takes theirs instead and leaves them **drained**.
 
 Choso's are all pressure and none of them is a spray. Piercing Blood tapped
 **pierces** — one line through, and the picture is the jet out of the far
