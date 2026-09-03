@@ -693,7 +693,11 @@
         HK.fever = CINE.fever;
         HK.spins = 0;
         player.hp = player.maxHp;
-        if (!HK.aura) HK.aura = FX.aura(function () { return player.pos; }, 0xffcc4d);
+        /* fever.js puts up the heavy standing aura the moment HK.fever
+           goes positive, so only fall back if it is not loaded */
+        if (!HK.aura && !window.JJFEVER) {
+          HK.aura = FX.aura(function () { return player.pos; }, 0xffcc4d);
+        }
         var fev = document.getElementById('jjFever');
         if (fev) fev.style.display = 'block';
       }

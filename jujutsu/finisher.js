@@ -684,6 +684,209 @@
       }, 560);
     } },
 
+    /* ========== HAKARI, IN FEVER ==========
+       The four he only has while the song is playing. */
+
+    /* 1 · the container — he runs it down and goes through it */
+    ha1: { name: 'THROUGH THE BOX', color: '#ffd964', hold: 1.55, run: function (e, d, p, G) {
+      var box = null;
+      var FV = window.JJFEVER;
+      /* the container stops on them, and he arrives at it */
+      if (window.JJHAKARI) {
+        box = new THREE.Mesh(new THREE.BoxGeometry(5.4, 4.6, 4.6),
+          new THREE.MeshStandardMaterial({ color: 0xd83a3a, roughness: .82, metalness: .25 }));
+        box.position.copy(p).addScaledVector(d, 2.6);
+        box.position.y = 2.4;
+        scene.add(box);
+      }
+      FX.impact(p, 0xffd964, 2.2);
+      addShake(1.4);
+      /* the punches, and the box losing its shape with each one */
+      var n = 0;
+      var iv = setInterval(function () {
+        if (n++ > 8 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        if (box) {
+          box.scale.x = Math.max(.3, box.scale.x - .09);
+          box.scale.y = Math.max(.35, box.scale.y - .06);
+          box.scale.z = Math.min(1.5, box.scale.z + .05);
+          FX.impact(box.position.clone(), 0xffe08a, 1.1);
+          FX.debris(box.position.clone(), 5, 11, 0x6a6e78);
+        }
+        addShake(.35);
+      }, 90);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        /* and the last one goes through the box and into the head */
+        FX.mangaLines(.9, .3);
+        FX.speedRing(p.clone(), 0xffe08a, 13, .34);
+        FX.cross(p.clone(), 0xffffff, 8, .26);
+        if (typeof hitstop === 'function') hitstop(.18);
+        if (box) {
+          FX.impact(box.position.clone(), 0xffd964, 3.4);
+          FX.debris(box.position.clone(), 22, 24, 0x6a6e78);
+          scene.remove(box);
+          box.material.dispose();
+        }
+        FX.blood(p.clone().add(up(1.2)), d, 14, 1.8);
+        G.fling(e, d.clone().multiplyScalar(64).setY(18), new THREE.Vector3(2, 1, 12));
+        addShake(2.6);
+      }, 900);
+    } },
+
+    /* 1j · dropped from above — nothing survives being under it */
+    ha1j: { name: 'UNDER THE BOX', color: '#ffd964', hold: 1.1, run: function (e, d, p, G) {
+      var box = new THREE.Mesh(new THREE.BoxGeometry(6, 5, 5),
+        new THREE.MeshStandardMaterial({ color: 0x2fae62, roughness: .82, metalness: .25 }));
+      box.position.copy(p).add(up(26));
+      scene.add(box);
+      var t = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        var k = Math.min(1, t / .5);
+        box.position.y = p.y + 26 * (1 - k * k);
+        box.rotation.x += dt * 4;
+        if (k < 1) return true;
+        scene.remove(box);
+        box.material.dispose();
+        FX.flash('#fff3c8', .5, .26);
+        if (typeof hitstop === 'function') hitstop(.18);
+        FX.impact(p.clone(), 0xffd964, 4);
+        FX.rings(new THREE.Vector3(p.x, .12, p.z), 0xffd964, 4, { maxR: 20, life: .8, gap: 45 });
+        FX.cracks(new THREE.Vector3(p.x, .1, p.z), 16, 24, 0x2a2418);
+        FX.debris(new THREE.Vector3(p.x, .2, p.z), 26, 26, 0x6a6e78);
+        /* into pieces, and they stay where they land */
+        G.dice(e, { dir: up(1), power: 2.2, cubes: 26 });
+        addShake(3);
+        return false;
+      } });
+    } },
+
+    /* 2 · five seconds, and every one of them is a hole */
+    ha2: { name: 'FULL OF HOLES', color: '#ffd964', hold: 6.4, run: function (e, d, p, G) {
+      FX.speedRing(p, 0xffe08a, 12, .3);
+      FX.impact(p, 0xffd964, 2);
+      if (typeof hitstop === 'function') hitstop(.16);
+      var FV = window.JJFEVER;
+      if (FV && FV.holeMode) {
+        FV.holeMode(e, 5, function () {
+          if (typeof scene === 'undefined') return;
+          FX.mangaLines(.8, .3);
+          FX.blood(p.clone(), d, 16, 2);
+          G.sever(e, { dir: d, power: 1.9, cubes: 10 });
+          addShake(2.4);
+        });
+      } else {
+        setTimeout(function () {
+          if (typeof scene === 'undefined') return;
+          G.sever(e, { dir: d, power: 1.9 });
+        }, 700);
+      }
+    } },
+
+    /* 3 · whoever he was dragging. One of them goes up; two of them are
+       put together. */
+    ha3: { name: 'DRAGGED', color: '#ffd964', hold: 1.7, run: function (e, d, p, G) {
+      var FV = window.JJFEVER;
+      var pair = (FV && FV.drag ? FV.drag : []).filter(function (x) { return x && !x.dead; });
+      var other = null;
+      for (var i = 0; i < pair.length; i++) if (pair[i] !== e) { other = pair[i]; break; }
+
+      if (!other) {
+        /* --- one of them: thrown up, followed, and hit back down --- */
+        FX.speedRing(p, 0xffe08a, 11, .3);
+        var t = 0;
+        addFx({ t: 1e9, update: function (dt) {
+          t += dt;
+          if (e && !e.dead) {
+            e.anchorT = .3;
+            e.anchorPos.copy(p).add(up(6 + t * 14));
+            e.pos.lerp(e.anchorPos, Math.min(1, dt * 12));
+          }
+          return t < .85;
+        } });
+        setTimeout(function () {
+          if (typeof scene === 'undefined') return;
+          FX.mangaLines(.9, .3);
+          FX.impact(p.clone().add(up(16)), 0xffd964, 3);
+          FX.cross(p.clone().add(up(16)), 0xffffff, 9, .3);
+          if (typeof hitstop === 'function') hitstop(.2);
+          if (e) e.anchorT = 0;
+          /* and they come apart before they land */
+          G.dice(e, { dir: new THREE.Vector3(0, -1, 0), power: 2.1, cubes: 24 });
+          addShake(3);
+        }, 950);
+        return;
+      }
+
+      /* --- two of them: put head to head, pulled apart, and closed --- */
+      var mid = p.clone().lerp(other.pos.clone().add(up(2.8)), .5);
+      var n = 0;
+      var iv = setInterval(function () {
+        if (n++ > 7 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        var k = n / 7;
+        [e, other].forEach(function (x, i) {
+          if (!x || x.dead) return;
+          x.anchorT = .3;
+          x.anchorPos.copy(mid).add(new THREE.Vector3((i ? 1 : -1) * (2.4 - k * 2.2), 0, 0));
+          x.pos.lerp(x.anchorPos, .5);
+        });
+        FX.impact(mid.clone(), 0xffe08a, 1.2);
+        addShake(.5);
+      }, 90);
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.cross(mid.clone(), 0xffffff, 8, .26);
+        FX.impact(mid.clone(), 0xffd964, 3.2);
+        if (typeof hitstop === 'function') hitstop(.2);
+        FX.blood(mid.clone(), new THREE.Vector3(1, .2, 0), 12, 1.8);
+        FX.blood(mid.clone(), new THREE.Vector3(-1, .2, 0), 12, 1.8);
+        [e, other].forEach(function (x) {
+          if (!x || x.dead) return;
+          x.anchorT = 0;
+          if (window.JJGORE) {
+            try { window.JJGORE.sever(x, { dir: new THREE.Vector3(0, 1, 0), power: 1.9, cubes: 12 }); }
+            catch (err) {}
+          }
+        });
+        addShake(3);
+      }, 820);
+    } },
+
+    /* 4 · out, and a long way out */
+    ha4: { name: 'OUT OF THE PARK', color: '#ffd964', hold: .9, run: function (e, d, p, G) {
+      FX.rings(new THREE.Vector3(p.x, .12, p.z), 0xffd964, 5, { maxR: 26, life: .8, gap: 40 });
+      FX.cracks(new THREE.Vector3(p.x, .1, p.z), 16, 24, 0x2a2418);
+      FX.impact(p, 0xffd964, 3.4);
+      FX.cross(p, 0xffffff, 9, .3);
+      FX.mangaLines(.9, .3);
+      if (typeof hitstop === 'function') hitstop(.2);
+      addShake(3);
+      var go = d.clone().multiplyScalar(120); go.y = 44;
+      G.fling(e, go, new THREE.Vector3(1, 3, 8));
+      /* the white line they leave behind them */
+      var t = 0;
+      addFx({ t: 3.4, update: function (dt) {
+        this.t -= dt; t += dt;
+        if (!e || !e.pos) return false;
+        var at = e.pos.clone().add(up(2.4));
+        FX.streaks(at, 0xffffff, 2, 6, .7);
+        var m = FX.billboard(FX.T.smoke, 0xffffff, .5);
+        m.scale.setScalar(4.5);
+        m.position.copy(at);
+        scene.add(m);
+        var tt = 0;
+        addFx({ t: .7, update: function (dd) {
+          this.t -= dd; tt += dd;
+          FX.faceCam(m, 0);
+          m.scale.setScalar(4.5 + tt * 5);
+          m.material.opacity = .5 * (this.t / .7);
+          if (this.t <= 0) { scene.remove(m); m.material.dispose(); return false; }
+          return true;
+        } });
+        return this.t > 0;
+      } });
+    } },
+
     /* F · Idle Death Gamble — the machine pays out, with them in it */
     hdom: { name: 'PAID OUT', color: '#ffd84a', hold: 1.3, run: function (e, d, p, G) {
       var n = 0;
@@ -1073,6 +1276,7 @@
     n1: 'dice', n2: 'sever', n3: 'ragdoll', n4: 'gone', nr: 'sever', nrf: 'sever',
     y1: 'sever', y2: 'dice', y3: 'sever', y4: 'flat', yr: 'burn',
     h1: 'sever', h2: 'dice', h3: 'flat', h4: 'ragdoll', hr: 'sever', hdom: 'burn',
+    ha1: 'ragdoll', ha1j: 'dice', ha2: 'sever', ha3: 'dice', ha4: 'ragdoll',
     s1: 'dice', s2: 'sever', s3: 'burn', s4: 'dice',
     c1: 'sever', c1s: 'gone', c2: 'flat', c3: 'dice', c4: 'sever', cr: 'sever',
     ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever'

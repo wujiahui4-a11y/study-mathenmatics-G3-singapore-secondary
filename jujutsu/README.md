@@ -37,8 +37,11 @@ hands.
 | `2` | **Ball Barrage** | the other half of the machine, at speed |
 | `3` | **Gachinko** | three of his own and the floor after them |
 | `4` | **Fever Breaker** | a kick with reach, and then a second one you get to aim |
-| `R` | **Door Guard** | two shutters up, and nothing — until somebody swings |
+| `R` | **Door Guard** | a shutter up, and nothing — until somebody swings |
 | `F` | **Idle Death Gamble** | the domain |
+
+While the fever is running, `1`–`4` are four different moves. They are further
+down, under **[In fever](#in-fever)**.
 
 ### Fever Breaker
 
@@ -53,9 +56,9 @@ moment of the second kick, not at the moment of the first.
 
 Overwhelm was a shoulder charge. It is now a **wait**. One shutter goes up in
 front of him and nothing happens — until somebody throws a melee attack at
-them, at which point he goes through both of them fist first and whoever
-swung goes backwards. Its whole value is that the other player has to decide
-whether to commit.
+it, at which point he goes through it fist first and whoever swung goes
+backwards. Its whole value is that the other player has to decide whether to
+commit.
 
 It works by intercepting in `hurtPlayer`: while the door is up a melee hit
 does not land on him at all, it springs it instead. Ranged hits are not
@@ -129,6 +132,87 @@ aura's first version stacked seven large additive sheets and a wide column on
 top of each other, which turned the screen white and removed the one shot the
 cutscene exists for.
 
+### In fever
+
+What the jackpot actually buys. While the song is playing his bar is four
+different moves and none of them is a piece of parlour furniture — he has
+unlimited output and no reason to be careful with it. They live in
+`fever.js`, they hit about half again as hard as the base kit, and every one
+of them ends differently.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Container** | a shipping container summoned and kicked down the road at them |
+| `2` | **Unlimited** | the punch rush, long, with the fists left behind in the air |
+| `3` | **Fever Rush** | two seconds of dancing and then a run he steers himself |
+| `4` | **Gachinko** | up, and the ground breaks. Then down, and it breaks again |
+
+**Container** has a variant. Cast it **in the air** and he jumps higher,
+summons the container overhead instead of on the road, and punches it
+straight down — a different action (`ha1j`) with a different finisher.
+
+**Fever Rush** picks up **two at the most**, at 5.2 units, and holds them one
+either side of him for the whole run. The road takes a cut off them the whole
+way and he lets go hard at the end, so the killing hit tends to land while
+both of them are still on him — which is what lets the finisher tell the two
+cases apart. The camera is **deliberately not taken**: the whole point of the
+move is that you steer it, so it reads the facing you are holding every
+frame. Two seconds of dance and two and a half of running at thirty a second
+is about seventy five units — most of the way across the arena, and short
+enough not to dead-end in the wall.
+
+The finishers:
+
+| | What it does |
+| --- | --- |
+| **THROUGH THE BOX** | he rushes the container, punches it out of shape, and the last punch goes through it into their head |
+| **UNDER THE BOX** | the air variant: it comes down on them and they come apart under it |
+| **FULL OF HOLES** | five seconds of first person, below |
+| **DRAGGED** | one of them goes up and comes apart on the way down; two of them are put head to head and taken apart together |
+| **OUT OF THE PARK** | a very long way out, ragdolled, with a white line behind them |
+
+### The five seconds where the camera is yours
+
+**FULL OF HOLES** is the one that hands the game over. It puts the shot on
+**his own eyes**: he is stood a clean seven units off them — at the game's
+70° lens that frames the whole body, head and feet both inside it — his own
+rig comes off (his head is where the lens is), his two fists are hung off the
+camera so it reads as first person rather than a floating shot, and they are
+held still and turned to face him.
+
+Then you have **five seconds and as many clicks as you want**. The crosshair
+moves on raw mouse deltas, so it works with the pointer locked. Each click
+raycasts into their rig, and a hit puts a **real hole** through them: a dark
+shaft with a torn rim on each side, parented to whichever bone was nearest so
+it travels with the body rather than hanging in the air. A click that misses
+the body does nothing. When the clock runs out you get the count, and then
+they come apart.
+
+Two details worth keeping. The click is swallowed (`stopImmediatePropagation`)
+so it does not also throw a punch, and the movement keys are blanked for those
+frames the same way Choso's stream blanks them — otherwise you walk out of
+your own shot.
+
+### The aura
+
+The base aura is a column of smoke and a ring. That is not what fever looks
+like, so fever gets its own: eleven **flame** tongues turning around him,
+a hard core standing up behind him, a bright pool and a ring on the floor,
+rainbow streaks going up past him constantly, cursed energy arcing off him,
+a shock standing off the floor every half second, and the loose ground
+lifting.
+
+The one piece of it that actually does the work is a **pair of licks pinned
+to his outline**. A ring of flames at a fixed radius reads as a bonfire from
+one angle and as nothing from another, so two of them are placed off the
+camera's own right vector every frame — whichever way you look at him there
+is fire on both edges of him.
+
+It was built twice. The first version was too faint to see on a lit street;
+the second swallowed him whole in a white column. Everything now sits **out**
+at a radius and nothing is on his centre line, because the point of an aura
+is the silhouette it frames.
+
 ### He drags the scenery around with him
 
 Everything he throws is a piece of somebody else's building — a train door,
@@ -142,7 +226,7 @@ feel like a place, and what that actually did was drop a slab of building
 beside you mid-fight for no reason you could see. Anything vertical is
 scenery in the way of the thing you are doing.
 
-## Yuji Itadori## Yuji Itadori
+## Yuji Itadori
 
 A third fighter, on the same bones as the other two: a rig config, an entry in
 `CHARS`, and moves that live in `stepAction` and `poseAction`. Pink crop,
@@ -432,7 +516,7 @@ blood was the one bright thing left in the frame.
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — forty of them, one
+and differently from every other skill in the game — forty five of them, one
 per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -464,6 +548,13 @@ touching them at all, and Hollow Purple **halves** them — the top of them goes
 with the beam and the legs are left standing in the road until they find out.
 
 Hakari's domain keeps its own on `F`: the machine **pays them out**.
+
+Hakari in fever gets five, because Container has one for each of its two
+shapes: the road one puts a fist **through the box** and out the other side
+into them, the air one leaves them **under the box**, Unlimited hands you the
+lens and they end up **full of holes**, Fever Rush **drags** them and then
+either takes one apart in the air or puts two of them head to head, and
+Gachinko sends them **out of the park**.
 
 Sukuna's four: Dismantle **dismantles**, Cleave **cleaves** on the diagonal,
 Fuga **burns them to ash**, and Malevolent Shrine **cuts them to pieces**.
@@ -1052,7 +1143,8 @@ disk.
 | `choso.js` | Choso: his rig, his five moves and the first-person blood stream |
 | `void.js` | Unlimited Void: the hand sign, the barrier and everything inside it |
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
-| `parlor.js` | Hakari's domain: the parlour, the machine and what it pays out |
+| `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |
+| `fever.js` | what the jackpot buys: Hakari's four fever moves, the hole-punching first person, and the aura |
 | `finisher.js` | one short finisher per skill, and the health lock they run under |
 | `mp.js` | the online mode, appended inside the game's module |
 | `three.module.min.js` | vendored three.js 0.160.0 |

@@ -1095,7 +1095,10 @@
     addShake(2);
     hitstop(.2);
     rainbowShutters(player.pos.clone());
-    if (!HK.aura) HK.aura = FX.aura(function () { return player.pos; }, 0xffcc4d);
+    /* the heavy one lives in fever.js; this stays as the fallback */
+    if (!HK.aura && !window.JJFEVER) {
+      HK.aura = FX.aura(function () { return player.pos; }, 0xffcc4d);
+    }
     document.getElementById('jjFever').style.display = 'block';
     if (window.JJNOTICE) window.JJNOTICE('UNLIMITED CURSED ENERGY \u2014 AUTOMATIC RCT', '#ffd964');
     try { sfx.raise(); } catch (e) {}
