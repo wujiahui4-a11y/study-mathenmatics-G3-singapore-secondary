@@ -650,8 +650,42 @@
       }, 760);
     } },
 
-    /* 4 · Idle Death Gamble — the machine pays out, with them in it */
-    h4: { name: 'PAID OUT', color: '#ffd84a', hold: 1.3, run: function (e, d, p, G) {
+    /* 4 · Fever Breaker — the second kick decides where they land, and
+       here it puts them through both doors on the way */
+    h4: { name: 'SENT THROUGH', color: '#ffd964', hold: .9, run: function (e, d, p, G) {
+      FX.speedRing(p, 0xffe08a, 12, .34);
+      FX.impact(p, 0xffd964, 2.4);
+      if (typeof hitstop === 'function') hitstop(.13);
+      addShake(1.4);
+      var doors = [];
+      var HKA = window.JJHAKARI;
+      if (HKA && HKA.makeDoor) {
+        for (var i = 0; i < 2; i++) {
+          var dr = HKA.makeDoor();
+          dr.position.copy(p).addScaledVector(d, 5 + i * 5);
+          dr.rotation.y = Math.atan2(d.x, d.z);
+          scene.add(dr);
+          doors.push(dr);
+        }
+      }
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.mangaLines(.8, .3);
+        FX.flash('#fff3c8', .4, .22);
+        doors.forEach(function (dr, i) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            if (HKA && HKA.burstDoor) HKA.burstDoor(dr, d);
+            addShake(1);
+          }, i * 140);
+        });
+        G.fling(e, d.clone().multiplyScalar(52).setY(16), new THREE.Vector3(0, 0, 9));
+        addShake(2);
+      }, 560);
+    } },
+
+    /* F · Idle Death Gamble — the machine pays out, with them in it */
+    hdom: { name: 'PAID OUT', color: '#ffd84a', hold: 1.3, run: function (e, d, p, G) {
       var n = 0;
       var iv = setInterval(function () {
         if (n++ > 24 || typeof scene === 'undefined') { clearInterval(iv); return; }
@@ -682,20 +716,28 @@
       }, 1100);
     } },
 
-    /* R · Overwhelm — shoulder first, and out the other side */
-    hr: { name: 'RUN THROUGH', color: '#ffd964', hold: .6, run: function (e, d, p, G) {
-      FX.speedRing(p, 0xffd964, 10, .3);
-      FX.impact(p, 0xffcc4d, 2.8);
-      FX.slash(p, d, 0xffe08a, 6, .2);
-      addShake(1.6);
-      if (typeof hitstop === 'function') hitstop(.1);
-      var v = d.clone().multiplyScalar(56); v.y = 9;
-      G.fling(e, v, new THREE.Vector3(4, 2, 11));
+    /* R · Door Guard — they swung, the doors were up, and the fist that
+       comes back through arrives with both of them */
+    hr: { name: 'ANSWERED', color: '#ffd964', hold: .8, run: function (e, d, p, G) {
+      var HKA = window.JJHAKARI;
+      var dr = null;
+      if (HKA && HKA.makeDoor) {
+        dr = HKA.makeDoor();
+        dr.position.copy(p).addScaledVector(d, -3);
+        dr.rotation.y = Math.atan2(d.x, d.z);
+        scene.add(dr);
+      }
+      FX.impact(p, 0xffcc4d, 1.8);
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
-        FX.blood(p.clone().addScaledVector(d, 6), d, 12, 1.5);
-        FX.cracks(new THREE.Vector3(p.x + d.x * 12, 0, p.z + d.z * 12), 7, 12, 0x2a2418);
-      }, 380);
+        FX.speedRing(p, 0xffe08a, 11, .3);
+        FX.cross(p, 0xffffff, 6, .22);
+        FX.mangaLines(.7, .26);
+        if (typeof hitstop === 'function') hitstop(.15);
+        if (dr && HKA.burstDoor) HKA.burstDoor(dr, d.clone().negate());
+        G.sever(e, { dir: d, power: 2.1 });
+        addShake(2.2);
+      }, 440);
     } },
 
     /* -------------------------------------------------------- SUKUNA */
@@ -1030,7 +1072,7 @@
     aw_blue: 'gone', aw_red: 'dice', aw_purple: 'gone', aw_domain: 'ragdoll',
     n1: 'dice', n2: 'sever', n3: 'ragdoll', n4: 'gone', nr: 'sever', nrf: 'sever',
     y1: 'sever', y2: 'dice', y3: 'sever', y4: 'flat', yr: 'burn',
-    h1: 'sever', h2: 'dice', h3: 'flat', h4: 'burn', hr: 'ragdoll',
+    h1: 'sever', h2: 'dice', h3: 'flat', h4: 'ragdoll', hr: 'sever', hdom: 'burn',
     s1: 'dice', s2: 'sever', s3: 'burn', s4: 'dice',
     c1: 'sever', c1s: 'gone', c2: 'flat', c3: 'dice', c4: 'sever', cr: 'sever',
     ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever'

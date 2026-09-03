@@ -36,8 +36,45 @@ hands.
 | `1` | **Shutter** | a train door dropped between him and whatever is coming, which blocks anything hitting him from the front, and is then thrown through them |
 | `2` | **Ball Barrage** | the other half of the machine, at speed |
 | `3` | **Gachinko** | three of his own and the floor after them |
-| `4` | **Idle Death Gamble** | the domain |
-| `R` | **Overwhelm** | shoulder first, straight through |
+| `4` | **Fever Breaker** | a kick with reach, and then a second one you get to aim |
+| `R` | **Door Guard** | two shutters up, and nothing — until somebody swings |
+| `F` | **Idle Death Gamble** | the domain |
+
+### Fever Breaker
+
+The first kick does not knock them anywhere. It stands them up in the air
+**in front of a pair of shutter doors** and leaves them hanging there, and
+that pause is the move: whichever way you are facing when the follow-up
+lands is where the dropkick sends them. So you kick, you turn, and then they
+go through both doors in the direction you picked. The aim is read at the
+moment of the second kick, not at the moment of the first.
+
+### Door Guard
+
+Overwhelm was a shoulder charge. It is now a **wait**. Two shutters go up in
+front of him and nothing happens — until somebody throws a melee attack at
+them, at which point he goes through both of them fist first and whoever
+swung goes backwards. Its whole value is that the other player has to decide
+whether to commit.
+
+It works by intercepting in `hurtPlayer`: while the doors are up a melee hit
+does not land on him at all, it springs them instead. Ranged hits are not
+caught — a door is a door.
+
+### The domain moved to `F`
+
+`4` is Fever Breaker now, so Idle Death Gamble sits on the awakening key the
+rest of the roster already uses. Nothing else about it changed — same cast,
+same machine, same cooldown. It has only moved keys.
+
+### The parlour has more than one machine in it
+
+Every door used to come out the same steel and every ball the same chrome,
+which is the one thing a pachinko floor is not. Both now take the next
+livery off a list of six — red, gold, green, blue, violet, pink — each time
+one is made, so a fight leaves a row of different machines behind it rather
+than six of the same one. The slats keep their metal shading and are only
+tinted, so a red machine still reads as a shutter.
 
 The domain's sure hit is the rules rather than a wound: everything inside is
 held for a moment and told how the game works. Then it runs a machine. Three
@@ -343,7 +380,7 @@ blood was the one bright thing left in the frame.
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — thirty nine of them, one
+and differently from every other skill in the game — forty of them, one
 per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -362,8 +399,8 @@ Three things a finisher deliberately is not:
 | `1` | **blown apart** — repulsion has nowhere to put them but outward | **framed** — stopped, and then shattered like the glass | **hit twice** — it folds them, and half a second later the rest of it arrives | **cut in half** — the shutter hits them, turns flat, and goes through | **pierced** — one line, and the jet out of the back of them |
 | `2` | **pummelled** — a dozen of them, and then the floor | **cut in two** — one level cut, and he walks on | **black flash** — the frame goes out and comes back as black line work | **riddled** — the other half of the machine, all of it | **under it** — the mass comes down and stays down |
 | `3` | **launched** — up, and a very small flash a long way overhead | **put through it** — the kick that ends the conversation | **spun apart** — it takes them up and it takes them apart | **floored** — three of his own, and then the ground | **supernova** — dark and small, and then not |
-| `4` | **pressed flat** — four rings, each one lower than the last | **cut from the film** — twelve frames close on them and one blank is left | **driven down** — all of his weight, and a crater | **paid out** — the machine cashes them in | **burst** — the pressure is raised inside them |
-| `R` | **erased** — nothing is left standing and nothing falls over | **never saw it** — three places at once | **burned out** — from the inside | **run through** — shoulder first, and out the other side | **opened** — one level draw, and the top of them waits |
+| `4` | **pressed flat** — four rings, each one lower than the last | **cut from the film** — twelve frames close on them and one blank is left | **driven down** — all of his weight, and a crater | **sent through** — the dropkick puts them through both doors | **burst** — the pressure is raised inside them |
+| `R` | **erased** — nothing is left standing and nothing falls over | **never saw it** — three places at once | **burned out** — from the inside | **answered** — they swung, and the fist came back through the doors | **opened** — one level draw, and the top of them waits |
 
 Choso's held Piercing Blood has one of its own on top of that: it does not
 stop, so neither does the finisher — it **bores through** them and there is
@@ -373,6 +410,8 @@ Gojo awakened gets four more: Lapse: Blue **draws them in** and closes on them,
 Reversal: Red **tears them apart**, Unlimited Void **shuts them down** without
 touching them at all, and Hollow Purple **halves** them — the top of them goes
 with the beam and the legs are left standing in the road until they find out.
+
+Hakari's domain keeps its own on `F`: the machine **pays them out**.
 
 Sukuna's four: Dismantle **dismantles**, Cleave **cleaves** on the diagonal,
 Fuga **burns them to ash**, and Malevolent Shrine **cuts them to pieces**.

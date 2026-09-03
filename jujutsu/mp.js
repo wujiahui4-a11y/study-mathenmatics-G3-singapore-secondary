@@ -1606,12 +1606,36 @@
         }, 950);
         break;
       case 'h4':
-        FX.mote(mid, 0xffd964, 8, .6);
-        if (close) addShake(.5);
+        /* Fever Breaker: the reaching kick, the pair of doors they hang in
+           front of, and the dropkick that puts them through both */
+        setTimeout(function () {
+          var at = mid.clone().addScaledVector(fwd, 3.4);
+          FX.slash(at, fwd, 0xffcc4d, 7, .22);
+          FX.speedRing(at, 0xffd964, 9, .3);
+          if (near) addShake(.6);
+        }, 280);
+        setTimeout(function () {
+          if (window.JJHAKARI && window.JJHAKARI.remoteFever) {
+            window.JJHAKARI.remoteFever(pos.clone(), yaw);
+          }
+        }, 300);
         break;
       case 'hr':
-        FX.streaks(mid, 0xffd964, 10, 14, 1.2);
-        FX.ring(new THREE.Vector3(pos.x, .1, pos.z), 0xffd964, { maxR: 7, life: .4 });
+        /* the two doors going up; whether anybody swings is its own message */
+        if (window.JJHAKARI && window.JJHAKARI.remoteGuard) {
+          window.JJHAKARI.remoteGuard(pos.clone(), yaw);
+        }
+        break;
+      case 'hrx':
+        /* somebody swung, and he came back through them */
+        if (window.JJHAKARI && window.JJHAKARI.remoteSpring) {
+          window.JJHAKARI.remoteSpring(pos.clone(), yaw);
+        }
+        if (close) addShake(1.4);
+        break;
+      case 'hdom':
+        FX.mote(mid, 0xffd964, 8, .6);
+        if (close) addShake(.5);
         break;
       case 'y1':
         setTimeout(function () {

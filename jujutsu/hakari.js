@@ -87,8 +87,8 @@
   };
 
   /* ------------------------------------------------------------- roster */
-  cds.h1 = 0; cds.h2 = 0; cds.h3 = 0; cds.h4 = 0; cds.hr = 0;
-  var HCD = { h1: 8, h2: 7, h3: 6, h4: 30, hr: 9 };
+  cds.h1 = 0; cds.h2 = 0; cds.h3 = 0; cds.h4 = 0; cds.hr = 0; cds.hdom = 0;
+  var HCD = { h1: 8, h2: 7, h3: 6, h4: 11, hr: 12, hdom: 30 };
 
   CHARS.hakari = {
     name: 'HAKARI KINJI', sub: 'PRIVATE PURE LOVE TRAIN',
@@ -99,8 +99,9 @@
       { key: '1', lbl: 'Shutter', cd: 'h1', max: HCD.h1 },
       { key: '2', lbl: 'Ball Barrage', cd: 'h2', max: HCD.h2 },
       { key: '3', lbl: 'Gachinko', cd: 'h3', max: HCD.h3 },
-      { key: '4', lbl: 'Idle Death Gamble', cd: 'h4', max: HCD.h4 },
-      { key: 'R', lbl: 'Overwhelm', cd: 'hr', max: HCD.hr }
+      { key: '4', lbl: 'Fever Breaker', cd: 'h4', max: HCD.h4 },
+      { key: 'R', lbl: 'Door Guard', cd: 'hr', max: HCD.hr },
+      { key: 'F', lbl: 'Idle Death Gamble', cd: 'hdom', max: HCD.hdom }
     ]
   };
   try { CHARS.hakari.portrait = makePortrait(HAKARI_CFG); } catch (e) {}
@@ -154,6 +155,23 @@
   }
   /* one door, used by the skill and by the finisher — a train shutter,
      not a wooden box. Same size the throw already aims with. */
+  /* THE PARLOUR PALETTE
+     Every door used to come out the same steel and every ball the same
+     chrome, which is the one thing a pachinko floor is not. Both now take
+     the next colour off this list each time one is made, so a fight leaves
+     a row of different machines behind it rather than six of the same. */
+  var LIVERY = [
+    { name: 'red',    body: 0xd83a3a, dark: 0x7a1c1c, trim: 0xffd24a, glass: '#3a0d12', ball: 0xff6a6a },
+    { name: 'gold',   body: 0xe8b93a, dark: 0x8a6a12, trim: 0xfff0a8, glass: '#3a2a08', ball: 0xffe08a },
+    { name: 'green',  body: 0x2fae62, dark: 0x145c32, trim: 0xa8ffcf, glass: '#07301c', ball: 0x7affb0 },
+    { name: 'blue',   body: 0x3a7ad8, dark: 0x163a78, trim: 0xa8d4ff, glass: '#0b1e3c', ball: 0x8ac4ff },
+    { name: 'violet', body: 0x8a4ad8, dark: 0x421a78, trim: 0xd8b4ff, glass: '#200a3c', ball: 0xc49aff },
+    { name: 'pink',   body: 0xe8489a, dark: 0x7a1a4a, trim: 0xffb4d8, glass: '#380a22', ball: 0xff9ac8 }
+  ];
+  var liveryN = 0;
+  function nextLivery() { return LIVERY[(liveryN++) % LIVERY.length]; }
+  HK.LIVERY = LIVERY;
+
   var DOOR_SLAT = null, DOOR_GLASS = null, DOOR_PLATE = null;
   function doorCanvas(w, h, draw) {
     var c = document.createElement('canvas');
@@ -218,9 +236,11 @@
       x.fillText('PRIVATE PURE LOVE TRAIN', w / 2, h / 2);
     });
   }
-  function makeDoor() {
+  function makeDoor(livery) {
     doorMaps();
+    var LV = livery || nextLivery();
     var g = new THREE.Group();
+    g.userData.livery = LV;
     g.userData.slats = [];
     g.userData.golds = [];
 
@@ -259,13 +279,15 @@
       return mesh;
     }
 
-    var steel = mat(0xc5ced8, { rough: .48, metal: .28 });
-    var steelD = mat(0x6a7382, { rough: .58, metal: .18 });
-    var steelR = mat(0xffffff, { rough: .42, metal: .2, map: DOOR_SLAT });
+    /* the cabinet takes the livery; the slats keep their metal shading and
+       are only tinted by it, so a red machine still reads as a shutter */
+    var steel = mat(LV.body, { rough: .48, metal: .28 });
+    var steelD = mat(LV.dark, { rough: .58, metal: .18 });
+    var steelR = mat(LV.body, { rough: .42, metal: .2, map: DOOR_SLAT });
     var ink = mat(0x2a2e36, { rough: .82, metal: .06 });
-    var gold = lit(0xffd24a);
-    var goldH = lit(0xffe08a);
-    var pink = lit(0xff4f8b);
+    var gold = lit(LV.trim);
+    var goldH = lit(LV.trim);
+    var pink = lit(LV.ball);
     var glass = lit(0xffffff, { map: DOOR_GLASS });
     var plate = lit(0xffffff, { map: DOOR_PLATE });
     var hazY = lit(0xffcc33);
@@ -384,6 +406,103 @@
       for (var i = 0; i < ms.length; i++) if (ms[i] && ms[i].dispose) ms[i].dispose();
     });
   };
+  /* a door taken apart in a direction: the slats go with whatever went
+     through it, in the machine's own colours */
+  HK.burstDoor = function (door, dir) {
+    if (!door) return;
+    var LV = (door.userData && door.userData.livery) || LIVERY[0];
+    var at = door.position.clone();
+    var d = (dir || new THREE.Vector3(0, 0, 1)).clone().setY(0);
+    if (d.lengthSq() < .01) d.set(0, 0, 1);
+    d.normalize();
+    FX.impact(at.clone(), LV.trim, 2.2);
+    FX.rings(at.clone(), LV.body, 3, { maxR: 11, life: .5, ground: false, gap: 36 });
+    FX.debris(at.clone(), 16, 20, LV.dark);
+    FX.streaks(at.clone(), LV.trim, 10, 20, 1.2);
+    /* the slats themselves, thrown */
+    var slats = (door.userData && door.userData.slats) || [];
+    for (var i = 0; i < slats.length; i++) {
+      (function (sl) {
+        var wp = new THREE.Vector3();
+        sl.getWorldPosition(wp);
+        var m = new THREE.Mesh(sl.geometry, sl.material);
+        m.position.copy(wp);
+        m.quaternion.copy(door.quaternion);
+        scene.add(m);
+        var v = d.clone().multiplyScalar(10 + Math.random() * 22);
+        v.y = 4 + Math.random() * 14;
+        v.x += (Math.random() - .5) * 10;
+        v.z += (Math.random() - .5) * 10;
+        var av = new THREE.Vector3((Math.random() - .5) * 9, (Math.random() - .5) * 9,
+          (Math.random() - .5) * 9);
+        addFx({ t: 2.6, update: function (dd) {
+          this.t -= dd;
+          v.y -= 30 * dd;
+          m.position.addScaledVector(v, dd);
+          m.rotation.x += av.x * dd; m.rotation.y += av.y * dd; m.rotation.z += av.z * dd;
+          if (m.position.y < .2) { m.position.y = .2; v.y = Math.abs(v.y) * .3; v.multiplyScalar(.6); }
+          if (this.t <= 0) { scene.remove(m); return false; }
+          return true;
+        } });
+      })(slats[i]);
+    }
+    addShake(.8);
+    try { sfx.shatter(); } catch (e) {}
+    HK.dropDoor(door);
+  };
+
+  /* WHAT EVERYBODY ELSE SEES
+     The doors and their bursting, with no damage in them — every hit
+     travels as its own message the way it always has. */
+  HK.remoteFever = function (pos, yaw) {
+    var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    var mark = pos.clone().addScaledVector(d, 5.4);
+    mark.y = 4.4;
+    var doors = [];
+    for (var i = 0; i < 2; i++) {
+      var dr = makeDoor();
+      dr.position.copy(mark).addScaledVector(d, 2.4 + i * 2.2);
+      dr.rotation.y = yaw;
+      scene.add(dr);
+      doors.push(dr);
+    }
+    FX.ring(new THREE.Vector3(mark.x, .1, mark.z), 0xffcc4d, { maxR: 8, life: .5 });
+    setTimeout(function () {
+      if (typeof scene === 'undefined') return;
+      FX.speedRing(mark.clone(), 0xffe08a, 13, .35);
+      FX.impact(mark.clone(), 0xffd964, 2.6);
+      doors.forEach(function (dr) { HK.burstDoor(dr, d); });
+    }, (FEVER.hold + .1) * 1000);
+  };
+  HK.remoteGuard = function (pos, yaw) {
+    var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    var doors = [];
+    for (var i = 0; i < 2; i++) {
+      var dr = makeDoor();
+      dr.position.copy(pos).addScaledVector(d, 2.4 + i * 1.5).add(new THREE.Vector3(0, 3.4, 0));
+      dr.rotation.y = yaw;
+      scene.add(dr);
+      doors.push(dr);
+    }
+    HK.remoteDoors = doors;
+    /* if nobody swings they simply come back down */
+    setTimeout(function () {
+      if (typeof scene === 'undefined') return;
+      if (HK.remoteDoors !== doors) return;
+      doors.forEach(function (dr) { HK.dropDoor(dr); });
+      HK.remoteDoors = null;
+    }, GUARD.hold * 1000);
+  };
+  HK.remoteSpring = function (pos, yaw) {
+    var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    var doors = HK.remoteDoors;
+    HK.remoteDoors = null;
+    var at = pos.clone().addScaledVector(d, 3).add(new THREE.Vector3(0, 3, 0));
+    FX.speedRing(at, 0xffe08a, 12, .34);
+    FX.mangaLines(.6, .26);
+    if (doors) doors.forEach(function (dr) { HK.burstDoor(dr, d); });
+  };
+
   HK.pulseDoor = function (door, t) {
     if (!door || !door.userData) return;
     var k = .5 + .5 * Math.sin(t * 20);
@@ -494,30 +613,33 @@
     if (a.fired % 3 === 0) addShake(.12);
   }
   var BALL_GEO = null;
-  function ball(from, dir) {
+  function ball(from, dir, livery) {
     if (!BALL_GEO) BALL_GEO = new THREE.SphereGeometry(.34, 10, 8);
+    var LV = livery || nextLivery();
     var m = new THREE.Mesh(BALL_GEO, new THREE.MeshStandardMaterial({
-      color: 0xdfe4ec, roughness: .25, metalness: .8
+      color: LV.ball, roughness: .25, metalness: .8,
+      emissive: LV.dark, emissiveIntensity: .5
     }));
+    m.__lv = LV;
     m.position.copy(from);
     scene.add(m);
     var sp = 62 + Math.random() * 14, life = .7;
     addFx({ t: life, update: function (dt) {
       this.t -= dt;
       m.position.addScaledVector(dir, sp * dt);
-      if (Math.random() < .5) FX.streaks(m.position.clone(), 0xffe08a, 1, 3, .5);
+      if (Math.random() < .5) FX.streaks(m.position.clone(), LV.trim, 1, 3, .5);
       for (var i = 0; i < enemies.length; i++) {
         var e = enemies[i];
         if (!e || e.dead || e.rag) continue;
         if (e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)).distanceTo(m.position) > 2.2) continue;
         e.damage(4 * boost(), dir.clone().multiplyScalar(7).setY(3),
-          { react: 'pummel', reactDur: .25, noFrameBonus: true, spark: 0xffe08a });
-        FX.impact(m.position.clone(), 0xffe08a, .55);
+          { react: 'pummel', reactDur: .25, noFrameBonus: true, spark: LV.trim });
+        FX.impact(m.position.clone(), LV.trim, .55);
         scene.remove(m); m.material.dispose();
         return false;
       }
       if (this.t <= 0 || m.position.y < .2) {
-        FX.streaks(m.position.clone(), 0xdfe4ec, 3, 7, .6);
+        FX.streaks(m.position.clone(), LV.ball, 3, 7, .6);
         scene.remove(m); m.material.dispose();
         return false;
       }
@@ -576,32 +698,269 @@
   /* =====================================================================
      R · OVERWHELM
      ================================================================== */
-  function castOverwhelm() {
+  /* =====================================================================
+     R · DOOR GUARD
+     Two shutters put up in front of him, and then nothing happens — until
+     somebody swings. Take a melee hit while they are up and he goes
+     through both of them, fist first, and whoever threw it goes backwards.
+
+     So it is not a dash any more: it is a wait. Its whole value is that
+     the other player has to decide whether to commit.
+     ================================================================== */
+  var GUARD = { hold: 1.7, dmg: 34, push: 44 };
+
+  function castGuard() {
     if (!ready('hr')) return;
-    var a = start('hr', .95, 'hr', 'OVERWHELM', 'STRAIGHT THROUGH');
+    var a = start('hr', GUARD.hold + .5, 'hr', 'DOOR GUARD', 'GO ON, THEN');
     a.dir = aim();
-    player.iframes = Math.max(player.iframes, .5);
-    try { sfx.dash(); } catch (e) {}
+    a.doors = [];
+    a.sprung = false;
+    for (var i = 0; i < 2; i++) {
+      var d = makeDoor();
+      d.position.copy(player.pos)
+        .addScaledVector(a.dir, 2.4 + i * 1.5)
+        .add(new THREE.Vector3(0, 3.4, 0));
+      d.rotation.y = player.facing;
+      d.scale.set(1, .05, 1);
+      scene.add(d);
+      a.doors.push(d);
+    }
+    HK.guard = a;
+    try { sfx.frame(); } catch (e) {}
   }
-  function stepOverwhelm(a, dt) {
-    if (a.t < .55) {
-      player.pos.addScaledVector(a.dir, 34 * dt);
-      collideWorld(player.pos, 1);
-      if (Math.random() < .8) {
-        FX.streaks(player.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), 0xffd964, 2, 10, 1.1);
-        FX.dust(player.pos.clone(), 1, 0xcfc3a8, 6, 2.2);
-      }
-      enemies.forEach(function (e) {
-        if (!e || e.dead || e.rag || e.hkRam) return;
-        if (e.pos.distanceTo(player.pos) > 3.4) return;
-        e.hkRam = 1;
-        setTimeout(function () { e.hkRam = 0; }, 700);
-        var kb = a.dir.clone().multiplyScalar(38); kb.y = 13;
-        e.damage(20 * boost(), kb, { react: 'stagger', reactDur: .75, spark: 0xffd964 });
-        FX.heavyHit(e.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 0xffd964, 1.3);
-        addShake(.6);
-        hitstop(.06);
+
+  /* the punch through, which is the whole point of it */
+  function springGuard(from) {
+    var a = HK.guard;
+    if (!a || a.sprung) return false;
+    a.sprung = true;
+    a.sprungAt = a.t;
+    var d = a.dir.clone();
+    var at = player.pos.clone().addScaledVector(d, 3).add(new THREE.Vector3(0, 3, 0));
+    FX.mangaLines(.8, .3);
+    FX.zoom(-9, .4);
+    FX.speedRing(at.clone(), 0xffe08a, 12, .34);
+    addShake(1.8);
+    if (AN) AN.camKick(1.6);
+    hitstop(.13);
+    try { sfx.punch(); } catch (e) {}
+    a.doors.forEach(function (dd) { HK.burstDoor(dd, d); });
+    a.doors.length = 0;
+    /* whoever swung goes back, and so does anything else in front */
+    enemies.forEach(function (e) {
+      if (!e || e.dead) return;
+      if (e.pos.distanceTo(player.pos) > 9) return;
+      var kb = e.pos.clone().sub(player.pos).setY(0);
+      if (kb.lengthSq() < .01) kb.copy(d);
+      kb.normalize().multiplyScalar(GUARD.push);
+      kb.y = 15;
+      e.damage(GUARD.dmg * boost(), kb, {
+        react: 'blow', reactDur: .9, spark: 0xffd964, ragdoll: true, death: 'ragdoll'
       });
+      FX.heavyHit(e.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 0xffd964, 1.5);
+    });
+    player.iframes = Math.max(player.iframes, .4);
+    if (window.JJNOTICE) window.JJNOTICE('THROUGH THE DOORS', '#ffd964');
+    if (window.MPJJ && window.MPJJ.relay) {
+      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'hrx' });
+    }
+    return true;
+  }
+  HK.springGuard = springGuard;
+
+  function guardUp() {
+    var a = HK.guard;
+    return !!(a && !a.sprung && player.action === a && a.t < GUARD.hold);
+  }
+  HK.guardUp = guardUp;
+
+  function stepGuard(a, dt) {
+    player.vel.x *= .8; player.vel.z *= .8;
+    if (a.sprung) return;
+    if (a.t < .2) {
+      var k = E.out(a.t / .2);
+      a.doors.forEach(function (d, i) {
+        d.scale.set(1, .05 + .95 * k, 1);
+        d.position.copy(player.pos)
+          .addScaledVector(a.dir, 2.4 + i * 1.5)
+          .add(new THREE.Vector3(0, 3.4, 0));
+      });
+      return;
+    }
+    if (a.t < GUARD.hold) {
+      /* held: they follow him, and they are between him and the front */
+      HK.shutter = HK.shutter || { until: 0, dir: a.dir.clone() };
+      HK.shutter.until = SA_now() + .2;
+      HK.shutter.dir = a.dir.clone();
+      a.doors.forEach(function (d, i) {
+        d.position.copy(player.pos)
+          .addScaledVector(a.dir, 2.4 + i * 1.5)
+          .add(new THREE.Vector3(0, 3.4, 0));
+        HK.pulseDoor(d, a.t + i);
+      });
+      if (Math.random() < dt * 8) {
+        FX.streaks(a.doors[0].position.clone(), 0xffcc4d, 1, 5, .7);
+      }
+      return;
+    }
+    /* nobody swung: they come back down */
+    if (a.stage < 1) {
+      a.stage = 1;
+      a.doors.forEach(function (d) { HK.dropDoor(d); });
+      a.doors.length = 0;
+      FX.dust(new THREE.Vector3(player.pos.x, 0, player.pos.z), 5, 0xcfc3a8, 7, 2.4);
+      HK.guard = null;
+    }
+  }
+
+  /* a melee hit while the doors are up springs them instead of landing */
+  var _hurtPlayerHk = hurtPlayer;
+  hurtPlayer = function (amount, knock, opts) {
+    if (player.char === 'hakari' && !player.dead && guardUp() &&
+        !(opts && opts.ranged)) {
+      if (springGuard()) return;
+    }
+    return _hurtPlayerHk(amount, knock, opts);
+  };
+
+  /* and it must not leave doors standing if the cast is cut short */
+  function dropGuard() {
+    var a = HK.guard;
+    if (!a) return;
+    (a.doors || []).forEach(function (d) { HK.dropDoor(d); });
+    a.doors = [];
+    HK.guard = null;
+  }
+  HK.dropGuard = dropGuard;
+
+  /* =====================================================================
+     4 · FEVER BREAKER
+     A kick with reach on it, and then a second one you get to aim.
+
+     The first kick does not knock them anywhere: it stands them up in the
+     air in front of a pair of shutter doors and leaves them there. That
+     pause is the move. While they hang, whichever way you are facing is
+     where the dropkick is going to send them — so you turn, and then it
+     lands, and they go through both doors in that direction.
+     ================================================================== */
+  var FEVER = {
+    reach: 13,        // how far the first kick gets
+    hold: .72,        // how long they hang there, and how long you have to aim
+    dmg1: 16,
+    dmg2: 44,
+    launch: 46
+  };
+
+  function castFever() {
+    if (!ready('h4')) return;
+    var a = start('h4', 1.5, 'h4', 'FEVER BREAKER', 'PICK A DIRECTION');
+    a.dir = aim();
+    a.tgt = null;
+    a.doors = [];
+    player.iframes = Math.max(player.iframes, .3);
+    try { sfx.whoosh(); } catch (e) {}
+  }
+
+  function stepFever(a, dt) {
+    var p = player;
+
+    /* ---- the ranged kick ---- */
+    if (a.t < .28) {
+      /* a step into it, not a charge: the reach is the technique's, and
+         closing the whole gap would leave him standing on top of them */
+      p.pos.addScaledVector(a.dir, 5 * dt);
+      collideWorld(p.pos, 1);
+      return;
+    }
+    if (a.stage < 1) {
+      a.stage = 1;
+      var origin = p.pos.clone().add(new THREE.Vector3(0, 2.6, 0));
+      var list = inFront(FEVER.reach, 4.2);
+      a.tgt = list[0] || null;
+      FX.slash(origin.clone().addScaledVector(a.dir, 2.4), a.dir, 0xffcc4d, 7, .22);
+      FX.speedRing(origin.clone().addScaledVector(a.dir, 2), 0xffd964, 9, .3);
+      addShake(.7);
+      try { sfx.whoosh(); } catch (e) {}
+      if (a.tgt) {
+        /* stood up in the air, with a door either side of them */
+        var e = a.tgt;
+        a.mark = e.pos.clone().addScaledVector(a.dir, 1.2);
+        a.mark.y = 4.4;
+        e.damage(FEVER.dmg1 * boost(), null, {
+          react: 'uplift', reactDur: .6, spark: 0xffd964, noFrameBonus: true
+        });
+        FX.heavyHit(a.mark.clone(), 0xffd964, 1.2);
+        hitstop(.08);
+        /* Both doors go BEHIND them, not either side of them: they are
+           suspended *in front of* the pair, which is also the only way
+           the near one does not end up sitting on the camera — he has
+           just travelled four metres into the kick. */
+        for (var i = 0; i < 2; i++) {
+          var d2 = makeDoor();
+          d2.position.copy(a.mark).addScaledVector(a.dir, 2.4 + i * 2.2);
+          d2.rotation.y = player.facing;
+          d2.scale.set(1, .05, 1);
+          scene.add(d2);
+          a.doors.push(d2);
+        }
+        FX.ring(new THREE.Vector3(a.mark.x, .1, a.mark.z), 0xffcc4d, { maxR: 8, life: .5 });
+      }
+    }
+
+    /* ---- they hang there, and you pick where they are going ---- */
+    if (a.t < .28 + FEVER.hold) {
+      var k = Math.min(1, (a.t - .28) / .18);
+      a.doors.forEach(function (d2) {
+        d2.scale.set(1, .05 + .95 * E.out(k), 1);
+        HK.pulseDoor(d2, a.t);
+      });
+      if (a.tgt && !a.tgt.dead) {
+        a.tgt.anchorT = .3;
+        a.tgt.anchorPos.copy(a.mark);
+        a.tgt.pos.lerp(a.mark, Math.min(1, dt * 12));
+      }
+      /* the line it is going to take, updated as you turn */
+      a.aimT = (a.aimT || 0) + dt;
+      if (a.aimT > .05 && a.tgt) {
+        a.aimT = 0;
+        var f = aim();
+        FX.streaks(a.mark.clone().addScaledVector(f, 3), 0xffd964, 1, 8, .35);
+        FX.ring(a.mark.clone().addScaledVector(f, 5), 0xffcc4d,
+          { maxR: 2.2, life: .22, ground: false, axis: f });
+      }
+      return;
+    }
+
+    /* ---- and the dropkick, which goes where you are looking ---- */
+    if (a.stage < 2) {
+      a.stage = 2;
+      var go = aim();                       // read NOW, not when it started
+      var at = a.mark ? a.mark.clone() : p.pos.clone().add(new THREE.Vector3(0, 3, 0));
+      FX.speedRing(at.clone(), 0xffe08a, 13, .35);
+      FX.impact(at.clone(), 0xffd964, 2.6);
+      FX.mangaLines(.7, .3);
+      FX.zoom(-8, .4);
+      addShake(1.6);
+      if (AN) AN.camKick(1.4);
+      hitstop(.11);
+      try { sfx.punch(); } catch (e) {}
+      /* he goes with it a little, so the kick has a body behind it */
+      p.pos.addScaledVector(go, 2.2);
+      p.vel.y = 6;
+
+      if (a.tgt && !a.tgt.dead) {
+        a.tgt.anchorT = 0;
+        var kb = go.clone().multiplyScalar(FEVER.launch);
+        kb.y = 15;
+        a.tgt.damage(FEVER.dmg2 * boost(), kb, {
+          react: 'blow', reactDur: .9, spark: 0xffd964, ragdoll: true, death: 'ragdoll'
+        });
+      }
+      /* both doors go with them */
+      a.doors.forEach(function (d2) {
+        HK.burstDoor(d2, go);
+      });
+      a.doors.length = 0;
     }
   }
 
@@ -652,10 +1011,13 @@
   }
   function reelEls() { return ui.querySelectorAll('.reel'); }
 
+  /* The domain now sits on F rather than on 4, because 4 is Fever Breaker.
+     Nothing else about it has changed — same cast, same machine, same
+     cooldown — it has only moved keys. */
   function castDomain() {
-    if (!ready('h4')) return;
+    if (!ready('hdom')) return;
     if (HK.fever > 0) return;
-    var a = start('h4', 6.2, 'h4', 'DOMAIN EXPANSION', 'IDLE DEATH GAMBLE');
+    var a = start('hdom', 6.2, 'hdom', 'DOMAIN EXPANSION', 'IDLE DEATH GAMBLE');
     buildUI();
     a.center = player.pos.clone();
     a.spin = 0;
@@ -665,7 +1027,7 @@
     FX.tint('#1a1204', .4, 6);
     try { sfx.raise(); } catch (e) {}
     if (window.MPJJ && window.MPJJ.relay) {
-      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'h4' });
+      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'hdom' });
     }
   }
 
@@ -898,26 +1260,88 @@
         }
         return true;
       }
-      case 'hr': {                                    // shoulder first
+      case 'hr': {                                    // the guard, and the punch through it
         rp(r);
-        var d = Math.min(1, t / .18), end = t > .55 ? E.out((t - .55) / .4) : 0;
-        r.spine.rotation.x = .55 * d - .5 * end;
-        r.spine.rotation.y = -.5 * d + .4 * end;
-        r.neck.rotation.x = -.2 * d;
-        r.shoulderR.rotation.x = -.9 * d + .5 * end;
-        r.shoulderR.rotation.z = -.6 * d + .5 * end;
-        r.elbowR.rotation.x = -1.5 * d + .8 * end;
-        r.shoulderL.rotation.x = .5 * d - .7 * end;
-        r.shoulderL.rotation.z = -.3 * d;
-        r.elbowL.rotation.x = -.5 * d;
-        r.hipL.rotation.x = -.55 * d + .5 * end;
-        r.kneeL.rotation.x = .7 * d - .5 * end;
-        r.hipR.rotation.x = .4 * d - .4 * end;
-        r.kneeR.rotation.x = .5 * d - .4 * end;
-        r.hips.position.y = r.hipsBaseY - .5 * d + .4 * end;
+        if (a.sprung) {
+          /* fist straight through both of them */
+          var pk = E.out(Math.min(1, (t - (a.sprungAt || t)) / .3 + .35));
+          r.spine.rotation.x = -.16 + .3 * pk;
+          r.spine.rotation.y = .5 - .9 * pk;
+          r.shoulderR.rotation.x = -.9 - 1.1 * pk;
+          r.shoulderR.rotation.z = -.5 + .35 * pk;
+          r.elbowR.rotation.x = -1.9 + 1.75 * pk;
+          r.shoulderL.rotation.x = -.3 + .5 * pk;
+          r.elbowL.rotation.x = -1.2 + .4 * pk;
+          r.hipL.rotation.x = -.5 + .3 * pk; r.kneeL.rotation.x = .7 - .3 * pk;
+          r.hips.position.y = r.hipsBaseY - .3 + .2 * pk;
+          return true;
+        }
+        /* stood behind them, weight back, both fists cocked */
+        var g = E.out(Math.min(1, t / .22));
+        var sway = Math.sin(t * 3.2) * .04;
+        r.spine.rotation.x = .2 * g + sway;
+        r.spine.rotation.y = .34 * g;
+        r.neck.rotation.x = -.1 * g;
+        r.shoulderL.rotation.x = -.75 * g;
+        r.shoulderL.rotation.z = .5 * g;
+        r.elbowL.rotation.x = -1.85 * g;
+        r.shoulderR.rotation.x = -.9 * g;
+        r.shoulderR.rotation.z = -.44 * g;
+        r.elbowR.rotation.x = -1.95 * g;
+        r.hipL.rotation.x = -.42 * g; r.kneeL.rotation.x = .66 * g;
+        r.hipR.rotation.x = .26 * g; r.kneeR.rotation.x = .4 * g;
+        r.hips.position.y = r.hipsBaseY - .34 * g + sway * .5;
         return true;
       }
-      case 'h4': {                                    // the domain
+      case 'h4': {                                    // Fever Breaker
+        rp(r);
+        if (t < .28) {
+          /* the reaching kick */
+          var k1 = E.out(t / .28);
+          r.spine.rotation.x = -.2 * k1;
+          r.spine.rotation.y = -.3 * k1;
+          r.hipR.rotation.x = -1.9 * k1;
+          r.kneeR.rotation.x = .25 * k1;
+          r.hipL.rotation.x = .5 * k1;
+          r.kneeL.rotation.x = .45 * k1;
+          r.shoulderL.rotation.x = -1.5 * k1;
+          r.shoulderR.rotation.x = .7 * k1;
+          r.shoulderR.rotation.z = -.4 * k1;
+          r.hips.position.y = r.hipsBaseY + .3 * k1;
+          return true;
+        }
+        if (t < .28 + FEVER.hold) {
+          /* held, foot down, turning to pick the direction */
+          var k2 = E.out(Math.min(1, (t - .28) / .22));
+          var bob = Math.sin(t * 5) * .05;
+          r.spine.rotation.x = -.2 + .34 * k2 + bob;
+          r.spine.rotation.y = -.3 + .3 * k2;
+          r.hipR.rotation.x = -1.9 + 1.6 * k2;
+          r.kneeR.rotation.x = .25 + .35 * k2;
+          r.hipL.rotation.x = .5 - .38 * k2;
+          r.kneeL.rotation.x = .45 - .1 * k2;
+          r.shoulderL.rotation.x = -1.5 + .8 * k2;
+          r.shoulderL.rotation.z = .5 * k2;
+          r.shoulderR.rotation.x = .7 - 1.3 * k2;
+          r.shoulderR.rotation.z = -.4 - .2 * k2;
+          r.elbowL.rotation.x = -.9 * k2;
+          r.elbowR.rotation.x = -1.1 * k2;
+          r.hips.position.y = r.hipsBaseY + .3 - .5 * k2 + bob * .5;
+          return true;
+        }
+        /* the dropkick: both feet out, body flat, arms back */
+        var k3 = E.out(Math.min(1, (t - .28 - FEVER.hold) / .22));
+        r.body.rotation.x = -1.05 * k3;
+        r.spine.rotation.x = -.34 * k3;
+        r.hipL.rotation.x = -1.55 * k3; r.kneeL.rotation.x = .12 * k3;
+        r.hipR.rotation.x = -1.7 * k3; r.kneeR.rotation.x = .1 * k3;
+        r.shoulderL.rotation.x = 1.5 * k3; r.shoulderR.rotation.x = 1.5 * k3;
+        r.elbowL.rotation.x = -.4 * k3; r.elbowR.rotation.x = -.4 * k3;
+        r.neck.rotation.x = .34 * k3;
+        r.hips.position.y = r.hipsBaseY + 1.1 * k3;
+        return true;
+      }
+      case 'hdom': {                                  // the domain
         rp(r);
         var s = t < .85 ? E.out(t / .85) : 1;
         var open = t >= .85 ? E.out(Math.min(1, (t - .85) / .4)) : 0;
@@ -973,8 +1397,9 @@
       case 'h1': return stepShutter(a, dt);
       case 'h2': return stepBalls(a, dt);
       case 'h3': return stepGachinko(a, dt);
-      case 'h4': return stepDomain(a, dt);
-      case 'hr': return stepOverwhelm(a, dt);
+      case 'h4': return stepFever(a, dt);
+      case 'hdom': return stepDomain(a, dt);
+      case 'hr': return stepGuard(a, dt);
     }
     return _stepAction(a, dt);
   };
@@ -985,6 +1410,15 @@
     return _poseAction(r, a);
   };
 
+  /* F: the domain, on the awakening key the rest of the roster uses */
+  window.addEventListener('keydown', function (e) {
+    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (player.char !== 'hakari' || player.dead) return;
+    if (player.react || (player.action && (player.action.type === 'kb' ||
+        player.action.type === 'void'))) return;
+    castDomain();
+  });
+
   window.addEventListener('keydown', function (e) {
     if (!started || player.char !== 'hakari' || e.repeat) return;
     if (player.react || (player.action && (player.action.type === 'kb' || player.action.type === 'void'))) {
@@ -994,8 +1428,8 @@
     if (e.code === 'Digit1') castShutter();
     else if (e.code === 'Digit2') castBalls();
     else if (e.code === 'Digit3') castGachinko();
-    else if (e.code === 'Digit4') castDomain();
-    else if (e.code === 'KeyR') castOverwhelm();
+    else if (e.code === 'Digit4') castFever();
+    else if (e.code === 'KeyR') castGuard();
   });
 
   /* the shutter is a door, so it stops what comes at it from the front */
