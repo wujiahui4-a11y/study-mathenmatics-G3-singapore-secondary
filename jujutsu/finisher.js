@@ -688,75 +688,129 @@
        The four he only has while the song is playing. */
 
     /* 1 · the container — he runs it down and goes through it */
-    ha1: { name: 'THROUGH THE BOX', color: '#ffd964', hold: 1.55, run: function (e, d, p, G) {
-      var box = null;
+    ha1: { name: 'THROUGH THE BOX', color: '#ffd964', hold: 2.5, run: function (e, d, p, G) {
       var FV = window.JJFEVER;
-      /* the container stops on them, and he arrives at it */
-      if (window.JJHAKARI) {
-        box = new THREE.Mesh(new THREE.BoxGeometry(5.4, 4.6, 4.6),
-          new THREE.MeshStandardMaterial({ color: 0xd83a3a, roughness: .82, metalness: .25 }));
-        box.position.copy(p).addScaledVector(d, 2.6);
-        box.position.y = 2.4;
-        scene.add(box);
-      }
-      FX.impact(p, 0xffd964, 2.2);
-      addShake(1.4);
-      /* the punches, and the box losing its shape with each one */
-      var n = 0;
+      var LEN = FV && FV.BOX ? FV.BOX.len : 15.5;
+      var TALL = FV && FV.BOX ? FV.BOX.tall : 6.2;
+      /* the container stops on them, broadside, and he arrives at it */
+      var box = FV && FV.buildContainer ? FV.buildContainer()
+        : new THREE.Mesh(new THREE.BoxGeometry(LEN, TALL, 5.6),
+            new THREE.MeshStandardMaterial({ color: 0xd83a3a, roughness: .82, metalness: .25 }));
+      var piv = new THREE.Group();
+      piv.add(box);
+      piv.rotation.y = Math.atan2(d.x, d.z);          // broadside to him
+      piv.position.copy(p).addScaledVector(d, 3.2);
+      piv.position.y = TALL / 2;
+      scene.add(piv);
+      /* they are pinned against the far side of it, out of sight */
+      var behind = piv.position.clone().addScaledVector(d, 3.4);
+      FX.impact(p, 0xffd964, 2.4);
+      FX.rings(new THREE.Vector3(piv.position.x, .12, piv.position.z), 0xffd964, 3,
+        { maxR: 16, life: .6, gap: 40 });
+      FX.dust(new THREE.Vector3(piv.position.x, 0, piv.position.z), 10, 0xcfc3a8, 18, 5);
+      addShake(2);
+
+      /* Fourteen punches, walking down the length of it, each one folding
+         the steel a little further in. The box keeps its ribs and rails,
+         so what deforms reads as a container being beaten flat. */
+      var n = 0, PUNCH = 14;
       var iv = setInterval(function () {
-        if (n++ > 8 || typeof scene === 'undefined') { clearInterval(iv); return; }
-        if (box) {
-          box.scale.x = Math.max(.3, box.scale.x - .09);
-          box.scale.y = Math.max(.35, box.scale.y - .06);
-          box.scale.z = Math.min(1.5, box.scale.z + .05);
-          FX.impact(box.position.clone(), 0xffe08a, 1.1);
-          FX.debris(box.position.clone(), 5, 11, 0x6a6e78);
-        }
-        addShake(.35);
-      }, 90);
+        if (n >= PUNCH || typeof scene === 'undefined') { clearInterval(iv); return; }
+        var k = n / PUNCH;
+        var alongX = (k - .5) * LEN * .8;
+        var at = piv.localToWorld(new THREE.Vector3(alongX, (Math.random() - .5) * 2, -2.9));
+        box.scale.z = Math.max(.24, box.scale.z - .052);
+        box.scale.y = Math.min(1.35, box.scale.y + .016);
+        box.children.forEach(function (c) {
+          c.rotation.x += (Math.random() - .5) * .16;
+          c.position.y += (Math.random() - .5) * .12;
+        });
+        FX.impact(at, 0xffe08a, 1.3 + k);
+        FX.debris(at, 6, 13, 0x6a6e78);
+        FX.streaks(at, 0xffd964, 2, 11, .6);
+        if (n % 3 === 0) FX.mangaLines(.35, .12);
+        addShake(.5 + k);
+        if (typeof hitstop === 'function' && n % 4 === 3) hitstop(.03);
+        n++;
+      }, 92);
+
+      /* and the last one goes through it and into their head */
       setTimeout(function () {
         if (typeof scene === 'undefined') return;
-        /* and the last one goes through the box and into the head */
-        FX.mangaLines(.9, .3);
-        FX.speedRing(p.clone(), 0xffe08a, 13, .34);
-        FX.cross(p.clone(), 0xffffff, 8, .26);
-        if (typeof hitstop === 'function') hitstop(.18);
-        if (box) {
-          FX.impact(box.position.clone(), 0xffd964, 3.4);
-          FX.debris(box.position.clone(), 22, 24, 0x6a6e78);
-          scene.remove(box);
-          box.material.dispose();
-        }
-        FX.blood(p.clone().add(up(1.2)), d, 14, 1.8);
-        G.fling(e, d.clone().multiplyScalar(64).setY(18), new THREE.Vector3(2, 1, 12));
-        addShake(2.6);
-      }, 900);
+        clearInterval(iv);
+        FX.mangaLines(1, .34);
+        FX.speedRing(p.clone(), 0xffe08a, 15, .34);
+        FX.cross(behind.clone().add(up(1.4)), 0xffffff, 10, .3);
+        FX.flash('#fff3c8', .4, .2);
+        if (typeof hitstop === 'function') hitstop(.22);
+        /* the fist comes out the far side */
+        var arm = new THREE.Mesh(new THREE.CylinderGeometry(.26, .3, 4.4, 8),
+          new THREE.MeshLambertMaterial({ color: 0xe8b98e }));
+        arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize());
+        arm.position.copy(piv.position).lerp(behind, .55).add(up(1.2));
+        scene.add(arm);
+        FX.impact(piv.position.clone(), 0xffd964, 3.8);
+        FX.debris(piv.position.clone(), 26, 26, 0x6a6e78);
+        FX.blood(behind.clone().add(up(1.2)), d, 18, 2.2);
+        FX.blood(behind.clone().add(up(1.2)), up(1), 10, 1.6);
+        addShake(3.2);
+        setTimeout(function () {
+          if (typeof scene === 'undefined') return;
+          scene.remove(arm); arm.material.dispose();
+          scene.remove(piv);
+          piv.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+          /* and out, a long way, with the box behind them */
+          FX.speedRing(behind.clone().add(up(1.4)), 0xffe08a, 12, .3);
+          G.fling(e, d.clone().multiplyScalar(78).setY(20), new THREE.Vector3(2, 1, 14));
+          addShake(2.2);
+        }, 430);
+      }, 1420);
     } },
 
     /* 1j · dropped from above — nothing survives being under it */
-    ha1j: { name: 'UNDER THE BOX', color: '#ffd964', hold: 1.1, run: function (e, d, p, G) {
-      var box = new THREE.Mesh(new THREE.BoxGeometry(6, 5, 5),
-        new THREE.MeshStandardMaterial({ color: 0x2fae62, roughness: .82, metalness: .25 }));
-      box.position.copy(p).add(up(26));
-      scene.add(box);
-      var t = 0;
+    ha1j: { name: 'UNDER THE BOX', color: '#ffd964', hold: 1.7, run: function (e, d, p, G) {
+      var FV = window.JJFEVER;
+      var TALL = FV && FV.BOX ? FV.BOX.tall : 6.2;
+      var box = FV && FV.buildContainer ? FV.buildContainer()
+        : new THREE.Mesh(new THREE.BoxGeometry(15.5, TALL, 5.6),
+            new THREE.MeshStandardMaterial({ color: 0x2fae62, roughness: .82, metalness: .25 }));
+      var piv = new THREE.Group();
+      piv.add(box);
+      piv.rotation.y = Math.random() * Math.PI;
+      piv.position.copy(p).add(up(34));
+      scene.add(piv);
+      /* and he comes down on top of it */
+      FX.mangaLines(.7, .3);
+      var t = 0, hit = false;
       addFx({ t: 1e9, update: function (dt) {
         t += dt;
-        var k = Math.min(1, t / .5);
-        box.position.y = p.y + 26 * (1 - k * k);
-        box.rotation.x += dt * 4;
+        var k = Math.min(1, t / .55);
+        piv.position.y = p.y + TALL / 2 + 34 * (1 - k * k);
+        piv.rotation.z = (1 - k) * 1.2;
+        if (Math.random() < dt * 30) {
+          FX.streaks(piv.position.clone().add(new THREE.Vector3(
+            (Math.random() - .5) * 14, 0, (Math.random() - .5) * 5)), 0xffd964, 2, 16, .8);
+        }
         if (k < 1) return true;
-        scene.remove(box);
-        box.material.dispose();
-        FX.flash('#fff3c8', .5, .26);
-        if (typeof hitstop === 'function') hitstop(.18);
-        FX.impact(p.clone(), 0xffd964, 4);
-        FX.rings(new THREE.Vector3(p.x, .12, p.z), 0xffd964, 4, { maxR: 20, life: .8, gap: 45 });
-        FX.cracks(new THREE.Vector3(p.x, .1, p.z), 16, 24, 0x2a2418);
-        FX.debris(new THREE.Vector3(p.x, .2, p.z), 26, 26, 0x6a6e78);
-        /* into pieces, and they stay where they land */
-        G.dice(e, { dir: up(1), power: 2.2, cubes: 26 });
-        addShake(3);
+        if (!hit) {
+          hit = true;
+          FX.flash('#fff3c8', .6, .3);
+          if (typeof hitstop === 'function') hitstop(.22);
+          FX.impact(p.clone(), 0xffd964, 5);
+          FX.rings(new THREE.Vector3(p.x, .12, p.z), 0xffd964, 6, { maxR: 34, life: .95, gap: 42 });
+          FX.cracks(new THREE.Vector3(p.x, .1, p.z), 26, 36, 0x2a2418);
+          FX.debris(new THREE.Vector3(p.x, .2, p.z), 34, 30, 0x6a6e78);
+          FX.dust(new THREE.Vector3(p.x, 0, p.z), 20, 0xcfc3a8, 26, 7);
+          addShake(4);
+          /* into pieces, under fifteen metres of steel */
+          G.dice(e, { dir: up(1), power: 2.4, cubes: 28 });
+          return true;
+        }
+        /* it settles, and then it is gone */
+        if (t < 1.35) return true;
+        scene.remove(piv);
+        piv.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+        FX.dust(new THREE.Vector3(p.x, 0, p.z), 10, 0xcfc3a8, 16, 4);
         return false;
       } });
     } },
@@ -785,71 +839,275 @@
 
     /* 3 · whoever he was dragging. One of them goes up; two of them are
        put together. */
-    ha3: { name: 'DRAGGED', color: '#ffd964', hold: 1.7, run: function (e, d, p, G) {
+    ha3: { name: 'DRAGGED', color: '#ffd964', hold: 2.4, run: function (e, d, p, G) {
       var FV = window.JJFEVER;
       var pair = (FV && FV.drag ? FV.drag : []).filter(function (x) { return x && !x.dead; });
       var other = null;
       for (var i = 0; i < pair.length; i++) if (pair[i] !== e) { other = pair[i]; break; }
 
       if (!other) {
-        /* --- one of them: thrown up, followed, and hit back down --- */
-        FX.speedRing(p, 0xffe08a, 11, .3);
-        var t = 0;
+        /* --- One of them. Thrown up, and he goes up after them: the
+           whole beat happens in the air, and they come apart there. --- */
+        var TOP = 26;                       // how far up they are thrown
+        var THEIR_Y = p.y + 2 + TOP;        // where their feet end up
+        var HIS_Y = THEIR_Y + 4.6;          // and he has to be over them
+        var UPTIME = .62, CHASE = .62, HANG = .34;
+        FX.speedRing(p, 0xffe08a, 12, .32);
+        FX.mangaLines(.7, .28);
+        if (typeof hitstop === 'function') hitstop(.1);
+        addShake(1.8);
+
+        /* they go */
+        var t = 0, diced = false;
         addFx({ t: 1e9, update: function (dt) {
           t += dt;
-          if (e && !e.dead) {
-            e.anchorT = .3;
-            e.anchorPos.copy(p).add(up(6 + t * 14));
-            e.pos.lerp(e.anchorPos, Math.min(1, dt * 12));
+          if (!e || e.dead || typeof scene === 'undefined') return false;
+          var k = Math.min(1, t / UPTIME);
+          e.anchorT = .3;
+          e.anchorPos.copy(p).add(up(2 + TOP * (1 - (1 - k) * (1 - k))));
+          e.pos.lerp(e.anchorPos, Math.min(1, dt * 16));
+          e.vel.set(0, 0, 0);
+          if (Math.random() < dt * 26) {
+            FX.streaks(e.pos.clone().add(up(2)), 0xffd964, 2, 14, .8);
           }
-          return t < .85;
+          /* held at the top until he arrives */
+          return t < UPTIME + CHASE + HANG + .25;
         } });
-        setTimeout(function () {
-          if (typeof scene === 'undefined') return;
-          FX.mangaLines(.9, .3);
-          FX.impact(p.clone().add(up(16)), 0xffd964, 3);
-          FX.cross(p.clone().add(up(16)), 0xffffff, 9, .3);
-          if (typeof hitstop === 'function') hitstop(.2);
-          if (e) e.anchorT = 0;
-          /* and they come apart before they land */
-          G.dice(e, { dir: new THREE.Vector3(0, -1, 0), power: 2.1, cubes: 24 });
-          addShake(3);
-        }, 950);
+
+        /* and he goes after them, and comes down through them */
+        var FV = window.JJFEVER;
+        if (FV && FV.perform) {
+          FV.perform(UPTIME + CHASE + HANG + 1.1, function (a, dt, pl) {
+            /* crouch, then launch */
+            if (a.stage === 0 && a.t > UPTIME * .55) {
+              a.stage = 1;
+              /* enough to clear the top of them, from wherever he is */
+              pl.vel.y = Math.sqrt(2 * 32 * Math.max(4, HIS_Y - pl.pos.y + 2));
+              pl.pos.y = Math.max(pl.pos.y, .1);
+              FX.rings(new THREE.Vector3(pl.pos.x, .12, pl.pos.z), 0xffd964, 3,
+                { maxR: 14, life: .5, gap: 40 });
+              FX.dust(new THREE.Vector3(pl.pos.x, 0, pl.pos.z), 8, 0xcfc3a8, 14, 4);
+              addShake(1.2);
+            }
+            /* he holds his height over them while he winds up */
+            if (a.stage === 1 && (pl.pos.y >= HIS_Y || pl.vel.y <= 0)) {
+              a.stage = 2;
+              a.hangT = a.t;
+              FX.speedRing(pl.pos.clone().add(up(2)), 0xffe08a, 13, .3);
+              FX.mangaLines(.8, .3);
+            }
+            if (a.stage === 2) {
+              pl.vel.y = 0;
+              pl.pos.y = HIS_Y;
+              if (e && !e.dead) {
+                /* face them */
+                var to = e.pos.clone().sub(pl.pos).setY(0);
+                if (to.lengthSq() > .01) pl.facing = Math.atan2(to.x, to.z);
+              }
+              if (a.t > a.hangT + HANG) {
+                a.stage = 3;
+                /* THE PUNCH, straight down through them */
+                if (!diced && e && !e.dead) {
+                  diced = true;
+                  var hitAt = e.pos.clone().add(up(2.4));
+                  FX.flash('#fff3c8', .55, .26);
+                  FX.impact(hitAt, 0xffd964, 4.2);
+                  FX.cross(hitAt, 0xffffff, 11, .32);
+                  FX.speedRing(hitAt, 0xffe08a, 16, .34);
+                  FX.mangaLines(1, .34);
+                  FX.blood(hitAt, new THREE.Vector3(0, -1, 0), 20, 2.4);
+                  if (typeof hitstop === 'function') hitstop(.24);
+                  addShake(4);
+                  e.anchorT = 0;
+                  /* and there they come apart, in the air */
+                  G.dice(e, { dir: new THREE.Vector3(0, -1, 0), power: 2.4, cubes: 28 });
+                }
+                pl.vel.y = -52;
+              }
+            }
+            /* he lands */
+            if (a.stage === 3 && pl.pos.y <= .2) {
+              a.stage = 4;
+              pl.pos.y = 0; pl.vel.y = 0;
+              FX.rings(new THREE.Vector3(pl.pos.x, .12, pl.pos.z), 0xffd964, 4,
+                { maxR: 22, life: .8, gap: 42 });
+              FX.cracks(new THREE.Vector3(pl.pos.x, .1, pl.pos.z), 14, 20, 0x2a2418);
+              FX.dust(new THREE.Vector3(pl.pos.x, 0, pl.pos.z), 12, 0xcfc3a8, 18, 5);
+              addShake(2.4);
+            }
+          }, function (r, a, out) {
+            /* the pose: throw, launch, wind up over the head, drive down */
+            if (a.stage === 0) {                       // the throw
+              var k = out(Math.min(1, a.t / (UPTIME * .55)));
+              r.shoulderL.rotation.x = -2.9 * k; r.shoulderR.rotation.x = -2.9 * k;
+              r.spine.rotation.x = -.3 * k;
+              r.neck.rotation.x = -.5 * k;
+              r.hipL.rotation.x = .3 * k; r.hipR.rotation.x = .3 * k;
+              r.kneeL.rotation.x = .7 * k; r.kneeR.rotation.x = .7 * k;
+              r.hips.position.y = r.hipsBaseY - .45 * k;
+            } else if (a.stage <= 1) {                 // going up after them
+              r.shoulderL.rotation.x = -2.9; r.shoulderR.rotation.x = -2.9;
+              r.spine.rotation.x = -.24;
+              r.neck.rotation.x = -.45;
+              r.hipL.rotation.x = -.8; r.kneeL.rotation.x = 1.5;
+              r.hipR.rotation.x = -.4; r.kneeR.rotation.x = 1.1;
+            } else if (a.stage === 2) {                // the wind-up
+              var w = out(Math.min(1, (a.t - (a.hangT || 0)) / HANG));
+              r.shoulderL.rotation.x = -2.9 + .5 * w;
+              r.shoulderR.rotation.x = -2.9 - .8 * w;
+              r.shoulderR.rotation.z = -.5 * w;
+              r.elbowR.rotation.x = -1.5 * w;
+              r.spine.rotation.x = -.24 - .3 * w;
+              r.spine.rotation.y = -.5 * w;
+              r.neck.rotation.x = .3 * w;
+              r.hipL.rotation.x = -.9; r.kneeL.rotation.x = 1.6;
+              r.hipR.rotation.x = -.5; r.kneeR.rotation.x = 1.2;
+            } else {                                   // the drive down
+              var f = out(Math.min(1, (a.t - (a.hangT || 0) - HANG) / .2));
+              r.shoulderR.rotation.x = 2.6 * f - 3.7 * (1 - f);
+              r.shoulderL.rotation.x = -2.4 + 1.2 * f;
+              r.elbowR.rotation.x = -1.5 * (1 - f);
+              r.spine.rotation.x = -.54 + 1.1 * f;
+              r.neck.rotation.x = .3 - .7 * f;
+              r.hipL.rotation.x = -.6 + .5 * f; r.kneeL.rotation.x = 1.2 - .8 * f;
+              r.hipR.rotation.x = -.3 + .3 * f; r.kneeR.rotation.x = .9 - .6 * f;
+            }
+          });
+        } else {
+          /* no fever module: at least finish them */
+          setTimeout(function () {
+            if (typeof scene === 'undefined' || !e || diced) return;
+            diced = true;
+            e.anchorT = 0;
+            G.dice(e, { dir: new THREE.Vector3(0, -1, 0), power: 2.2, cubes: 26 });
+            addShake(3);
+          }, 1100);
+        }
         return;
       }
 
-      /* --- two of them: put head to head, pulled apart, and closed --- */
-      var mid = p.clone().lerp(other.pos.clone().add(up(2.8)), .5);
-      var n = 0;
-      var iv = setInterval(function () {
-        if (n++ > 7 || typeof scene === 'undefined') { clearInterval(iv); return; }
-        var k = n / 7;
-        [e, other].forEach(function (x, i) {
-          if (!x || x.dead) return;
-          x.anchorT = .3;
-          x.anchorPos.copy(mid).add(new THREE.Vector3((i ? 1 : -1) * (2.4 - k * 2.2), 0, 0));
-          x.pos.lerp(x.anchorPos, .5);
-        });
-        FX.impact(mid.clone(), 0xffe08a, 1.2);
-        addShake(.5);
-      }, 90);
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        FX.cross(mid.clone(), 0xffffff, 8, .26);
-        FX.impact(mid.clone(), 0xffd964, 3.2);
+      /* --- Two of them, and three beats: their heads are put together,
+         then the heads come off, then what is left of them is closed. He
+         has one in each hand for all of it. --- */
+      var pair = [e, other];
+      var mid = p.clone().lerp(other.pos.clone(), .5).add(up(2.8));
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      if (side.lengthSq() < .01) side.set(1, 0, 0);
+      side.normalize();
+      var SMASH = .74, PULL = .44, CLOSE = .5;
+      var beheaded = false, crushed = false;
+      var FV2 = window.JJFEVER;
+
+      function hold(x, i, gap, lift) {
+        if (!x || x.dead) return;
+        x.anchorT = .3;
+        x.anchorPos.copy(mid).addScaledVector(side, (i ? 1 : -1) * gap).add(up(lift || 0));
+        x.pos.lerp(x.anchorPos, .55);
+        x.vel.set(0, 0, 0);
+        x.stunT = Math.max(x.stunT || 0, .5);
+      }
+
+      FX.speedRing(mid.clone(), 0xffe08a, 12, .3);
+      addShake(1.6);
+
+      var tt = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        if (typeof scene === 'undefined') return false;
+        tt += dt;
+        /* 1 · in, until the two heads meet */
+        if (tt < SMASH) {
+          var k = tt / SMASH;
+          var gap = 3.2 - 2.85 * k * k;
+          pair.forEach(function (x, i) { hold(x, i, gap, 0); });
+          if (Math.random() < dt * 20) {
+            FX.streaks(mid.clone(), 0xffd964, 2, 12, .7);
+            addShake(.4);
+          }
+          return true;
+        }
+        /* the smash itself */
+        if (!beheaded) {
+          beheaded = true;
+          FX.flash('#fff3c8', .45, .22);
+          FX.cross(mid.clone(), 0xffffff, 10, .3);
+          FX.impact(mid.clone(), 0xffd964, 3.6);
+          FX.mangaLines(.9, .32);
+          if (typeof hitstop === 'function') hitstop(.22);
+          FX.blood(mid.clone(), side.clone(), 16, 2.2);
+          FX.blood(mid.clone(), side.clone().negate(), 16, 2.2);
+          addShake(3.4);
+        }
+        /* 2 · and their heads come off as he pulls them apart */
+        if (tt < SMASH + PULL) {
+          var q = (tt - SMASH) / PULL;
+          pair.forEach(function (x, i) { hold(x, i, .35 + 3.4 * q, 0); });
+          if (!crushed && q > .5) {
+            crushed = true;
+            pair.forEach(function (x) {
+              if (!x || x.dead || !window.JJGORE) return;
+              try {
+                window.JJGORE.sever(x, {
+                  dir: new THREE.Vector3(0, 1, 0), power: 2, cubes: 14
+                });
+              } catch (err) {}
+            });
+            FX.speedRing(mid.clone(), 0xffe08a, 14, .3);
+            addShake(2.6);
+          }
+          return true;
+        }
+        /* 3 · and then he closes what is left of them together */
+        if (tt < SMASH + PULL + CLOSE) {
+          var c = (tt - SMASH - PULL) / CLOSE;
+          pair.forEach(function (x, i) { hold(x, i, 3.75 - 3.6 * c * c, 0); });
+          return true;
+        }
+        FX.impact(mid.clone(), 0xffd964, 4);
+        FX.cross(mid.clone(), 0xffffff, 9, .28);
+        FX.blood(mid.clone(), up(1), 20, 2.6);
+        FX.debris(mid.clone(), 14, 16, 0x5e0714);
         if (typeof hitstop === 'function') hitstop(.2);
-        FX.blood(mid.clone(), new THREE.Vector3(1, .2, 0), 12, 1.8);
-        FX.blood(mid.clone(), new THREE.Vector3(-1, .2, 0), 12, 1.8);
-        [e, other].forEach(function (x) {
-          if (!x || x.dead) return;
-          x.anchorT = 0;
-          if (window.JJGORE) {
-            try { window.JJGORE.sever(x, { dir: new THREE.Vector3(0, 1, 0), power: 1.9, cubes: 12 }); }
-            catch (err) {}
+        addShake(3.6);
+        pair.forEach(function (x) { if (x) x.anchorT = 0; });
+        return false;
+      } });
+
+      /* and he is doing it, with an arm out to each of them */
+      if (FV2 && FV2.perform) {
+        FV2.perform(SMASH + PULL + CLOSE + .3, function (a, dt, pl) {
+          var to = mid.clone().sub(pl.pos).setY(0);
+          if (to.lengthSq() > .01) pl.facing = Math.atan2(to.x, to.z);
+          pl.vel.set(0, 0, 0);
+        }, function (r, a, out) {
+          var k;
+          if (a.t < SMASH) {                        // arms coming together
+            k = out(a.t / SMASH);
+            r.shoulderL.rotation.x = -1.5; r.shoulderR.rotation.x = -1.5;
+            r.shoulderL.rotation.z = 1.3 - 1.05 * k;
+            r.shoulderR.rotation.z = -1.3 + 1.05 * k;
+            r.elbowL.rotation.x = -.3; r.elbowR.rotation.x = -.3;
+            r.spine.rotation.x = .1 + .2 * k;
+            r.hips.position.y = r.hipsBaseY - .3 * k;
+          } else if (a.t < SMASH + PULL) {          // and back apart
+            k = out((a.t - SMASH) / PULL);
+            r.shoulderL.rotation.x = -1.5; r.shoulderR.rotation.x = -1.5;
+            r.shoulderL.rotation.z = .25 + 1.15 * k;
+            r.shoulderR.rotation.z = -.25 - 1.15 * k;
+            r.elbowL.rotation.x = -.3 + .2 * k; r.elbowR.rotation.x = -.3 + .2 * k;
+            r.spine.rotation.x = .3 - .5 * k;
+            r.neck.rotation.x = -.2 * k;
+            r.hips.position.y = r.hipsBaseY - .3 + .3 * k;
+          } else {                                   // and together again
+            k = out((a.t - SMASH - PULL) / CLOSE);
+            r.shoulderL.rotation.x = -1.5; r.shoulderR.rotation.x = -1.5;
+            r.shoulderL.rotation.z = 1.4 - 1.2 * k;
+            r.shoulderR.rotation.z = -1.4 + 1.2 * k;
+            r.elbowL.rotation.x = -.1 - .3 * k; r.elbowR.rotation.x = -.1 - .3 * k;
+            r.spine.rotation.x = -.2 + .5 * k;
+            r.hips.position.y = r.hipsBaseY - .35 * k;
           }
         });
-        addShake(3);
-      }, 820);
+      }
     } },
 
     /* 4 · out, and a long way out */
@@ -1287,7 +1545,9 @@
      The action the player is in the middle of, which for a punch is
      nothing at all — so a punch can never be a finisher.
      ================================================================== */
-  var NOT_A_SKILL = { m1: 1, kb: 1, void: 1, nrush: 1, yaw: 1, awaken: 1 };
+  /* hafin is the action a finisher takes over the caster with — it is a
+     finisher playing, never a skill that could arm another one */
+  var NOT_A_SKILL = { m1: 1, kb: 1, void: 1, nrush: 1, yaw: 1, awaken: 1, hafin: 1 };
   var lastSkill = null, lastAt = 0;
 
   function nowS() { return (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000; }

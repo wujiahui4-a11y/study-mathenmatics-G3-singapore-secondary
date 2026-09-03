@@ -228,25 +228,48 @@
   /* ===================================================================
      THE CONTAINER
      ================================================================ */
+  /* A forty-foot box, at the scale one actually is next to a person: it
+     is longer than the road is wide and it stands taller than he does.
+     BOX.len is the length it rolls along, so everything downstream —
+     travel, dents, the hit radius — is read off these. */
+  var BOX = { len: 15.5, tall: 6.2, wide: 5.6 };
+
   function buildContainer() {
     var g = new THREE.Group();
     var col = [0xd83a3a, 0x2fae62, 0x3a7ad8, 0xe8b93a][(Math.random() * 4) | 0];
-    var body = new THREE.Mesh(new THREE.BoxGeometry(5.4, 4.6, 4.6),
+    var body = new THREE.Mesh(new THREE.BoxGeometry(BOX.len, BOX.tall, BOX.wide),
       new THREE.MeshStandardMaterial({ color: col, roughness: .82, metalness: .25 }));
     body.castShadow = true;
     g.add(body);
     g.__body = body;
-    /* ribs, so it reads as a container rather than a crate */
-    for (var i = -2; i <= 2; i++) {
-      var rib = new THREE.Mesh(new THREE.BoxGeometry(.24, 4.7, 4.7),
+    /* corrugation: fourteen ribs down the length, which is what makes a
+       container read as a container instead of a crate */
+    for (var i = -7; i <= 7; i++) {
+      var rib = new THREE.Mesh(new THREE.BoxGeometry(.3, BOX.tall + .1, BOX.wide + .1),
         new THREE.MeshStandardMaterial({ color: 0x2a2c34, roughness: .9 }));
-      rib.position.x = i * 1.05;
+      rib.position.x = i * (BOX.len / 15.4);
       g.add(rib);
     }
-    var door = new THREE.Mesh(new THREE.BoxGeometry(.16, 4.2, 4.2),
+    /* the frame down every long edge */
+    for (var sy = -1; sy <= 1; sy += 2) {
+      for (var sz = -1; sz <= 1; sz += 2) {
+        var rail = new THREE.Mesh(new THREE.BoxGeometry(BOX.len + .2, .42, .42),
+          new THREE.MeshStandardMaterial({ color: 0x35383f, roughness: .88, metalness: .35 }));
+        rail.position.set(0, sy * BOX.tall / 2, sz * BOX.wide / 2);
+        g.add(rail);
+      }
+    }
+    /* and the two doors on the end, with their locking bars */
+    var door = new THREE.Mesh(new THREE.BoxGeometry(.2, BOX.tall - .5, BOX.wide - .4),
       new THREE.MeshStandardMaterial({ color: 0x1e2028, roughness: .85 }));
-    door.position.x = 2.75;
+    door.position.x = BOX.len / 2 + .06;
     g.add(door);
+    for (var b = -1; b <= 1; b += 2) {
+      var bar = new THREE.Mesh(new THREE.CylinderGeometry(.11, .11, BOX.tall - .7, 6),
+        new THREE.MeshStandardMaterial({ color: 0x4a4d55, roughness: .7, metalness: .5 }));
+      bar.position.set(BOX.len / 2 + .2, 0, b * 1.1);
+      g.add(bar);
+    }
     return g;
   }
 
@@ -262,8 +285,8 @@
       c.rotation.z += (Math.random() - .5) * .4;
       c.position.y += (Math.random() - .5) * .3;
     });
-    FX.debris(box.position.clone(), 6, 12, 0x6a6e78);
-    FX.impact(box.position.clone(), GOLD, 1.2 + n * .1);
+    FX.debris(box.position.clone(), 8, 14, 0x6a6e78);
+    FX.impact(box.position.clone(), GOLD, 1.6 + n * .12);
   }
 
   /* ===================================================================
@@ -279,128 +302,211 @@
       player.iframes = Math.max(player.iframes, .9);
       return;
     }
-    var b = start('ha1', 1.4, 'ha1', 'CONTAINER', 'DOWN THE ROAD');
+    var b = start('ha1', 1.55, 'ha1', 'CONTAINER', 'DOWN THE ROAD');
     b.dir = aim();
     player.iframes = Math.max(player.iframes, .4);
   }
 
-  /* it rolls, and everything it reaches goes with it */
+  /* It goes end over end, not along its own length: a forty-foot box
+     kicked down a road cartwheels, and each time a corner comes down the
+     street shakes. A yaw pivot carries the travel direction so the tumble
+     can stay on one local axis. */
   function rollContainer(from, dir, ghost) {
+    var pivot = new THREE.Group();
+    pivot.rotation.y = Math.atan2(dir.x, dir.z) - Math.PI / 2;
     var box = buildContainer();
-    box.position.copy(from);
-    box.position.y = 2.4;
-    scene.add(box);
-    var hit = [], travelled = 0, spin = 0;
-    addFx({ t: 4, update: function (dt) {
+    pivot.add(box);
+    pivot.position.copy(from);
+    pivot.position.y = BOX.tall / 2;
+    scene.add(pivot);
+    pivot.__body = box.__body;
+
+    var hit = [], travelled = 0, spin = 0, corner = 0;
+    var reach = BOX.len / 2 + 2.6;
+    addFx({ t: 5, update: function (dt) {
       this.t -= dt;
-      var step = 26 * dt;
+      var step = 24 * dt;
       travelled += step;
-      box.position.addScaledVector(dir, step);
-      spin += dt * 5.4;
-      box.rotation.z = -spin * (Math.abs(dir.x) > Math.abs(dir.z) ? 1 : 0);
-      box.rotation.x = spin * (Math.abs(dir.z) >= Math.abs(dir.x) ? 1 : 0);
-      if (Math.random() < dt * 26) {
-        FX.dust(new THREE.Vector3(box.position.x, 0, box.position.z), 2, 0xcfc3a8, 8, 2.6);
-        FX.cracks(new THREE.Vector3(box.position.x, 0, box.position.z), 3, 5, 0x2a2418);
+      pivot.position.addScaledVector(dir, step);
+      /* one turn every three quarters of a second, and it rides up on the
+         corner it is turning over */
+      var was = spin;
+      spin += dt * 8.4;
+      box.rotation.z = -spin;
+      var ride = Math.abs(Math.sin(spin)) * (BOX.len - BOX.tall) * .28;
+      pivot.position.y = BOX.tall / 2 + ride;
+      /* every quarter turn a corner lands */
+      if (Math.floor(spin / (Math.PI / 2)) !== Math.floor(was / (Math.PI / 2))) {
+        corner++;
+        var down = new THREE.Vector3(pivot.position.x, 0, pivot.position.z);
+        FX.dust(down.clone(), 7, 0xcfc3a8, 16, 4);
+        FX.cracks(down.clone(), 9, 13, 0x2a2418);
+        FX.debris(down.clone(), 8, 14, 0x6a6e78);
+        addShake(1.1);
+        try { sfx.step(); } catch (e) {}
+      }
+      if (Math.random() < dt * 30) {
+        FX.dust(new THREE.Vector3(pivot.position.x, 0, pivot.position.z), 2, 0xcfc3a8, 9, 3);
       }
       if (!ghost) {
+        /* the whole length of it is dangerous, so measure to the box's own
+           axis rather than to a point in the middle of it */
+        var half = new THREE.Vector3(1, 0, 0).applyAxisAngle(
+          new THREE.Vector3(0, 1, 0), pivot.rotation.y).multiplyScalar(BOX.len / 2);
         for (var i = 0; i < enemies.length; i++) {
           var e = enemies[i];
           if (!e || e.dead || hit.indexOf(e) >= 0) continue;
-          if (e.pos.clone().add(new THREE.Vector3(0, 2.2, 0)).distanceTo(box.position) > 5) continue;
+          var to = e.pos.clone().add(new THREE.Vector3(0, 2.2, 0)).sub(pivot.position);
+          var along = Math.max(-1, Math.min(1, to.dot(half) / (half.lengthSq() || 1)));
+          if (to.clone().sub(half.clone().multiplyScalar(along)).length() > 4.6) continue;
           hit.push(e);
-          FV.lastBox = box;
+          FV.lastBox = pivot;
           FV.lastHit = e;
-          var kb = dir.clone().multiplyScalar(34); kb.y = 12;
-          e.damage(30 * boost(), kb, {
+          var kb = dir.clone().multiplyScalar(38); kb.y = 15;
+          e.damage(34 * boost(), kb, {
             react: 'blow', reactDur: .9, spark: GOLD, ragdoll: true, death: 'ragdoll'
           });
-          FX.heavyHit(e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), GOLD, 1.6);
-          addShake(1.2);
-          hitstop(.08);
+          FX.heavyHit(e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), GOLD, 2);
+          addShake(1.6);
+          hitstop(.09);
         }
       }
-      if (travelled < 46 && this.t > 0) return true;
-      FX.impact(box.position.clone(), GOLD, 2.4);
-      FX.debris(box.position.clone(), 14, 18, 0x6a6e78);
-      scene.remove(box);
-      box.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+      if (travelled < 58 && this.t > 0) return true;
+      FX.impact(pivot.position.clone(), GOLD, 3);
+      FX.debris(pivot.position.clone(), 20, 22, 0x6a6e78);
+      FX.dust(new THREE.Vector3(pivot.position.x, 0, pivot.position.z), 10, 0xcfc3a8, 18, 5);
+      scene.remove(pivot);
+      pivot.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
       return false;
     } });
-    return box;
+    return pivot;
   }
+
+  /* Three beats rather than one: it comes out of nothing, it sits there
+     long enough for you to see how big it is, and then he kicks it. */
+  var C1 = { call: .34, hold: .26, wind: .22 };
 
   function stepContainer(a, dt) {
     var p = player;
-    if (a.t < .42) {
+    var spot = p.pos.clone().addScaledVector(a.dir, BOX.len / 2 + 3);
+    spot.y = BOX.tall / 2;
+
+    /* --- it is called up --- */
+    if (a.t < C1.call) {
       if (!a.box) {
-        a.box = buildContainer();
-        a.box.position.copy(p.pos).addScaledVector(a.dir, 5.5);
-        a.box.position.y = 2.4;
-        a.box.scale.setScalar(.05);
-        scene.add(a.box);
-        FX.rings(a.box.position.clone(), GOLD, 3, { maxR: 9, life: .5, ground: false, gap: 40 });
+        var piv = new THREE.Group();
+        piv.rotation.y = Math.atan2(a.dir.x, a.dir.z) - Math.PI / 2;
+        piv.add(buildContainer());
+        piv.position.copy(spot);
+        piv.scale.setScalar(.05);
+        scene.add(piv);
+        a.box = piv;
+        FX.rings(spot.clone(), GOLD, 4, { maxR: 16, life: .55, ground: false, gap: 40 });
+        FX.speedRing(spot.clone(), HOT, 14, .35);
+        for (var s = 0; s < 10; s++) {
+          FX.streaks(spot.clone().add(new THREE.Vector3(
+            (Math.random() - .5) * BOX.len, (Math.random() - .5) * BOX.tall,
+            (Math.random() - .5) * BOX.wide)),
+            RAIN[(Math.random() * RAIN.length) | 0], 2, 16, 1.1);
+        }
+        addShake(.8);
         try { sfx.frame(); } catch (e) {}
       }
-      a.box.scale.setScalar(.05 + E.out(a.t / .42) * .95);
+      var k = E.out(a.t / C1.call);
+      a.box.position.copy(spot);
+      a.box.scale.set(.05 + k * .95, .05 + k * .95, .05 + k * .95);
       return;
     }
-    if (a.stage < 1) {
-      a.stage = 1;
+    /* --- and it just sits there for a beat --- */
+    if (a.t < C1.call + C1.hold) {
+      if (a.stage < 1) {
+        a.stage = 1;
+        FX.dust(new THREE.Vector3(spot.x, 0, spot.z), 8, 0xcfc3a8, 16, 4);
+        FX.cracks(new THREE.Vector3(spot.x, 0, spot.z), 10, 14, 0x2a2418);
+        addShake(1.4);
+        try { sfx.redBoom(); } catch (e) {}
+      }
+      a.box.position.copy(spot);
+      a.box.scale.setScalar(1);
+      return;
+    }
+    /* --- he winds the leg back --- */
+    if (a.t < C1.call + C1.hold + C1.wind) {
+      a.box.position.copy(spot);
+      return;
+    }
+    if (a.stage < 2) {
+      a.stage = 2;
       if (a.box) {
         scene.remove(a.box);
         a.box.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
         a.box = null;
       }
-      FX.speedRing(p.pos.clone().addScaledVector(a.dir, 4).add(new THREE.Vector3(0, 2, 0)), HOT, 11, .3);
-      addShake(1.4);
-      hitstop(.07);
+      FX.speedRing(p.pos.clone().addScaledVector(a.dir, 4).add(new THREE.Vector3(0, 2, 0)), HOT, 14, .32);
+      FX.mangaLines(.5, .2);
+      addShake(2.2);
+      hitstop(.1);
       try { sfx.punch(); } catch (e) {}
-      rollContainer(p.pos.clone().addScaledVector(a.dir, 5.5), a.dir.clone());
+      rollContainer(spot.clone(), a.dir.clone());
     }
   }
 
-  /* the air version: summoned overhead and driven straight down */
+  /* the air version: summoned overhead, turned side on, and driven down */
   function stepDrop(a, dt) {
     var p = player;
-    if (a.t < .5) {
+    if (a.t < .55) {
       if (!a.box) {
-        a.box = buildContainer();
-        scene.add(a.box);
+        var piv = new THREE.Group();
+        piv.add(buildContainer());
+        scene.add(piv);
+        a.box = piv;
+        FX.rings(p.pos.clone().add(new THREE.Vector3(0, 11, 0)), GOLD, 4,
+          { maxR: 18, life: .55, ground: false, gap: 40 });
+        addShake(.9);
+        try { sfx.frame(); } catch (e) {}
       }
-      a.box.position.copy(p.pos).add(new THREE.Vector3(0, 9 + a.t * 2, 0));
-      a.box.scale.setScalar(.05 + E.out(a.t / .5) * .95);
-      a.box.rotation.y = a.t * 3;
+      var k = E.out(a.t / .55);
+      a.box.position.copy(p.pos).add(new THREE.Vector3(0, 12 + a.t * 2, 0));
+      a.box.scale.setScalar(.05 + k * .95);
+      /* it turns broadside on the way in, so what comes down is the long
+         face and not a corner */
+      a.box.rotation.y = a.t * 3.4;
+      a.box.rotation.z = (1 - k) * .9;
       return;
     }
     if (a.stage < 1) {
       a.stage = 1;
-      FX.speedRing(p.pos.clone().add(new THREE.Vector3(0, 6, 0)), HOT, 12, .3);
-      addShake(1.4);
-      hitstop(.08);
+      FX.speedRing(p.pos.clone().add(new THREE.Vector3(0, 7, 0)), HOT, 15, .3);
+      FX.mangaLines(.5, .2);
+      addShake(1.8);
+      hitstop(.1);
       try { sfx.punch(); } catch (e) {}
       var box = a.box;
       a.box = null;
-      var down = new THREE.Vector3(0, -1, 0);
       var landed = false;
       addFx({ t: 3, update: function (dd) {
         this.t -= dd;
-        box.position.y -= 52 * dd;
-        box.rotation.x += dd * 7;
-        if (Math.random() < dd * 20) FX.streaks(box.position.clone(), GOLD, 2, 12, .8);
-        if (!landed && box.position.y <= 2.2) {
+        box.position.y -= 58 * dd;
+        box.rotation.z += dd * 3.4;
+        if (Math.random() < dd * 26) {
+          FX.streaks(box.position.clone().add(new THREE.Vector3(
+            (Math.random() - .5) * BOX.len, 0, (Math.random() - .5) * BOX.wide)),
+            GOLD, 2, 15, .9);
+        }
+        if (!landed && box.position.y <= BOX.tall / 2) {
           landed = true;
           var at = new THREE.Vector3(box.position.x, 0, box.position.z);
-          FX.impact(box.position.clone(), GOLD, 3.4);
-          FX.rings(at.clone(), GOLD, 4, { maxR: 20, life: .8, gap: 45 });
-          FX.cracks(at.clone(), 14, 20, 0x2a2418);
-          FX.debris(at.clone(), 20, 22, 0x6a6e78);
-          FX.dust(at.clone(), 10, 0xcfc3a8, 15, 4);
-          addShake(2.6);
-          hitstop(.12);
+          FX.impact(box.position.clone(), GOLD, 4.2);
+          FX.rings(at.clone(), GOLD, 5, { maxR: 30, life: .9, gap: 45 });
+          FX.cracks(at.clone(), 20, 30, 0x2a2418);
+          FX.debris(at.clone(), 28, 28, 0x6a6e78);
+          FX.dust(at.clone(), 16, 0xcfc3a8, 22, 6);
+          addShake(3.4);
+          hitstop(.14);
           try { sfx.redBoom(); } catch (e) {}
+          /* it is fifteen metres long, so what it lands on is a strip */
           enemies.forEach(function (e) {
-            if (!e || e.dead || e.pos.distanceTo(at) > 9) return;
+            if (!e || e.dead || e.pos.distanceTo(at) > BOX.len / 2 + 3) return;
             FV.lastBox = box;
             FV.lastHit = e;
             var kb = e.pos.clone().sub(at).setY(0).normalize().multiplyScalar(18); kb.y = 16;
@@ -430,27 +536,65 @@
     player.iframes = Math.max(player.iframes, 1.2);
   }
 
-  var FIST = null;
-  function ghostFist(at, dir, n) {
-    if (!FIST) FIST = new THREE.BoxGeometry(.85, .85, 1.2);
-    var m = new THREE.Mesh(FIST, new THREE.MeshBasicMaterial({
-      color: n % 3 ? GOLD : HOT, transparent: true, opacity: .85,
+  /* A punch, as a thing you can see: a fist with knuckles on it and a
+     forearm behind it, not a cube. One is thrown per beat and five more
+     are strung out behind it along the same line, each further back,
+     smaller and fainter — which is what an afterimage is. */
+  var FIST_G = null, KNUCK_G = null, ARM_G = null;
+  function fistModel(color, opacity) {
+    if (!FIST_G) {
+      FIST_G = new THREE.BoxGeometry(.74, .68, .62);
+      KNUCK_G = new THREE.BoxGeometry(.16, .16, .16);
+      ARM_G = new THREE.CylinderGeometry(.26, .3, 1.5, 7);
+    }
+    var mat = new THREE.MeshBasicMaterial({
+      color: color, transparent: true, opacity: opacity,
       toneMapped: false, depthWrite: false
-    }));
-    m.position.copy(at);
-    m.lookAt(at.clone().add(dir));
-    scene.add(m);
-    var t = 0, life = .42;
-    var v = dir.clone().multiplyScalar(16 + Math.random() * 10);
-    addFx({ t: life, update: function (dt) {
-      this.t -= dt; t += dt;
-      m.position.addScaledVector(v, dt);
-      v.multiplyScalar(.9);
-      m.material.opacity = .85 * (this.t / life);
-      m.scale.setScalar(1 + t * 1.6);
-      if (this.t <= 0) { scene.remove(m); m.material.dispose(); return false; }
-      return true;
-    } });
+    });
+    var g = new THREE.Group();
+    var fist = new THREE.Mesh(FIST_G, mat);
+    g.add(fist);
+    for (var i = 0; i < 4; i++) {                  // the knuckles
+      var k = new THREE.Mesh(KNUCK_G, mat);
+      k.position.set(-.27 + i * .18, .28, .3);
+      g.add(k);
+    }
+    var arm = new THREE.Mesh(ARM_G, mat);          // the forearm behind it
+    arm.rotation.x = Math.PI / 2;
+    arm.position.z = -1.05;
+    g.add(arm);
+    g.__mat = mat;
+    return g;
+  }
+
+  function ghostFist(at, dir, n) {
+    var GHOSTS = 6;
+    for (var i = 0; i < GHOSTS; i++) {
+      (function (i) {
+        var lead = i === 0;
+        var fade = 1 - i / GHOSTS;
+        var g = fistModel(n % 3 ? GOLD : (i % 2 ? HOT : PINK),
+                          (lead ? .95 : .5) * fade);
+        g.position.copy(at).addScaledVector(dir, -i * .62);
+        g.position.y += (Math.random() - .5) * .12 * i;
+        g.lookAt(g.position.clone().add(dir));
+        g.scale.setScalar(1 - i * .085);
+        scene.add(g);
+        var t = 0, life = .3 + i * .045;
+        var v = dir.clone().multiplyScalar((17 + Math.random() * 9) * (1 - i * .06));
+        addFx({ t: life, update: function (dt) {
+          this.t -= dt; t += dt;
+          g.position.addScaledVector(v, dt);
+          v.multiplyScalar(.9);
+          g.__mat.opacity = (lead ? .95 : .5) * fade * (this.t / life);
+          g.scale.setScalar((1 - i * .085) * (1 + t * 1.3));
+          if (this.t <= 0) {
+            scene.remove(g); g.__mat.dispose(); return false;
+          }
+          return true;
+        } });
+      })(i);
+    }
   }
 
   function stepBarrage(a, dt) {
@@ -466,10 +610,11 @@
       .addScaledVector(side, (Math.random() - .5) * 1.8)
       .add(new THREE.Vector3(0, 2.2 + Math.random() * 1.6, 0));
     ghostFist(at, d, a.n);
-    /* and the body itself smeared behind them */
-    if (a.n % 3 === 0 && !p.dead) ghostAfterimage(p.rig, GOLD, .3);
-    FX.impact(at, GOLD, .7);
-    addShake(.2);
+    /* and the body itself smeared behind them, every beat */
+    if (!p.dead) ghostAfterimage(p.rig, a.n % 3 ? GOLD : PINK, .34);
+    FX.impact(at, GOLD, .8);
+    FX.streaks(at, RAIN[a.n % RAIN.length], 2, 12, .5);
+    addShake(.24);
     if (a.n % 2 === 0) { try { sfx.punch(); } catch (e) {} }
     /* A rush closes the distance — standing still and punching the air
        two metres short of them is not a rush. He walks it onto the
@@ -498,51 +643,214 @@
 
   /* ===================================================================
      THE HOLE
-     A real one: a dark shaft driven through them, with a torn rim on
-     both sides, and it stays on the body and moves with it.
+     Not a hole-shaped object hung on the body — the material is taken
+     out of the body. Every mesh in these rigs is a box, so each one that
+     the punch passes through is rebuilt as a grid of cells with the
+     cells along the punch line missing, and only the faces that border
+     something missing are emitted. What you get is a shaft you can see
+     daylight through, with real walls, that deforms and travels with the
+     limb because it IS the limb.
      ================================================================ */
-  var HOLE_GEO = null, RIM_GEO = null;
-  function punchHole(ent, point, dir) {
-    if (!ent || !ent.rig) return;
-    if (!HOLE_GEO) {
-      HOLE_GEO = new THREE.CylinderGeometry(.34, .34, 2.2, 10, 1, true);
-      RIM_GEO = new THREE.TorusGeometry(.36, .12, 6, 12);
+  var CELL = .11;                       // how fine the body is diced
+  var MINN = 3, MAXN = 18;              // cells per axis, floor and ceiling
+
+  function boxOf(mesh) {
+    var g = mesh.geometry;
+    if (!g) return null;
+    if (g.parameters && g.parameters.width != null) {
+      return { w: g.parameters.width, h: g.parameters.height, d: g.parameters.depth,
+               cx: 0, cy: 0, cz: 0 };
     }
-    /* hang it off whichever bone is nearest, so it travels with them */
-    var best = null, bd = 1e9, wp = new THREE.Vector3();
+    if (!g.boundingBox) g.computeBoundingBox();
+    var bb = g.boundingBox;
+    if (!bb) return null;
+    return { w: bb.max.x - bb.min.x, h: bb.max.y - bb.min.y, d: bb.max.z - bb.min.z,
+             cx: (bb.max.x + bb.min.x) / 2, cy: (bb.max.y + bb.min.y) / 2,
+             cz: (bb.max.z + bb.min.z) / 2 };
+  }
+
+  function gridOf(mesh) {
+    if (mesh.__grid) return mesh.__grid;
+    var b = boxOf(mesh);
+    if (!b) return null;
+    function n(size) { return Math.max(MINN, Math.min(MAXN, Math.round(size / CELL))); }
+    var G = {
+      nx: n(b.w), ny: n(b.h), nz: n(b.d),
+      x0: b.cx - b.w / 2, y0: b.cy - b.h / 2, z0: b.cz - b.d / 2
+    };
+    G.cw = b.w / G.nx; G.ch = b.h / G.ny; G.cd = b.d / G.nz;
+    G.on = new Uint8Array(G.nx * G.ny * G.nz);
+    for (var i = 0; i < G.on.length; i++) G.on[i] = 1;
+    mesh.__grid = G;
+    return G;
+  }
+
+  /* only the faces that face outward or face a missing cell */
+  function meshFromGrid(G) {
+    var pos = [], nor = [];
+    var at = function (i, j, k) {
+      if (i < 0 || j < 0 || k < 0 || i >= G.nx || j >= G.ny || k >= G.nz) return 0;
+      return G.on[(i * G.ny + j) * G.nz + k];
+    };
+    function quad(a, b, c, dd, nx, ny, nz) {
+      pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+      pos.push(a[0], a[1], a[2], c[0], c[1], c[2], dd[0], dd[1], dd[2]);
+      for (var q = 0; q < 6; q++) nor.push(nx, ny, nz);
+    }
+    for (var i = 0; i < G.nx; i++) {
+      for (var j = 0; j < G.ny; j++) {
+        for (var k = 0; k < G.nz; k++) {
+          if (!at(i, j, k)) continue;
+          var xa = G.x0 + i * G.cw, xb = xa + G.cw;
+          var ya = G.y0 + j * G.ch, yb = ya + G.ch;
+          var za = G.z0 + k * G.cd, zb = za + G.cd;
+          if (!at(i + 1, j, k)) quad([xb, ya, za], [xb, ya, zb], [xb, yb, zb], [xb, yb, za], 1, 0, 0);
+          if (!at(i - 1, j, k)) quad([xa, ya, zb], [xa, ya, za], [xa, yb, za], [xa, yb, zb], -1, 0, 0);
+          if (!at(i, j + 1, k)) quad([xa, yb, za], [xb, yb, za], [xb, yb, zb], [xa, yb, zb], 0, 1, 0);
+          if (!at(i, j - 1, k)) quad([xa, ya, zb], [xb, ya, zb], [xb, ya, za], [xa, ya, za], 0, -1, 0);
+          if (!at(i, j, k + 1)) quad([xa, ya, zb], [xa, yb, zb], [xb, yb, zb], [xb, ya, zb], 0, 0, 1);
+          if (!at(i, j, k - 1)) quad([xb, ya, za], [xb, yb, za], [xa, yb, za], [xa, ya, za], 0, 0, -1);
+        }
+      }
+    }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    g.computeBoundingSphere();
+    return g;
+  }
+
+  /* the wet lining of the shaft, so it does not read as a clean drill */
+  function lineHole(host, point, dir, radius) {
+    var tube = new THREE.Mesh(
+      new THREE.CylinderGeometry(radius * .82, radius * .82, 2.6, 9, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x2a0209, side: THREE.BackSide, toneMapped: false }));
+    tube.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    host.worldToLocal(tube.position.copy(point));
+    tube.__isCarve = true;               // it is dressing, not body
+    tube.__lining = true;
+    host.add(tube);
+    return tube;
+  }
+
+  /* Take the material out along the line. Returns how many meshes it
+     actually went through — zero means the click missed the body. */
+  function punchHole(ent, point, dir, radius) {
+    if (!ent || !ent.rig || !ent.rig.root) return 0;
+    radius = radius || .3;
+    var n = dir.clone().normalize();
+    var a = new THREE.Vector3(), b = new THREE.Vector3();
+    var through = [], cut = 0;
     ent.rig.root.traverse(function (o) {
-      if (!o.isMesh) return;
+      if (!o.isMesh || !o.geometry) return;
+      /* never carve the carved copy, or the lining of an earlier hole —
+         the grid always belongs to the original box */
+      if (o.__isCarve) return;
+      /* a mesh already carved is hidden, and it is still the one to cut */
+      if (!o.visible && !o.__carved) return;
+      through.push(o);
+    });
+    through.forEach(function (mesh) {
+      var G = gridOf(mesh);
+      if (!G) return;
+      /* the punch line, in this mesh's own space */
+      mesh.updateWorldMatrix(true, false);
+      a.copy(point).addScaledVector(n, -6);
+      b.copy(point).addScaledVector(n, 6);
+      mesh.worldToLocal(a);
+      mesh.worldToLocal(b);
+      var ab = b.clone().sub(a);
+      var len2 = ab.lengthSq() || 1;
+      /* the mesh may be scaled, so the radius has to come along */
+      var sc = new THREE.Vector3();
+      mesh.getWorldScale(sc);
+      var rl = radius / Math.max(1e-4, (Math.abs(sc.x) + Math.abs(sc.y) + Math.abs(sc.z)) / 3);
+      var r2 = rl * rl;
+      var took = 0, c = new THREE.Vector3();
+      for (var i = 0; i < G.nx; i++) {
+        for (var j = 0; j < G.ny; j++) {
+          for (var k = 0; k < G.nz; k++) {
+            var idx = (i * G.ny + j) * G.nz + k;
+            if (!G.on[idx]) continue;
+            c.set(G.x0 + (i + .5) * G.cw, G.y0 + (j + .5) * G.ch, G.z0 + (k + .5) * G.cd);
+            var t = c.clone().sub(a).dot(ab) / len2;
+            if (t < 0 || t > 1) continue;
+            if (c.distanceToSquared(a.clone().addScaledVector(ab, t)) > r2) continue;
+            G.on[idx] = 0;
+            took++;
+          }
+        }
+      }
+      if (!took) return;
+      cut++;
+      /* swap in the rebuilt body, once, and update it after that */
+      var fresh = meshFromGrid(G);
+      if (mesh.__carved) {
+        mesh.__carved.geometry.dispose();
+        mesh.__carved.geometry = fresh;
+      } else {
+        var m = new THREE.Mesh(fresh, mesh.material);
+        m.castShadow = mesh.castShadow;
+        m.position.copy(mesh.position);
+        m.quaternion.copy(mesh.quaternion);
+        m.scale.copy(mesh.scale);
+        m.__isCarve = true;
+        (mesh.parent || ent.rig.root).add(m);
+        mesh.visible = false;
+        mesh.__carved = m;
+        (ent.__carved || (ent.__carved = [])).push(mesh);
+      }
+    });
+    if (!cut) return 0;
+
+    /* the shaft is lined, and it bleeds from both ends */
+    var host = null, bd = 1e9, wp = new THREE.Vector3();
+    ent.rig.root.traverse(function (o) {
+      if (!o.isMesh || o.__isCarve) return;
       o.getWorldPosition(wp);
       var dd = wp.distanceTo(point);
-      if (dd < bd) { bd = dd; best = o; }
+      if (dd < bd) { bd = dd; host = o.parent; }
     });
-    var host = best ? best.parent : ent.rig.root;
-    var shaft = new THREE.Mesh(HOLE_GEO, new THREE.MeshBasicMaterial({
-      color: 0x0a0206, side: THREE.DoubleSide, toneMapped: false
-    }));
-    var q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
-    shaft.quaternion.copy(q);
-    host.worldToLocal(shaft.position.copy(point));
-    host.add(shaft);
-    for (var s = -1; s <= 1; s += 2) {
-      var rim = new THREE.Mesh(RIM_GEO, new THREE.MeshBasicMaterial({
-        color: 0x5e0714, toneMapped: false
-      }));
-      rim.quaternion.copy(q);
-      rim.rotateX(Math.PI / 2);
-      rim.position.copy(shaft.position).addScaledVector(
-        host.worldToLocal(point.clone().addScaledVector(dir, s)).sub(shaft.position).normalize(), .9);
-      host.add(rim);
-    }
-    FX.bloodBurst ? FX.bloodBurst(point.clone(), 1.6, dir.clone())
-                  : FX.impact(point.clone(), 0x8b0f2a, 1.6);
-    FX.blood(point.clone(), dir.clone(), 8, 1.4);
-    FX.blood(point.clone(), dir.clone().negate(), 6, 1.2);
-    addShake(.7);
-    hitstop(.07);
+    if (host) lineHole(host, point.clone(), n, radius);
+    FX.bloodBurst ? FX.bloodBurst(point.clone(), 1.7, n.clone())
+                  : FX.impact(point.clone(), 0x8b0f2a, 1.7);
+    FX.blood(point.clone(), n.clone(), 10, 1.6);
+    FX.blood(point.clone(), n.clone().negate(), 8, 1.3);
+    FX.debris(point.clone(), 5, 8, 0x5e0714);
+    addShake(.8);
+    hitstop(.08);
     try { sfx.punch(); } catch (e) {}
+    return cut;
   }
   FV.punchHole = punchHole;
+
+  /* put the body back — a respawned enemy is not still full of holes */
+  FV.unpunch = function (ent) {
+    if (!ent || !ent.__carved) return;
+    ent.__carved.forEach(function (mesh) {
+      if (mesh.__carved) {
+        if (mesh.__carved.parent) mesh.__carved.parent.remove(mesh.__carved);
+        mesh.__carved.geometry.dispose();
+        mesh.__carved = null;
+      }
+      mesh.__grid = null;
+      mesh.visible = true;
+    });
+    ent.__carved = null;
+    if (ent.rig && ent.rig.root) {
+      var kill = [];
+      ent.rig.root.traverse(function (o) { if (o.__lining) kill.push(o); });
+      kill.forEach(function (o) {
+        if (o.parent) o.parent.remove(o);
+        o.geometry.dispose(); o.material.dispose();
+      });
+    }
+  };
+
+  if (GORE && GORE.clear) {
+    var _clear = GORE.clear;
+    GORE.clear = function (ent) { FV.unpunch(ent); return _clear(ent); };
+  }
 
   /* His own two fists, hung off the lens, so the shot reads as his eyes
      and not a floating camera. */
@@ -614,9 +922,26 @@
         (x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1), camera);
       var hits = ray.intersectObject(ent.rig.root, true);
       if (!hits.length) return;
+      /* the fist goes in where the ray landed and comes out the far side,
+         so the shaft is cut along the whole depth of them */
+      var cut = punchHole(ent, hits[0].point.clone(), ray.ray.direction.clone(), .26);
+      if (!cut) return;
       holes++;
-      punchHole(ent, hits[0].point.clone(), ray.ray.direction.clone());
       FX.mangaLines(.5, .2);
+      /* his own arm, thrown out at what he just hit */
+      var reach = hits[0].point.clone();
+      var fist = FX.billboard(FX.T.glow, GOLD, .7);
+      fist.scale.setScalar(2.2);
+      fist.position.copy(reach);
+      scene.add(fist);
+      var ft = 0;
+      addFx({ t: .22, update: function (dd) {
+        this.t -= dd; ft += dd;
+        fist.material.opacity = Math.max(0, .7 * (1 - ft / .22));
+        FX.faceCam(fist, 0);
+        if (this.t <= 0) { scene.remove(fist); fist.material.dispose(); return false; }
+        return true;
+      } });
     }
     window.addEventListener('mousemove', move, true);
     window.addEventListener('mousedown', click, true);
@@ -830,115 +1155,261 @@
   }
 
   /* ===================================================================
+     PERFORMING A FINISHER
+     A finisher in the table gets a target and some effects and that is
+     all — it cannot move the caster and it cannot pose him, which is why
+     the earlier ones read as things happening near a man standing still.
+     This hands the finisher an action of its own: it is driven every
+     frame by whatever callback it was given, so it can jump, punch, and
+     land, and the pose comes from the same place.
+     ================================================================ */
+  FV.perform = function (dur, step, pose) {
+    var a = { type: 'hafin', t: 0, dur: dur, stage: 0, step: step, pose: pose };
+    player.action = a;
+    player.iframes = Math.max(player.iframes, dur + .3);
+    return a;
+  };
+
+  function stepPerform(a, dt) {
+    if (a.step) { try { a.step(a, dt, player); } catch (e) {} }
+  }
+
+  /* ===================================================================
      POSES
      ================================================================ */
   function poseFever(r, a) {
+    if (a.type === 'hafin') {
+      rp(r);
+      if (a.pose) { try { a.pose(r, a, E.out); } catch (e) {} }
+      return true;
+    }
     var t = a.t, out = E.out;
     switch (a.type) {
+      /* Four beats, and they line up with what the move is actually
+         doing: both hands out to call it, a look at the size of it, the
+         leg drawn all the way back, and then the kick, with the follow
+         through carrying his shoulders round after it. */
       case 'ha1': {
         rp(r);
-        if (t < .42) {                                   // it is put down
-          var k = out(t / .42);
-          r.shoulderL.rotation.x = -1.3 * k; r.shoulderR.rotation.x = -1.3 * k;
-          r.shoulderL.rotation.z = .5 * k; r.shoulderR.rotation.z = -.5 * k;
-          r.elbowL.rotation.x = -1.1 * k; r.elbowR.rotation.x = -1.1 * k;
-          r.spine.rotation.x = .18 * k;
-          r.hips.position.y = r.hipsBaseY - .2 * k;
+        var CALL = C1.call, HOLD = C1.hold, WIND = C1.wind;
+        if (t < CALL) {                                  // it is called up
+          var k = out(t / CALL);
+          r.shoulderL.rotation.x = -1.55 * k; r.shoulderR.rotation.x = -1.55 * k;
+          r.shoulderL.rotation.z = .62 * k; r.shoulderR.rotation.z = -.62 * k;
+          r.elbowL.rotation.x = -1.15 * k; r.elbowR.rotation.x = -1.15 * k;
+          r.spine.rotation.x = .2 * k;
+          r.neck.rotation.x = -.22 * k;
+          r.hipL.rotation.x = .12 * k; r.hipR.rotation.x = .12 * k;
+          r.kneeL.rotation.x = .3 * k; r.kneeR.rotation.x = .3 * k;
+          r.hips.position.y = r.hipsBaseY - .26 * k;
           return true;
         }
-        var kk = out(Math.min(1, (t - .42) / .24));      // and kicked
-        r.hipR.rotation.x = -2.1 * kk;
-        r.kneeR.rotation.x = .3 * kk;
-        r.hipL.rotation.x = .45 * kk;
-        r.kneeL.rotation.x = .5 * kk;
-        r.spine.rotation.x = .18 - .5 * kk;
-        r.shoulderL.rotation.x = -1.3 + .5 * kk;
-        r.shoulderR.rotation.x = -1.3 + 1.9 * kk;
-        r.hips.position.y = r.hipsBaseY - .2 + .5 * kk;
+        if (t < CALL + HOLD) {                           // and he looks at it
+          var h = (t - CALL) / HOLD;
+          var br = Math.sin(h * Math.PI) * .1;
+          r.shoulderL.rotation.x = -1.55 + .35 * h; r.shoulderR.rotation.x = -1.55 + .35 * h;
+          r.shoulderL.rotation.z = .62 - .2 * h; r.shoulderR.rotation.z = -.62 + .2 * h;
+          r.elbowL.rotation.x = -1.15; r.elbowR.rotation.x = -1.15;
+          r.spine.rotation.x = .2 - br;
+          r.neck.rotation.x = -.22 - br * 2;
+          r.hips.position.y = r.hipsBaseY - .26 + br;
+          return true;
+        }
+        if (t < CALL + HOLD + WIND) {                    // the leg goes back
+          var w = out((t - CALL - HOLD) / WIND);
+          r.spine.rotation.x = .2 + .34 * w;
+          r.spine.rotation.y = .42 * w;
+          r.neck.rotation.y = -.32 * w;
+          r.shoulderL.rotation.x = -1.2 - .9 * w;
+          r.shoulderR.rotation.x = -1.2 + 1.6 * w;
+          r.shoulderL.rotation.z = .42; r.shoulderR.rotation.z = -.42;
+          r.elbowL.rotation.x = -1.15 + .5 * w; r.elbowR.rotation.x = -1.15 + .8 * w;
+          r.hipR.rotation.x = 1.15 * w;                  // drawn right back
+          r.kneeR.rotation.x = 1.5 * w;
+          r.hipL.rotation.x = -.24 * w; r.kneeL.rotation.x = .55 * w;
+          r.hips.position.y = r.hipsBaseY - .26 - .2 * w;
+          return true;
+        }
+        var kk = out(Math.min(1, (t - CALL - HOLD - WIND) / .2));   // and through
+        r.hipR.rotation.x = 1.15 - 3.5 * kk;
+        r.kneeR.rotation.x = 1.5 - 1.35 * kk;
+        r.hipL.rotation.x = -.24 + .8 * kk;
+        r.kneeL.rotation.x = .55 + .3 * kk;
+        r.spine.rotation.x = .54 - .95 * kk;
+        r.spine.rotation.y = .42 - .95 * kk;
+        r.neck.rotation.y = -.32 + .5 * kk;
+        r.shoulderL.rotation.x = -2.1 + 3.1 * kk;
+        r.shoulderR.rotation.x = .4 - 1.9 * kk;
+        r.hips.position.y = r.hipsBaseY - .46 + .74 * kk;
         return true;
       }
       case 'ha1j': {
         rp(r);
-        var j = out(Math.min(1, t / .5));
-        var pun = t > .5 ? out(Math.min(1, (t - .5) / .22)) : 0;
-        r.shoulderL.rotation.x = -2.6 * j + 3.4 * pun;
-        r.shoulderR.rotation.x = -2.6 * j + 3.4 * pun;
-        r.elbowL.rotation.x = -.5 * j; r.elbowR.rotation.x = -.5 * j;
-        r.spine.rotation.x = -.36 * j + .7 * pun;
-        r.neck.rotation.x = -.4 * j + .6 * pun;
-        r.hipL.rotation.x = -.7 * j; r.kneeL.rotation.x = 1.1 * j;
-        r.hipR.rotation.x = -.5 * j; r.kneeR.rotation.x = .9 * j;
-        r.hips.position.y = r.hipsBaseY + .3 * j;
+        var j = out(Math.min(1, t / .55));
+        var pun = t > .55 ? out(Math.min(1, (t - .55) / .2)) : 0;
+        /* both hands up over the head, then driven straight down */
+        r.shoulderL.rotation.x = -2.85 * j + 3.9 * pun;
+        r.shoulderR.rotation.x = -2.85 * j + 3.9 * pun;
+        r.shoulderL.rotation.z = .3 * j - .3 * pun;
+        r.shoulderR.rotation.z = -.3 * j + .3 * pun;
+        r.elbowL.rotation.x = -.7 * j + .5 * pun; r.elbowR.rotation.x = -.7 * j + .5 * pun;
+        r.spine.rotation.x = -.44 * j + .95 * pun;
+        r.neck.rotation.x = -.5 * j + .8 * pun;
+        r.hipL.rotation.x = -.95 * j + .6 * pun; r.kneeL.rotation.x = 1.5 * j - .7 * pun;
+        r.hipR.rotation.x = -.6 * j + .4 * pun; r.kneeR.rotation.x = 1.1 * j - .5 * pun;
+        r.hips.position.y = r.hipsBaseY + .36 * j;
         return true;
       }
+      /* The rush. Not a metronome: the fists come in pairs, the hips
+         drive each one, and every fourth is a hook that turns him. */
       case 'ha2': {
         rp(r);
-        var s = Math.sin(t * 44), c = Math.cos(t * 44);
-        r.spine.rotation.y = s * .3;
-        r.spine.rotation.x = -.16;
-        r.neck.rotation.x = -.12;
-        r.shoulderL.rotation.x = -1.5 - s * 1.1;
-        r.shoulderR.rotation.x = -1.5 + s * 1.1;
-        r.elbowL.rotation.x = -.35 + c * .3;
-        r.elbowR.rotation.x = -.35 - c * .3;
-        r.hipL.rotation.x = -.3; r.kneeL.rotation.x = .5;
-        r.hipR.rotation.x = .22; r.kneeR.rotation.x = .34;
-        r.hips.position.y = r.hipsBaseY - .3 + Math.abs(s) * .1;
+        var lead = out(Math.min(1, t / .13));            // he steps in
+        var beat = t * 26;
+        var s = Math.sin(beat), c = Math.cos(beat);
+        var swing = Math.sin(beat * .25);                // the slow hook under it
+        r.spine.rotation.y = s * .46 + swing * .2;
+        r.spine.rotation.x = -.26 * lead + Math.abs(c) * .06;
+        r.neck.rotation.x = -.18;
+        r.neck.rotation.y = -s * .26;
+        r.shoulderL.rotation.x = -1.62 * lead - s * 1.5;
+        r.shoulderR.rotation.x = -1.62 * lead + s * 1.5;
+        r.shoulderL.rotation.z = .3 + swing * .3;
+        r.shoulderR.rotation.z = -.3 + swing * .3;
+        r.elbowL.rotation.x = -.5 + Math.max(0, c) * .9;
+        r.elbowR.rotation.x = -.5 + Math.max(0, -c) * .9;
+        r.hipL.rotation.x = (-.42 - s * .18) * lead; r.kneeL.rotation.x = .62 * lead;
+        r.hipR.rotation.x = (.3 + s * .18) * lead; r.kneeR.rotation.x = .42 * lead;
+        r.hips.rotation.y = s * .3;
+        r.hips.position.y = r.hipsBaseY - .38 * lead + Math.abs(s) * .12;
+        r.hips.position.x = s * .1;
         return true;
       }
+      /* Two seconds of dancing that is actually a dance — four figures
+         in sequence rather than one loop — and then a sprint that starts
+         from a crouch and settles into a stride. */
       case 'ha3': {
         rp(r);
         if (t < a.dance) {
-          var d2 = t * 8, sd = Math.sin(d2), cd = Math.cos(d2);
-          r.spine.rotation.y = sd * .45;
-          r.spine.rotation.x = -.12 + Math.abs(cd) * .12;
-          r.neck.rotation.y = -sd * .32;
-          r.shoulderL.rotation.x = -1.2 - sd * .95;
-          r.shoulderR.rotation.x = -1.2 + sd * .95;
-          r.shoulderL.rotation.z = .62 + cd * .34;
-          r.shoulderR.rotation.z = -.62 + cd * .34;
-          r.elbowL.rotation.x = -1.4 + sd * .5;
-          r.elbowR.rotation.x = -1.4 - sd * .5;
-          r.hipL.rotation.x = -.22 + sd * .34;
-          r.hipR.rotation.x = -.22 - sd * .34;
-          r.kneeL.rotation.x = .42 + Math.max(0, sd) * .5;
-          r.kneeR.rotation.x = .42 + Math.max(0, -sd) * .5;
-          r.hips.position.y = r.hipsBaseY - .18 + Math.abs(sd) * .3;
-          r.hips.position.x = sd * .22;
+          var ph = t / a.dance;                          // 0 → 1 over the dance
+          var d2 = t * 9.4, sd = Math.sin(d2), cd = Math.cos(d2);
+          var sw = Math.sin(t * 4.7);                    // the slow weight shift
+          /* the figure changes a third of the way in and again at two
+             thirds, so it does not read as one repeated bar */
+          var fig = ph < .34 ? 0 : (ph < .68 ? 1 : 2);
+          r.spine.rotation.y = sd * (fig === 1 ? .62 : .4);
+          r.spine.rotation.z = sw * .18;
+          r.spine.rotation.x = -.14 + Math.abs(cd) * .14;
+          r.neck.rotation.y = -sd * .36;
+          r.neck.rotation.z = sw * .2;
+          if (fig === 0) {                               // hands high, rolling
+            r.shoulderL.rotation.x = -2.2 - sd * .5;
+            r.shoulderR.rotation.x = -2.2 + sd * .5;
+            r.shoulderL.rotation.z = .5 + cd * .4;
+            r.shoulderR.rotation.z = -.5 + cd * .4;
+            r.elbowL.rotation.x = -1.7 + sd * .4;
+            r.elbowR.rotation.x = -1.7 - sd * .4;
+          } else if (fig === 1) {                        // wide, punching out
+            r.shoulderL.rotation.x = -1.1 - sd * 1.5;
+            r.shoulderR.rotation.x = -1.1 + sd * 1.5;
+            r.shoulderL.rotation.z = 1.1 + cd * .3;
+            r.shoulderR.rotation.z = -1.1 + cd * .3;
+            r.elbowL.rotation.x = -.9 - sd * .7;
+            r.elbowR.rotation.x = -.9 + sd * .7;
+          } else {                                       // arms crossed, low
+            r.shoulderL.rotation.x = -1.5;
+            r.shoulderR.rotation.x = -1.5;
+            r.shoulderL.rotation.z = .1 + sd * .8;
+            r.shoulderR.rotation.z = -.1 + sd * .8;
+            r.elbowL.rotation.x = -2.1; r.elbowR.rotation.x = -2.1;
+          }
+          r.hipL.rotation.x = -.26 + sd * .42;
+          r.hipR.rotation.x = -.26 - sd * .42;
+          r.hipL.rotation.z = .14 * sw; r.hipR.rotation.z = .14 * sw;
+          r.kneeL.rotation.x = .46 + Math.max(0, sd) * .62;
+          r.kneeR.rotation.x = .46 + Math.max(0, -sd) * .62;
+          r.hips.rotation.y = -sd * .34;
+          r.hips.position.y = r.hipsBaseY - .2 + Math.abs(sd) * .34;
+          r.hips.position.x = sw * .3;
           return true;
         }
-        /* the run: low, arms back, shoulders ahead of the feet */
-        var g = (t - a.dance) * 22;
-        var sg = Math.sin(g);
-        r.spine.rotation.x = -.62;
-        r.neck.rotation.x = .42;
-        r.shoulderL.rotation.x = 1.5; r.shoulderR.rotation.x = 1.5;
-        r.shoulderL.rotation.z = .34; r.shoulderR.rotation.z = -.34;
-        r.elbowL.rotation.x = -.5; r.elbowR.rotation.x = -.5;
-        r.hipL.rotation.x = -1.05 + sg * .6; r.hipR.rotation.x = -1.05 - sg * .6;
-        r.kneeL.rotation.x = .8 + Math.max(0, sg) * .8;
-        r.kneeR.rotation.x = .8 + Math.max(0, -sg) * .8;
-        r.hips.position.y = r.hipsBaseY - .34;
+        /* the run: out of the crouch, then low and long */
+        var rt = t - a.dance;
+        var open = out(Math.min(1, rt / .22));
+        var g = rt * 24;
+        var sg = Math.sin(g), cg = Math.cos(g);
+        r.spine.rotation.x = -.7 * open;
+        r.spine.rotation.y = sg * .16;
+        r.neck.rotation.x = .5 * open;
+        /* arms streaming behind him, and they trail on the beat */
+        r.shoulderL.rotation.x = (1.65 + sg * .3) * open;
+        r.shoulderR.rotation.x = (1.65 - sg * .3) * open;
+        r.shoulderL.rotation.z = .4 * open; r.shoulderR.rotation.z = -.4 * open;
+        r.elbowL.rotation.x = (-.62 - cg * .2) * open;
+        r.elbowR.rotation.x = (-.62 + cg * .2) * open;
+        r.hipL.rotation.x = (-1.15 + sg * .75) * open;
+        r.hipR.rotation.x = (-1.15 - sg * .75) * open;
+        r.kneeL.rotation.x = (.85 + Math.max(0, sg) * .95) * open;
+        r.kneeR.rotation.x = (.85 + Math.max(0, -sg) * .95) * open;
+        r.ankleL.rotation.x = -.3 * open; r.ankleR.rotation.x = -.3 * open;
+        r.hips.rotation.y = -sg * .2;
+        r.hips.position.y = r.hipsBaseY - .4 * open;
         return true;
       }
+      /* Up tucked, over the top, down with the legs out in front, and
+         then the same again — the second one is a jump off the crater. */
       case 'ha4': {
         rp(r);
-        if (a.stage < 2) {                                // up, then over
-          var u = out(Math.min(1, t / .4));
-          r.spine.rotation.x = -.3 * u;
-          r.shoulderL.rotation.x = -2.7 * u; r.shoulderR.rotation.x = -2.7 * u;
-          r.hipL.rotation.x = -1.3 * u; r.kneeL.rotation.x = 1.7 * u;
-          r.hipR.rotation.x = -1.3 * u; r.kneeR.rotation.x = 1.7 * u;
-          r.hips.position.y = r.hipsBaseY + .5 * u;
+        if (a.stage === 0) {                              // tucked, going up
+          var u = out(Math.min(1, t / .3));
+          r.spine.rotation.x = -.42 * u;
+          r.neck.rotation.x = -.4 * u;
+          r.shoulderL.rotation.x = -2.9 * u; r.shoulderR.rotation.x = -2.9 * u;
+          r.shoulderL.rotation.z = .34 * u; r.shoulderR.rotation.z = -.34 * u;
+          r.elbowL.rotation.x = -.9 * u; r.elbowR.rotation.x = -.9 * u;
+          r.hipL.rotation.x = -1.7 * u; r.kneeL.rotation.x = 2.1 * u;
+          r.hipR.rotation.x = -1.5 * u; r.kneeR.rotation.x = 1.9 * u;
+          r.hips.position.y = r.hipsBaseY + .55 * u;
           return true;
         }
-        var l = out(Math.min(1, (t - (a.landed || 0)) / .3));  // and landed
-        r.spine.rotation.x = .55 * (1 - l) + .2;
-        r.shoulderL.rotation.x = 1.2 * (1 - l); r.shoulderR.rotation.x = 1.2 * (1 - l);
-        r.elbowL.rotation.x = -.4; r.elbowR.rotation.x = -.4;
-        r.hipL.rotation.x = -.6; r.kneeL.rotation.x = 1.15 * (1 - l * .5);
-        r.hipR.rotation.x = -.55; r.kneeR.rotation.x = 1.1 * (1 - l * .5);
-        r.hips.position.y = r.hipsBaseY - 1 * (1 - l * .6);
+        if (a.stage === 1) {                              // turned over, driving
+          var f = out(Math.min(1, (t - .3) / .22));
+          r.spine.rotation.x = -.42 + 1.05 * f;
+          r.neck.rotation.x = -.4 + .95 * f;
+          r.shoulderL.rotation.x = -2.9 + 4.3 * f;
+          r.shoulderR.rotation.x = -2.9 + 4.3 * f;
+          r.shoulderL.rotation.z = .34 - .5 * f; r.shoulderR.rotation.z = -.34 + .5 * f;
+          r.elbowL.rotation.x = -.9 + .7 * f; r.elbowR.rotation.x = -.9 + .7 * f;
+          /* legs out in front of him, coming down feet first */
+          r.hipL.rotation.x = -1.7 + .5 * f; r.kneeL.rotation.x = 2.1 - 1.9 * f;
+          r.hipR.rotation.x = -1.5 + .35 * f; r.kneeR.rotation.x = 1.9 - 1.7 * f;
+          r.ankleL.rotation.x = .4 * f; r.ankleR.rotation.x = .4 * f;
+          r.hips.position.y = r.hipsBaseY + .55 - .4 * f;
+          return true;
+        }
+        if (a.stage === 2) {                              // absorbed, folded up
+          var l = out(Math.min(1, (t - (a.landed || 0)) / .22));
+          r.spine.rotation.x = .75 - .3 * l;
+          r.neck.rotation.x = .5 - .3 * l;
+          r.shoulderL.rotation.x = 1.5 - .4 * l; r.shoulderR.rotation.x = 1.5 - .4 * l;
+          r.shoulderL.rotation.z = .5; r.shoulderR.rotation.z = -.5;
+          r.elbowL.rotation.x = -.5; r.elbowR.rotation.x = -.5;
+          r.hipL.rotation.x = -1.15; r.kneeL.rotation.x = 1.75;
+          r.hipR.rotation.x = -1.1; r.kneeR.rotation.x = 1.7;
+          r.hips.position.y = r.hipsBaseY - 1.15;
+          return true;
+        }
+        /* and off it again, thrown open */
+        var b = out(Math.min(1, (t - (a.landed || 0) - .38) / .28));
+        r.spine.rotation.x = .45 - .95 * b;
+        r.neck.rotation.x = .2 - .7 * b;
+        r.shoulderL.rotation.x = 1.1 - 4 * b; r.shoulderR.rotation.x = 1.1 - 4 * b;
+        r.shoulderL.rotation.z = .5 - .2 * b; r.shoulderR.rotation.z = -.5 + .2 * b;
+        r.elbowL.rotation.x = -.5 + .3 * b; r.elbowR.rotation.x = -.5 + .3 * b;
+        r.hipL.rotation.x = -1.15 + .5 * b; r.kneeL.rotation.x = 1.75 - 1.2 * b;
+        r.hipR.rotation.x = -1.1 + .4 * b; r.kneeR.rotation.x = 1.7 - 1.1 * b;
+        r.ankleL.rotation.x = -.5 * b; r.ankleR.rotation.x = -.5 * b;
+        r.hips.position.y = r.hipsBaseY - 1.15 + 1.5 * b;
         return true;
       }
     }
@@ -985,6 +1456,7 @@
       case 'ha2': return stepBarrage(a, dt);
       case 'ha3': return stepRun(a, dt);
       case 'ha4': return stepStomp(a, dt);
+      case 'hafin': return stepPerform(a, dt);
     }
     return _stepAction(a, dt);
   };
@@ -1041,6 +1513,11 @@
     else hit = false;
     if (hit) e.stopImmediatePropagation();
   }, true);
+
+  /* the finishers build containers too, and they build the same one */
+  FV.BOX = BOX;
+  FV.buildContainer = buildContainer;
+  FV.dent = dent;
 
   /* what everybody else sees */
   FV.remote = {

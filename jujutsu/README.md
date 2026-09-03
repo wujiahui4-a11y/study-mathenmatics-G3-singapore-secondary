@@ -147,9 +147,20 @@ of them ends differently.
 | `3` | **Fever Rush** | two seconds of dancing and then a run he steers himself |
 | `4` | **Gachinko** | up, and the ground breaks. Then down, and it breaks again |
 
-**Container** has a variant. Cast it **in the air** and he jumps higher,
-summons the container overhead instead of on the road, and punches it
-straight down — a different action (`ha1j`) with a different finisher.
+**Container** is a **forty-foot container** — 15.5 long, 6.2 tall, corrugated
+down its length, framed on every long edge, doors and locking bars on the end.
+It is longer than the road is wide and it stands taller than he does, which is
+the whole point of the move. It comes in three beats: it is called up out of
+nothing, it **sits there for a quarter of a second** so you can see how big it
+is, and then he kicks it. It goes **end over end**, not along its own length —
+a container kicked down a road cartwheels, and every quarter turn a corner
+lands and the street shakes. The whole length of it is dangerous, so what it
+hits is measured to the box's own axis rather than to a point in the middle.
+
+It has a variant. Cast it **in the air** and he jumps higher, summons the
+container overhead instead of on the road, turns it broadside on the way in
+and punches it straight down — a different action (`ha1j`) with a different
+finisher.
 
 **Fever Rush** picks up **two at the most**, at 5.2 units, and holds them one
 either side of him for the whole run. The road takes a cut off them the whole
@@ -165,11 +176,35 @@ The finishers:
 
 | | What it does |
 | --- | --- |
-| **THROUGH THE BOX** | he rushes the container, punches it out of shape, and the last punch goes through it into their head |
-| **UNDER THE BOX** | the air variant: it comes down on them and they come apart under it |
+| **THROUGH THE BOX** | the container stops broadside on them; fourteen punches walk down its length folding the steel flat, and the last one goes through it and out the far side into their head |
+| **UNDER THE BOX** | the air variant: fifteen metres of steel comes down on them and they come apart under it |
 | **FULL OF HOLES** | five seconds of first person, below |
-| **DRAGGED** | one of them goes up and comes apart on the way down; two of them are put head to head and taken apart together |
+| **DRAGGED** | one of them is thrown to the sky and **he goes up after them**; two of them are put head to head, opened, and closed |
 | **OUT OF THE PARK** | a very long way out, ragdolled, with a white line behind them |
+
+### A finisher that can move him
+
+A finisher in the table gets a target, a direction and a place, and that is
+all — it cannot move the caster and it cannot pose him, which is why the first
+versions of these read as things happening near a man standing still.
+
+So `fever.js` exposes `FV.perform(dur, step, pose)`, which hands the finisher
+an action of its own. It is driven every frame by the callback it was given,
+and the pose comes from the same place, so a finisher can jump, hold a height,
+wind up, punch and land. It is listed as not-a-skill, so a finisher playing
+can never arm another one.
+
+**DRAGGED** is what it was built for. One enemy is thrown twenty six units up;
+he crouches, launches with **exactly the speed needed to clear the top of
+them** from wherever he happens to be standing, holds his height about five
+units *above* them, winds up, and drives a punch straight down — and they come
+apart **in the air**, not on the ground. Then he falls and the landing cracks
+the road. Measured: they reach 30.8, he reaches 35.3, and the dice happens
+while they are still at 30.8.
+
+Two of them get three beats instead: their heads are brought together until
+they meet, pulled apart — and the heads come off on the way — and then what is
+left is closed together again. He has an arm out to each of them for all of it.
 
 ### The five seconds where the camera is yours
 
@@ -182,16 +217,59 @@ held still and turned to face him.
 
 Then you have **five seconds and as many clicks as you want**. The crosshair
 moves on raw mouse deltas, so it works with the pointer locked. Each click
-raycasts into their rig, and a hit puts a **real hole** through them: a dark
-shaft with a torn rim on each side, parented to whichever bone was nearest so
-it travels with the body rather than hanging in the air. A click that misses
-the body does nothing. When the clock runs out you get the count, and then
-they come apart.
+raycasts into their rig, and a hit puts a hole through them. A click that
+misses the body does nothing. When the clock runs out you get the count, and
+then they come apart.
+
+### The hole is cut, not hung
+
+The first version hung a hole-shaped object on the body: a dark cylinder and
+two rims, parented to the nearest bone. It travelled with them, and it was
+still a decoration sitting on a body that was entirely intact.
+
+This one **takes the material out of the body**. Every mesh in these rigs is a
+box, so each one the punch line passes through is turned into a grid of cells
+about eleven centimetres across, the cells along the line are switched off, and
+the mesh is rebuilt emitting **only the faces that border something missing** —
+which gives the shaft real walls and no wasted triangles. The original is
+hidden and the rebuilt body takes its place under the same bone, so it deforms
+and travels because it *is* the limb. A second hole re-carves the same grid.
+
+The proof it is real: punching the identical line a second time cuts **nothing**
+— there is no material left there to take — while a line a metre lower still
+cuts two meshes. One punch through the chest goes through three meshes and
+removes 195 cells. `JJGORE.clear` puts the body back, so a respawn is not still
+full of holes.
 
 Two details worth keeping. The click is swallowed (`stopImmediatePropagation`)
 so it does not also throw a punch, and the movement keys are blanked for those
 frames the same way Choso's stream blanks them — otherwise you walk out of
 your own shot.
+
+### The animation
+
+A pose that is one sine wave reads as a man wobbling, so none of these is one.
+
+**Container** has four beats and they line up with what the move is doing:
+both hands out to call it, a look up at the size of it with the breath in his
+chest, the leg drawn all the way back with his shoulders turned away, and then
+the kick with the follow-through carrying his shoulders round after it.
+
+**Unlimited** is not a metronome. The fists come in pairs, the hips drive each
+one, and a slow hook swings underneath the fast beat so every fourth punch
+turns him. The punch itself is a model now — a fist with four knuckles on it
+and a forearm behind it — and each one is thrown with **five more strung out
+behind it** along the same line, each further back, smaller and fainter, which
+is what an afterimage is. His whole body is smeared on every beat as well.
+
+**Fever Rush**'s two seconds of dancing are three figures in sequence rather
+than one repeated bar: hands high and rolling, then wide and punching out,
+then arms crossed and low, with the weight shifting under all of it. The run
+comes out of a crouch and settles into a stride with the arms streaming back.
+
+**Gachinko** goes up tucked, turns over at the top, comes down with the legs
+out in front, folds up on the landing, and is thrown open again on the way
+back up.
 
 ### The aura
 
