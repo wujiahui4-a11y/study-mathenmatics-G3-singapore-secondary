@@ -51,15 +51,18 @@ moment of the second kick, not at the moment of the first.
 
 ### Door Guard
 
-Overwhelm was a shoulder charge. It is now a **wait**. Two shutters go up in
+Overwhelm was a shoulder charge. It is now a **wait**. One shutter goes up in
 front of him and nothing happens — until somebody throws a melee attack at
 them, at which point he goes through both of them fist first and whoever
 swung goes backwards. Its whole value is that the other player has to decide
 whether to commit.
 
-It works by intercepting in `hurtPlayer`: while the doors are up a melee hit
-does not land on him at all, it springs them instead. Ranged hits are not
+It works by intercepting in `hurtPlayer`: while the door is up a melee hit
+does not land on him at all, it springs it instead. Ranged hits are not
 caught — a door is a door.
+
+It puts up **one** pair of panels rather than two. Two of them stacked front
+to back read as four panels and buried him behind his own guard.
 
 ### The domain moved to `F`
 
@@ -133,6 +136,11 @@ a parlour's balls, a machine. So the ground he fights on keeps turning into
 the place those came from: a subway platform, a parlour floor, the crossing,
 an arcade. It lasts a few seconds and goes, and it does not fire inside the
 domain, which has a floor of its own.
+
+It is **floor only**. The first version stood a wall at each edge to make it
+feel like a place, and what that actually did was drop a slab of building
+beside you mid-fight for no reason you could see. Anything vertical is
+scenery in the way of the thing you are doing.
 
 ## Yuji Itadori## Yuji Itadori
 

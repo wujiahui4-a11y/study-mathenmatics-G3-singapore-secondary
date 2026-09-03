@@ -481,13 +481,11 @@
   HK.remoteGuard = function (pos, yaw) {
     var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     var doors = [];
-    for (var i = 0; i < 2; i++) {
-      var dr = makeDoor();
-      dr.position.copy(pos).addScaledVector(d, 2.4 + i * 1.5).add(new THREE.Vector3(0, 3.4, 0));
-      dr.rotation.y = yaw;
-      scene.add(dr);
-      doors.push(dr);
-    }
+    var dr = makeDoor();
+    dr.position.copy(pos).addScaledVector(d, 2.6).add(new THREE.Vector3(0, 3.4, 0));
+    dr.rotation.y = yaw;
+    scene.add(dr);
+    doors.push(dr);
     HK.remoteDoors = doors;
     /* if nobody swings they simply come back down */
     setTimeout(function () {
@@ -725,16 +723,16 @@
     a.dir = aim();
     a.doors = [];
     a.sprung = false;
-    for (var i = 0; i < 2; i++) {
-      var d = makeDoor();
-      d.position.copy(player.pos)
-        .addScaledVector(a.dir, 2.4 + i * 1.5)
-        .add(new THREE.Vector3(0, 3.4, 0));
-      d.rotation.y = player.facing;
-      d.scale.set(1, .05, 1);
-      scene.add(d);
-      a.doors.push(d);
-    }
+    /* one pair, not two. Two of them stacked front to back read as four
+       panels and buried him behind his own guard. */
+    var d = makeDoor();
+    d.position.copy(player.pos)
+      .addScaledVector(a.dir, 2.6)
+      .add(new THREE.Vector3(0, 3.4, 0));
+    d.rotation.y = player.facing;
+    d.scale.set(1, .05, 1);
+    scene.add(d);
+    a.doors.push(d);
     HK.guard = a;
     try { sfx.frame(); } catch (e) {}
   }
@@ -792,10 +790,10 @@
     if (a.sprung) return;
     if (a.t < .2) {
       var k = E.out(a.t / .2);
-      a.doors.forEach(function (d, i) {
+      a.doors.forEach(function (d) {
         d.scale.set(1, .05 + .95 * k, 1);
         d.position.copy(player.pos)
-          .addScaledVector(a.dir, 2.4 + i * 1.5)
+          .addScaledVector(a.dir, 2.6)
           .add(new THREE.Vector3(0, 3.4, 0));
       });
       return;
@@ -805,11 +803,11 @@
       HK.shutter = HK.shutter || { until: 0, dir: a.dir.clone() };
       HK.shutter.until = SA_now() + .2;
       HK.shutter.dir = a.dir.clone();
-      a.doors.forEach(function (d, i) {
+      a.doors.forEach(function (d) {
         d.position.copy(player.pos)
-          .addScaledVector(a.dir, 2.4 + i * 1.5)
+          .addScaledVector(a.dir, 2.6)
           .add(new THREE.Vector3(0, 3.4, 0));
-        HK.pulseDoor(d, a.t + i);
+        HK.pulseDoor(d, a.t);
       });
       if (Math.random() < dt * 8) {
         FX.streaks(a.doors[0].position.clone(), 0xffcc4d, 1, 5, .7);

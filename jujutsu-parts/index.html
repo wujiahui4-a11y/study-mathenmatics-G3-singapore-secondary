@@ -12726,13 +12726,11 @@ window.__game = {
   HK.remoteGuard = function (pos, yaw) {
     var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     var doors = [];
-    for (var i = 0; i < 2; i++) {
-      var dr = makeDoor();
-      dr.position.copy(pos).addScaledVector(d, 2.4 + i * 1.5).add(new THREE.Vector3(0, 3.4, 0));
-      dr.rotation.y = yaw;
-      scene.add(dr);
-      doors.push(dr);
-    }
+    var dr = makeDoor();
+    dr.position.copy(pos).addScaledVector(d, 2.6).add(new THREE.Vector3(0, 3.4, 0));
+    dr.rotation.y = yaw;
+    scene.add(dr);
+    doors.push(dr);
     HK.remoteDoors = doors;
     /* if nobody swings they simply come back down */
     setTimeout(function () {
@@ -12970,16 +12968,16 @@ window.__game = {
     a.dir = aim();
     a.doors = [];
     a.sprung = false;
-    for (var i = 0; i < 2; i++) {
-      var d = makeDoor();
-      d.position.copy(player.pos)
-        .addScaledVector(a.dir, 2.4 + i * 1.5)
-        .add(new THREE.Vector3(0, 3.4, 0));
-      d.rotation.y = player.facing;
-      d.scale.set(1, .05, 1);
-      scene.add(d);
-      a.doors.push(d);
-    }
+    /* one pair, not two. Two of them stacked front to back read as four
+       panels and buried him behind his own guard. */
+    var d = makeDoor();
+    d.position.copy(player.pos)
+      .addScaledVector(a.dir, 2.6)
+      .add(new THREE.Vector3(0, 3.4, 0));
+    d.rotation.y = player.facing;
+    d.scale.set(1, .05, 1);
+    scene.add(d);
+    a.doors.push(d);
     HK.guard = a;
     try { sfx.frame(); } catch (e) {}
   }
@@ -13037,10 +13035,10 @@ window.__game = {
     if (a.sprung) return;
     if (a.t < .2) {
       var k = E.out(a.t / .2);
-      a.doors.forEach(function (d, i) {
+      a.doors.forEach(function (d) {
         d.scale.set(1, .05 + .95 * k, 1);
         d.position.copy(player.pos)
-          .addScaledVector(a.dir, 2.4 + i * 1.5)
+          .addScaledVector(a.dir, 2.6)
           .add(new THREE.Vector3(0, 3.4, 0));
       });
       return;
@@ -13050,11 +13048,11 @@ window.__game = {
       HK.shutter = HK.shutter || { until: 0, dir: a.dir.clone() };
       HK.shutter.until = SA_now() + .2;
       HK.shutter.dir = a.dir.clone();
-      a.doors.forEach(function (d, i) {
+      a.doors.forEach(function (d) {
         d.position.copy(player.pos)
-          .addScaledVector(a.dir, 2.4 + i * 1.5)
+          .addScaledVector(a.dir, 2.6)
           .add(new THREE.Vector3(0, 3.4, 0));
-        HK.pulseDoor(d, a.t + i);
+        HK.pulseDoor(d, a.t);
       });
       if (Math.random() < dt * 8) {
         FX.streaks(a.doors[0].position.clone(), 0xffcc4d, 1, 5, .7);
@@ -19046,18 +19044,18 @@ window.__game = {
       ln.position.set(c.x, .07, c.z + i * 9);
       g.add(ln);
     }
-    /* and something standing at the edges so it is a place, not a rug */
-    for (var j = -1; j <= 1; j += 2) {
-      var wall = new THREE.Mesh(new THREE.BoxGeometry(46, 9, 1.4),
-        new THREE.MeshStandardMaterial({ color: S.wall, roughness: .9 }));
-      wall.position.set(c.x, 4.5, c.z + j * 22);
-      g.add(wall);
-      for (var k = -2; k <= 2; k++) {
-        var lamp = new THREE.Mesh(new THREE.BoxGeometry(3.4, .7, .3),
-          new THREE.MeshBasicMaterial({ color: S.line, toneMapped: false }));
-        lamp.position.set(c.x + k * 9, 7.4, c.z + j * 21.2);
-        g.add(lamp);
-      }
+    /* NO WALLS. The first version stood two of them at the edges to make
+       it feel like a place, and the result was a slab of building
+       appearing beside you in the middle of a fight for no reason you
+       could see. The floor is the scene; anything vertical is scenery
+       that gets in the way of the thing you are actually doing. */
+    for (var k = -2; k <= 2; k++) {
+      var stud = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6),
+        new THREE.MeshBasicMaterial({ color: S.line, toneMapped: false,
+          transparent: true, opacity: .5 }));
+      stud.rotation.x = -Math.PI / 2;
+      stud.position.set(c.x + k * 9, .06, c.z);
+      g.add(stud);
     }
     scene.add(g);
     sceneLive = g;
@@ -35481,13 +35479,11 @@ window.__game = {
   HK.remoteGuard = function (pos, yaw) {
     var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     var doors = [];
-    for (var i = 0; i < 2; i++) {
-      var dr = makeDoor();
-      dr.position.copy(pos).addScaledVector(d, 2.4 + i * 1.5).add(new THREE.Vector3(0, 3.4, 0));
-      dr.rotation.y = yaw;
-      scene.add(dr);
-      doors.push(dr);
-    }
+    var dr = makeDoor();
+    dr.position.copy(pos).addScaledVector(d, 2.6).add(new THREE.Vector3(0, 3.4, 0));
+    dr.rotation.y = yaw;
+    scene.add(dr);
+    doors.push(dr);
     HK.remoteDoors = doors;
     /* if nobody swings they simply come back down */
     setTimeout(function () {
@@ -35725,16 +35721,16 @@ window.__game = {
     a.dir = aim();
     a.doors = [];
     a.sprung = false;
-    for (var i = 0; i < 2; i++) {
-      var d = makeDoor();
-      d.position.copy(player.pos)
-        .addScaledVector(a.dir, 2.4 + i * 1.5)
-        .add(new THREE.Vector3(0, 3.4, 0));
-      d.rotation.y = player.facing;
-      d.scale.set(1, .05, 1);
-      scene.add(d);
-      a.doors.push(d);
-    }
+    /* one pair, not two. Two of them stacked front to back read as four
+       panels and buried him behind his own guard. */
+    var d = makeDoor();
+    d.position.copy(player.pos)
+      .addScaledVector(a.dir, 2.6)
+      .add(new THREE.Vector3(0, 3.4, 0));
+    d.rotation.y = player.facing;
+    d.scale.set(1, .05, 1);
+    scene.add(d);
+    a.doors.push(d);
     HK.guard = a;
     try { sfx.frame(); } catch (e) {}
   }
@@ -35792,10 +35788,10 @@ window.__game = {
     if (a.sprung) return;
     if (a.t < .2) {
       var k = E.out(a.t / .2);
-      a.doors.forEach(function (d, i) {
+      a.doors.forEach(function (d) {
         d.scale.set(1, .05 + .95 * k, 1);
         d.position.copy(player.pos)
-          .addScaledVector(a.dir, 2.4 + i * 1.5)
+          .addScaledVector(a.dir, 2.6)
           .add(new THREE.Vector3(0, 3.4, 0));
       });
       return;
@@ -35805,11 +35801,11 @@ window.__game = {
       HK.shutter = HK.shutter || { until: 0, dir: a.dir.clone() };
       HK.shutter.until = SA_now() + .2;
       HK.shutter.dir = a.dir.clone();
-      a.doors.forEach(function (d, i) {
+      a.doors.forEach(function (d) {
         d.position.copy(player.pos)
-          .addScaledVector(a.dir, 2.4 + i * 1.5)
+          .addScaledVector(a.dir, 2.6)
           .add(new THREE.Vector3(0, 3.4, 0));
-        HK.pulseDoor(d, a.t + i);
+        HK.pulseDoor(d, a.t);
       });
       if (Math.random() < dt * 8) {
         FX.streaks(a.doors[0].position.clone(), 0xffcc4d, 1, 5, .7);
@@ -41801,18 +41797,18 @@ window.__game = {
       ln.position.set(c.x, .07, c.z + i * 9);
       g.add(ln);
     }
-    /* and something standing at the edges so it is a place, not a rug */
-    for (var j = -1; j <= 1; j += 2) {
-      var wall = new THREE.Mesh(new THREE.BoxGeometry(46, 9, 1.4),
-        new THREE.MeshStandardMaterial({ color: S.wall, roughness: .9 }));
-      wall.position.set(c.x, 4.5, c.z + j * 22);
-      g.add(wall);
-      for (var k = -2; k <= 2; k++) {
-        var lamp = new THREE.Mesh(new THREE.BoxGeometry(3.4, .7, .3),
-          new THREE.MeshBasicMaterial({ color: S.line, toneMapped: false }));
-        lamp.position.set(c.x + k * 9, 7.4, c.z + j * 21.2);
-        g.add(lamp);
-      }
+    /* NO WALLS. The first version stood two of them at the edges to make
+       it feel like a place, and the result was a slab of building
+       appearing beside you in the middle of a fight for no reason you
+       could see. The floor is the scene; anything vertical is scenery
+       that gets in the way of the thing you are actually doing. */
+    for (var k = -2; k <= 2; k++) {
+      var stud = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6),
+        new THREE.MeshBasicMaterial({ color: S.line, toneMapped: false,
+          transparent: true, opacity: .5 }));
+      stud.rotation.x = -Math.PI / 2;
+      stud.position.set(c.x + k * 9, .06, c.z);
+      g.add(stud);
     }
     scene.add(g);
     sceneLive = g;

@@ -1007,18 +1007,18 @@
       ln.position.set(c.x, .07, c.z + i * 9);
       g.add(ln);
     }
-    /* and something standing at the edges so it is a place, not a rug */
-    for (var j = -1; j <= 1; j += 2) {
-      var wall = new THREE.Mesh(new THREE.BoxGeometry(46, 9, 1.4),
-        new THREE.MeshStandardMaterial({ color: S.wall, roughness: .9 }));
-      wall.position.set(c.x, 4.5, c.z + j * 22);
-      g.add(wall);
-      for (var k = -2; k <= 2; k++) {
-        var lamp = new THREE.Mesh(new THREE.BoxGeometry(3.4, .7, .3),
-          new THREE.MeshBasicMaterial({ color: S.line, toneMapped: false }));
-        lamp.position.set(c.x + k * 9, 7.4, c.z + j * 21.2);
-        g.add(lamp);
-      }
+    /* NO WALLS. The first version stood two of them at the edges to make
+       it feel like a place, and the result was a slab of building
+       appearing beside you in the middle of a fight for no reason you
+       could see. The floor is the scene; anything vertical is scenery
+       that gets in the way of the thing you are actually doing. */
+    for (var k = -2; k <= 2; k++) {
+      var stud = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6),
+        new THREE.MeshBasicMaterial({ color: S.line, toneMapped: false,
+          transparent: true, opacity: .5 }));
+      stud.rotation.x = -Math.PI / 2;
+      stud.position.set(c.x + k * 9, .06, c.z);
+      g.add(stud);
     }
     scene.add(g);
     sceneLive = g;
