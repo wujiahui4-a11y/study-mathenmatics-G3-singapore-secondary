@@ -90,9 +90,16 @@
       }
       var kb = (dir || new THREE.Vector3(0, 0, 1)).clone().multiplyScalar(14);
       kb.y = 8;
+      /* The gored check is about OUR copy of them: a body already taken
+         apart here must not be taken apart twice. Another player's body
+         has not been touched — what we have is a proxy, and the finisher
+         just gored that. Asking for the style anyway is the only way they
+         ever find out how they died, and without it every finisher landed
+         on a real player as a plain ragdoll on their own screen. */
+      var named = style && style !== 'ragdoll';
       e.damage(9999, kb, {
         noFrameBonus: true, fin: false, spark: 0xffffff,
-        death: (!e.__gored && style && style !== 'ragdoll') ? style : null
+        death: (named && (e.net || !e.__gored)) ? style : null
       });
     }, (delay || 0) * 1000);
   }

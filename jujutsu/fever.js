@@ -314,13 +314,16 @@
     player.iframes = Math.max(player.iframes, .4);
   }
 
-  /* It goes end over end, not along its own length: a forty-foot box
-     kicked down a road cartwheels, and each time a corner comes down the
-     street shakes. A yaw pivot carries the travel direction so the tumble
-     can stay on one local axis. */
+  /* It lies down and comes at them broadside. The length runs ACROSS the
+     road rather than along it, so what arrives is a fifteen metre wall,
+     and it barrel-rolls about that long axis the way a container on its
+     side actually goes down a hill — not end over end standing itself
+     upright, which is what a box does in a cartoon and nothing does in a
+     street. */
   function rollContainer(from, dir, ghost) {
     var pivot = new THREE.Group();
-    pivot.rotation.y = Math.atan2(dir.x, dir.z) - Math.PI / 2;
+    /* local +x is the length; this puts it square across the direction */
+    pivot.rotation.y = Math.atan2(dir.x, dir.z);
     var box = buildContainer();
     pivot.add(box);
     pivot.position.copy(from);
@@ -328,28 +331,36 @@
     scene.add(pivot);
     pivot.__body = box.__body;
 
+    /* the cross-section it rolls on, and how fast that has to turn to
+       cover the ground it is covering */
+    var hh = BOX.tall / 2, hw = BOX.wide / 2;
+    var SPEED = 24;
+    var turn = SPEED / (hh + hw);          // no skidding
+
     var hit = [], travelled = 0, spin = 0, corner = 0;
-    var reach = BOX.len / 2 + 2.6;
     addFx({ t: 5, update: function (dt) {
       this.t -= dt;
-      var step = 24 * dt;
+      var step = SPEED * dt;
       travelled += step;
       pivot.position.addScaledVector(dir, step);
-      /* one turn every three quarters of a second, and it rides up on the
-         corner it is turning over */
       var was = spin;
-      spin += dt * 8.4;
-      box.rotation.z = -spin;
-      var ride = Math.abs(Math.sin(spin)) * (BOX.len - BOX.tall) * .28;
-      pivot.position.y = BOX.tall / 2 + ride;
-      /* every quarter turn a corner lands */
+      spin += dt * turn;
+      box.rotation.x = spin;
+      /* a rectangle turning about its long axis sits exactly this high */
+      pivot.position.y = Math.abs(hh * Math.cos(spin)) + Math.abs(hw * Math.sin(spin));
+      /* every quarter turn a face comes down flat */
       if (Math.floor(spin / (Math.PI / 2)) !== Math.floor(was / (Math.PI / 2))) {
         corner++;
         var down = new THREE.Vector3(pivot.position.x, 0, pivot.position.z);
-        FX.dust(down.clone(), 7, 0xcfc3a8, 16, 4);
-        FX.cracks(down.clone(), 9, 13, 0x2a2418);
-        FX.debris(down.clone(), 8, 14, 0x6a6e78);
-        addShake(1.1);
+        /* the whole length lands, so the dust does too */
+        var across = new THREE.Vector3(-dir.z, 0, dir.x);
+        for (var q = -1; q <= 1; q++) {
+          var spotq = down.clone().addScaledVector(across, q * BOX.len * .34);
+          FX.dust(spotq, 5, 0xcfc3a8, 14, 4);
+          FX.cracks(spotq, 7, 12, 0x2a2418);
+        }
+        FX.debris(down.clone(), 10, 16, 0x6a6e78);
+        addShake(1.3);
         try { sfx.step(); } catch (e) {}
       }
       if (Math.random() < dt * 30) {
@@ -358,8 +369,7 @@
       if (!ghost) {
         /* the whole length of it is dangerous, so measure to the box's own
            axis rather than to a point in the middle of it */
-        var half = new THREE.Vector3(1, 0, 0).applyAxisAngle(
-          new THREE.Vector3(0, 1, 0), pivot.rotation.y).multiplyScalar(BOX.len / 2);
+        var half = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(BOX.len / 2);
         for (var i = 0; i < enemies.length; i++) {
           var e = enemies[i];
           if (!e || e.dead || hit.indexOf(e) >= 0) continue;
@@ -402,7 +412,8 @@
     if (a.t < C1.call) {
       if (!a.box) {
         var piv = new THREE.Group();
-        piv.rotation.y = Math.atan2(a.dir.x, a.dir.z) - Math.PI / 2;
+        /* square across the road, the way it will roll */
+        piv.rotation.y = Math.atan2(a.dir.x, a.dir.z);
         piv.add(buildContainer());
         piv.position.copy(spot);
         piv.scale.setScalar(.05);
@@ -475,10 +486,11 @@
       var k = E.out(a.t / .55);
       a.box.position.copy(p.pos).add(new THREE.Vector3(0, 12 + a.t * 2, 0));
       a.box.scale.setScalar(.05 + k * .95);
-      /* it turns broadside on the way in, so what comes down is the long
-         face and not a corner */
-      a.box.rotation.y = a.t * 3.4;
-      a.box.rotation.z = (1 - k) * .9;
+      /* It turns level on the way in. What comes down is the long flat
+         underside of it — fifteen metres of floor — and not a corner. */
+      a.box.rotation.y = a.dir ? Math.atan2(a.dir.x, a.dir.z) : a.t * 2;
+      a.box.rotation.z = (1 - k) * .8;
+      a.box.rotation.x = (1 - k) * .5;
       return;
     }
     if (a.stage < 1) {
@@ -494,7 +506,10 @@
       addFx({ t: 3, update: function (dd) {
         this.t -= dd;
         box.position.y -= 58 * dd;
-        box.rotation.z += dd * 3.4;
+        /* it settles level as it falls rather than tumbling: the whole
+           long body has to arrive at once */
+        box.rotation.z *= Math.max(0, 1 - dd * 7);
+        box.rotation.x *= Math.max(0, 1 - dd * 7);
         if (Math.random() < dd * 26) {
           FX.streaks(box.position.clone().add(new THREE.Vector3(
             (Math.random() - .5) * BOX.len, 0, (Math.random() - .5) * BOX.wide)),
@@ -1628,7 +1643,7 @@
       var spot = pos.clone().addScaledVector(d, BOX.len / 2 + 3);
       spot.y = BOX.tall / 2;
       var piv = new THREE.Group();
-      piv.rotation.y = Math.atan2(d.x, d.z) - Math.PI / 2;
+      piv.rotation.y = Math.atan2(d.x, d.z);   // square across the road
       piv.add(buildContainer());
       piv.position.copy(spot);
       piv.scale.setScalar(.05);
@@ -1652,9 +1667,10 @@
       });
     },
     /* and the one summoned overhead and driven straight down */
-    ha1j: function (pos) {
+    ha1j: function (pos, yaw) {
       var piv = new THREE.Group();
       piv.add(buildContainer());
+      piv.rotation.y = yaw || 0;
       piv.position.copy(pos).add(new THREE.Vector3(0, 12, 0));
       piv.scale.setScalar(.05);
       scene.add(piv);
@@ -1666,14 +1682,16 @@
         if (!dropped) {
           var k = E.out(Math.min(1, t / .55));
           piv.scale.setScalar(.05 + k * .95);
-          piv.rotation.y = t * 3.4;
-          piv.rotation.z = (1 - k) * .9;
+          piv.rotation.z = (1 - k) * .8;
+          piv.rotation.x = (1 - k) * .5;
           if (t >= .55) { dropped = true; FX.speedRing(piv.position.clone(), HOT, 15, .3); }
           return true;
         }
         if (!landed) {
           piv.position.y -= 58 * dt;
-          piv.rotation.z += dt * 3.4;
+          /* level by the time it arrives — the long body lands, flat */
+          piv.rotation.z *= Math.max(0, 1 - dt * 7);
+          piv.rotation.x *= Math.max(0, 1 - dt * 7);
           if (piv.position.y <= BOX.tall / 2) {
             landed = true;
             var at = new THREE.Vector3(piv.position.x, 0, piv.position.z);

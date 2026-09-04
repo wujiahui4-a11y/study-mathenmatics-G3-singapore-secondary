@@ -927,31 +927,33 @@
      the first person: a saw goes through and keeps going. */
   var SAW = { range: 62, speed: 30, radius: 3.4, dmg: 22, tick: .22 };
 
+  /* A flat blade, not an upright wheel. It lies level and spins about the
+     vertical, so what it does to whatever it reaches is take it across the
+     middle — which is what its finisher has always done. A wheel rolling
+     at them cut on the vertical and the two never agreed. */
   function buildSaw() {
     var g = new THREE.Group();
-    var disc = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 2.9, .34, 22),
+    /* a CylinderGeometry's axis is Y already, so left alone it is level */
+    var disc = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 2.9, .3, 22),
       new THREE.MeshStandardMaterial({ color: 0x4e0512, roughness: .3, flatShading: true }));
-    disc.rotation.x = Math.PI / 2;
     g.add(disc);
     /* the dark rim, so the shape reads against the road */
-    var rim = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, .26, 22),
+    var rim = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, .24, 22),
       new THREE.MeshBasicMaterial({ color: 0x1c0106, side: THREE.BackSide,
         transparent: true, opacity: .95, depthWrite: false, toneMapped: false }));
-    rim.rotation.x = Math.PI / 2;
     rim.scale.setScalar(1.06);
     g.add(rim);
-    /* the teeth */
+    /* the teeth, round the level edge and raked back against the turn */
     for (var i = 0; i < 14; i++) {
       var a = i / 14 * TAU;
-      var t = new THREE.Mesh(new THREE.BoxGeometry(.5, .8, .3),
+      var t = new THREE.Mesh(new THREE.BoxGeometry(.5, .3, .8),
         new THREE.MeshStandardMaterial({ color: 0x6d0a1c, roughness: .26, flatShading: true }));
-      t.position.set(Math.cos(a) * 3.1, Math.sin(a) * 3.1, 0);
-      t.rotation.z = a + .5;
+      t.position.set(Math.cos(a) * 3.1, 0, Math.sin(a) * 3.1);
+      t.rotation.y = -a + .5;
       g.add(t);
     }
-    var hub = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, .42, 10),
+    var hub = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, .5, 10),
       new THREE.MeshStandardMaterial({ color: 0x1c0106, roughness: .5, flatShading: true }));
-    hub.rotation.x = Math.PI / 2;
     g.add(hub);
     return g;
   }
@@ -967,17 +969,17 @@
       travelled += step;
       g.position.addScaledVector(dir, step);
       spin += dt * 26;
-      g.rotation.z = spin;                       // the blade turns in its own plane
-      g.lookAt(g.position.clone().addScaledVector(dir, 1));
-      g.rotateZ(spin);
+      g.rotation.set(0, spin, 0);                // level, turning about the vertical
       if (Math.random() < dt * 30) {
         FX.bloodThreads(g.position.clone(), 1, 9, .6);
       }
-      /* the line it leaves in the ground under itself */
+      /* the line it leaves behind it — across, at the height it is cutting
+         at, not scratched along the road */
       if (Math.random() < dt * 12) {
+        var side = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(3.1);
         FX.bloodCut(
-          new THREE.Vector3(g.position.x, .08, g.position.z).addScaledVector(dir, -2),
-          new THREE.Vector3(g.position.x, .08, g.position.z), .5, .5);
+          g.position.clone().sub(side),
+          g.position.clone().add(side), .5, .4);
       }
       /* it saws: everything it is touching is cut again on a timer, and
          nothing stops it going through */
@@ -1026,8 +1028,8 @@
       var k = a.t / .5;
       a.disc.position.copy(hand);
       a.disc.scale.setScalar(.25 + E.out(k) * .75);
-      a.disc.lookAt(hand.clone().addScaledVector(d, 1));
-      a.disc.rotateZ(a.t * (6 + k * 30));
+      /* held flat over the palm and wound up about the vertical */
+      a.disc.rotation.set(0, a.t * (6 + k * 30), 0);
       if (Math.random() < dt * 20) FX.bloodMote(hand.clone(), 1.4, .3);
       addShake(.2 + k * .5);
       return;

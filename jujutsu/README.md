@@ -152,15 +152,26 @@ down its length, framed on every long edge, doors and locking bars on the end.
 It is longer than the road is wide and it stands taller than he does, which is
 the whole point of the move. It comes in three beats: it is called up out of
 nothing, it **sits there for a quarter of a second** so you can see how big it
-is, and then he kicks it. It goes **end over end**, not along its own length —
-a container kicked down a road cartwheels, and every quarter turn a corner
-lands and the street shakes. The whole length of it is dangerous, so what it
-hits is measured to the box's own axis rather than to a point in the middle.
+is, and then he kicks it.
+
+It **lies down and comes at them broadside**. The length runs across the road
+rather than along it, so what arrives is a fifteen metre wall, and it
+barrel-rolls about that long axis the way a container on its side actually
+goes down a hill. It used to cartwheel end over end, standing itself upright
+between turns — which is what a box does in a cartoon and nothing does in a
+street. Rolling on its side the height comes out exact rather than fudged (a
+rectangle turning about its long axis sits at `|h·cos| + |w·sin|`), the turn
+rate is tied to the ground speed so it cannot skid, and when a face comes down
+the dust and the cracks land along the whole length instead of in one spot.
+
+The whole length of it is dangerous, so what it hits is measured to the box's
+own axis rather than to a point in the middle.
 
 It has a variant. Cast it **in the air** and he jumps higher, summons the
-container overhead instead of on the road, turns it broadside on the way in
-and punches it straight down — a different action (`ha1j`) with a different
-finisher.
+container overhead instead of on the road, and punches it straight down — a
+different action (`ha1j`) with a different finisher. It settles **level** on
+the way in for the same reason the rolled one lies down: the long flat
+underside has to arrive all at once.
 
 **Fever Rush** picks up **two at the most**, at 5.2 units, and holds them one
 either side of him for the whole run. The road takes a cut off them the whole
@@ -507,7 +518,14 @@ melee weapon and Blood Meteorite is a hardened solid, so the awakened version
 of that idea is a disc with fourteen teeth on it, thrown — and the point of a
 saw is that it does not stop at the first person. It travels sixty two metres
 and cuts everything it is touching on a timer as it passes through, so a line
-of three all take it. Its finisher takes them **across the middle**.
+of three all take it.
+
+The blade lies **flat** and turns about the vertical. It was built as an
+upright wheel rolling at them, which cut on the vertical while its finisher
+took them across the middle — the two never agreed with each other. Level, it
+does to whatever it reaches exactly what the finisher does, and the line it
+leaves behind it is drawn across at the height it is cutting at rather than
+scratched along the road.
 
 **Blood Pillar** is the long one, and it is a sequence rather than a hit.
 Both palms go flat on the road; a column of broken ground comes up under
@@ -1054,6 +1072,31 @@ is in fever, which starts and stops the aura on his body on every other screen
 the way `aw` does for Gojo; and the domain is announced **when it opens**
 rather than when its sixth ring of machines settles, which used to leave the
 caster alone in a white room for nine seconds.
+
+### Dying where you can see it
+
+How a body is meant to go — cut in half, cut apart, burnt, pressed flat,
+erased — is **theirs to apply and ours to ask for**: it rides on the killing
+hit as `dth`, the victim marks it on themselves, and their own client takes
+their own body apart. That is deliberate. A finisher plays a set of blanks on
+the screen of the person it is being thrown *at*, because their body should be
+broken by the hit that arrives at the end of it and not by a replay of
+somebody else's effect landing on them while they are still alive.
+
+The asking was broken. The killing blow only named a style when the target was
+not already gored — a sensible check locally, where a body must not be taken
+apart twice, and the wrong one over a network, because what is gored there is
+**our proxy of them**, which the finisher had just taken apart itself. So the
+style was suppressed on exactly the hit that needed it, and every finisher
+landing on a real player looked, on that player's own screen, like a plain
+ragdoll. A body that is torn in half on every screen but its owner's is two
+different deaths.
+
+Checked both ways round: a finisher for each ending the game has, thrown by
+one client at another, watched on the victim's screen through the whole
+death — told the right style, killed, and taken apart the right way.
+
+### Checking it
 
 The receive half is exposed as `MPJJ.receive`, so one client's outgoing
 packets can be fed straight into another's receive path and the two halves
