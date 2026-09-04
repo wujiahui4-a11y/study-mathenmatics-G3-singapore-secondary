@@ -755,6 +755,7 @@
          A finisher that has taken its caster over travels by name. */
       if (g.action && m.sg != null) g.action.stage = m.sg;
       if (g.action && m.fk) g.action.fin = m.fk;
+      if (g.action && m.pf) { g.action.sprung = true; g.action.sprungAt = m.pf / 100; }
       if (g.action && m.ac === 'dash') {
         g.action.kind = m.dk || 'fwd';
         g.action.side = m.ds || 0;
@@ -799,7 +800,7 @@
     if (m.t === 'cast') {                               // somebody started a move
       var cf = MP.fighters[m.id];
       if (!cf || !cf.e) return;
-      remoteFx(m.k, cf.e.pos.clone(), cf.e.facing);
+      remoteFx(m.k, cf.e.pos.clone(), cf.e.facing, cf);
       /* their blindfold comes off partway through their entrance, not at
          the end of it, so it is applied on the same beat they see */
       if (m.k === 'awaken' && window.JJAW) {
@@ -1255,6 +1256,9 @@
   }
 
   updatePlayer = function (dt) {
+    /* our own rig gets the same tag the remote ones do, so a pose can ask
+       whose body it is being applied to rather than who is watching */
+    if (player.rig) player.rig.__char = player.char;
     if (CS.active) stepCutscene(dt);          // you stand still and pose
     else { _updatePlayer(dt); stepSelfReact(dt); }
     if (!MP.active) return;
@@ -1404,6 +1408,12 @@
       r.spine.rotation.y = L ? .38 : -.38;
       r.spine.rotation.x = -.1;
     }
+    /* Whose body this is. Two modules key the same action type off the
+       fighter's character — Sukuna's transformation and Yuji's awakening
+       are both 'yaw' — and asking `player.char` gets the character of
+       whoever is *watching*, which is the wrong one on every screen but
+       the caster's. */
+    r.__char = f.char;
     if (f.action) {
       f.action.t += dt;                       // keep posing between packets
       /* poseAction zeroes the local player's visYaw as a side effect, so it is
@@ -1450,6 +1460,10 @@
          over so the other screens can pose it too */
       sg: (player.action && player.action.stage != null) ? player.action.stage : null,
       fk: (player.action && player.action.fin) ? player.action.fin : 0,
+      /* one spare number for a pose that needs a moment as well as a
+         clock — Hakari's guard needs to know when it sprung */
+      pf: (player.action && player.action.sprung) ?
+          Math.max(1, Math.round((player.action.sprungAt || 0) * 100)) : 0,
       rk: player.react ? player.react.type : 0,
       rt: player.react ? Math.round(player.react.t * 100) : 0,
       rd: player.react ? Math.round(player.react.dur * 100) : 0,
@@ -1466,9 +1480,12 @@
      screens would show nothing at all. Each cast is announced and a matching
      effect is played at that fighter's feet — visual only, never damaging,
      because the hit itself already travels as its own message. */
-  function remoteFx(kind, pos, yaw) {
+  function remoteFx(kind, pos, yaw, f) {
     var FX = window.JJFX;
     if (!FX) return;
+    /* their rig, for the effects that are made out of copies of the
+       body rather than out of billboards */
+    var rig = (f && f.e && f.e.rig) ? f.e.rig : null;
     var fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     var mid = pos.clone().add(new THREE.Vector3(0, 2.6, 0));
     var d = player.pos.distanceTo(pos);
@@ -1586,45 +1603,25 @@
         if (close) addShake(.5);
         break;
 
+      /* his own module builds the real door, the real balls and the same
+         three hits — these used to be rings and crosses standing in for
+         furniture that never appeared */
       case 'h1':
-        setTimeout(function () {
-          FX.ring(new THREE.Vector3(pos.x, .1, pos.z), 0xffcc4d, { maxR: 7, life: .5 });
-          FX.dust(pos.clone(), 5, 0xcfc3a8, 7, 2.6);
-        }, 150);
-        setTimeout(function () {
-          var at = mid.clone().addScaledVector(fwd, 7);
-          FX.cross(at, 0xffe08a, 6, .3);
-          FX.impact(at, 0xffcc4d, 2.2);
-          FX.rings(at, 0xffcc4d, 3, { maxR: 12, life: .5, ground: false, gap: 40 });
-          FX.debris(new THREE.Vector3(at.x, 0, at.z), 8, 14, 0x8b93a2);
-          if (near) addShake(.6);
-        }, 900);
+        if (window.JJHAKARI && window.JJHAKARI.remoteShutter) {
+          window.JJHAKARI.remoteShutter(pos.clone(), yaw);
+        }
+        if (near) addShake(.5);
         break;
       case 'h2':
-        for (i = 0; i < 14; i++) {
-          (function (n) {
-            setTimeout(function () {
-              FX.streaks(mid.clone().addScaledVector(fwd, 2 + n * 1.3), 0xffe08a, 2, 12, .8);
-            }, 300 + n * 55);
-          })(i);
+        if (window.JJHAKARI && window.JJHAKARI.remoteBalls) {
+          window.JJHAKARI.remoteBalls(pos.clone(), yaw);
         }
         break;
       case 'h3':
-        [260, 480, 700].forEach(function (ms, n) {
-          setTimeout(function () {
-            var at = mid.clone().addScaledVector(fwd, 2.5);
-            FX.impact(at, 0xffcc4d, 1.1 + n * .3);
-            FX.slash(at, fwd, 0xffe08a, 3.4 + n, .16);
-          }, ms);
-        });
-        setTimeout(function () {
-          var at = pos.clone().addScaledVector(fwd, 2.2);
-          FX.cross(at.clone().add(new THREE.Vector3(0, 1.6, 0)), 0xffffff, 6.5, .3);
-          FX.rings(new THREE.Vector3(at.x, .12, at.z), 0xffd964, 4, { maxR: 15, life: .6, gap: 42 });
-          FX.cracks(new THREE.Vector3(at.x, 0, at.z), 10, 14, 0x2a2418);
-          FX.debris(new THREE.Vector3(at.x, 0, at.z), 11, 16, 0x5c5240);
-          if (near) addShake(1.1);
-        }, 950);
+        if (window.JJHAKARI && window.JJHAKARI.remoteGachinko) {
+          window.JJHAKARI.remoteGachinko(pos.clone(), yaw);
+        }
+        if (near) addShake(1);
         break;
       case 'h4':
         /* Fever Breaker: the reaching kick, the pair of doors they hang in
@@ -1892,9 +1889,18 @@
         }
         if (close) addShake(1);
         break;
+      /* His four used to share one ring and one slash between them, so
+         four different techniques looked identical from the outside.
+         Each is built by his own module now, off his own rig, because
+         what makes them read is the trail of copies of his body. */
       case 'n1': case 'n2': case 'n3': case 'nr': case 'nrf':
-        FX.ring(pos, 0x9be7ff, { maxR: 8, life: .4 });
-        FX.slash(mid.clone().addScaledVector(fwd, 1.6), fwd, 0xcfefff, 3, .18);
+        if (window.JJNAOYA && window.JJNAOYA.remote && window.JJNAOYA.remote[kind]) {
+          window.JJNAOYA.remote[kind](pos.clone(), yaw, rig);
+        } else {
+          FX.ring(pos, 0x9be7ff, { maxR: 8, life: .4 });
+          FX.slash(mid.clone().addScaledVector(fwd, 1.6), fwd, 0xcfefff, 3, .18);
+        }
+        if (near && (kind === 'n1' || kind === 'nrf')) addShake(.4);
         break;
       default:
         FX.impact(mid, 0xffffff, .8);

@@ -505,6 +505,86 @@
     if (doors) doors.forEach(function (dr) { HK.burstDoor(dr, d); });
   };
 
+  /* His base three, on everybody else's screen. They used to be drawn in
+     mp.js out of generic rings and crosses — a shutter that was not a
+     door, a barrage with no balls in it. These build the real furniture,
+     with the damage left out. */
+  HK.remoteShutter = function (pos, yaw) {
+    var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    var door = makeDoor();
+    door.position.copy(pos).addScaledVector(d, 2.6).add(new THREE.Vector3(0, 3.4, 0));
+    door.rotation.y = yaw;
+    door.scale.set(1, .05, 1);
+    scene.add(door);
+    FX.ring(new THREE.Vector3(pos.x, .1, pos.z), 0xffcc4d, { maxR: 7, life: .5 });
+    FX.dust(pos.clone(), 5, 0xcfc3a8, 7, 2.6);
+    /* it drops, it stands there taking whatever comes, and then it goes
+       down the road at thirty four a second — the same as his does */
+    var t = 0, thrown = false;
+    addFx({ t: 1.9, update: function (dt) {
+      this.t -= dt; t += dt;
+      if (!thrown) {
+        door.scale.y = Math.min(1, .05 + t / .18);
+        HK.pulseDoor(door, t);
+        if (Math.random() < .3) FX.streaks(door.position.clone(), 0xffcc4d, 1, 5, .8);
+        if (t > .78) {
+          thrown = true;
+          FX.speedRing(door.position.clone(), 0xffcc4d, 8, .3);
+        }
+        return true;
+      }
+      door.position.addScaledVector(d, 34 * dt);
+      if (Math.random() < .7) FX.streaks(door.position.clone(), 0xffe08a, 2, 12, 1.2);
+      if (this.t > 0) return true;
+      HK.burstDoor(door, d);
+      return false;
+    } });
+  };
+
+  HK.remoteBalls = function (pos, yaw) {
+    var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    var side = new THREE.Vector3(-d.z, 0, d.x);
+    var n = 0, acc = 0;
+    addFx({ t: 1.5, update: function (dt) {
+      this.t -= dt;
+      acc += dt;
+      if (acc > .07 && n < 16 && this.t > .1) {
+        acc = 0; n++;
+        var from = pos.clone()
+          .addScaledVector(d, 1.4)
+          .addScaledVector(side, (Math.random() - .5) * 1.6)
+          .add(new THREE.Vector3(0, 2.6 + (Math.random() - .5) * 1.2, 0));
+        var spread = d.clone()
+          .addScaledVector(side, (Math.random() - .5) * .28)
+          .normalize();
+        ball(from, spread, null, true);
+      }
+      return this.t > 0;
+    } });
+  };
+
+  HK.remoteGachinko = function (pos, yaw) {
+    var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    var at = pos.clone().addScaledVector(d, 2.4).add(new THREE.Vector3(0, 2.6, 0));
+    GACHI.forEach(function (ms, i) {
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.impact(at.clone(), 0xffcc4d, 1.2 + i * .35);
+        FX.slash(at.clone(), d, 0xffe08a, 3.6 + i, .16);
+        FX.streaks(at.clone(), 0xffd964, 2, 12, .6);
+      }, ms * 1000);
+    });
+    setTimeout(function () {
+      if (typeof scene === 'undefined') return;
+      var floor = new THREE.Vector3(pos.x, 0, pos.z);
+      FX.cross(at.clone().add(new THREE.Vector3(0, .4, 0)), 0xffffff, 7, .3);
+      FX.rings(floor.clone(), 0xffd964, 4, { maxR: 16, life: .65, gap: 42 });
+      FX.cracks(floor.clone(), 12, 16, 0x2a2418);
+      FX.debris(floor.clone(), 12, 16, 0x5c5240);
+      FX.dust(floor.clone(), 8, 0xcfc3a8, 12, 3.6);
+    }, 950);
+  };
+
   HK.pulseDoor = function (door, t) {
     if (!door || !door.userData) return;
     var k = .5 + .5 * Math.sin(t * 20);
@@ -619,7 +699,10 @@
     if (a.fired % 3 === 0) addShake(.12);
   }
   var BALL_GEO = null;
-  function ball(from, dir, livery) {
+  /* ghost: a copy of the ball on somebody else's screen — the same ball,
+     travelling the same way, that cannot hurt anybody. Their hits already
+     travel as their own messages. */
+  function ball(from, dir, livery, ghost) {
     if (!BALL_GEO) BALL_GEO = new THREE.SphereGeometry(.34, 10, 8);
     var LV = livery || nextLivery();
     var m = new THREE.Mesh(BALL_GEO, new THREE.MeshStandardMaterial({
@@ -634,15 +717,17 @@
       this.t -= dt;
       m.position.addScaledVector(dir, sp * dt);
       if (Math.random() < .5) FX.streaks(m.position.clone(), LV.trim, 1, 3, .5);
-      for (var i = 0; i < enemies.length; i++) {
-        var e = enemies[i];
-        if (!e || e.dead || e.rag) continue;
-        if (e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)).distanceTo(m.position) > 2.2) continue;
-        e.damage(4 * boost(), dir.clone().multiplyScalar(7).setY(3),
-          { react: 'pummel', reactDur: .25, noFrameBonus: true, spark: LV.trim });
-        FX.impact(m.position.clone(), LV.trim, .55);
-        scene.remove(m); m.material.dispose();
-        return false;
+      if (!ghost) {
+        for (var i = 0; i < enemies.length; i++) {
+          var e = enemies[i];
+          if (!e || e.dead || e.rag) continue;
+          if (e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)).distanceTo(m.position) > 2.2) continue;
+          e.damage(4 * boost(), dir.clone().multiplyScalar(7).setY(3),
+            { react: 'pummel', reactDur: .25, noFrameBonus: true, spark: LV.trim });
+          FX.impact(m.position.clone(), LV.trim, .55);
+          scene.remove(m); m.material.dispose();
+          return false;
+        }
       }
       if (this.t <= 0 || m.position.y < .2) {
         FX.streaks(m.position.clone(), LV.ball, 3, 7, .6);

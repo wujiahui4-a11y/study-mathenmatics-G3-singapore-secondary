@@ -1328,9 +1328,9 @@
     FX.letterbox(true);
     FX.tint('#2a0208', .55, 2.2);
     if (AN) AN.camRelease();
-    if (window.MPJJ && window.MPJJ.relay) {
-      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'caw' });
-    }
+    /* not published here: mp.js watches player.action and announces
+       every cast on its own, so a pub of our own plays it twice on
+       every other screen */
     return true;
   }
 
@@ -1559,9 +1559,10 @@
   poseAction = function (r, a) {
     if (a && a.type === 'caw' && poseAwakenChoso(r, a)) return;
     if (a && poseChosoAwake(r, a)) return;
-    if (r === player.rig && player.char === 'choso' && poseChoso(r, a)) return;
-    /* a remote Choso holding the stream poses off the same table */
-    if (a && (a.type === 'c1s' || (a.type || '').charAt(0) === 'c') && poseChoso(r, a)) return;
+    /* whose body this is, not who is watching — the rig carries its own
+       character, so a Choso somebody else is driving poses off the same
+       table ours does */
+    if ((r.__char || player.char) === 'choso' && poseChoso(r, a)) return;
     return _poseAction(r, a);
   };
 

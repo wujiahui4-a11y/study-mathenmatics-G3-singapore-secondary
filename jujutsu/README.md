@@ -1008,10 +1008,25 @@ it across:
 - **The cast is announced.** `announceCasts` watches `player.action` and sends
   the type the moment it changes, so no cast function has to remember to. A
   module that also publishes one of its own gets the effect played **twice** —
-  that was Hakari's shutter and his domain, and both pubs are gone.
+  which was true of Hakari's shutter and domain, Yuji's awakening, Choso's
+  Death Painting, Naoya's rush, and all four of Sukuna's. Every one of those
+  pubs is gone. What is left is the three that are *not* actions and so never
+  reach `announceCasts`: Gojo's entrance, Sukuna coming out, and the moment
+  Hakari's guard springs.
 - **`remoteFx` rebuilds it** at that fighter's feet, from the same routines the
   caster used, with the damage left out. A kind with no case falls through to a
-  white blob, which is what the whole of Hakari's fever kit was doing.
+  white blob, which is what the whole of Hakari's fever kit was doing; and a
+  case that draws generic rings is not much better, which is what Hakari's
+  shutter and balls were, and what Naoya's four all shared between them. Each
+  character's module owns its own `remote` table now, so a shutter is a
+  shutter, a barrage has balls in it, and Naoya's four look like four
+  different techniques.
+
+`remoteFx` is handed the fighter's **rig** as well as their position, because
+some effects are made out of copies of the body rather than out of billboards
+— Naoya's whole kit reads off the trail he leaves, and that has to come off
+*his* rig. It was already being asked for and was not being passed, so a
+remote Twenty Four Frames threw a `ReferenceError` every time it was cast.
 
 The pose is separate. The state packet carries the action's type, clock and
 length, and the other end calls the game's own `poseAction` with it — so a
@@ -1023,6 +1038,16 @@ Hakari's read more, and all three now survive a network-built action:
 | `a.dance` (Fever Rush) | never travelled — falls back to the same two seconds |
 | `a.stage`, `a.landed` (Gachinko) | the stage travels as `sg`; the landing is read back off the clock |
 | `a.pose` (a finisher driving him) | a callback cannot travel, so the finisher's **name** does, as `fk`, and the pose comes out of `JJFEVER.finPose` |
+| `a.sprung`, `a.sprungAt` (Door Guard) | the moment it sprung travels as `pf`, so the punch through the door happens on every screen |
+
+Two more poses were not running at all on other screens, for a different
+reason: they were guarded on **who is watching** rather than on whose body is
+being posed. Sukuna's four were behind `r === player.rig`, so a remote Sukuna
+threw all four without moving; and Sukuna's transformation and Yuji's
+awakening are both the action type `yaw`, told apart by `player.char`, which
+is the wrong character on every screen but the caster's. Both rigs — ours and
+every remote one — now carry `__char`, so a pose can ask whose body it is
+being applied to.
 
 And two things that are state rather than events: **`hf`** carries whether he
 is in fever, which starts and stops the aura on his body on every other screen
@@ -1032,7 +1057,27 @@ caster alone in a white room for nine seconds.
 
 The receive half is exposed as `MPJJ.receive`, so one client's outgoing
 packets can be fed straight into another's receive path and the two halves
-checked against each other without standing a broker up in between.
+checked against each other without standing a broker up in between. That is
+how all of this is checked: two browsers, one playing every fighter in turn
+and throwing the whole kit, the other counting what arrives.
+
+**Thirty four skills, five fighters and three awakened kits**, and for each
+one: the cast announced exactly once, the body posed, and something actually
+drawn.
+
+| | 1 | 2 | 3 | 4 | R |
+| --- | --- | --- | --- | --- | --- |
+| Gojo | red | rapid | tf | palm | lim |
+| Naoya | n1 | n2 | n3 | n4 | nr / nrf |
+| Yuji | y1 | y2 | y3 | y4 | yr |
+| Hakari | h1 | h2 | h3 | h4 | hr |
+| Choso | c1 | c2 | c3 | c4 | cr |
+| Sukuna | s1 | s2 | s3 | s4 | |
+| Choso awakened | ca1 | ca2 | ca3 | ca4 | |
+| Hakari in fever | ha1 | ha2 | ha3 | ha4 | |
+
+plus Gojo's entrance, Yuji's awakening, the finishers that take their caster
+over, and both domains.
 
 ## The stage
 

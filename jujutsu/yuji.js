@@ -563,9 +563,9 @@
     FX.letterbox(true);
     FX.tint('#12000a', .5, 2.4);
     if (AN) AN.camRelease();          // this move frames itself
-    if (window.MPJJ && window.MPJJ.relay) {
-      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'yaw' });
-    }
+    /* not published here: mp.js watches player.action and announces
+       every cast on its own, so a pub of our own plays it twice on
+       every other screen */
     return true;
   }
   function stepAwaken(a, dt) {

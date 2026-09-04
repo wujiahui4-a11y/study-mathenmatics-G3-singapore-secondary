@@ -583,9 +583,9 @@
     FX.dust(player.pos.clone(), 8, 0xbfae95, 8, 3);
     addShake(.6);
     try { sfx.raise(); } catch (e) {}
-    if (window.MPJJ && window.MPJJ.relay) {
-      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'nrush' });
-    }
+    /* not published here: mp.js watches player.action and announces
+       every cast on its own, so a pub of our own plays it twice on
+       every other screen */
     return true;
   }
 
@@ -2138,6 +2138,132 @@
       FX.speedRing(pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0xbfe6ff, 9, .35);
       FX.ring(new THREE.Vector3(pos.x, .1, pos.z), 0x9fd8ff, { maxR: 8, life: .4 });
     }, (N4.lead + N4.run) * 1000);
+  };
+
+  /* =====================================================================
+     THE REST OF HIS KIT, ON EVERYBODY ELSE'S SCREEN
+     His four base moves used to share one ring and one slash between them
+     on other screens — four different techniques that all looked the same
+     from the outside. Each one is built here out of the same pieces the
+     move itself uses, on the same beats, with the damage left out.
+
+     Every one of these takes the rig of the fighter throwing it, because
+     what makes his moves read is the trail of copies of his own body, and
+     that has to come off HIS rig and not ours.
+     ================================================================== */
+  var BLUE = 0x9fd8ff, PALE = 0xcfeaff, WARM = 0xffd27a;
+
+  function after(ms, fn) {
+    setTimeout(function () { if (typeof scene !== 'undefined') fn(); }, ms);
+  }
+  /* a copy of their body, left standing where they were */
+  function ghostAt(rig, at, color, life) {
+    if (!rig || !rig.root) return;
+    var keep = rig.root.position.clone();
+    rig.root.position.copy(at);
+    rig.root.position.y = 0;
+    ghostAfterimage(rig, color, life == null ? .3 : life);
+    rig.root.position.copy(keep);
+  }
+
+  NA.remote = {
+    /* 1 · crouch, a dash back, a lunge in, and the roundhouse at the end */
+    n1: function (pos, yaw, rig) {
+      var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      after(120, function () {
+        ghostAt(rig, pos.clone().addScaledVector(d, -2.4), BLUE, .35);
+        FX.streaks(pos.clone().add(new THREE.Vector3(0, 2.2, 0)), PALE, 3, 12, .7);
+      });
+      after(300, function () {
+        ghostAt(rig, pos.clone().addScaledVector(d, -1.2), BLUE, .35);
+      });
+      after(440, function () {
+        var at = pos.clone().addScaledVector(d, 3.4).add(new THREE.Vector3(0, 2.6, 0));
+        FX.slash(at, d, PALE, 6, .2);
+        FX.impact(at, BLUE, 1.8);
+        FX.ring(at, BLUE, { maxR: 6, life: .4, ground: false, axis: d });
+        FX.ring(new THREE.Vector3(pos.x, .1, pos.z), BLUE, { maxR: 7, life: .45 });
+      });
+    },
+    /* 2 · the tanto: one stab, and the blade is out for it */
+    n2: function (pos, yaw, rig) {
+      var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      if (rig && rig.tanto) {
+        rig.tanto.visible = true;
+        after(900, function () { if (rig.tanto) rig.tanto.visible = false; });
+      }
+      after(260, function () {
+        var at = pos.clone().addScaledVector(d, 2.2).add(new THREE.Vector3(0, 2.7, 0));
+        FX.cutLine ? FX.cutLine(at.clone().addScaledVector(d, -1.4),
+                                at.clone().addScaledVector(d, 1.6), 0xdfe6f2, .18, .22)
+                   : FX.slash(at, d, 0xdfe6f2, 4, .16);
+        FX.impact(at, 0xdfe6f2, 1.4);
+        FX.streaks(at, PALE, 3, 14, .8);
+      });
+      after(520, function () {
+        ghostAt(rig, pos.clone().addScaledVector(d, 1.2), BLUE, .3);
+        var at2 = pos.clone().addScaledVector(d, 2.6).add(new THREE.Vector3(0, 2.6, 0));
+        FX.slash(at2, d, 0xffffff, 5, .16);
+        FX.impact(at2, 0xdfe6f2, 1.9);
+      });
+    },
+    /* 3 · the grab, and then a lot of them very fast */
+    n3: function (pos, yaw, rig) {
+      var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      var at = pos.clone().addScaledVector(d, 2.4).add(new THREE.Vector3(0, 2.6, 0));
+      after(140, function () {
+        FX.impact(at.clone(), WARM, 1.6);
+        FX.ring(at.clone(), WARM, { maxR: 4, life: .3, ground: false, axis: d });
+      });
+      for (var i = 0; i < 10; i++) {
+        (function (n) {
+          after(280 + n * 60, function () {
+            var p2 = at.clone().add(new THREE.Vector3(
+              (Math.random() - .5) * 1.6, (Math.random() - .5) * 1.4, (Math.random() - .5) * 1.6));
+            FX.impact(p2, n % 2 ? WARM : PALE, .8);
+            if (n % 3 === 0) ghostAt(rig, pos.clone(), BLUE, .22);
+          });
+        })(i);
+      }
+      after(900, function () {
+        FX.cross(at.clone(), 0xffffff, 6, .26);
+        FX.impact(at.clone(), WARM, 2.6);
+        FX.ring(new THREE.Vector3(pos.x, .1, pos.z), WARM, { maxR: 10, life: .5 });
+      });
+    },
+    /* R · he is somewhere else, and the frames in between are all there */
+    nr: function (pos, yaw, rig, to) {
+      var from = pos.clone();
+      var dest = to || pos.clone().addScaledVector(
+        new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), 24);
+      for (var i = 0; i < 8; i++) {
+        (function (n) {
+          after(n * 22, function () {
+            ghostAt(rig, from.clone().lerp(dest, n / 8), n % 2 ? BLUE : PALE, .16);
+          });
+        })(i);
+      }
+      after(210, function () {
+        FX.ring(new THREE.Vector3(dest.x, .3, dest.z), BLUE, { maxR: 5, life: .4 });
+        FX.streaks(dest.clone().add(new THREE.Vector3(0, 3, 0)), 0xbfe8ff, 8, 12, 1.2);
+        FX.speedRing(dest.clone().add(new THREE.Vector3(0, 2.4, 0)), PALE, 7, .3);
+      });
+    },
+    /* R on a framed target · the frame comes apart around the punch */
+    nrf: function (pos, yaw, rig) {
+      var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      var at = pos.clone().addScaledVector(d, 3).add(new THREE.Vector3(0, 2.7, 0));
+      after(120, function () {
+        ghostAt(rig, pos.clone(), BLUE, .24);
+        FX.speedRing(at.clone(), PALE, 8, .3);
+      });
+      after(320, function () {
+        FX.cross(at.clone(), 0xffffff, 7, .3);
+        FX.impact(at.clone(), BLUE, 2.4);
+        FX.mangaLines(.5, .2);
+        FX.ring(new THREE.Vector3(at.x, .1, at.z), BLUE, { maxR: 9, life: .45 });
+      });
+    }
   };
 
   /* ------------------------------------------------------------- wiring */

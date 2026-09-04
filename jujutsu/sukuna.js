@@ -355,9 +355,9 @@
     cds[key] = CD[key];
     var a = player.action = { type: type, t: 0, dur: dur, stage: 0 };
     if (name) { try { showSplash(name, sub || '', '#ff2a4a'); } catch (e) {} }
-    if (window.MPJJ && window.MPJJ.relay) {
-      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: type });
-    }
+    /* not published here: mp.js watches player.action and announces
+       every cast on its own, so a pub of our own plays it twice on
+       every other screen */
     return a;
   }
   function fwd() { return new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing)); }
@@ -1193,9 +1193,12 @@
     addFx({ t: 1e9, update: function (dt) {
       t += dt;
       if (mine) {
+        /* the shrine can be torn down under this tick — dying inside it,
+           or throwing another one — and the clock was being written to a
+           domain that was already gone, once a frame, for ever */
+        if (!SK.shrine || !SK.domain) return false;
         SK.domain.t = t;
         shrine = SK.shrine;
-        if (!SK.shrine) return false;
       }
       if (!shrine) return false;
 
@@ -1611,8 +1614,14 @@
 
   var _poseAction = poseAction;
   poseAction = function (r, a) {
-    if (a.type === 'yaw' && player.char === 'yuji') { poseAwaken(r, a); return; }
-    if (r === player.rig && poseSukuna(r, a)) return;
+    /* whose body, not who is watching — a remote Yuji transforming has to
+       get the transformation, and asking player.char gets ours */
+    if (a.type === 'yaw' && (r.__char || player.char) === 'yuji') { poseAwaken(r, a); return; }
+    /* These read nothing but the action's own type and clock, both of
+       which travel, so they pose a body somebody else is driving just as
+       well as ours. The rig check that used to be here meant a remote
+       Sukuna threw all four of these without moving. */
+    if (poseSukuna(r, a)) return;
     return _poseAction(r, a);
   };
 
@@ -1647,9 +1656,8 @@
     try { showSplash(sw[2], sw[3], '#ff2a4a'); } catch (e) {}
     if (sw[0] === 's4') { player.iframes = Math.max(player.iframes, SHRINE.open); FX.letterbox(true); hud(false); }
     else player.iframes = Math.max(player.iframes, sw[0] === 's3' ? 1 : .35);
-    if (window.MPJJ && window.MPJJ.relay) {
-      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: sw[0] });
-    }
+    /* the swap changes the action's type, and mp.js announces a change of
+       type on its own — a pub here would play it twice */
     return true;
   } });
 
