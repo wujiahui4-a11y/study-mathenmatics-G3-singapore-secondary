@@ -9,7 +9,7 @@ meter and glass frames.
 ## Playing
 
 Title screen → **PLAY ONLINE WITH FRIENDS**. Five fighters: Gojo, Naoya, Yuji,
-Hakari and Choso.
+Hakari, Choso and Megumi.
 
 * **Create a room** gives you a six character code.
 * Everyone else types that code and joins.
@@ -606,13 +606,96 @@ a dark spark drops the white parts. And `cracks()` now takes a tint for the
 pale half of a break, because pale blue-grey concrete haze under dark red
 blood was the one bright thing left in the frame.
 
+## Megumi Fushiguro
+
+The Ten Shadows Technique. He does not throw cursed energy at anybody — he
+opens a shadow and something comes out of it, and **the shadow is the move as
+much as the thing is**. So the file builds the shadow first and the shikigami
+second, and every one of the five comes up out of a pool that opens on the
+ground under him or under them.
+
+| Key | Shikigami | What it does |
+| --- | --- | --- |
+| `1` | **Divine Dogs** 玉犬 | the pair, white and black, run down whatever is in front of him — and they close on the line as they go, so they meet on it |
+| `2` | **Nue** 鵺 | out of the sky rather than out of the road, and the lightning comes down with it |
+| `3` | **Great Serpent** 大蛇 | the pool opens **under them** and the head comes up out of it, which is the whole reason a shadow technique is frightening |
+| `4` | **Max Elephant** 満象 | the heavy one, and the water it brings |
+| `R` | **Rabbit Escape** 脱兎 | the swarm, and he goes out backwards with it |
+
+None of these is a beam. **Everything here is a body**: it is summoned, it
+travels, it does something with its own weight, and it goes back into the
+shadow it came from. That is the whole character, so the file has no beam
+call in it anywhere.
+
+### A shadow is not a light
+
+Everything he has is drawn on **normal blending in near-black**, so it takes
+light out of the floor. An additive shadow is a puddle of light, which is the
+opposite of a shadow — the same mistake the blood kit had to be rescued from
+once already, and worth not making twice. The pool is a real filled disc with
+a torn rim rather than a stencil circle, and the only bright value in the
+palette is the pale edge that keeps a black shape readable against a white
+floor.
+
+That edge is a shell scaled to a **constant thickness** rather than a constant
+ratio. A flat 7 % is a hairline on a rabbit's ear and a halo the size of a
+door on the elephant's flank — which is exactly what made the first elephant
+read as a lit slab rather than an animal.
+
+### Where the big one stands
+
+Max Elephant went in front of him first, and nine metres of shadow between
+him and everything he was aiming at is not a move — the flood started on the
+far side of whoever it was for and hit nobody. Directly behind is worse: the
+chase camera lives back there and ends up inside its ribs.
+
+So it comes up **beside him and a little back**, in frame the whole time, and
+the water is aimed **across** onto the line he is facing down rather than
+straight out of the trunk. Nine metres of elephant does not throw a hosepipe,
+so the front is as wide as the animal is.
+
+### The endings
+
+| | What it does |
+| --- | --- |
+| **TAKEN DOWN** | the two of them come in from opposite sides, meet on them, and pull |
+| **OUT OF THE SKY** | Nue takes them twenty four units up and the sky comes down the line they are on |
+| **SWALLOWED** | the ground opens, the head comes up, and it goes back down with them |
+| **UNDERFOOT** | thirty four units of elephant, and they are underneath it |
+| **INTO THE SHADOW** | sixteen of them go over the same spot, and when the swarm clears the floor is empty |
+
+Not one of these is Megumi doing something. Every one is a shikigami finishing
+somebody, built from the same models the moves are, while he stands there.
+
+### Two swap bugs the shikigami found
+
+A shikigami that outlives the body that called it is standing in somebody
+else's fight, so the swap has to take them with it. Getting that to work
+turned up two places where a character swap was **skipping every module's
+switch handling**:
+
+- **`__game.switchChar` was a snapshot** taken before a single module had
+  wrapped it. Anything driving the game through that handle skipped Choso's
+  stream cleanup, Naoya's visibility fix, Megumi's shikigami — and the eight
+  second swap wait as well. The character menu was always fine, because it
+  closes over the binding and picks up the wrapped one; only the handle was
+  stale.
+- **The queued swap itself** called the same kind of snapshot, taken by
+  `combat.js` before any character module existed. So when the eight seconds
+  finally elapsed, the swap that actually happened skipped all of them. It
+  goes through the live binding now, with a flag so the wrapper does not
+  queue the swap it is in the middle of performing.
+
+`JJCOMBAT.swapNow(id)` is the same swap without the wait, for the spawn menu
+and for anything driving the game from outside.
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — forty five of them, one
+and differently from every other skill in the game — fifty of them, one
 per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -654,6 +737,12 @@ Gachinko sends them **out of the park**.
 
 Sukuna's four: Dismantle **dismantles**, Cleave **cleaves** on the diagonal,
 Fuga **burns them to ash**, and Malevolent Shrine **cuts them to pieces**.
+
+Megumi's five are the only ones he does not throw himself. The dogs **take
+them down** between them, Nue drops the sky on them **out of the sky**, the
+serpent has them **swallowed**, the elephant leaves them **underfoot**, and
+the swarm takes them **into the shadow** — sixteen of them over the same spot,
+and when it clears the floor is empty.
 
 Awakened Choso's four end the way those particular techniques end people:
 Convergence gets them **before the sound** does, the bombardment **buries**
@@ -1104,7 +1193,7 @@ checked against each other without standing a broker up in between. That is
 how all of this is checked: two browsers, one playing every fighter in turn
 and throwing the whole kit, the other counting what arrives.
 
-**Thirty four skills, five fighters and three awakened kits**, and for each
+**Thirty nine skills, six fighters and three awakened kits**, and for each
 one: the cast announced exactly once, the body posed, and something actually
 drawn.
 
@@ -1115,6 +1204,7 @@ drawn.
 | Yuji | y1 | y2 | y3 | y4 | yr |
 | Hakari | h1 | h2 | h3 | h4 | hr |
 | Choso | c1 | c2 | c3 | c4 | cr |
+| Megumi | mg1 | mg2 | mg3 | mg4 | mgr |
 | Sukuna | s1 | s2 | s3 | s4 | |
 | Choso awakened | ca1 | ca2 | ca3 | ca4 | |
 | Hakari in fever | ha1 | ha2 | ha3 | ha4 | |
@@ -1367,6 +1457,7 @@ disk.
 | `yuji.js` | Yuji: his rig, his five moves and his transformation |
 | `hakari.js` | Hakari: his rig, his four moves and the machine in his domain |
 | `choso.js` | Choso: his rig, his five moves and the first-person blood stream |
+| `megumi.js` | Megumi: the shadow the shikigami come out of, and the five that do |
 | `void.js` | Unlimited Void: the hand sign, the barrier and everything inside it |
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |

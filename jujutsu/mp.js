@@ -1845,6 +1845,19 @@
           if (window.JJCHOSO && window.JJCHOSO.remote) window.JJCHOSO.remote.edge(pos.clone(), yaw);
         }, 260);
         break;
+      /* ------------------------------------------------------- MEGUMI
+         Every one of his is a body that gets summoned, travels and does
+         something with its own weight, so all five are built by his own
+         module — a stand-in ring would be a shikigami nobody can see. */
+      case 'mg1': case 'mg2': case 'mg3': case 'mg4': case 'mgr':
+        if (window.JJMEGUMI && window.JJMEGUMI.remote &&
+            window.JJMEGUMI.remote[kind]) {
+          window.JJMEGUMI.remote[kind](pos.clone(), yaw);
+        }
+        if (close && (kind === 'mg4' || kind === 'mg2')) addShake(1.2);
+        else if (near) addShake(.5);
+        break;
+
       case 'n4':
         /* the shot he framed, and the twenty four stills inside it */
         if (window.JJNAOYA && window.JJNAOYA.remoteFrames) {
@@ -1927,6 +1940,13 @@
   /* handy for checking the camera from outside, the game only had a setter */
   if (window.__game) {
     window.__game.getCam = function () { return { yaw: camYaw, pitch: camPitch }; };
+    /* The export was a snapshot of switchChar taken before a single module
+       had wrapped it, so calling it from outside skipped every one of them
+       — Choso's stream was left running, Naoya could be left invisible and
+       Megumi's shikigami were left standing in somebody else's fight. The
+       character menu was always fine, because it closes over the binding
+       and picks up the wrapped one; only this handle was stale. */
+    window.__game.switchChar = function (id, quiet) { return switchChar(id, quiet); };
   }
 
   /* The receive half of the room, out where it can be driven directly.

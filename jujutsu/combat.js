@@ -209,6 +209,8 @@
   var _switchChar = switchChar;
   switchChar = function (id, quiet) {
     if (!CHARS[id]) return;
+    /* the queued swap, coming back round to do the thing it queued */
+    if (C.swapping) return _switchChar(id, quiet);
     if (!started) return _switchChar(id, true);
     if (window.JJAW && window.JJAW.active) {
       notice('CANNOT SWITCH WHILE AWAKENED', '#ff6b7f');
@@ -238,8 +240,26 @@
       FX.ring(new THREE.Vector3(player.pos.x, .1, player.pos.z), tint, { maxR: 8, life: .45 });
       FX.flash('#dfefff', .35, .3);
     }
-    _switchChar(id);
+    /* Through the LIVE binding rather than the copy taken before a single
+       character module had loaded. The copy skipped every one of their
+       switch handlers, so a queued swap left Choso's stream running and
+       Megumi's shikigami standing in the next fighter's fight. The flag
+       stops the wrapper above from queueing this one all over again. */
+    C.swapping = true;
+    try { switchChar(id); } finally { C.swapping = false; }
   }
+
+  /* The swap normally queues and waits eight seconds out of combat, which
+     is the point of it. This is the same swap without the wait — for the
+     spawn menu, and for anything driving the game from outside that wants
+     a fighter changed now rather than in eight seconds. It still goes
+     through every module's own switch handling. */
+  C.swapNow = function (id) {
+    if (!CHARS[id] || id === player.char) return false;
+    C.swPending = id;
+    doSwap();
+    return true;
+  };
 
   /* ---------------------------------------------------------------- HUD */
   var swapEl = null, noticeEl = null;

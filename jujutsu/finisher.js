@@ -1152,6 +1152,303 @@
       } });
     } },
 
+    /* =================================================================
+       MEGUMI
+       Not one of these is Megumi doing something. He opens a shadow and
+       something comes out of it and does the thing — so every one of
+       these is a shikigami finishing somebody, built out of the same
+       models the moves are, and he stands there while it happens.
+       ================================================================ */
+
+    /* 1 · the two of them, from both sides at once */
+    mg1: { name: 'TAKEN DOWN', color: '#7b7bb8', hold: 1.9, run: function (e, d, p, G) {
+      var MG = window.JJMEGUMI;
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      var made = [];
+      if (MG && MG.pool) MG.pool(new THREE.Vector3(p.x, 0, p.z), 7, 1.4);
+      FX.impact(p, 0x7b7bb8, 2);
+      addShake(1.4);
+
+      /* one comes in from each side, and they meet on them */
+      [-1, 1].forEach(function (s, i) {
+        if (!MG || !MG.buildDog) return;
+        var dog = MG.buildDog(i === 1);
+        var from = p.clone().addScaledVector(side, s * 16).add(up(-2.6));
+        dog.position.copy(from);
+        dog.rotation.y = Math.atan2(-s * side.x, -s * side.z);
+        scene.add(dog);
+        made.push(dog);
+        var t = 0, bound = 0, bit = false;
+        addFx({ t: 1e9, update: function (dt) {
+          t += dt; bound += dt * 17;
+          var k = Math.min(1, t / .45);
+          dog.position.lerpVectors(from, p.clone().addScaledVector(side, s * 2.2).add(up(-2.6)), k);
+          dog.position.y = -2.6 + Math.abs(Math.sin(bound)) * .6;
+          if (dog.__legs) dog.__legs.forEach(function (l, n) {
+            l.rotation.x = Math.sin(bound + (n < 2 ? 0 : Math.PI)) * 1;
+          });
+          if (MG.wisp && Math.random() < dt * 16) MG.wisp(dog.position.clone().add(up(1)), 1);
+          if (k >= 1 && !bit) {
+            bit = true;
+            FX.impact(p.clone(), i ? 0xa9b6e8 : 0x7b7bb8, 2.2);
+            FX.slash(p.clone(), side.clone().multiplyScalar(s), 0xe8ecf5, 5, .18);
+            FX.blood(p.clone(), side.clone().multiplyScalar(s), 10, 1.6);
+            addShake(1.2);
+            if (typeof hitstop === 'function') hitstop(.07);
+          }
+          /* and they pull, in opposite directions */
+          if (bit) {
+            dog.position.addScaledVector(side, s * dt * 5);
+            if (e && !e.dead) {
+              e.anchorT = .3;
+              e.anchorPos.copy(p).add(up(-1.4));
+              e.pos.lerp(e.anchorPos, Math.min(1, dt * 8));
+            }
+          }
+          return t < 1.5;
+        } });
+      });
+
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.mangaLines(.9, .3);
+        FX.cross(p.clone(), 0xffffff, 8, .28);
+        FX.impact(p.clone(), 0x7b7bb8, 3.2);
+        if (typeof hitstop === 'function') hitstop(.2);
+        if (e) e.anchorT = 0;
+        G.dice(e, { dir: side, power: 2, cubes: 22 });
+        addShake(2.8);
+        made.forEach(function (dog) { if (MG && MG.dismiss) MG.dismiss(dog, dog.position.clone()); });
+      }, 1500);
+    } },
+
+    /* 2 · up into the dark, and the sky comes down on them */
+    mg2: { name: 'OUT OF THE SKY', color: '#a9b6e8', hold: 2.1, run: function (e, d, p, G) {
+      var MG = window.JJMEGUMI;
+      var TOP = 24;
+      FX.speedRing(p, 0xa9b6e8, 12, .3);
+      addShake(1.4);
+
+      /* it takes them up */
+      var bird = (MG && MG.buildNue) ? MG.buildNue() : null;
+      if (bird) {
+        bird.position.copy(p).add(up(3.4));
+        bird.rotation.y = Math.atan2(-d.x, -d.z);
+        scene.add(bird);
+      }
+      var t = 0, dropped = false, flap = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt; flap += dt * 11;
+        var lift = Math.min(1, t / .7);
+        if (bird) {
+          bird.position.copy(p).add(up(3.4 + TOP * lift));
+          if (bird.__wings) bird.__wings.forEach(function (w, i) {
+            w.rotation.z = Math.sin(flap) * .7 * (i ? -1 : 1);
+          });
+          if (MG.wisp && Math.random() < dt * 20) MG.wisp(bird.position.clone(), 1);
+        }
+        if (e && !e.dead && !dropped) {
+          e.anchorT = .3;
+          e.anchorPos.copy(p).add(up(TOP * lift));
+          e.pos.lerp(e.anchorPos, Math.min(1, dt * 10));
+          e.vel.set(0, 0, 0);
+        }
+        if (!dropped && t > .95) {
+          dropped = true;
+          /* the lightning, straight down the line they are on */
+          var at = new THREE.Vector3(p.x, 0, p.z);
+          for (var b = 0; b < 9; b++) {
+            var bolt = FX.billboard(FX.T.bolt, b % 2 ? 0xa9b6e8 : 0xffffff, 1);
+            var a1 = at.clone().add(new THREE.Vector3(
+              (Math.random() - .5) * 5, TOP + 4 + Math.random() * 4, (Math.random() - .5) * 5));
+            var a2 = at.clone().add(new THREE.Vector3(
+              (Math.random() - .5) * 4, .3, (Math.random() - .5) * 4));
+            var len = FX.orientAlong(bolt, a1, a2);
+            bolt.scale.set(len, len * .26, 1);
+            scene.add(bolt);
+            (function (bolt) {
+              var bt = .3;
+              addFx({ t: bt, update: function (dd) {
+                this.t -= dd;
+                bolt.material.opacity = Math.max(0, this.t / bt);
+                if (this.t <= 0) { scene.remove(bolt); bolt.material.dispose(); return false; }
+                return true;
+              } });
+            })(bolt);
+          }
+          FX.flash('#e6edff', .6, .3);
+          FX.mangaLines(1, .34);
+          if (typeof hitstop === 'function') hitstop(.22);
+          addShake(3.4);
+          if (e) e.anchorT = 0;
+          G.burn(e, { dir: new THREE.Vector3(0, -1, 0) });
+          FX.rings(new THREE.Vector3(p.x, .12, p.z), 0xa9b6e8, 4, { maxR: 20, life: .8, gap: 44 });
+        }
+        if (t < 1.9) return true;
+        if (bird && MG && MG.dismiss) MG.dismiss(bird, bird.position.clone());
+        return false;
+      } });
+    } },
+
+    /* 3 · the ground opens, and it does not give them back */
+    mg3: { name: 'SWALLOWED', color: '#7b7bb8', hold: 1.8, run: function (e, d, p, G) {
+      var MG = window.JJMEGUMI;
+      var at = new THREE.Vector3(p.x, 0, p.z);
+      if (MG && MG.pool) MG.pool(at.clone(), 9, 1.5);
+      FX.cracks(at.clone(), 12, 16, 0x1a1a24);
+      addShake(1.6);
+
+      var snake = (MG && MG.buildSnake) ? MG.buildSnake() : null;
+      if (snake) {
+        snake.position.set(at.x, -12, at.z);
+        snake.rotation.y = Math.atan2(-d.x, -d.z);
+        snake.rotation.x = -1.2;
+        scene.add(snake);
+      }
+      var t = 0, shut = false;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (snake) {
+          if (t < .5) {
+            var k = t / .5;
+            snake.position.y = -12 + k * 14;
+            snake.rotation.x = -1.2 + k * .7;
+            if (snake.__jaw) snake.__jaw.rotation.x = k * 1.3;
+          } else if (!shut) {
+            shut = true;
+            if (snake.__jaw) snake.__jaw.rotation.x = .05;
+            FX.impact(at.clone().add(up(3)), 0x7b7bb8, 3.4);
+            FX.blood(at.clone().add(up(3)), d.clone(), 16, 2);
+            FX.mangaLines(.9, .3);
+            if (typeof hitstop === 'function') hitstop(.2);
+            addShake(2.6);
+            /* it takes them, and there is nothing to fall over */
+            G.erase(e, { dir: d, power: 1.6 });
+          } else {
+            /* and goes back down with them */
+            snake.position.y -= dt * 13;
+            snake.rotation.x += dt * .9;
+            if (MG.wisp && Math.random() < dt * 26) MG.wisp(snake.position.clone(), 1);
+          }
+        }
+        if (t < 1.5) return true;
+        if (snake) {
+          scene.remove(snake);
+          snake.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+        }
+        FX.rings(at.clone(), 0x7b7bb8, 3, { maxR: 14, life: .7, gap: 46 });
+        return false;
+      } });
+    } },
+
+    /* 4 · nine metres of it, and they are underneath */
+    mg4: { name: 'UNDERFOOT', color: '#cfe2f2', hold: 1.6, run: function (e, d, p, G) {
+      var MG = window.JJMEGUMI;
+      var at = new THREE.Vector3(p.x, 0, p.z);
+      if (MG && MG.pool) MG.pool(at.clone(), 14, 1.3);
+      addShake(1.2);
+
+      var el = (MG && MG.buildElephant) ? MG.buildElephant() : null;
+      if (el) {
+        el.position.set(at.x, 34, at.z);
+        el.rotation.y = Math.atan2(-d.x, -d.z);
+        scene.add(el);
+      }
+      /* they are held where it is going to land */
+      var t = 0, landed = false;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (e && !e.dead && !landed) {
+          e.anchorT = .3;
+          e.anchorPos.copy(at).add(up(.2));
+          e.pos.lerp(e.anchorPos, Math.min(1, dt * 10));
+          e.vel.set(0, 0, 0);
+        }
+        if (el && !landed) {
+          var k = Math.min(1, t / .62);
+          el.position.y = 34 * (1 - k * k);
+          if (Math.random() < dt * 26) {
+            FX.streaks(el.position.clone().add(up(2)), 0xbfc6d4, 2, 16, .8);
+          }
+          if (k >= 1) {
+            landed = true;
+            el.position.y = 0;
+            FX.flash('#e8eef6', .5, .26);
+            FX.impact(at.clone(), 0xcfe2f2, 4.4);
+            FX.rings(at.clone(), 0x9fb0c8, 6, { maxR: 34, life: .95, gap: 42 });
+            FX.cracks(at.clone(), 24, 34, 0x1a1a24);
+            FX.debris(at.clone(), 30, 28, 0x2a2a38);
+            FX.dust(at.clone(), 18, 0xbfc6d4, 24, 6);
+            FX.mangaLines(1, .32);
+            if (typeof hitstop === 'function') hitstop(.24);
+            addShake(4);
+            if (e) e.anchorT = 0;
+            G.flatten(e, { dir: new THREE.Vector3(0, -1, 0), power: 2 });
+          }
+        }
+        if (t < 1.4) return true;
+        if (el && MG && MG.dismiss) MG.dismiss(el, el.position.clone().add(up(4)));
+        return false;
+      } });
+    } },
+
+    /* R · they go under it, and the shadow keeps what it is given */
+    mgr: { name: 'INTO THE SHADOW', color: '#7b7bb8', hold: 2, run: function (e, d, p, G) {
+      var MG = window.JJMEGUMI;
+      var at = new THREE.Vector3(p.x, 0, p.z);
+      if (MG && MG.pool) MG.pool(at.clone(), 8, 1.6);
+      FX.speedRing(p, 0x7b7bb8, 11, .3);
+      addShake(1);
+
+      /* a great many of them, all going over the same spot */
+      var n = 0;
+      var iv = setInterval(function () {
+        if (n++ > 16 || typeof scene === 'undefined') { clearInterval(iv); return; }
+        if (!MG || !MG.buildRabbit) return;
+        var r = MG.buildRabbit();
+        var a = Math.random() * Math.PI * 2;
+        var from = at.clone().add(new THREE.Vector3(Math.cos(a) * 13, 0, Math.sin(a) * 13));
+        var to = at.clone().add(new THREE.Vector3(Math.cos(a) * -13, 0, Math.sin(a) * -13));
+        r.position.copy(from);
+        r.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
+        scene.add(r);
+        (function (r, from, to) {
+          var t = 0, hop = 0, life = .55;
+          addFx({ t: life, update: function (dt) {
+            this.t -= dt; t += dt; hop += dt * 26;
+            r.position.lerpVectors(from, to, t / life);
+            r.position.y = Math.abs(Math.sin(hop)) * 1.6;
+            if (this.t <= 0) {
+              scene.remove(r);
+              r.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+              return false;
+            }
+            return true;
+          } });
+        })(r, from, to);
+        FX.impact(at.clone().add(up(1.2)), 0x7b7bb8, .9);
+        if (e && !e.dead) {
+          e.anchorT = .3;
+          e.anchorPos.copy(at).add(up(.4 - n * .06));
+          e.pos.lerp(e.anchorPos, .4);
+        }
+        addShake(.4);
+      }, 80);
+
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        clearInterval(iv);
+        FX.mangaLines(.9, .3);
+        FX.impact(at.clone(), 0x7b7bb8, 3.4);
+        FX.rings(at.clone(), 0x7b7bb8, 4, { maxR: 18, life: .8, gap: 44 });
+        if (typeof hitstop === 'function') hitstop(.2);
+        addShake(2.6);
+        if (e) e.anchorT = 0;
+        /* the swarm clears and the floor is empty */
+        G.erase(e, { dir: d, power: 1.4 });
+      }, 1450);
+    } },
+
     /* F · Idle Death Gamble — the machine pays out, with them in it */
     hdom: { name: 'PAID OUT', color: '#ffd84a', hold: 1.3, run: function (e, d, p, G) {
       var n = 0;
@@ -1544,7 +1841,8 @@
     ha1: 'ragdoll', ha1j: 'dice', ha2: 'sever', ha3: 'dice', ha4: 'ragdoll',
     s1: 'dice', s2: 'sever', s3: 'burn', s4: 'dice',
     c1: 'sever', c1s: 'gone', c2: 'flat', c3: 'dice', c4: 'sever', cr: 'sever',
-    ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever'
+    ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever',
+    mg1: 'dice', mg2: 'burn', mg3: 'gone', mg4: 'flat', mgr: 'gone'
   };
 
   /* =====================================================================
