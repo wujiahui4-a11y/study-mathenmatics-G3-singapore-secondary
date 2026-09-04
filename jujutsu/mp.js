@@ -1889,6 +1889,20 @@
         else if (near) addShake(.5);
         break;
 
+      /* ---------------------------------------------------------- TODO
+         A swap is the one thing in the game drawn at two places at once,
+         and only one of them is where the caster is — so the far end is
+         rebuilt from the direction he was facing rather than assumed to
+         be under him. */
+      case 'b1': case 'b2': case 'b3': case 'b4': case 'br':
+        if (window.JJTODO && window.JJTODO.remote &&
+            window.JJTODO.remote[kind]) {
+          window.JJTODO.remote[kind](pos.clone(), yaw);
+        }
+        if (close && (kind === 'b4' || kind === 'b3')) addShake(1.4);
+        else if (near) addShake(.5);
+        break;
+
       case 'n4':
         /* the shot he framed, and the twenty four stills inside it */
         if (window.JJNAOYA && window.JJNAOYA.remoteFrames) {

@@ -875,13 +875,61 @@ within sixteen units and goes to that, and the lunge keeps tracking it.
 | **PART OF IT** | it does not hit them. It rolls up, the hands get a hold, they are pulled into the middle of it, and it closes and rolls on one bigger than it was |
 | **WRONG SHAPE** | four seams, from four sides, all through the same body — and then all four at once |
 
+## Aoi Todo
+
+Boogie Woogie 不義遊戯. The technique is one thing and one thing only: he
+claps, and two things swap places. Everything else about him is a very large
+man punching, which the swap is what gets him to.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Boogie Woogie** 不義遊戯 | he flicks a marker at whoever is in front of him, claps, and is standing where it landed with his elbow already out |
+| `2` | **Change Places** | the two nearest of them trade, and they arrive at the speed of somebody who did not choose to |
+| `3` | **Straight Punch** 直突き | no technique in it at all — one, committed, the hardest single thing anybody on the roster does |
+| `4` | **Boogie Woogie Rush** 連続不義遊戯 | clap, hit, clap, hit, from a different side every time, and then both hands from directly overhead |
+| `R` | **Swap Out** | he claps and is simply not where the hit went, and what he swapped in for himself goes off where he was |
+
+### Two rules for the look
+
+**The clap is the move.** Every single thing in his file starts with one, so
+the clap has to be worth watching: a hard flat ring on the ground, a second
+one in the air at his hands, a cross of white, and a frame of stop.
+
+**A swap is two places at once**, so it is never drawn at one end. Both ends
+get a pillar, the pillars are joined by an arc that **crosses over** the
+middle, and both flash on the same frame — because what he did was to the
+pair, not to either one. A swap drawn as two separate puffs is two
+teleports, which is a different technique.
+
+### He is the biggest thing on the roster
+
+And that has to read from behind at thirty metres, so the bulk is **real
+geometry hung on the bones** — chest and back slabs, deltoids, forearms
+wrapped to the knuckle, thighs — rather than a scale on them. Scale is what
+Mahito's warp writes to, and a body that loses its shoulders when somebody
+reshapes it is a bug waiting to happen.
+
+The jacket is worn open over a bare chest, which took two passes: the first
+had the pec slab 1.5 units wide sitting in *front* of the lapels, so a man in
+an open jacket came out as a man in no jacket at all.
+
+### The five endings
+
+| | What it does |
+| --- | --- |
+| **CLAPPED** | the marker goes straight up and so do they; he arrives above them, and the floor is what stops them |
+| **TRADED** | back and forth between two places, each trade sooner than the last, until the last arrival does not finish arriving |
+| **ONE PUNCH** | the air goes *in* rather than out, everything stops — and then one of them arrives |
+| **FROM EVERY SIDE** | a marker on all eight sides of them, laid one at a time, and then every one of them on the same frame |
+| **WHERE HE WAS** | they are put in the place he just left, and what was coming for him is still on its way |
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — sixty one of them,
+and differently from every other skill in the game — sixty six of them,
 one per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -1379,7 +1427,7 @@ checked against each other without standing a broker up in between. That is
 how all of this is checked: two browsers, one playing every fighter in turn
 and throwing the whole kit, the other counting what arrives.
 
-**Forty four skills, seven fighters and four awakened kits**, and for each
+**Forty nine skills, eight fighters and four awakened kits**, and for each
 one: the cast announced exactly once, the body posed, and something actually
 drawn.
 
@@ -1392,6 +1440,7 @@ drawn.
 | Choso | c1 | c2 | c3 | c4 | cr |
 | Megumi | mg1 | mg2 | mg3 | mg4 | mgr |
 | Mahito | t1 | t2 | t3 | t4 | tr |
+| Todo | b1 | b2 | b3 | b4 | br |
 | Sukuna | s1 | s2 | s3 | s4 | |
 | Choso awakened | ca1 | ca2 | ca3 | ca4 | |
 | Hakari in fever | ha1 | ha2 | ha3 | ha4 | |
@@ -1650,6 +1699,7 @@ disk.
 | `choso.js` | Choso: his rig, his five moves and the first-person blood stream |
 | `megumi.js` | Megumi: the shadow the shikigami come out of, and the five that do |
 | `mahito.js` | Mahito: the seam, the warp, and the five shapes he leaves people in |
+| `todo.js` | Todo: the clap, the swap drawn at both ends, and a very large man punching |
 | `void.js` | Unlimited Void: the hand sign, the barrier and everything inside it |
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |

@@ -2852,6 +2852,295 @@
       }, 1150);
     } },
 
+    /* =================================================================
+       AOI TODO
+       The technique is a clap and an exchange, so none of these is a
+       combo — each one is a place he put somebody, and then what was
+       already waiting there.
+       ============================================================== */
+
+    /* 1 · the marker goes straight up. So do they */
+    b1: { name: 'CLAPPED', color: '#ffb347', hold: 2.0, run: function (e, d, p, G) {
+      var TD = window.JJTODO;
+      var GOLD = (TD && TD.GOLD) || 0xffb347, HOT = (TD && TD.HOT) || 0xfff0d8;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var TOP = 20;
+      if (TD && TD.clap) TD.clap(p.clone(), 1.3);
+      FX.mangaLines(.7, .24);
+
+      /* up they go, on the swap rather than on a hit */
+      var t = 0, over = false, driven = false;
+      var high = floor.clone().add(up(TOP));
+      if (TD && TD.swapFx) TD.swapFx(floor.clone().add(up(1)), high.clone());
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        if (e && !e.dead && !driven) {
+          var k = Math.min(1, t / .5);
+          e.anchorT = .3;
+          e.anchorPos.copy(floor).add(up(2 + TOP * (1 - (1 - k) * (1 - k))));
+          e.pos.lerp(e.anchorPos, Math.min(1, dt * 14));
+          e.vel.set(0, 0, 0);
+          if (Math.random() < dt * 20) FX.streaks(e.pos.clone().add(up(2)), GOLD, 2, 12, .7);
+        }
+        /* and he arrives above them, because that is where the second
+           marker went */
+        if (!over && t > .62) {
+          over = true;
+          var his = high.clone().add(up(6));
+          if (TD && TD.clap) TD.clap(his.clone(), .9, false);
+          if (TD && TD.swapFx) TD.swapFx(floor.clone().add(up(1)), his);
+          if (TD && TD.arrive) TD.arrive(his, 1.2);
+          FX.speedRing(his.clone(), HOT, 14, .3);
+        }
+        /* the elbow, straight down the line they came up */
+        if (over && !driven && t > .95) {
+          driven = true;
+          var at = e && !e.dead ? e.pos.clone().add(up(2.4)) : high.clone();
+          FX.flash('#fff3d8', .6, .28);
+          FX.cross(at.clone(), 0xffffff, 12, .3);
+          FX.impact(at.clone(), HOT, 4.4);
+          FX.blood(at.clone(), new THREE.Vector3(0, -1, 0), 20, 2.4);
+          FX.mangaLines(1, .34);
+          if (typeof hitstop === 'function') hitstop(.22);
+          addShake(3.6);
+          if (e) e.anchorT = 0;
+          /* and the floor stops them */
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            FX.rings(new THREE.Vector3(floor.x, .12, floor.z), GOLD, 5,
+              { maxR: 26, life: .9, gap: 40 });
+            FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 22, 28, 0x3a2a18);
+            FX.dust(new THREE.Vector3(floor.x, 0, floor.z), 14, 0xd8c8a8, 18, 5);
+            addShake(3.4);
+            if (typeof hitstop === 'function') hitstop(.16);
+            G.flatten(e, { crater: 13 });
+          }, 320);
+        }
+        return t < 1.6;
+      } });
+    } },
+
+    /* 2 · back and forth between two places, faster than a body is meant
+       to arrive anywhere */
+    b2: { name: 'TRADED', color: '#fff0d8', hold: 2.4, run: function (e, d, p, G) {
+      var TD = window.JJTODO;
+      var GOLD = (TD && TD.GOLD) || 0xffb347, HOT = (TD && TD.HOT) || 0xfff0d8;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var A = floor.clone().addScaledVector(side, -7);
+      var B = floor.clone().addScaledVector(side, 7);
+      if (TD && TD.clap) TD.clap(p.clone(), 1.2);
+
+      var n = 0, t = 0, next = .3;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        if (t > next && n < 9) {
+          /* each trade sooner than the last one */
+          var here = n % 2 ? A : B, there = n % 2 ? B : A;
+          n++;
+          next = t + Math.max(.055, .3 - n * .03);
+          if (TD && TD.swapFx) TD.swapFx(here.clone().add(up(1)), there.clone().add(up(1)));
+          if (TD && TD.clap) TD.clap(floor.clone().add(up(2.4)), .45, false);
+          if (e && !e.dead) {
+            e.anchorT = .3;
+            e.anchorPos.copy(there).add(up(1.6));
+            e.pos.copy(e.anchorPos);
+            e.vel.set(0, 0, 0);
+            FX.impact(e.pos.clone().add(up(1)), n % 2 ? GOLD : HOT, 2 + n * .2);
+            FX.blood(e.pos.clone().add(up(1.4)), side.clone().multiplyScalar(n % 2 ? 1 : -1), 6 + n, 1.4);
+            if (window.JJHITS) window.JJHITS.flash(e.rig, HOT, .6);
+          }
+          FX.dust(new THREE.Vector3(there.x, 0, there.z), 5, 0xd8c8a8, 8, 3);
+          addShake(.7 + n * .18);
+          if (typeof hitstop === 'function') hitstop(.03);
+        }
+        /* and the last arrival does not finish arriving */
+        if (n >= 9 && t > next) {
+          var at = (e && !e.dead ? e.pos.clone() : floor.clone()).add(up(1.8));
+          FX.flash('#fff3d8', .55, .26);
+          FX.cross(at.clone(), 0xffffff, 11, .3);
+          FX.impact(at.clone(), HOT, 4);
+          FX.rings(at.clone(), GOLD, 4, { maxR: 18, life: .7, ground: false, gap: 36 });
+          FX.mangaLines(1, .32);
+          if (typeof hitstop === 'function') hitstop(.2);
+          addShake(3.4);
+          if (e) e.anchorT = 0;
+          G.dice(e, { dir: side, power: 2.6, cubes: 26 });
+          return false;
+        }
+        return t < 2.4;
+      } });
+    } },
+
+    /* 3 · everything stops, and then one of them arrives */
+    b3: { name: 'ONE PUNCH', color: '#fff0d8', hold: 1.7, run: function (e, d, p, G) {
+      var TD = window.JJTODO;
+      var GOLD = (TD && TD.GOLD) || 0xffb347, HOT = (TD && TD.HOT) || 0xfff0d8;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      /* the wind-up: the air goes in rather than out */
+      FX.converge(p.clone(), GOLD, 26, 11, .6);
+      FX.mangaLines(.5, .5);
+      FX.zoom(-7, .5);
+      if (typeof hitstop === 'function') hitstop(.12);
+      addShake(.6);
+      if (e && !e.dead) { e.anchorT = .7; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 1); }
+
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone());
+        /* and then all of it at once */
+        FX.flash('#ffffff', .85, .3);
+        FX.wave(at.clone(), d, GOLD, { steps: 6, gap: 22, reach: 5, r0: 4, grow: 2.6 });
+        FX.cross(at.clone(), 0xffffff, 16, .34);
+        FX.impact(at.clone(), HOT, 6);
+        FX.speedRing(at.clone(), GOLD, 24, .4);
+        FX.rings(at.clone(), HOT, 4, { maxR: 26, life: .8, ground: false, gap: 30 });
+        FX.blood(at.clone(), d, 26, 2.8);
+        FX.mangaLines(1, .4);
+        FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 24, 30, 0x3a2a18);
+        FX.dust(new THREE.Vector3(floor.x, 0, floor.z), 16, 0xd8c8a8, 22, 6);
+        if (typeof hitstop === 'function') hitstop(.3);
+        addShake(5);
+        if (e) e.anchorT = 0;
+        G.sever(e, { dir: d, power: 3.2, cubes: 18 });
+        /* the half that is left goes a long way */
+        setTimeout(function () {
+          if (typeof scene === 'undefined') return;
+          var far = floor.clone().addScaledVector(d, 40).add(up(6));
+          FX.cross(far, 0xffffff, 8, .3);
+          FX.impact(far, GOLD, 2.4);
+          FX.dust(new THREE.Vector3(far.x, 0, far.z), 8, 0xd8c8a8, 12, 4);
+        }, 420);
+      }, 780);
+    } },
+
+    /* 4 · not one after another. All of them, on the same frame */
+    b4: { name: 'FROM EVERY SIDE', color: '#ffb347', hold: 2.3, run: function (e, d, p, G) {
+      var TD = window.JJTODO;
+      var GOLD = (TD && TD.GOLD) || 0xffb347, HOT = (TD && TD.HOT) || 0xfff0d8;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var N = 8, made = [];
+      /* a marker on every side of them, laid down one at a time */
+      for (var i = 0; i < N; i++) {
+        (function (n) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            var a = n / N * TAU + .3;
+            var at = floor.clone().add(new THREE.Vector3(Math.cos(a) * 6, 1.2, Math.sin(a) * 6));
+            if (TD && TD.marker) made.push(TD.marker(at));
+            FX.mote(at.clone(), GOLD, 1.8, .3);
+            addShake(.35);
+          }, 60 + n * 70);
+        })(i);
+      }
+
+      /* and then every one of them at once */
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        if (TD && TD.clap) TD.clap(floor.clone().add(up(2.4)), 1.6);
+        FX.mangaLines(1, .36);
+        for (var n = 0; n < N; n++) {
+          (function (n) {
+            var a = n / N * TAU + .3;
+            var from = floor.clone().add(new THREE.Vector3(Math.cos(a) * 6, 0, Math.sin(a) * 6));
+            var into = floor.clone().add(up(2.2));
+            if (TD && TD.swapFx) TD.swapFx(from.clone().add(up(1)), into.clone());
+            setTimeout(function () {
+              if (typeof scene === 'undefined') return;
+              FX.impact(into.clone(), n % 2 ? HOT : GOLD, 2.6);
+              FX.cross(into.clone(), HOT, 6, .16);
+              FX.blood(into.clone(), new THREE.Vector3(-Math.cos(a), .2, -Math.sin(a)), 7, 1.4);
+              if (window.JJHITS) window.JJHITS.flash(e && e.rig, HOT, .6);
+              addShake(1);
+              if (e && !e.dead) {
+                e.anchorT = .4;
+                e.anchorPos.copy(floor).add(up(1.4 + n * .34));
+                e.pos.lerp(e.anchorPos, .6);
+                e.vel.set(0, 0, 0);
+              }
+            }, 40 + n * 45);
+          })(n);
+        }
+        made.forEach(function (m) { if (TD && TD.dropMarker) TD.dropMarker(m); });
+        made.length = 0;
+      }, 660);
+
+      /* and the drop, from directly overhead, with both hands */
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        var over = floor.clone().add(up(16));
+        if (TD && TD.clap) TD.clap(over.clone(), 1.2, false);
+        if (TD && TD.swapFx) TD.swapFx(floor.clone().add(up(2)), over);
+        FX.speedRing(over.clone(), HOT, 16, .3);
+        setTimeout(function () {
+          if (typeof scene === 'undefined') return;
+          FX.flash('#fff3d8', .7, .3);
+          FX.impact(floor.clone().add(up(2)), HOT, 5);
+          FX.rings(new THREE.Vector3(floor.x, .12, floor.z), GOLD, 6,
+            { maxR: 30, life: 1, gap: 38 });
+          FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 26, 34, 0x3a2a18);
+          FX.dust(new THREE.Vector3(floor.x, 0, floor.z), 18, 0xd8c8a8, 24, 6);
+          FX.debris(new THREE.Vector3(floor.x, .1, floor.z), 18, 22, 0x8b7c62);
+          FX.mangaLines(1, .38);
+          if (typeof hitstop === 'function') hitstop(.26);
+          addShake(4.6);
+          if (e) e.anchorT = 0;
+          G.flatten(e, { crater: 16 });
+        }, 340);
+      }, 1500);
+    } },
+
+    /* R · he was standing there a moment ago, and what was coming for
+       him is still on its way */
+    br: { name: 'WHERE HE WAS', color: '#d45a1e', hold: 1.9, run: function (e, d, p, G) {
+      var TD = window.JJTODO;
+      var GOLD = (TD && TD.GOLD) || 0xffb347, HOT = (TD && TD.HOT) || 0xfff0d8;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      /* the place he left, marked, so it is clear what is about to happen */
+      var spot = floor.clone().addScaledVector(d, -9);
+      var mk = (TD && TD.marker) ? TD.marker(spot.clone().add(up(1.2))) : null;
+      if (TD && TD.pillar) TD.pillar(spot.clone(), GOLD, .6);
+      FX.mangaLines(.6, .24);
+
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        /* and they are put in it */
+        if (TD && TD.clap) TD.clap(floor.clone().add(up(2.4)), 1.2);
+        if (TD && TD.swapFx) TD.swapFx(floor.clone().add(up(1)), spot.clone().add(up(1)));
+        if (TD && TD.dropMarker) TD.dropMarker(mk);
+        if (e && !e.dead) {
+          e.anchorT = .8;
+          e.anchorPos.copy(spot).add(up(.4));
+          e.pos.copy(e.anchorPos);
+          e.vel.set(0, 0, 0);
+          e.stunT = Math.max(e.stunT || 0, 1.2);
+        }
+        if (TD && TD.arrive) TD.arrive(spot, 1.3);
+        addShake(1.6);
+      }, 520);
+
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        /* whatever he stepped out of the way of lands on them instead */
+        var at = spot.clone().add(up(2.2));
+        FX.flash('#ffe6c0', .6, .28);
+        FX.converge(at.clone(), 0xd45a1e, 30, 12, .4);
+        FX.cross(at.clone(), 0xffffff, 12, .3);
+        FX.impact(at.clone(), HOT, 5);
+        FX.rings(at.clone(), GOLD, 4, { maxR: 20, life: .7, ground: false, gap: 32 });
+        FX.debris(new THREE.Vector3(spot.x, .1, spot.z), 16, 18, 0x8b7c62);
+        FX.cracks(new THREE.Vector3(spot.x, .1, spot.z), 18, 22, 0x3a2a18);
+        FX.blood(at.clone(), d.clone().negate(), 20, 2.4);
+        FX.mangaLines(1, .34);
+        if (typeof hitstop === 'function') hitstop(.24);
+        addShake(4);
+        if (e) e.anchorT = 0;
+        G.dice(e, { dir: d.clone().negate(), power: 2.6, cubes: 24 });
+      }, 1350);
+    } },
+
     /* -------------------------------------------------------- SUKUNA */
     /* 1 · Dismantle — the net, and the cubes it cut them into */
     s1: { name: 'DISMANTLED', color: '#ff2a4a', hold: .9, run: function (e, d, p, G) {
@@ -3191,7 +3480,8 @@
     ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever',
     mg1: 'dice', mg2: 'burn', mg3: 'gone', mg4: 'flat', mgr: 'gone',
     ga1: 'dice', ga2: 'dice', ga3: 'sever', gv1: 'dice', gv2: 'gone', gdom: 'gone',
-    t1: 'gone', t2: 'gone', t3: 'sever', t4: 'gone', tr: 'sever'
+    t1: 'gone', t2: 'gone', t3: 'sever', t4: 'gone', tr: 'sever',
+    b1: 'flat', b2: 'dice', b3: 'sever', b4: 'flat', br: 'dice'
   };
 
   /* =====================================================================
