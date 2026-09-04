@@ -1875,6 +1875,20 @@
         else if (near) addShake(.6);
         break;
 
+      /* ------------------------------------------------------- MAHITO
+         Every one of his changes the SHAPE of something, and a shape is
+         not damage — a body left the wrong shape on one screen and the
+         right shape on another is two different fights. So the warp
+         travels with the cast rather than with the hit. */
+      case 't1': case 't2': case 't3': case 't4': case 'tr':
+        if (window.JJMAHITO && window.JJMAHITO.remote &&
+            window.JJMAHITO.remote[kind]) {
+          window.JJMAHITO.remote[kind](pos.clone(), yaw);
+        }
+        if (close && (kind === 't4' || kind === 't3')) addShake(1.3);
+        else if (near) addShake(.5);
+        break;
+
       case 'n4':
         /* the shot he framed, and the twenty four stills inside it */
         if (window.JJNAOYA && window.JJNAOYA.remoteFrames) {

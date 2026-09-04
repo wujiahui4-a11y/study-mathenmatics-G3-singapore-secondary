@@ -1180,7 +1180,7 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
         FX.mangaLines(.4 + n * .2, .18);
         addShake(1.4 + n * 1.1);
         hitstop(.05 + n * .04);
-        try { sfx.slash(); } catch (e) {}
+        try { sfx.redBoom(); } catch (e) {}
         if (!ghost) {
           var got = enemiesNear(to.clone(), MAH.reach + n * 3);
           got.forEach(function (e) {

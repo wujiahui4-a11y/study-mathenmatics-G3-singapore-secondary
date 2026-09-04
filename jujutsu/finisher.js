@@ -2477,6 +2477,381 @@
       }, 440);
     } },
 
+    /* =================================================================
+       MAHITO
+       He does not kill anybody. He RESHAPES them, and what he leaves is
+       whatever the soul settled into when he let go of it — so not one
+       of these is a blow. Every one is a shape they end up in.
+       ============================================================== */
+
+    /* 1 · the hand stays on. A touch that is not taken off again does
+       not stop at a wound: the body keeps being told what to be until
+       there is nothing left that answers to a shape */
+    t1: { name: 'UNMADE', color: '#6fe0cf', hold: 2.1, run: function (e, d, p, G) {
+      var MH = window.JJMAHITO;
+      var SOUL = (MH && MH.SOUL) || 0x6fe0cf, SOUL2 = (MH && MH.SOUL2) || 0xc6fbf1;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      if (MH && MH.palm) MH.palm(p.clone(), d.clone().negate(), 3.6);
+      FX.flash('#c6fbf1', .4, .22);
+      FX.impact(p.clone(), SOUL, 2.6);
+      addShake(1.4);
+      if (typeof hitstop === 'function') hitstop(.12);
+
+      /* the seams go in and keep going in */
+      var t = 0, n = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone() : floor.clone()).add(up(2.4));
+        if (t > n * .13) {
+          n++;
+          if (MH && MH.knot) MH.knot(at.clone(), 3, 1.4 + Math.random() * 1.4, .34);
+          FX.mote(at.clone().add(new THREE.Vector3(
+            (Math.random() - .5) * 2, (Math.random() - .5) * 2, (Math.random() - .5) * 2)),
+            SOUL2, 1.6, .26);
+          if (window.JJHITS) window.JJHITS.flash(e && e.rig, SOUL2, .5);
+        }
+        /* and the shape gets worse the whole time */
+        if (e && !e.dead && MH && MH.warp) MH.warp(e, .35 + t * .5, .4);
+        if (e && !e.dead) {
+          e.anchorT = .4;
+          e.anchorPos.copy(floor).add(up(.2 + Math.sin(t * 9) * .3));
+          e.pos.lerp(e.anchorPos, Math.min(1, dt * 8));
+          e.vel.set(0, 0, 0);
+        }
+        return t < 1.7;
+      } });
+
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        var at = (e && !e.dead ? e.pos.clone() : floor.clone()).add(up(2.2));
+        FX.flash('#ffffff', .6, .28);
+        FX.converge(at.clone(), SOUL, 34, 12, .5);
+        if (MH && MH.knot) MH.knot(at.clone(), 14, 3, .5);
+        if (MH && MH.meat) MH.meat(at.clone(), 18, 13);
+        FX.mangaLines(1, .32);
+        if (typeof hitstop === 'function') hitstop(.22);
+        addShake(3.2);
+        if (e) { e.anchorT = 0; if (MH && MH.unwarp) MH.unwarp(e.rig); }
+        /* folded in on itself, which is what a shape with nobody holding
+           it does */
+        G.implode(e, { at: at, color: SOUL, dir: d, cubes: 16 });
+      }, 1750);
+    } },
+
+    /* 2 · they do not get killed by one. They get made into one, and
+       then it walks off, which is worse */
+    t2: { name: 'ONE OF THEM NOW', color: '#8a3a4c', hold: 2.5, run: function (e, d, p, G) {
+      var MH = window.JJMAHITO;
+      var SOUL = (MH && MH.SOUL) || 0x6fe0cf;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      FX.speedRing(p.clone(), SOUL, 12, .3);
+      addShake(1.2);
+
+      /* BEAT ONE — three of them come in and take hold */
+      var made = [];
+      for (var i = -1; i <= 1; i++) {
+        (function (n) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined' || !MH || !MH.buildTransfigured) return;
+            var g = MH.buildTransfigured();
+            var from = floor.clone().addScaledVector(side, n * 9).addScaledVector(d, 6);
+            g.position.copy(from);
+            g.rotation.y = Math.atan2(floor.x - from.x, floor.z - from.z);
+            scene.add(g);
+            made.push(g);
+            var t = 0, run = 0;
+            addFx({ t: 1e9, update: function (dt) {
+              t += dt; run += dt * 19;
+              if (typeof scene === 'undefined') return false;
+              var want = floor.clone().addScaledVector(side, n * 2.4);
+              g.position.lerp(want, Math.min(1, dt * 4.4));
+              g.position.y = Math.abs(Math.sin(run)) * .4;
+              if (g.__legs) g.__legs.forEach(function (l, j) {
+                l.rotation.x = Math.sin(run * (1 + j * .2) + j * 1.7) * 1;
+              });
+              if (g.__arms) g.__arms.forEach(function (a2, j) {
+                a2.rotation.x = .4 + Math.sin(run * .8 + j) * .7;
+              });
+              if (MH.seam && Math.random() < dt * 12) {
+                MH.seam(g.position.clone().add(up(3)),
+                  floor.clone().add(up(1.4 + Math.random() * 2)), { n: 5, life: .3 });
+              }
+              return t < 2.2;
+            } });
+          }, 60 + (n + 1) * 130);
+        })(i);
+      }
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.impact(p.clone(), 0x8a3a4c, 2.4);
+        FX.blood(p.clone(), side.clone(), 12, 1.7);
+        if (typeof hitstop === 'function') hitstop(.08);
+        addShake(1.6);
+        if (e && !e.dead) {
+          e.anchorT = .5;
+          e.anchorPos.copy(floor).add(up(.8));
+          e.stunT = Math.max(e.stunT || 0, 1);
+        }
+      }, 620);
+
+      /* BEAT TWO — and it is done to them where they stand */
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        var at = (e && !e.dead ? e.pos.clone() : floor.clone()).add(up(2.4));
+        FX.flash('#c6fbf1', .4, .24);
+        if (MH && MH.knot) MH.knot(at.clone(), 10, 2.4, .5);
+        if (MH && MH.warp) MH.warp(e, .9, 1.2);
+        if (MH && MH.meat) MH.meat(at.clone(), 10, 11);
+        FX.mangaLines(.8, .28);
+        addShake(2.2);
+        if (typeof hitstop === 'function') hitstop(.12);
+      }, 1350);
+
+      /* BEAT THREE — the shape stops being theirs, and leaves */
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        var at = (e && !e.dead ? e.pos.clone() : floor.clone());
+        FX.flash('#ffffff', .5, .26);
+        if (MH && MH.knot) MH.knot(at.clone().add(up(2.4)), 12, 3, .55);
+        if (MH && MH.meat) MH.meat(at.clone().add(up(2.2)), 16, 14);
+        FX.debris(new THREE.Vector3(at.x, .1, at.z), 12, 14, 0x55202f);
+        if (typeof hitstop === 'function') hitstop(.2);
+        addShake(3);
+        if (e) { e.anchorT = 0; if (MH && MH.unwarp) MH.unwarp(e.rig); }
+        G.erase(e, { color: SOUL, dir: d, power: 1.6 });
+        /* one more of them walks away from where somebody was standing */
+        if (MH && MH.buildTransfigured) {
+          var g = MH.buildTransfigured();
+          g.position.copy(at); g.position.y = 0;
+          g.rotation.y = Math.atan2(-d.x, -d.z);
+          scene.add(g);
+          made.push(g);
+          var t = 0, run = 0;
+          addFx({ t: 1e9, update: function (dt) {
+            t += dt; run += dt * 15;
+            if (typeof scene === 'undefined') return false;
+            g.position.addScaledVector(d, -7 * dt);
+            g.position.y = Math.abs(Math.sin(run)) * .4;
+            if (g.__legs) g.__legs.forEach(function (l, j) {
+              l.rotation.x = Math.sin(run * (1 + j * .2) + j * 1.7) * 1;
+            });
+            g.traverse(function (o) {
+              if (o.isMesh && o.material && o.material.transparent === false && t > 1.1) {
+                o.material.transparent = true;
+              }
+              if (o.isMesh && o.material && t > 1.1) o.material.opacity = Math.max(0, 1 - (t - 1.1) / .7);
+            });
+            if (t > 1.8) {
+              made.forEach(function (m) {
+                scene.remove(m);
+                m.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+              });
+              return false;
+            }
+            return true;
+          } });
+        }
+      }, 2400);
+    } },
+
+    /* 3 · the arm opens out, and so do they */
+    t3: { name: 'OPENED FROM THE SHOULDER', color: '#d6ccbb', hold: 1.6, run: function (e, d, p, G) {
+      var MH = window.JJMAHITO;
+      var SOUL2 = (MH && MH.SOUL2) || 0xc6fbf1;
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var blade = (MH && MH.buildBlade) ? MH.buildBlade() : null;
+      if (blade) {
+        blade.position.copy(p).addScaledVector(d, -7).add(up(1.4));
+        blade.rotation.y = Math.atan2(d.x, d.z);
+        blade.rotation.z = -1.1;
+        scene.add(blade);
+      }
+      FX.speedRing(p.clone(), SOUL2, 13, .3);
+      addShake(1.2);
+
+      /* it comes down through them on a diagonal, and does not stop */
+      var t = 0, cut = false;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        if (blade) {
+          var k = Math.min(1, t / .55);
+          blade.position.copy(p).addScaledVector(d, -7 + 12 * k).add(up(1.4 - k * .8));
+          blade.rotation.z = -1.1 + k * 2.2;
+          if (MH && MH.seam && Math.random() < dt * 26) {
+            MH.seam(blade.position.clone(), blade.position.clone().add(new THREE.Vector3(
+              (Math.random() - .5) * 5, (Math.random() - .5) * 4, (Math.random() - .5) * 5)),
+              { n: 3, life: .2 });
+          }
+        }
+        if (!cut && t > .42) {
+          cut = true;
+          FX.flash('#fff6ea', .55, .26);
+          FX.slash(p.clone(), side.clone().add(up(.8)).normalize(), 0xfff2e2, 18, .3);
+          FX.slash(p.clone().add(up(-.5)), side.clone(), SOUL2, 14, .24);
+          if (MH && MH.seam) {
+            MH.seam(p.clone().addScaledVector(side, -9).add(up(2.4)),
+              p.clone().addScaledVector(side, 9).add(up(-2.4)), { n: 16, life: .6 });
+          }
+          FX.blood(p.clone(), side.clone(), 22, 2.4);
+          FX.mangaLines(1, .32);
+          if (typeof hitstop === 'function') hitstop(.2);
+          addShake(3.4);
+          /* the diagonal it came down on is the line they come apart on */
+          G.halve(e, { dir: side.clone(), power: 2.4 });
+          if (MH && MH.meat) MH.meat(p.clone(), 12, 13);
+        }
+        if (t > .95) {
+          if (blade) {
+            scene.remove(blade);
+            blade.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+          }
+          return false;
+        }
+        return true;
+      } });
+    } },
+
+    /* 4 · it does not hit them. It takes them in, and closes over the
+       place where they were */
+    t4: { name: 'PART OF IT', color: '#8a3a4c', hold: 2.6, run: function (e, d, p, G) {
+      var MH = window.JJMAHITO;
+      var SOUL = (MH && MH.SOUL) || 0x6fe0cf, SOUL2 = (MH && MH.SOUL2) || 0xc6fbf1;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var mass = (MH && MH.buildIsomer) ? MH.buildIsomer() : null;
+      var from = floor.clone().addScaledVector(d, -20);
+      if (mass) {
+        mass.position.copy(from); mass.position.y = -3;
+        mass.rotation.y = Math.atan2(d.x, d.z);
+        scene.add(mass);
+      }
+      FX.cracks(new THREE.Vector3(floor.x, .06, floor.z), 14, 18, 0x2a1220);
+      FX.tint('#160a12', .45, 1.4);
+      addShake(1.6);
+
+      var t = 0, phase = 0, mark = 0, churn = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt; churn += dt * 3.4;
+        if (typeof scene === 'undefined') return false;
+        if (mass) {
+          mass.position.y = Math.min(0, -3 + 12 * t);
+          if (mass.__hands) mass.__hands.forEach(function (a2, i) {
+            a2.rotation.x = (a2.__base ? a2.__base.x : 0) + Math.sin(churn * 2 + i) * .6;
+            a2.rotation.z = (a2.__base ? a2.__base.z : 0) + Math.cos(churn * 1.7 + i * .7) * .5;
+          });
+          if (mass.__faces) mass.__faces.forEach(function (f, i) {
+            f.scale.y = 1 + Math.sin(churn * 4 + i * 2) * .2;
+          });
+        }
+
+        /* BEAT ONE — it rolls up behind them and the hands get a hold */
+        if (phase === 0) {
+          if (mass) mass.position.addScaledVector(d, 24 * dt);
+          if (mass && mass.position.distanceTo(floor) < 6.5) {
+            phase = 1; mark = t;
+            FX.impact(p.clone(), SOUL2, 3.4);
+            if (MH && MH.knot) MH.knot(p.clone(), 8, 2.6, .5);
+            FX.blood(p.clone(), d.clone(), 12, 1.8);
+            if (typeof hitstop === 'function') hitstop(.1);
+            addShake(2.4);
+          } else if (t > 1.1) { phase = 1; mark = t; }
+          return true;
+        }
+
+        /* BEAT TWO — they are pulled off the floor into the middle of it */
+        if (phase === 1) {
+          var into = (mass ? mass.position.clone() : floor.clone()).add(up(3.4));
+          if (e && !e.dead) {
+            e.anchorT = .4;
+            e.anchorPos.copy(into);
+            e.pos.lerp(into, Math.min(1, dt * 5));
+            e.vel.set(0, 0, 0);
+            e.stunT = Math.max(e.stunT || 0, .8);
+            if (MH && MH.warp) MH.warp(e, .8, 1.2);
+            if (MH && MH.knot && Math.random() < dt * 18) {
+              MH.knot(e.pos.clone().add(up(1.6)), 2, 1.8, .3);
+            }
+            if (Math.random() < dt * 12) FX.blood(e.pos.clone().add(up(1.6)), d.clone(), 4, 1);
+          }
+          if (t > mark + .95) { phase = 2; mark = t; }
+          return true;
+        }
+
+        /* BEAT THREE — and it closes, and there is one more face in it */
+        if (phase === 2) {
+          phase = 3; mark = t;
+          var at = mass ? mass.position.clone().add(up(3)) : p.clone();
+          FX.flash('#c6fbf1', .6, .3);
+          FX.converge(at.clone(), SOUL, 40, 14, .55);
+          if (MH && MH.knot) MH.knot(at.clone(), 16, 4, .6);
+          if (MH && MH.meat) MH.meat(at.clone(), 22, 15);
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), SOUL, 4, { maxR: 22, life: .8, gap: 42 });
+          FX.mangaLines(1, .34);
+          if (typeof hitstop === 'function') hitstop(.24);
+          addShake(3.8);
+          if (e) { e.anchorT = 0; if (MH && MH.unwarp) MH.unwarp(e.rig); }
+          G.erase(e, { color: SOUL, dir: d, power: 2 });
+          return true;
+        }
+
+        /* and it rolls on, one bigger than it was */
+        if (mass) mass.position.addScaledVector(d, 16 * dt);
+        if (t > mark + 1.1) {
+          if (mass) {
+            if (MH && MH.meat) MH.meat(mass.position.clone().add(up(2.6)), 14, 12);
+            scene.remove(mass);
+            mass.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+          }
+          return false;
+        }
+        return true;
+      } });
+    } },
+
+    /* R · he stops holding his own shape for a moment, and while his
+       hands are soft he puts them through theirs */
+    tr: { name: 'WRONG SHAPE', color: '#c6fbf1', hold: 1.5, run: function (e, d, p, G) {
+      var MH = window.JJMAHITO;
+      var SOUL = (MH && MH.SOUL) || 0x6fe0cf, SOUL2 = (MH && MH.SOUL2) || 0xc6fbf1;
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      FX.impact(p.clone(), SOUL, 2.2);
+      if (MH && MH.knot) MH.knot(p.clone(), 5, 2, .4);
+      addShake(1.2);
+
+      /* four seams, from four sides, all through the same body */
+      [0, .1, .2, .3].forEach(function (ms, i) {
+        setTimeout(function () {
+          if (typeof scene === 'undefined') return;
+          var a = i / 4 * TAU + .4;
+          var from = p.clone().add(new THREE.Vector3(Math.cos(a) * 8, (i - 1.5) * 1.4, Math.sin(a) * 8));
+          var to = p.clone().add(new THREE.Vector3(Math.cos(a) * -8, (1.5 - i) * 1.4, Math.sin(a) * -8));
+          if (MH && MH.seam) MH.seam(from, to, { n: 12, life: .45 });
+          FX.impact(p.clone(), i % 2 ? SOUL2 : SOUL, 1.8);
+          FX.blood(p.clone(), new THREE.Vector3(Math.cos(a), .2, Math.sin(a)), 8, 1.4);
+          if (window.JJHITS) window.JJHITS.flash(e && e.rig, SOUL2, .7);
+          if (MH && MH.warp) MH.warp(e, .3 + i * .18, .8);
+          addShake(.9);
+          if (typeof hitstop === 'function') hitstop(.05);
+        }, ms * 1000);
+      });
+
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.flash('#c6fbf1', .5, .26);
+        FX.cross(p.clone(), SOUL2, 9, .28);
+        if (MH && MH.knot) MH.knot(p.clone(), 10, 2.6, .5);
+        if (MH && MH.meat) MH.meat(p.clone(), 14, 13);
+        FX.mangaLines(.9, .3);
+        if (typeof hitstop === 'function') hitstop(.18);
+        addShake(2.8);
+        if (e && MH && MH.unwarp) MH.unwarp(e.rig);
+        /* cut apart along every one of the four lines at once */
+        G.sever(e, { dir: side, power: 2.4, cubes: 18 });
+      }, 1150);
+    } },
+
     /* -------------------------------------------------------- SUKUNA */
     /* 1 · Dismantle — the net, and the cubes it cut them into */
     s1: { name: 'DISMANTLED', color: '#ff2a4a', hold: .9, run: function (e, d, p, G) {
@@ -2815,7 +3190,8 @@
     c1: 'sever', c1s: 'gone', c2: 'flat', c3: 'dice', c4: 'sever', cr: 'sever',
     ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever',
     mg1: 'dice', mg2: 'burn', mg3: 'gone', mg4: 'flat', mgr: 'gone',
-    ga1: 'dice', ga2: 'dice', ga3: 'sever', gv1: 'dice', gv2: 'gone', gdom: 'gone'
+    ga1: 'dice', ga2: 'dice', ga3: 'sever', gv1: 'dice', gv2: 'gone', gdom: 'gone',
+    t1: 'gone', t2: 'gone', t3: 'sever', t4: 'gone', tr: 'sever'
   };
 
   /* =====================================================================
