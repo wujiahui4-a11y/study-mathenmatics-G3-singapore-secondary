@@ -1903,6 +1903,19 @@
         else if (near) addShake(.5);
         break;
 
+      /* ------------------------------------------------------ HIGURUMA
+         The seal is deliberately NOT rebuilt here: it is what makes his
+         next hit worth more, and a second one put up on this screen
+         would be a charge nobody filed. */
+      case 'j1': case 'j2': case 'j3': case 'j4': case 'jr':
+        if (window.JJHIGURUMA && window.JJHIGURUMA.remote &&
+            window.JJHIGURUMA.remote[kind]) {
+          window.JJHIGURUMA.remote[kind](pos.clone(), yaw);
+        }
+        if (close && (kind === 'j4' || kind === 'j2')) addShake(1.4);
+        else if (near) addShake(.5);
+        break;
+
       case 'n4':
         /* the shot he framed, and the twenty four stills inside it */
         if (window.JJNAOYA && window.JJNAOYA.remoteFrames) {

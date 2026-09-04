@@ -923,13 +923,68 @@ an open jacket came out as a man in no jacket at all.
 | **FROM EVERY SIDE** | a marker on all eight sides of them, laid one at a time, and then every one of them on the same frame |
 | **WHERE HE WAS** | they are put in the place he just left, and what was coming for him is still on its way |
 
+## Hiromi Higuruma
+
+Deadly Sentencing 誅伏賜死. He was a defence lawyer and he still works like
+one: **nothing he does is an attack until it has been established.** Every
+move either puts a charge on somebody or carries one out, and the black
+sword at the end of it is not so much a weapon as a sentence being executed.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Executioner's Sword** 死刑執行人の剣 | the black blade, drawn out of nothing and brought down. It does not glow and it does not spark; it opens a line |
+| `2` | **Gavel** 木槌 | brought down where he points, and whatever is under it is on the record |
+| `3` | **Evidence** 証拠 | sheets of it out in a fan; they stick to what they reach and then pull taut, which is the part that hurts |
+| `4` | **Judgeman** 裁判長 | the court rises beyond the accused, and the verdict comes down as a column of cold light with a gavel behind it |
+| `R` | **Recess** 休廷 | one rap, the dock comes up out of the floor, and he is behind it |
+
+### A charge, and then a sentence
+
+Anything of his that lands leaves a small **brass seal** — a set of scales —
+turning over the body it landed on. While that seal is up, everything else
+of his hits **45 % harder**, and every hit refreshes it for six seconds.
+
+So his damage is never in any one move: it is in the order he does them in.
+Gavel then sword is worth appreciably more than sword then gavel, and
+Judgeman is worth 64 rather than 44 because its own verdict seals the target
+a beat before its gavel falls.
+
+The seal is deliberately **not** rebuilt on other people's screens — it is
+what makes his *next* hit worth more, and a second one put up remotely would
+be a charge nobody filed.
+
+### His colours are a courtroom and not a fight
+
+Oak, brass, paper, and a cold blue-white for the verdict. The
+**Executioner's Sword is the only black thing on the roster drawn with a
+white edge and no glow at all**: everything else in this game says "this is
+cursed energy" by lighting up, and the entire point of that blade is that it
+is not made of any. Its cut is drawn the same way round — a black slash with
+a white core, which nothing else here does.
+
+Judgeman took three passes to place. Behind Higuruma is where the chase
+camera lives, so the first cut put a judge's bench across the bottom of the
+lens; pushing it further back put it somewhere nobody would ever see. It
+presides over the **accused**, not over him, so it comes up beyond them and
+off to one side, facing back.
+
+### The five endings
+
+| | What it does |
+| --- | --- |
+| **SENTENCED** | the charge is read and everything stops; then one cut, and the line stays in the air a moment longer than they do |
+| **CASE CLOSED** | three raps, each bigger than the last, and the third is the size of a building |
+| **ENTERED INTO EVIDENCE** | a second and a half of paper arriving on them from every side — and then all forty sheets go back out at once, each taking a piece |
+| **THE VERDICT** | held for it, the finding read as a column standing on them, and the gavel behind it. What is left is a seal on an empty floor |
+| **HELD IN CONTEMPT** | four docks come up and box them in, and the fifth comes up underneath |
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — sixty six of them,
+and differently from every other skill in the game — seventy one of them,
 one per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -1427,7 +1482,7 @@ checked against each other without standing a broker up in between. That is
 how all of this is checked: two browsers, one playing every fighter in turn
 and throwing the whole kit, the other counting what arrives.
 
-**Forty nine skills, eight fighters and four awakened kits**, and for each
+**Fifty four skills, nine fighters and four awakened kits**, and for each
 one: the cast announced exactly once, the body posed, and something actually
 drawn.
 
@@ -1441,6 +1496,7 @@ drawn.
 | Megumi | mg1 | mg2 | mg3 | mg4 | mgr |
 | Mahito | t1 | t2 | t3 | t4 | tr |
 | Todo | b1 | b2 | b3 | b4 | br |
+| Higuruma | j1 | j2 | j3 | j4 | jr |
 | Sukuna | s1 | s2 | s3 | s4 | |
 | Choso awakened | ca1 | ca2 | ca3 | ca4 | |
 | Hakari in fever | ha1 | ha2 | ha3 | ha4 | |
@@ -1700,6 +1756,7 @@ disk.
 | `megumi.js` | Megumi: the shadow the shikigami come out of, and the five that do |
 | `mahito.js` | Mahito: the seam, the warp, and the five shapes he leaves people in |
 | `todo.js` | Todo: the clap, the swap drawn at both ends, and a very large man punching |
+| `higuruma.js` | Higuruma: the seal, the black sword, and the court that hands down the verdict |
 | `void.js` | Unlimited Void: the hand sign, the barrier and everything inside it |
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |

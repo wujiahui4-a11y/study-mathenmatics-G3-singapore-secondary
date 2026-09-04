@@ -34,7 +34,7 @@
 
   /* hot and heavy: a clap is a light, a fist is not */
   var GOLD = 0xffb347, HOT = 0xfff0d8, EMBER = 0xd45a1e;
-  var SKIN = 0x8a5a3c, SKIN_D = 0x5f3b25, WRAP = 0xe6ddc8;
+  var SKIN = 0xc08c5e, SKIN_D = 0x9a6b45, WRAP = 0xe6ddc8;
   var JACK = 0x1d2430, JACK_D = 0x11161f;
 
   var TD = window.JJTODO = { marks: [] };
