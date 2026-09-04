@@ -697,15 +697,59 @@ changes — he stops calling them out one by one and starts **putting them
 together**. So the four are a chain, and each one is the one before it taken
 further, which is what 渾 (Totality) means in the first place.
 
-| Key | Move | It is the one before it, merged |
+| Key | Move | |
 | --- | --- | --- |
 | `1` | **Divine Dogs: Totality** 玉犬・渾 | the two dogs merged mid-run into one body, twice the size, and it does not stop at the first thing it reaches |
-| `2` | **Chimera** 嵌合 | the variant of 1 — not two of one thing but *three different* ones: the serpent's jaws, Nue's wings and the toad's tongue in one body, and it leaps |
-| `3` | **Mahoraga** 八握剣異戒神将魔虚羅 | the variant of 2 taken to its end. The wheel over its head turns once per strike, and the same swing works better each time: 26, then 34, then 52 |
+| `2` | **Chimera** 嵌合 | three *different* things in one body: the serpent's jaws, Nue's wings and a toad's tongue, and it leaps |
+| `3` | **Toad** 蝦蟇 | the only one of his that does not run at somebody — the tongue goes out and brings them BACK, and the mouth keeps them |
 | `4` | **Chimera Shadow Garden** 嵌合暗翳庭 | the domain |
 
 `R` stays **Rabbit Escape** either way — the rabbits are how he leaves, awake
 or not.
+
+### And two that are not on the bar
+
+A merge needs two things to merge, so the variants are not moves you press.
+They are moves you **earn**, by throwing one and then throwing the next one
+while the first is still out. Each move opens a window of four and a half
+seconds on the key after it, and while that window is open the key throws
+something else:
+
+| | Press | You get |
+| --- | --- | --- |
+| **1 then 2** | `1`, then `2` | **DIVINE CHIMERA** 玉犬嵌合 — the hound and the chimera in one body: four legs, the wrong head, Nue's wings. It runs the whole lane, turns at the end of it, and comes back through everything still standing |
+| **2 then 3** | `2`, then `3` | **GREAT MAW** 嵌合蝦蟇 — the chimera wearing the toad's mouth. Taken off the floor, hauled in, and shut on |
+
+A variant thrown on `2` still counts as a `2`, so `1 → 2 → 3` is one chain
+all the way down: Totality, then the hound merged into the chimera, then that
+merged into the mouth. `3` is where it stops.
+
+The open key **says so on the bar** — the slot's label changes to
+`▸ Divine Chimera` or `▸ Great Maw` and its cooldown ring switches to the
+variant's — because a move with no key of its own that nobody can see is a
+move nobody throws.
+
+### Mahoraga is what the domain calls
+
+He is not on the bar any more. He is what **Chimera Shadow Garden** summons,
+four seconds after it opens, which is where he comes from in the first place:
+the wheel turns, and his three strikes land on whatever is still standing on
+the shadow — 26, then 34, then 52, because the same swing works better every
+time it is shown a technique.
+
+### The mouth has to shut inside its own cast
+
+The toad's tongue takes about a second to bring somebody back, and the first
+build of it put the bite **after** the cast had ended. A hit that lands after
+its own skill is over can never arm a finisher — the game has no way to know
+which skill threw it — so the toad simply never finished anybody. The cast is
+long enough to cover the bite now, and the reel is twice as fast, which reads
+better anyway. Same rule, same fix, for the maw.
+
+Its corridor was three and a half units wide to begin with, which is thinner
+than a body moves in the time it takes to open the mouth: it caught things
+standing still and nothing else. Six now, and a miss lashes the whole lane
+rather than one sphere at the end of it, so a miss is still a move.
 
 ### The chimera has to land *on* somebody
 
@@ -744,20 +788,23 @@ white plane, so the first build of this had a white box standing in front of
 him. `fever.js` was asking for the same missing texture in two places and had
 the same white box on Hakari's punch-out.
 
-### The four endings, in three beats each
+### The six endings, in three beats each
 
-The awakened moves merge things, so their finishers end somebody in stages.
-None of these is one hit, and none of them drags: about three seconds, in
-three readable beats.
+The awakened moves merge things, so their finishers end somebody in stages —
+and that includes both variants, which have no key of their own and so have
+to be worth the second press. None of these is one hit, and none of them
+drags: about three seconds, in three readable beats.
 
 | | Beat one | Beat two | Beat three |
 | --- | --- | --- | --- |
 | **RUN TO GROUND** | it comes through the back of their legs and they go down on a knee | back across the other way, and now they are flat | the pool opens **under** them and it comes straight up out of the floor |
 | **PULLED THREE WAYS** | the tongue takes them off their feet and hauls them in | the wings beat, they come off the floor, and the jaws shake them | three shadows open, three of them take a hold each, and they disagree |
-| **ADAPTED** | the wheel turns once. The swing only opens them | the wheel turns again and the same swing follows all the way through, into the floor | the wheel turns a third time and stops. Overhead, straight down, and the line goes past them |
+| **REELED IN** | the tongue is round them and they are coming, whether or not they want to | it whips them off the floor and puts them through it, twice | and into the mouth, which shuts, and goes back down with what is left |
+| **RUN THROUGH** *(1+2)* | it comes through them at speed and carries them on the front of it | it plants, puts them under a forepaw, and the jaws take hold | and it runs again, with them, and lets go at the far end |
+| **TAKEN WHOLE** *(2+3)* | the tongue takes them and they leave the floor | held up in front of it while the arcs climb them | in, shut, and the whole thing sinks — nothing comes back out |
 | **IN THE GARDEN** | the floor lights and every shadow within reach opens at once | eight of them come out one after another, from eight directions | everything goes back into the floor and Mahoraga comes down through the middle |
 
-He never touches anybody in any of them, so all four **pose him** through
+He never touches anybody in any of them, so all six **pose him** through
 `JJFEVER.perform` — the call, the hold, and the hand that closes it — and the
 poses go in the shared `finPose` table by name, so every other screen plays
 the same three beats off nothing but the name and the clock.
@@ -774,7 +821,7 @@ screen of whoever threw it.
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — fifty four of them,
+and differently from every other skill in the game — fifty six of them,
 one per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -1288,6 +1335,7 @@ drawn.
 | Choso awakened | ca1 | ca2 | ca3 | ca4 | |
 | Hakari in fever | ha1 | ha2 | ha3 | ha4 | |
 | Megumi awakened | ga1 | ga2 | ga3 | gdom | mgr |
+| Megumi, merged | | gv1 *(1+2)* | gv2 *(2+3)* | | |
 
 plus Gojo's entrance, Yuji's awakening, the finishers that take their caster
 over, and all three domains — the garden included, which is rebuilt on the
@@ -1544,7 +1592,7 @@ disk.
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |
 | `fever.js` | what the jackpot buys: Hakari's four fever moves, the hole-punching first person, and the aura |
-| `garden.js` | Megumi awakened: Totality, the Chimera, Mahoraga, and the Chimera Shadow Garden |
+| `garden.js` | Megumi awakened: Totality, the Chimera, the Toad, the two merges and the Chimera Shadow Garden |
 | `finisher.js` | one short finisher per skill, and the health lock they run under |
 | `maps.js` | the stage: one white baseplate with a grid on it |
 | `mp.js` | the online mode, appended inside the game's module |

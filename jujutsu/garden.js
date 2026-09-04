@@ -3,22 +3,36 @@
 
    His base kit is five separate shikigami, one at a time. Awakened, the
    idea changes: he stops calling them out one by one and starts putting
-   them TOGETHER. So the four are a chain, and each one is the one before
-   it taken further — which is what the source means by 渾, Totality.
+   them TOGETHER — 渾, Totality. So there are four on the bar:
 
      1  TOTALITY        玉犬・渾 — the two dogs, merged mid-run into one
-     2  CHIMERA         a variant of 1: not two of one, but three of
-                        different things — the serpent's jaws, the toad's
-                        tongue and Nue's wings, in one body
-     3  MAHORAGA        八握剣異戒神将魔虚羅 — a variant of 2 taken to its
-                        end. The wheel over its head turns, and whatever
-                        hit it last stops working.
+     2  CHIMERA         嵌合 — three different things in one body: the
+                        serpent's jaws, Nue's wings, a toad's tongue
+     3  TOAD            蝦蟇 — the tongue takes them and the mouth keeps
+                        them; the only one of his that reels somebody in
      4  CHIMERA SHADOW GARDEN
                         嵌合暗翳庭 — the domain. Everything is shadow, so
                         anything can come out of anywhere.
 
-   Each has a finisher, and none of them is one hit: they run in three
-   beats, because a thing that merges should end somebody in stages too.
+   AND TWO THAT ARE NOT ON THE BAR. A merge needs two things to merge, so
+   the variants are not moves you press — they are moves you EARN, by
+   throwing one and then throwing the next one while the first is still
+   out. Each opens a window on the key after it:
+
+     1 then 2  ▸  DIVINE CHIMERA  玉犬嵌合
+                  the hound and the chimera in one body, down the whole
+                  lane and back through it again
+     2 then 3  ▸  GREAT MAW       嵌合蝦蟇
+                  the chimera wearing the toad's mouth: taken off the
+                  floor, hauled in, and shut on
+
+   So 1 → 2 → 3 is one escalating chain, because the variant counts as
+   the move it was thrown on. Mahoraga is still here — he is what the
+   DOMAIN calls, which is where he belongs.
+
+   Every one of them has a finisher, and none is one hit: they run in
+   three beats, because a thing that merges should end somebody in
+   stages too.
    ===================================================================== */
 (function () {
   'use strict';
@@ -36,9 +50,10 @@
   /* the two colours the garden is drawn in, and nothing else */
   var ARC = 0x4fd8ff, ARC2 = 0x9fe8ff, GRID = 0xd8365e;
 
-  var GD = window.JJGARDEN = { on: false, t: 0, center: null, yaw: 0, stage: 0 };
+  var GD = window.JJGARDEN = { on: false, t: 0, center: null, yaw: 0, stage: 0, link: null };
   var AWAKE_DUR = 30;
-  var GCD = { ga1: 9, ga2: 12, ga3: 18, gdom: 40 };
+  var GCD = { ga1: 9, ga2: 12, ga3: 10, gv1: 16, gv2: 18, gdom: 40 };
+  var LINK = 4.5;                  // how long a merge stays available
 
   function A() { return window.JJAW; }
   function awake() { return !!(A() && A().megumi) && player.char === 'megumi'; }
@@ -57,7 +72,52 @@
     if (name) { try { showSplash(name, sub || '', '#4fd8ff'); } catch (e) {} }
     return player.action;
   }
-  cds.ga1 = 0; cds.ga2 = 0; cds.ga3 = 0; cds.gdom = 0;
+  cds.ga1 = 0; cds.ga2 = 0; cds.ga3 = 0; cds.gv1 = 0; cds.gv2 = 0; cds.gdom = 0;
+
+  /* =====================================================================
+     THE MERGE WINDOW
+     Two of these are not moves on the bar. They are what happens when one
+     shikigami is still out and he calls the next one into it, so the only
+     way to reach them is to throw the one before — and the only place
+     that can be said is on the key it lands on.
+
+     `1` opens `2`, and `2` opens `3` — and the variant thrown on `2`
+     counts as a `2`, so one chain runs all the way down: Totality, then
+     the hound merged into the chimera, then that merged into the mouth.
+     ================================================================== */
+  var MERGE = { ga1: { key: 'gv1', slot: '2', lbl: 'Divine Chimera' },
+                ga2: { key: 'gv2', slot: '3', lbl: 'Great Maw' } };
+
+  function armLink(from) {
+    if (!MERGE[from]) { clearLink(); return; }
+    GD.link = { from: from, t: LINK };
+    showLink(from);
+    try {
+      if (window.JJNOTICE) window.JJNOTICE(MERGE[from].slot + ' ▸ ' + MERGE[from].lbl.toUpperCase(), '#9fe8ff');
+    } catch (e) {}
+  }
+  function clearLink() {
+    if (!GD.link) return;
+    GD.link = null;
+    showLink(null);
+  }
+  /* the open key says so on the bar, because a move with no key of its
+     own that nobody can see is a move nobody throws */
+  function showLink(from) {
+    var want = from && MERGE[from] ? MERGE[from] : null;
+    var changed = false;
+    AW_MOVES.forEach(function (m) {
+      var lbl = (want && m.key === want.slot) ? '▸ ' + want.lbl : m.base;
+      if (m.lbl !== lbl) { m.lbl = lbl; changed = true; }
+      var cd = (want && m.key === want.slot) ? want.key : m.baseCd;
+      if (m.cd !== cd) { m.cd = cd; m.max = GCD[cd] || m.max; changed = true; }
+    });
+    if (changed && barOn && player.char === 'megumi') { try { buildMovesBar(); } catch (e) {} }
+  }
+  /* which move a key throws right now */
+  function merged(from) {
+    return !!(GD.link && GD.link.from === from && MERGE[from] && ready(MERGE[from].key));
+  }
 
   /* =====================================================================
      THE ARC
@@ -250,6 +310,7 @@
       addShake(1.4);
       hitstop(.06);
       runTotality(at.clone(), d.clone());
+      armLink('ga1');                 /* and 2 becomes the merge for a moment */
     }
   }
 
@@ -413,16 +474,591 @@
       addShake(1.6);
       hitstop(.07);
       leapChimera(at.clone(), d.clone());
+      armLink('ga2');                 /* and 3 becomes the maw */
     }
   }
 
   /* =====================================================================
-     3 · MAHORAGA — the variant of two
-     八握剣異戒神将魔虚羅. The chimera taken to its end: not a thing he
-     merged, a thing that was already one. The wheel over its head turns
-     once for every technique it is shown, and after it has turned, that
-     technique does not work on it any more — so its three strikes get
-     stronger rather than repeating.
+     3 · TOAD  蝦蟇
+     The only one of his that does not run at somebody. It comes up,
+     opens, and the tongue goes out and BRINGS THEM BACK — every other
+     shikigami closes the distance itself, this one closes it with them
+     on the end of it. Which is also why it is the one the maw is built
+     out of: a mouth is only frightening if something puts things in it.
+     ================================================================== */
+  /* The corridor was three and a half wide to begin with, which is thinner
+   than a body moves in the time it takes to open the mouth — it caught
+   things standing still and nothing else. */
+var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
+
+  /* the shadow palette, as a box with a constant-thickness pale edge —
+     the same rule the whole of Megumi is drawn under */
+  function shade(g, w, h, d, x, y, z, c) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshStandardMaterial({ color: c == null ? DEEP : c,
+        roughness: .86, flatShading: true }));
+    m.position.set(x, y, z);
+    m.castShadow = Math.max(w, h, d) > 1.2;
+    var shell = new THREE.Mesh(m.geometry, new THREE.MeshBasicMaterial({
+      color: LIT, side: THREE.BackSide, transparent: true,
+      opacity: .4, depthWrite: false, toneMapped: false }));
+    shell.scale.set(1 + .26 / w, 1 + .26 / h, 1 + .26 / d);
+    m.add(shell);
+    g.add(m);
+    return m;
+  }
+
+  /* a tongue is a row of boxes that can be stretched to anywhere: the
+     segments slide down +z and scale, so one call points the whole thing */
+  function tongueOf(g, n, w) {
+    g.__tongue = [];
+    for (var i = 0; i < n; i++) {
+      var m = new THREE.Mesh(new THREE.BoxGeometry(w - i * .02, .3, 1.2),
+        new THREE.MeshStandardMaterial({ color: i % 2 ? 0x5e2038 : 0x431628,
+          roughness: .55, flatShading: true }));
+      m.position.set(0, 0, 0);
+      m.visible = false;
+      g.add(m);
+      g.__tongue.push(m);
+    }
+  }
+  /* point it from the mouth at a place in the world */
+  function tongueTo(g, from, to) {
+    if (!g.__tongue) return;
+    var len = from.distanceTo(to);
+    var seg = Math.max(.5, len / g.__tongue.length);
+    var local = g.worldToLocal(to.clone());
+    var dir = local.clone().normalize();
+    g.__tongue.forEach(function (m, i) {
+      m.visible = true;
+      m.position.copy(dir).multiplyScalar(seg * (i + .5) / (g.scale.x || 1));
+      m.lookAt(local);
+      m.scale.z = seg / 1.2;
+    });
+  }
+  function tongueIn(g) {
+    if (g.__tongue) g.__tongue.forEach(function (m) { m.visible = false; });
+  }
+
+  function buildToad() {
+    var g = new THREE.Group();
+    /* squat, wide and low — it is all mouth and shoulders */
+    shade(g, 4.4, 2.2, 5.0, 0, 1.5, -.4, DEEP);          // the belly
+    shade(g, 3.6, 1.7, 2.8, 0, 2.5, -2.0, INK);          // the back
+    shade(g, 4.8, 1.4, 2.8, 0, 1.8, 2.6, EDGE);          // the skull
+    /* the mouth: a hinge at the back of the jaw so it opens properly */
+    var jaw = new THREE.Group();
+    jaw.position.set(0, 1.3, 1.3);
+    shade(jaw, 4.4, .8, 2.9, 0, -.3, 1.4, INK);
+    g.add(jaw);
+    g.__jaw = jaw;
+    /* two eyes on top, which is where a toad keeps them */
+    for (var s = -1; s <= 1; s += 2) {
+      shade(g, 1.0, .9, 1.0, s * 1.3, 2.7, 2.3, EDGE);
+      var eye = new THREE.Mesh(new THREE.BoxGeometry(.5, .3, .12),
+        new THREE.MeshBasicMaterial({ color: 0xffb03a, toneMapped: false }));
+      eye.position.set(s * 1.3, 2.8, 2.82);
+      g.add(eye);
+    }
+    /* four legs, splayed the way a sitting toad's are */
+    g.__legs = [];
+    for (s = -1; s <= 1; s += 2) {
+      var fr = shade(g, .9, .8, 2.6, s * 2.3, .8, 1.4, DEEP);
+      fr.rotation.z = s * .35;
+      var bk = shade(g, 1.2, 1.0, 2.0, s * 2.5, 1.0, -1.9, DEEP);
+      bk.rotation.z = s * .5;
+      shade(g, 1.7, .4, 1.4, s * 2.9, .3, -2.6, INK);    // the foot
+      g.__legs.push(fr, bk);
+    }
+    tongueOf(g, 10, .52);
+    return g;
+  }
+  GD.buildToad = buildToad;
+
+  /* who the tongue reaches: the first body in the corridor in front of it */
+  function inLane(from, dir, reach, wide) {
+    var best = null, near = 1e9;
+    enemies.forEach(function (e) {
+      if (!e || e.dead) return;
+      var to = e.pos.clone().sub(from); to.y = 0;
+      var along = to.dot(dir);
+      if (along < 1 || along > reach) return;
+      if (to.clone().addScaledVector(dir, -along).length() > wide) return;
+      if (along < near) { near = along; best = e; }
+    });
+    return best;
+  }
+
+  /* the whole beat: it rises, the tongue goes out, it takes them, and the
+     mouth shuts. `ghost` means somebody else's copy — draw it, hurt no one */
+  function callToad(at, dir, ghost) {
+    var g = buildToad();
+    g.position.set(at.x, -7, at.z);
+    g.rotation.y = Math.atan2(dir.x, dir.z);
+    scene.add(g);
+    MG.pets.push(g);
+    var mouth = function () {
+      return g.position.clone().add(new THREE.Vector3(0, 1.8, 0))
+        .addScaledVector(dir, 3.4);
+    };
+    var caught = null, hunted = false, bit = false, t = 0;
+    var stop = crackle(function () { return g.position.clone(); },
+      function () { return t < TOAD.dur; });
+
+    addFx({ t: TOAD.dur + 1, update: function (dt) {
+      this.t -= dt; t += dt;
+      if (typeof scene === 'undefined') return false;
+      /* up out of the shadow */
+      if (t < .32) {
+        g.position.y = -7 + E.out(t / .32) * 7;
+        if (Math.random() < dt * 40) MG.wisp(g.position.clone().add(new THREE.Vector3(0, 2, 0)), 1);
+        return true;
+      }
+      g.position.y = 0;
+
+      /* the mouth opens, and the tongue goes */
+      if (!hunted) {
+        hunted = true;
+        g.__jaw.rotation.x = .9;
+        FX.impact(mouth(), ARC2, 2);
+        try { sfx.whoosh(); } catch (e) {}
+        caught = ghost ? null : inLane(g.position.clone(), dir, TOAD.reach, TOAD.corridor);
+        var end = caught ? caught.pos.clone().add(new THREE.Vector3(0, 1.6, 0))
+                         : g.position.clone().addScaledVector(dir, TOAD.reach).add(new THREE.Vector3(0, 1.4, 0));
+        tongueTo(g, mouth(), end);
+        FX.streaks(end.clone(), 0x5e2038, 3, 12, .5);
+        if (!caught && !ghost) {
+          /* nothing to take hold of: it lashes the whole lane instead,
+             so a miss is still a move rather than an animation */
+          var lashed = [];
+          for (var q = 4; q < TOAD.reach; q += 6) {
+            enemiesNear(g.position.clone().addScaledVector(dir, q), 7).forEach(function (e) {
+              if (!e || e.dead || lashed.indexOf(e) >= 0) return;
+              lashed.push(e);
+              e.damage(TOAD.dmg * .45, dir.clone().multiplyScalar(9).setY(5), {
+                react: 'slash', reactDur: .3, spark: 0x5e2038, bleed: true, death: 'sever' });
+            });
+          }
+          FX.cracks(new THREE.Vector3(end.x, .06, end.z), 8, 12, 0x2a1018);
+          addShake(.8);
+        }
+        return true;
+      }
+
+      /* And it reels them in — fast. A tongue that takes two seconds to
+         bring somebody back lands its damage after the cast is over, and
+         a hit that lands after its own cast can never arm a finisher. */
+      if (caught && !caught.dead && !bit) {
+        var want = mouth();
+        caught.anchorT = .3;
+        caught.anchorPos.copy(want);
+        caught.pos.lerp(want, Math.min(1, dt * 13));
+        caught.vel.set(0, 0, 0);
+        caught.stunT = Math.max(caught.stunT || 0, .4);
+        tongueTo(g, mouth(), caught.pos.clone().add(new THREE.Vector3(0, 1.6, 0)));
+        if (Math.random() < dt * 14) MG.wisp(caught.pos.clone().add(new THREE.Vector3(0, 2, 0)), 1);
+        if (caught.pos.distanceTo(want) < 4 || t > .7) {
+          /* the mouth shuts */
+          bit = true;
+          g.__jaw.rotation.x = 0;
+          tongueIn(g);
+          FX.impact(want.clone(), 0xffffff, 3.4);
+          FX.cross(want.clone(), ARC2, 8, .24);
+          FX.blood(want.clone(), dir.clone().negate(), 14, 2);
+          FX.mangaLines(.8, .26);
+          addShake(2.4);
+          hitstop(.14);
+          try { sfx.redBoom(); } catch (e) {}
+          caught.anchorT = 0;
+          caught.damage(TOAD.dmg, dir.clone().negate().multiplyScalar(14).setY(12), {
+            react: 'blow', reactDur: .8, spark: ARC2, stun: .8,
+            bleed: true, death: 'sever' });
+          arcTree(want.clone(), new THREE.Vector3(0, 1, 0), { reach: 14, depth: 3, life: .4 });
+        }
+      } else if (!bit && t > .85) {
+        bit = true;
+        g.__jaw.rotation.x = 0;
+        tongueIn(g);
+      }
+
+      if (t < TOAD.dur) return true;
+      stop.stop();
+      if (caught) caught.anchorT = 0;
+      MG.dismiss(g, g.position.clone().add(new THREE.Vector3(0, 2, 0)));
+      return false;
+    } });
+    return g;
+  }
+
+  /* WHERE IT SITS. Nine metres of shadow directly in front of him is not
+     a move — that is what the elephant taught. So it comes up beside him
+     and a little forward, in frame the whole time, and the tongue is aimed
+     down the line HE is facing rather than straight out of its own nose. */
+  function besideHim(p, d, out, over) {
+    var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+    return p.clone().addScaledVector(d, out).addScaledVector(side, over);
+  }
+  function laneFrom(at, p, d) {
+    return p.clone().addScaledVector(d, 24).sub(at).setY(0).normalize();
+  }
+
+  function castToad() {
+    if (!ready('ga3')) return;
+    /* long enough to still be the toad's cast when the mouth shuts */
+    start('ga3', 1.9, 'ga3', 'TOAD', '蝦蟇');
+    player.action.dir = aim();
+    player.iframes = Math.max(player.iframes, .5);
+    try { sfx.whoosh(); } catch (e) {}
+  }
+  function stepToad(a, dt) {
+    var p = player, d = a.dir;
+    var at = besideHim(p.pos, d, 8, 5);
+    if (a.t < .45) {
+      if (!a.pool) {
+        a.pool = MG.pool(at.clone(), 8, .9);
+        addShake(.9);
+      }
+      return;
+    }
+    if (a.stage < 1) {
+      a.stage = 1;
+      FX.speedRing(at.clone().add(new THREE.Vector3(0, 1.6, 0)), ARC2, 12, .32);
+      callToad(at.clone(), laneFrom(at, p.pos, d));
+      clearLink();               /* the mouth is where the chain stops */
+    }
+  }
+
+  /* =====================================================================
+     VARIANT ONE · DIVINE CHIMERA  玉犬嵌合   (1 then 2)
+     The hound is still running when the chimera is called into it, so
+     what comes out has four legs and the wrong head. It does not leap
+     and it does not stop: it goes the whole length, turns, and comes
+     back through everything still standing.
+     ================================================================== */
+  var DCH = { reach: 52, speed: 36, dmg: 46, radius: 5.4 };
+
+  function buildDivineChimera() {
+    var g = new THREE.Group();
+    /* the hound, as the body it runs on */
+    var body = buildTotality();
+    body.scale.setScalar(1.25);
+    g.add(body);
+    g.__legs = body.__legs;
+    /* the chimera's head, on the front of it */
+    var head = MG.buildSnake();
+    head.scale.setScalar(1.35);
+    head.position.set(0, 3.2, 3.4);
+    head.__segs.forEach(function (s) { s.visible = false; });
+    g.add(head);
+    g.__jaw = head.__jaw;
+    /* and Nue's wings, off the shoulders */
+    var bird = MG.buildNue();
+    bird.scale.setScalar(1.05);
+    bird.position.set(0, 3.4, -1.6);
+    g.add(bird);
+    g.__wings = bird.__wings;
+    return g;
+  }
+  GD.buildDivineChimera = buildDivineChimera;
+
+  function runDivineChimera(from, dir, ghost) {
+    var g = buildDivineChimera();
+    g.position.copy(from); g.position.y = 0;
+    g.rotation.y = Math.atan2(dir.x, dir.z);
+    scene.add(g);
+    MG.pets.push(g);
+    var hitOnce = [];
+    var to = from.clone().addScaledVector(dir, DCH.reach);
+    var back = from.clone().addScaledVector(dir, -6);
+    var t = 0, bound = 0, leg = 0, turned = false, phase = 0;
+    var stop = crackle(function () { return g.position.clone(); },
+      function () { return phase < 2; });
+
+    function sweep(power, list) {
+      if (ghost) return;
+      enemies.forEach(function (e) {
+        if (!e || e.dead || list.indexOf(e) >= 0) return;
+        if (e.pos.distanceTo(g.position) > DCH.radius) return;
+        list.push(e);
+        var kb = e.pos.clone().sub(g.position).setY(0);
+        if (kb.lengthSq() < .01) kb.copy(dir);
+        kb.normalize().multiplyScalar(15); kb.y = 15;
+        e.damage(DCH.dmg * power, kb, {
+          react: 'blow', reactDur: .9, spark: ARC2, stun: .9,
+          bleed: true, death: 'dice' });
+        FX.impact(e.pos.clone().add(new THREE.Vector3(0, 2, 0)), 0xffffff, 3);
+        FX.slash(e.pos.clone().add(new THREE.Vector3(0, 2, 0)), dir, 0xe8ecf5, 7, .18);
+        arcTree(e.pos.clone().add(new THREE.Vector3(0, 2, 0)), dir.clone(),
+          { reach: 14, depth: 2, life: .28 });
+        addShake(1.6);
+        hitstop(.05);
+      });
+    }
+
+    addFx({ t: 1e9, update: function (dt) {
+      t += dt; bound += dt * 15; leg += dt * 22;
+      if (typeof scene === 'undefined') return false;
+      if (g.__legs) g.__legs.forEach(function (l, n) {
+        l.rotation.x = Math.sin(leg + (n % 2 ? Math.PI : 0)) * 1.15;
+      });
+      if (g.__wings) g.__wings.forEach(function (w, i) {
+        w.rotation.z = Math.sin(bound * 1.6) * .7 * (i ? -1 : 1);
+      });
+      if (g.__jaw) g.__jaw.rotation.x = .25 + Math.abs(Math.sin(bound)) * .3;
+      if (Math.random() < dt * 26) {
+        arcTree(g.position.clone().add(new THREE.Vector3(0, 2.4, 0)),
+          dir.clone().multiplyScalar(phase ? 1 : -1),
+          { reach: 9, depth: 2, life: .2 });
+      }
+
+      if (phase === 0) {                       /* down the lane */
+        g.position.addScaledVector(dir, DCH.speed * dt);
+        g.position.y = Math.abs(Math.sin(bound)) * .9;
+        sweep(1, hitOnce);
+        if (g.position.distanceTo(from) >= DCH.reach) {
+          phase = 1;
+          turned = t;
+          FX.speedRing(g.position.clone().add(new THREE.Vector3(0, 2, 0)), ARC, 16, .3);
+          FX.dust(new THREE.Vector3(g.position.x, 0, g.position.z), 12, 0xcfd6e6, 14, 4);
+          addShake(1.4);
+        }
+        return true;
+      }
+      if (phase === 1) {                       /* the turn */
+        var k = Math.min(1, (t - turned) / .34);
+        g.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI * k;
+        if (k >= 1) { phase = 2; hitOnce = []; }
+        return true;
+      }
+      /* and back through it */
+      g.position.addScaledVector(dir, -DCH.speed * 1.15 * dt);
+      g.position.y = Math.abs(Math.sin(bound)) * .9;
+      sweep(.75, hitOnce);
+      if (g.position.distanceTo(back) < 2.5 || t > 4.5) {
+        stop.stop();
+        MG.dismiss(g, g.position.clone().add(new THREE.Vector3(0, 2, 0)));
+        return false;
+      }
+      return true;
+    } });
+    return g;
+  }
+
+  function castDivineChimera() {
+    if (!ready('gv1')) return;
+    cds.ga2 = GCD.ga2;
+    start('gv1', 1.5, 'gv1', 'DIVINE CHIMERA', '玉犬嵌合');
+    player.action.dir = aim();
+    player.iframes = Math.max(player.iframes, .8);
+    FX.flash('#cfeeff', .3, .22);
+    try { sfx.raise(); } catch (e) {}
+  }
+  function stepDivineChimera(a, dt) {
+    var p = player, d = a.dir;
+    var at = p.pos.clone().addScaledVector(d, 6);
+    if (a.t < .55) {
+      if (!a.pool) {
+        a.pool = MG.pool(at.clone(), 11, 1.1);
+        /* two shadows opening into one, which is the whole move */
+        for (var i = -1; i <= 1; i += 2) {
+          arcTree(at.clone().add(new THREE.Vector3(i * 3.4, .8, 0)),
+            new THREE.Vector3(-i, .7, 0), { reach: 16, depth: 3, life: .5 });
+        }
+        addShake(1.3);
+      }
+      return;
+    }
+    if (a.stage < 1) {
+      a.stage = 1;
+      FX.speedRing(at.clone().add(new THREE.Vector3(0, 2, 0)), ARC2, 18, .38);
+      FX.flash('#dff4ff', .4, .24);
+      addShake(2);
+      hitstop(.09);
+      runDivineChimera(at.clone(), d.clone());
+      /* a variant thrown on 2 still counts as a 2, so 3 opens next */
+      armLink('ga2');
+    }
+  }
+
+  /* =====================================================================
+     VARIANT TWO · GREAT MAW  嵌合蝦蟇   (2 then 3)
+     The chimera called into the toad. It keeps the wings and the jaws
+     and it gains the mouth, and a mouth that size does not bite — it
+     takes them off the floor, brings them up, and shuts.
+     ================================================================== */
+  var MAW = { reach: 30, dmg: 56, lift: 15, dur: 2.6 };
+
+  function buildMaw() {
+    var g = new THREE.Group();
+    var body = buildToad();
+    body.scale.setScalar(1.7);
+    g.add(body);
+    g.__jaw = body.__jaw;
+    g.__tongue = body.__tongue;
+    g.__mouthOf = body;
+    /* the serpent's head inside the mouth, which is what actually bites */
+    var head = MG.buildSnake();
+    head.scale.setScalar(1.1);
+    head.position.set(0, 3.4, 3.2);
+    head.__segs.forEach(function (s) { s.visible = false; });
+    g.add(head);
+    g.__inner = head.__jaw;
+    /* and the wings, so it is still the chimera underneath */
+    var bird = MG.buildNue();
+    bird.scale.setScalar(1.5);
+    bird.position.set(0, 5.4, -3.4);
+    g.add(bird);
+    g.__wings = bird.__wings;
+    return g;
+  }
+  GD.buildMaw = buildMaw;
+
+  function callMaw(at, dir, ghost) {
+    var g = buildMaw();
+    g.position.set(at.x, -12, at.z);
+    g.rotation.y = Math.atan2(dir.x, dir.z);
+    scene.add(g);
+    MG.pets.push(g);
+    var mouth = function () {
+      return g.position.clone().add(new THREE.Vector3(0, 4.6, 0)).addScaledVector(dir, 5.4);
+    };
+    var t = 0, phase = 0, caught = null, flap = 0;
+    var stop = crackle(function () { return g.position.clone().add(new THREE.Vector3(0, 3, 0)); },
+      function () { return t < MAW.dur; });
+
+    addFx({ t: MAW.dur + 1.2, update: function (dt) {
+      this.t -= dt; t += dt; flap += dt * 9;
+      if (typeof scene === 'undefined') return false;
+      if (g.__wings) g.__wings.forEach(function (w, i) {
+        w.rotation.z = Math.sin(flap) * .55 * (i ? -1 : 1);
+      });
+      if (t < .45) {                            /* it comes up */
+        g.position.y = -12 + E.out(t / .45) * 12;
+        if (Math.random() < dt * 60) MG.wisp(g.position.clone().add(new THREE.Vector3(0, 4, 0)), 1);
+        return true;
+      }
+      g.position.y = 0;
+
+      if (phase === 0) {                        /* the tongue goes out */
+        phase = 1;
+        g.__jaw.rotation.x = 1.1;
+        if (g.__inner) g.__inner.rotation.x = .6;
+        FX.impact(mouth(), 0xffffff, 3.4);
+        FX.speedRing(mouth(), ARC2, 16, .34);
+        addShake(1.8);
+        try { sfx.whoosh(); } catch (e) {}
+        caught = ghost ? null : inLane(g.position.clone(), dir, MAW.reach, 8);
+        var end = caught ? caught.pos.clone().add(new THREE.Vector3(0, 1.6, 0))
+                         : g.position.clone().addScaledVector(dir, MAW.reach).add(new THREE.Vector3(0, 1.6, 0));
+        tongueTo(g, mouth(), end);
+        for (var i = 0; i < 4; i++) {
+          arcTree(end.clone(), new THREE.Vector3((Math.random() - .5), .6, (Math.random() - .5)),
+            { reach: 12, depth: 2, life: .3 });
+        }
+        return true;
+      }
+
+      if (phase === 1) {                        /* up, and in */
+        var want = mouth();
+        if (caught && !caught.dead) {
+          caught.anchorT = .3;
+          caught.anchorPos.copy(want);
+          caught.pos.lerp(want, Math.min(1, dt * 11));
+          caught.vel.set(0, 0, 0);
+          caught.stunT = Math.max(caught.stunT || 0, .5);
+          tongueTo(g, want, caught.pos.clone().add(new THREE.Vector3(0, 1.6, 0)));
+          if (Math.random() < dt * 20) FX.blood(caught.pos.clone().add(new THREE.Vector3(0, 2, 0)),
+            dir.clone().negate(), 3, .8);
+          if (caught.pos.distanceTo(want) < 4.4 || t > .95) phase = 2;
+        } else if (t > .95) phase = 2;
+        return true;
+      }
+
+      if (phase === 2) {                        /* and it shuts */
+        phase = 3;
+        g.__jaw.rotation.x = 0;
+        if (g.__inner) g.__inner.rotation.x = 0;
+        tongueIn(g);
+        var at2 = mouth();
+        FX.flash('#dff4ff', .55, .28);
+        FX.impact(at2, 0xffffff, 4.4);
+        FX.cross(at2, ARC2, 11, .3);
+        FX.blood(at2, new THREE.Vector3(0, -1, 0), 22, 2.6);
+        FX.mangaLines(1, .32);
+        addShake(3.6);
+        hitstop(.2);
+        try { sfx.redBoom(); } catch (e) {}
+        for (var b = 0; b < 8; b++) {
+          arcTree(at2.clone(), new THREE.Vector3(Math.cos(b / 8 * TAU), .3, Math.sin(b / 8 * TAU)),
+            { reach: 22, depth: 3, life: .45 });
+        }
+        if (caught && !caught.dead) {
+          caught.anchorT = 0;
+          caught.damage(MAW.dmg, new THREE.Vector3(0, -20, 0), {
+            react: 'blow', reactDur: 1.1, spark: 0xffffff, stun: 1.1,
+            bleed: true, death: 'dice' });
+        }
+        if (!ghost) {
+          enemiesNear(g.position.clone().addScaledVector(dir, 5), 9).forEach(function (e) {
+            if (!e || e.dead || e === caught) return;
+            e.damage(MAW.dmg * .4, dir.clone().multiplyScalar(12).setY(10), {
+              react: 'blow', reactDur: .6, spark: ARC2, bleed: true, death: 'sever' });
+          });
+        }
+        return true;
+      }
+
+      if (t < MAW.dur) return true;
+      stop.stop();
+      if (caught) caught.anchorT = 0;
+      MG.dismiss(g, g.position.clone().add(new THREE.Vector3(0, 4, 0)));
+      return false;
+    } });
+    return g;
+  }
+
+  function castMaw() {
+    if (!ready('gv2')) return;
+    cds.ga3 = GCD.ga3;
+    /* same rule as the toad: the maw shuts inside its own cast */
+    start('gv2', 2.5, 'gv2', 'GREAT MAW', '嵌合蝦蟇');
+    player.action.dir = aim();
+    player.iframes = Math.max(player.iframes, 1);
+    FX.letterbox(true);
+    later(3200, function () { FX.letterbox(false); });
+    try { sfx.raise(); } catch (e) {}
+  }
+  function stepMaw(a, dt) {
+    var p = player, d = a.dir;
+    var at = besideHim(p.pos, d, 13, 8);
+    if (a.t < .7) {
+      if (!a.pool) {
+        a.pool = MG.pool(at.clone(), 13, 1.4);
+        FX.cracks(new THREE.Vector3(at.x, .05, at.z), 12, 18, 0x101020);
+        addShake(1.4);
+      }
+      /* the two of them going in, from either side */
+      if (Math.random() < .5) {
+        arcTree(at.clone().add(new THREE.Vector3((Math.random() - .5) * 7, .6, (Math.random() - .5) * 7)),
+          new THREE.Vector3(0, 1, 0), { reach: 14, depth: 2, life: .3 });
+      }
+      return;
+    }
+    if (a.stage < 1) {
+      a.stage = 1;
+      FX.flash('#dff4ff', .45, .26);
+      addShake(2.2);
+      hitstop(.1);
+      callMaw(at.clone(), laneFrom(at, p.pos, d));
+      clearLink();                 /* the end of the chain */
+    }
+  }
+
+  /* =====================================================================
+     MAHORAGA  八握剣異戒神将魔虚羅
+     Not on the bar any more. He is what the DOMAIN calls — which is
+     where he comes from in the first place — so the model and the three
+     escalating strikes live on for the garden and for its finisher.
      ================================================================== */
   var MAH = { dur: 3.4, reach: 15, dmg: [26, 34, 52] };
 
@@ -565,32 +1201,7 @@
     return m;
   }
 
-  function castMahoraga() {
-    if (!ready('ga3')) return;
-    var a = start('ga3', 1.5, 'ga3', 'MAHORAGA', '八握剣異戒神將魔虚羅');
-    a.dir = aim();
-    player.iframes = Math.max(player.iframes, 1.5);
-    FX.letterbox(true);
-    later(3600, function () { FX.letterbox(false); });
-    try { sfx.raise(); } catch (e) {}
-  }
-  function stepMahoraga(a, dt) {
-    var p = player, d = a.dir;
-    var at = p.pos.clone().addScaledVector(d, 9);
-    if (a.t < .6) {
-      if (!a.pool) {
-        a.pool = MG.pool(at.clone(), 12, 1.2);
-        FX.cracks(new THREE.Vector3(at.x, .05, at.z), 14, 20, 0x101020);
-        FX.flash('#9fd8ff', .3, .3);
-        addShake(1.2);
-      }
-      return;
-    }
-    if (a.stage < 1) {
-      a.stage = 1;
-      callMahoraga(at.clone(), d.clone());
-    }
-  }
+  GD.callMahoraga = callMahoraga;
 
   /* =====================================================================
      4 · CHIMERA SHADOW GARDEN  嵌合暗翳庭
@@ -640,6 +1251,7 @@
     GD.center = center.clone();
     GD.yaw = yaw || 0;
     GD.parts = [];
+    GD.called = false;
     GD.remote = !!remote;
 
     /* everything goes, and what is left is black */
@@ -682,6 +1294,7 @@
       if (o.material && o.material.dispose) o.material.dispose();
     });
     GD.parts = [];
+    GD.called = false;
     GD.grid = null; GD.core = null;
     if (window.JJSTAGE) { delete window.JJSTAGE.hide.sky; window.JJSTAGE.show(); }
     FX.letterbox(false);
@@ -730,6 +1343,23 @@
       var ea = Math.random() * TAU, er = DOM.r * (.5 + Math.random() * .5);
       arcTree(new THREE.Vector3(c.x + Math.cos(ea) * er, .2, c.z + Math.sin(ea) * er),
         new THREE.Vector3(0, 1, 0), { reach: 16, depth: 2, life: .35 });
+    }
+
+    /* AND THE THING THE GARDEN IS FOR. Mahoraga is not on the bar — he
+       is what this calls, which is where he comes from. Four seconds in,
+       once, on both screens, and his three strikes land on whoever is
+       still standing on the shadow. */
+    if (!GD.called && GD.t > 4) {
+      GD.called = true;
+      var mAt = c.clone().addScaledVector(dirOf(GD.yaw), 12);
+      MG.pool(new THREE.Vector3(mAt.x, 0, mAt.z), 12, 1.4);
+      FX.cracks(new THREE.Vector3(mAt.x, .05, mAt.z), 16, 22, 0x2a0410);
+      FX.flash('#bfeaff', .5, .34);
+      addShake(2.6);
+      try { showSplash('', '八握剣異戒神将魔虚羅', '#9fe8ff'); } catch (e) {}
+      later(500, function () {
+        if (GD.on) callMahoraga(mAt.clone(), dirOf(GD.yaw + Math.PI), !!GD.remote);
+      });
     }
 
     /* Everything caught inside is standing on shadow, and takes it. */
@@ -839,7 +1469,7 @@
         r.hips.position.y = r.hipsBaseY - .5 * c + .34 * th;
         return true;
       }
-      case 'ga3': {                                    // one hand out, held there
+      case 'ga3': {              // the toad: one hand out, and the tongue goes
         rp(r);
         var m = out(Math.min(1, t / .6));
         var hold = t > .6 ? Math.min(1, (t - .6) / .5) : 0;
@@ -854,6 +1484,43 @@
         r.hipL.rotation.x = -.3 * m; r.kneeL.rotation.x = .55 * m;
         r.hipR.rotation.x = -.22 * m; r.kneeR.rotation.x = .45 * m;
         r.hips.position.y = r.hipsBaseY - .2 * m + tremor;
+        return true;
+      }
+      /* A merge is two hands brought together and then one thing sent —
+         both variants read as that, and they differ in what he does at
+         the end: one throws it away from him, one shuts his fist. */
+      case 'gv1': {                          // brought together, then thrown
+        rp(r);
+        var mm = out(Math.min(1, t / .55));
+        var thr = t > .55 ? out(Math.min(1, (t - .55) / .22)) : 0;
+        r.shoulderL.rotation.x = -1.35 * mm - .9 * thr;
+        r.shoulderR.rotation.x = -1.35 * mm - .9 * thr;
+        r.shoulderL.rotation.z = 1.25 * mm - 1.15 * thr;
+        r.shoulderR.rotation.z = -1.25 * mm + 1.15 * thr;
+        r.elbowL.rotation.x = -1.1 * mm + 1.0 * thr;
+        r.elbowR.rotation.x = -1.1 * mm + 1.0 * thr;
+        r.spine.rotation.x = .3 * mm - .74 * thr;
+        r.neck.rotation.x = .12 * mm - .44 * thr;
+        r.hipL.rotation.x = -.52 * mm + .3 * thr; r.kneeL.rotation.x = .95 * mm - .5 * thr;
+        r.hipR.rotation.x = .36 * mm; r.kneeR.rotation.x = .6 * mm;
+        r.hips.position.y = r.hipsBaseY - .52 * mm + .4 * thr;
+        return true;
+      }
+      case 'gv2': {                          // opened wide, and then shut
+        rp(r);
+        var op2 = out(Math.min(1, t / .7));
+        var sh2 = t > .7 ? out(Math.min(1, (t - .7) / .26)) : 0;
+        r.shoulderL.rotation.x = -1.6 * op2 + .5 * sh2;
+        r.shoulderR.rotation.x = -1.6 * op2 + .5 * sh2;
+        r.shoulderL.rotation.z = 1.45 * op2 - 1.2 * sh2;
+        r.shoulderR.rotation.z = -1.45 * op2 + 1.2 * sh2;
+        r.elbowL.rotation.x = -.14 - 1.2 * sh2;
+        r.elbowR.rotation.x = -.14 - 1.2 * sh2;
+        r.spine.rotation.x = -.24 * op2 + .5 * sh2;
+        r.neck.rotation.x = -.4 * op2 + .5 * sh2;
+        r.hipL.rotation.x = -.3 * op2; r.kneeL.rotation.x = .5 * op2 + .3 * sh2;
+        r.hipR.rotation.x = -.24 * op2; r.kneeR.rotation.x = .42 * op2 + .3 * sh2;
+        r.hips.position.y = r.hipsBaseY - .22 * op2 - .3 * sh2;
         return true;
       }
       case 'gdom': {                                   // the sign, and then open
@@ -881,20 +1548,23 @@
   /* =====================================================================
      THE AWAKENING ITSELF
      ================================================================== */
+  /* `base` and `baseCd` are what the slot says when nothing is open on
+     it — showLink swaps `lbl` and `cd` over to the merge and back */
   var BASE_MOVES = CHARS.megumi.moves.slice();
   var AW_MOVES = [
-    { key: 'LMB', lbl: 'Punch', cd: 'm1', max: .3 },
-    { key: 'Q', lbl: 'Dash', cd: 'dash', max: 1 },
-    { key: '1', lbl: 'Totality', cd: 'ga1', max: GCD.ga1 },
-    { key: '2', lbl: 'Chimera', cd: 'ga2', max: GCD.ga2 },
-    { key: '3', lbl: 'Mahoraga', cd: 'ga3', max: GCD.ga3 },
-    { key: '4', lbl: 'Shadow Garden', cd: 'gdom', max: GCD.gdom },
-    { key: 'R', lbl: 'Rabbit Escape', cd: 'mgr', max: 9 }
+    { key: 'LMB', lbl: 'Punch', base: 'Punch', cd: 'm1', baseCd: 'm1', max: .3 },
+    { key: 'Q', lbl: 'Dash', base: 'Dash', cd: 'dash', baseCd: 'dash', max: 1 },
+    { key: '1', lbl: 'Totality', base: 'Totality', cd: 'ga1', baseCd: 'ga1', max: GCD.ga1 },
+    { key: '2', lbl: 'Chimera', base: 'Chimera', cd: 'ga2', baseCd: 'ga2', max: GCD.ga2 },
+    { key: '3', lbl: 'Toad', base: 'Toad', cd: 'ga3', baseCd: 'ga3', max: GCD.ga3 },
+    { key: '4', lbl: 'Shadow Garden', base: 'Shadow Garden', cd: 'gdom', baseCd: 'gdom', max: GCD.gdom },
+    { key: 'R', lbl: 'Rabbit Escape', base: 'Rabbit Escape', cd: 'mgr', baseCd: 'mgr', max: 9 }
   ];
   var barOn = false;
   function swapBar(on) {
     if (on === barOn) return;
     barOn = on;
+    if (!on) { GD.link = null; showLink(null); }
     CHARS.megumi.moves = on ? AW_MOVES : BASE_MOVES;
     if (player.char === 'megumi') { try { buildMovesBar(); } catch (e) {} }
   }
@@ -977,9 +1647,14 @@
       else {
         AW.megumiT -= dt;
         for (var k in GCD) { if (cds[k] > 0) cds[k] = Math.max(0, cds[k] - dt * 1.6); }
+        /* the merge window, which shuts on its own */
+        if (GD.link) {
+          GD.link.t -= dt;
+          if (GD.link.t <= 0) clearLink();
+        }
         if (AW.megumiT <= 0) endAwaken(false);
       }
-    }
+    } else if (GD.link) clearLink();
     return _updatePlayer(dt);
   };
 
@@ -990,7 +1665,9 @@
       case 'gaw': return stepAwaken(a, dt);
       case 'ga1': return stepTotality(a, dt);
       case 'ga2': return stepChimera(a, dt);
-      case 'ga3': return stepMahoraga(a, dt);
+      case 'ga3': return stepToad(a, dt);
+      case 'gv1': return stepDivineChimera(a, dt);
+      case 'gv2': return stepMaw(a, dt);
       case 'gdom': return stepGarden(a, dt);
     }
     return _stepAction(a, dt);
@@ -1010,9 +1687,11 @@
     if (player.react || (player.action && (player.action.type === 'kb' ||
         player.action.type === 'void' || player.action.type === 'gaw'))) return;
     var hit = true;
+    /* 2 and 3 throw the merge when one is open, and the plain one when it
+       is not — the key does not change, what is on the end of it does */
     if (e.code === 'Digit1') castTotality();
-    else if (e.code === 'Digit2') castChimera();
-    else if (e.code === 'Digit3') castMahoraga();
+    else if (e.code === 'Digit2') (merged('ga1') ? castDivineChimera : castChimera)();
+    else if (e.code === 'Digit3') (merged('ga2') ? castMaw : castToad)();
     else if (e.code === 'Digit4') castGarden();
     else hit = false;
     if (hit) e.stopImmediatePropagation();
@@ -1082,10 +1761,27 @@
       });
     },
     ga3: function (pos, yaw) {
-      var d = dirOf(yaw), at = pos.clone().addScaledVector(d, 9);
-      MG.pool(at.clone(), 12, 1.2);
-      FX.cracks(new THREE.Vector3(at.x, .05, at.z), 14, 20, 0x101020);
-      later(620, function () { callMahoraga(at.clone(), d.clone(), true); });
+      var d = dirOf(yaw), at = besideHim(pos, d, 8, 5);
+      MG.pool(at.clone(), 8, .9);
+      later(470, function () {
+        FX.speedRing(at.clone().add(new THREE.Vector3(0, 1.6, 0)), ARC2, 12, .32);
+        callToad(at.clone(), laneFrom(at, pos, d), true);
+      });
+    },
+    gv1: function (pos, yaw) {
+      var d = dirOf(yaw), at = pos.clone().addScaledVector(d, 6);
+      MG.pool(at.clone(), 11, 1.1);
+      later(580, function () {
+        FX.speedRing(at.clone().add(new THREE.Vector3(0, 2, 0)), ARC2, 18, .38);
+        FX.flash('#dff4ff', .3, .2);
+        runDivineChimera(at.clone(), d.clone(), true);
+      });
+    },
+    gv2: function (pos, yaw) {
+      var d = dirOf(yaw), at = besideHim(pos, d, 13, 8);
+      MG.pool(at.clone(), 13, 1.4);
+      FX.cracks(new THREE.Vector3(at.x, .05, at.z), 12, 18, 0x101020);
+      later(730, function () { callMaw(at.clone(), laneFrom(at, pos, d), true); });
     },
     gdom: function (pos) {
       /* the sign; the garden itself arrives on its own message */
@@ -1105,6 +1801,8 @@
   };
 
   /* the pieces the finishers borrow */
+  GD.tongueAt = tongueTo;
+  GD.tongueIn = tongueIn;
   GD.buildTotality = buildTotality;
   GD.buildChimera = buildChimera;
   GD.buildMahoraga = buildMahoraga;

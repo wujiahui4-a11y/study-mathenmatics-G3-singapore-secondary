@@ -1788,170 +1788,138 @@
       }
     } },
 
-    /* 3 · MAHORAGA — it is not that it hits harder each time. It is that
-       the same swing works, and then works better, and then there is
-       nothing left for it to work on */
-    ga3: { name: 'ADAPTED', color: '#ffb03a', hold: 3.05, run: function (e, d, p, G) {
+    /* 3 · TOAD — every other shikigami closes the distance itself. This
+       one closes it with them on the end of the tongue, and then there
+       is nowhere left to be brought to except the mouth */
+    ga3: { name: 'REELED IN', color: '#5e2038', hold: 3.05, run: function (e, d, p, G) {
       var GD = window.JJGARDEN, MG = window.JJMEGUMI;
       var ARC = (GD && GD.ARC) || 0x4fd8ff, ARC2 = (GD && GD.ARC2) || 0x9fe8ff;
       var floor = new THREE.Vector3(p.x, 0, p.z);
-      var stand = floor.clone().addScaledVector(d, 9);
-      var m = (GD && GD.buildMahoraga) ? GD.buildMahoraga() : null;
-      var turns = 0;
+      /* it sits on the far side of them and pulls towards itself, which
+         is away from the camera — so nothing it does covers the shot */
+      var stand = floor.clone().addScaledVector(d, 11);
+      var g = (GD && GD.buildToad) ? GD.buildToad() : null;
+      var mouth = function () {
+        return stand.clone().add(up(1.8)).addScaledVector(d, -3.4);
+      };
 
-      if (MG && MG.pool) MG.pool(new THREE.Vector3(stand.x, 0, stand.z), 12, 3.4);
-      FX.cracks(new THREE.Vector3(stand.x, .05, stand.z), 14, 20, 0x101020);
-      if (m) {
-        m.position.set(stand.x, -18, stand.z);
-        m.rotation.y = Math.atan2(-d.x, -d.z);
-        scene.add(m);
+      if (MG && MG.pool) MG.pool(new THREE.Vector3(stand.x, 0, stand.z), 9, 3.4);
+      if (g) {
+        g.position.set(stand.x, -7, stand.z);
+        g.rotation.y = Math.atan2(-d.x, -d.z);
+        scene.add(g);
       }
+      FX.speedRing(p, 0x5e2038, 12, .3);
+      addShake(1.2);
 
-      /* it comes up out of the shadow, and then it stands there while the
-         wheel does the work */
-      var t = 0, spin = 0, rate = 1.6, swing = 0, wound = 0;
+      var t = 0, phase = 0, beat2 = 0, slams = 0;
       addFx({ t: 1e9, update: function (dt) {
         t += dt;
         if (typeof scene === 'undefined') return false;
-        if (m) {
-          m.position.y = Math.min(0, -18 + 46 * t);
-          spin += dt * rate;
-          if (m.__wheel) m.__wheel.rotation.z = spin;
-          /* the arm winds back and comes across; `wound` is where in the
-             swing it is, and each beat sets it going again */
-          if (m.__arms && m.__arms[1]) m.__arms[1].rotation.z = 0;
-          if (m.__blade) {
-            m.__blade.rotation.y = swing;
-            m.__blade.rotation.z = wound;
-          }
-        }
-        if (GD && GD.arc && m && Math.random() < dt * 10) {
-          GD.arc(m.position.clone().add(up(12.4)),
-            new THREE.Vector3((Math.random() - .5), (Math.random() - .5) * .4, (Math.random() - .5)),
-            { reach: 9, depth: 2, life: .24 });
-        }
-        return t < 3.1;
-      } });
+        if (g) g.position.y = Math.min(0, -7 + 26 * t);
 
-      /* one turn of the wheel, and the swing that comes out of it */
-      function turn(delay, power, then) {
-        setTimeout(function () {
-          if (typeof scene === 'undefined') return;
-          turns++;
-          rate = 1.6 + turns * 5.5;                 // it turns faster every time
-          /* the wheel making up its mind */
-          if (m && m.__wheel) {
-            for (var i = 0; i < 5 + turns * 3; i++) {
-              if (GD && GD.arc) {
-                GD.arc(m.position.clone().add(up(12.4)),
-                  new THREE.Vector3(Math.cos(i), (Math.random() - .5), Math.sin(i)).normalize(),
-                  { reach: 8 + turns * 4, depth: 2, life: .3 });
-              }
+        /* BEAT ONE — the tongue is round them and they are coming */
+        if (phase === 0) {
+          if (t > .3 && g && g.__jaw) g.__jaw.rotation.x = .9;
+          if (t > .3 && e && !e.dead) {
+            var want = mouth().clone().addScaledVector(d, -5);
+            e.anchorT = .4;
+            e.anchorPos.copy(want);
+            e.pos.lerp(want, Math.min(1, dt * 3.4));
+            e.vel.set(0, 0, 0);
+            e.stunT = Math.max(e.stunT || 0, .5);
+            if (g && GD && GD.tongueAt) GD.tongueAt(g, mouth(), e.pos.clone().add(up(1.6)));
+            if (Math.random() < dt * 12) {
+              FX.blood(e.pos.clone().add(up(1.8)), d.clone().negate(), 3, .9);
             }
           }
-          FX.speedRing(stand.clone().add(up(12.4)), ARC2, 6 + turns * 3, .3);
-          addShake(.8 + turns * .4);
-          /* the swing, a beat behind it */
-          var s = 0;
-          addFx({ t: 1e9, update: function (dt) {
-            s += dt;
-            wound = -1.5 + Math.min(1, s / .26) * 3.2;
-            swing = -1.1 + Math.min(1, s / .26) * 2.2;
-            return s < .3;
-          } });
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            if (then) then(power);
-          }, 260);
-        }, delay);
-      }
-
-      /* BEAT ONE — the wheel turns once. It only opens them */
-      turn(0, 1, function () {
-        var hitAt = p.clone();
-        FX.slash(hitAt, d.clone().negate(), 0xb8c2d8, 8, .2);
-        FX.impact(hitAt, 0xb8c2d8, 2.2);
-        FX.blood(hitAt, d.clone().negate(), 10, 1.5);
-        if (typeof hitstop === 'function') hitstop(.07);
-        addShake(1.2);
-        if (e && !e.dead) {
-          e.stunT = Math.max(e.stunT || 0, .5);
-          e.anchorT = .4;
-          e.anchorPos.copy(floor).addScaledVector(d, -1.4).add(up(1.2));
-        }
-      });
-
-      /* BEAT TWO — the wheel turns again, and the same swing follows all
-         the way through. Down into the floor */
-      turn(1000, 2, function () {
-        var hitAt = p.clone().add(up(-.6));
-        FX.slash(hitAt, d.clone().negate(), 0xffffff, 12, .24);
-        FX.slash(hitAt.clone().add(up(-.8)), d.clone().negate(), ARC2, 10, .22);
-        FX.impact(hitAt, 0xffffff, 3.4);
-        FX.blood(hitAt, new THREE.Vector3(-d.x, .3, -d.z), 18, 2.2);
-        FX.mangaLines(.9, .28);
-        FX.rings(new THREE.Vector3(floor.x, .12, floor.z), ARC, 3, { maxR: 16, life: .6, gap: 40 });
-        FX.dust(new THREE.Vector3(floor.x, 0, floor.z), 10, 0xb9bfc9, 14, 4);
-        if (typeof hitstop === 'function') hitstop(.14);
-        addShake(2.4);
-        if (e && !e.dead) {
-          e.anchorT = .5;
-          e.anchorPos.copy(floor).add(up(.4));
-          e.stunT = Math.max(e.stunT || 0, .8);
-        }
-      });
-
-      /* BEAT THREE — the wheel turns a third time and stops. Overhead,
-         straight down, and the line it leaves goes past them */
-      turn(2050, 3, function () {
-        rate = 0;
-        var hitAt = p.clone().add(up(-.4));
-        FX.flash('#ffffff', .7, .3);
-        FX.tint('#0b1826', .5, .3);
-        /* the blade coming down, drawn as the one long line it is */
-        var bolt = FX.billboard(FX.T.bolt, 0xffffff, 1);
-        var a1 = new THREE.Vector3(floor.x, 26, floor.z);
-        var a2 = new THREE.Vector3(floor.x, 0, floor.z);
-        var len = FX.orientAlong(bolt, a1, a2);
-        bolt.scale.set(len, len * .1, 1);
-        scene.add(bolt);
-        addFx({ t: .4, update: function (dd) {
-          this.t -= dd;
-          bolt.material.opacity = Math.max(0, this.t / .4);
-          if (this.t <= 0) { scene.remove(bolt); bolt.material.dispose(); return false; }
+          if (t > .95) {
+            phase = 1; beat2 = t;
+            FX.mangaLines(.7, .24);
+            if (typeof hitstop === 'function') hitstop(.08);
+          }
           return true;
-        } });
-        for (var i = 0; i < 10; i++) {
-          if (GD && GD.arc) {
-            GD.arc(new THREE.Vector3(floor.x, 1 + i * 2.4, floor.z),
-              new THREE.Vector3((Math.random() - .5), (Math.random() - .5) * .5, (Math.random() - .5)).normalize(),
-              { reach: 14, depth: 3, life: .4 });
-          }
         }
-        FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 22, 30, 0x101020);
-        FX.rings(new THREE.Vector3(floor.x, .12, floor.z), ARC2, 5, { maxR: 30, life: .9, gap: 44 });
-        FX.mangaLines(1, .36);
-        if (typeof hitstop === 'function') hitstop(.26);
-        addShake(4.2);
-        if (e) e.anchorT = 0;
-        G.erase(e, { color: ARC2, dir: up(-1), power: 2 });
-        /* and it goes back down where it came from */
-        setTimeout(function () {
-          if (typeof scene === 'undefined' || !m) return;
-          if (MG && MG.pool) MG.pool(new THREE.Vector3(stand.x, 0, stand.z), 11, 1.4);
-          var s = 0;
-          addFx({ t: 1e9, update: function (dt) {
-            s += dt;
-            m.position.y = -22 * s;
-            if (s > .9) {
-              scene.remove(m);
-              m.traverse(function (o) { if (o.isMesh && o.material) o.material.dispose(); });
-              return false;
+
+        /* BEAT TWO — it whips them off the floor, twice */
+        if (phase === 1) {
+          var k = (t - beat2) / .5;
+          if (e && !e.dead) {
+            var side = new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(Math.sin(k * 9) * 5);
+            e.anchorT = .4;
+            e.anchorPos.copy(mouth()).addScaledVector(d, -4).add(side);
+            e.anchorPos.y = Math.max(0, 3 + Math.sin(k * 9) * 3);
+            e.pos.lerp(e.anchorPos, Math.min(1, dt * 12));
+            e.vel.set(0, 0, 0);
+            if (g && GD && GD.tongueAt) GD.tongueAt(g, mouth(), e.pos.clone().add(up(1.4)));
+          }
+          if (slams < 2 && k > .18 + slams * .34) {
+            slams++;
+            var hit = e && !e.dead ? e.pos.clone() : floor.clone();
+            FX.impact(hit.clone().add(up(1)), 0x5e2038, 2.6);
+            FX.cracks(new THREE.Vector3(hit.x, .06, hit.z), 9, 13, 0x2a1018);
+            FX.blood(hit.clone().add(up(1)), up(1), 11, 1.7);
+            FX.dust(new THREE.Vector3(hit.x, 0, hit.z), 8, 0xb9bfc9, 11, 3);
+            addShake(1.8);
+            if (typeof hitstop === 'function') hitstop(.08);
+          }
+          if (t > beat2 + .95) { phase = 2; beat2 = t; }
+          return true;
+        }
+
+        /* BEAT THREE — and into the mouth */
+        if (phase === 2) {
+          if (e && !e.dead) {
+            e.anchorT = .4;
+            e.anchorPos.copy(mouth());
+            e.pos.lerp(e.anchorPos, Math.min(1, dt * 7));
+            e.vel.set(0, 0, 0);
+            if (g && GD && GD.tongueAt) GD.tongueAt(g, mouth(), e.pos.clone().add(up(1.2)));
+            if (GD && GD.arc && Math.random() < dt * 16) {
+              GD.arc(e.pos.clone().add(up(1.6)),
+                new THREE.Vector3((Math.random() - .5), .7, (Math.random() - .5)),
+                { reach: 8, depth: 2, life: .2 });
             }
-            return true;
-          } });
-        }, 500);
-      });
+          }
+          if (t > beat2 + .55) {
+            phase = 3;
+            var at = mouth();
+            if (g && g.__jaw) g.__jaw.rotation.x = 0;
+            if (g && GD && GD.tongueIn) GD.tongueIn(g);
+            FX.flash('#ffd9dd', .5, .26);
+            FX.impact(at.clone(), 0xffffff, 4);
+            FX.cross(at.clone(), ARC2, 10, .3);
+            FX.blood(at.clone(), d.clone().negate(), 24, 2.6);
+            FX.bloodRings && FX.bloodRings(at.clone(), 4, { maxR: 18, life: .8, gap: 40 });
+            FX.mangaLines(1, .34);
+            if (typeof hitstop === 'function') hitstop(.24);
+            addShake(3.6);
+            if (e) e.anchorT = 0;
+            G.sever(e, { dir: d.clone().negate(), power: 2.6, cubes: 20 });
+          }
+          return true;
+        }
+
+        /* and it takes what is left back down with it */
+        if (t > beat2 + 1.15) {
+          if (g) {
+            if (MG && MG.pool) MG.pool(new THREE.Vector3(stand.x, 0, stand.z), 8, 1);
+            var s2 = 0;
+            addFx({ t: 1e9, update: function (dd) {
+              s2 += dd;
+              g.position.y = -18 * s2;
+              if (s2 > .8) {
+                scene.remove(g);
+                g.traverse(function (o) { if (o.isMesh && o.material) o.material.dispose(); });
+                return false;
+              }
+              return true;
+            } });
+          }
+          return false;
+        }
+        return true;
+      } });
 
       if (mine() && window.JJFEVER && window.JJFEVER.perform) {
         window.JJFEVER.perform(3.15, function (a, dt, pl) {
@@ -1959,6 +1927,312 @@
           if (to.lengthSq() > .01) pl.facing = Math.atan2(to.x, to.z);
           pl.vel.set(0, 0, 0);
         }, null, 'mgaThree');
+      }
+    } },
+
+    /* =================================================================
+       THE TWO MERGES
+       Neither has a key of its own — you get here by throwing the one
+       before it — so the ending has to be worth the second press.
+       ============================================================== */
+
+    /* 1+2 · DIVINE CHIMERA — it does not stop for them the first time,
+       and the second time is not a pass, it is a hold */
+    gv1: { name: 'RUN THROUGH', color: '#9fe8ff', hold: 3.1, run: function (e, d, p, G) {
+      var GD = window.JJGARDEN, MG = window.JJMEGUMI;
+      var ARC = (GD && GD.ARC) || 0x4fd8ff, ARC2 = (GD && GD.ARC2) || 0x9fe8ff;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var g = (GD && GD.buildDivineChimera) ? GD.buildDivineChimera() : null;
+      var from = floor.clone().addScaledVector(d, -22);
+      if (g) {
+        g.position.copy(from);
+        g.rotation.y = Math.atan2(d.x, d.z);
+        scene.add(g);
+      }
+      if (MG && MG.pool) MG.pool(new THREE.Vector3(from.x, 0, from.z), 9, 1);
+      FX.speedRing(p, ARC2, 13, .3);
+      addShake(1.3);
+
+      var t = 0, phase = 0, mark = 0, leg = 0, carried = false;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt; leg += dt * 24;
+        if (typeof scene === 'undefined') return false;
+        if (g) {
+          if (g.__legs) g.__legs.forEach(function (l, n) {
+            l.rotation.x = Math.sin(leg + (n % 2 ? Math.PI : 0)) * 1.15;
+          });
+          if (g.__wings) g.__wings.forEach(function (w, i) {
+            w.rotation.z = Math.sin(t * 14) * .6 * (i ? -1 : 1);
+          });
+        }
+
+        /* BEAT ONE — it comes through them at speed and carries them */
+        if (phase === 0) {
+          if (g) {
+            g.position.addScaledVector(d, 40 * dt);
+            g.position.y = Math.abs(Math.sin(leg * .6)) * .9;
+          }
+          if (!carried && (!g || g.position.distanceTo(floor) < 3)) {
+            carried = true;
+            FX.impact(p.clone(), 0xffffff, 3.6);
+            FX.slash(p.clone(), d, 0xe8ecf5, 9, .2);
+            FX.blood(p.clone(), d, 14, 2);
+            FX.mangaLines(.8, .26);
+            addShake(2.4);
+            if (typeof hitstop === 'function') hitstop(.1);
+          }
+          if (carried && e && !e.dead && g) {
+            /* riding the front of it */
+            e.anchorT = .4;
+            e.anchorPos.copy(g.position).addScaledVector(d, 3).add(up(2.4));
+            e.pos.lerp(e.anchorPos, Math.min(1, dt * 14));
+            e.vel.set(0, 0, 0);
+            if (GD && GD.arc && Math.random() < dt * 22) {
+              GD.arc(e.pos.clone(), d.clone(), { reach: 12, depth: 2, life: .2 });
+            }
+          }
+          if (t > 1.0) { phase = 1; mark = t; }
+          return true;
+        }
+
+        /* BEAT TWO — it plants, and puts them under a foot */
+        if (phase === 1) {
+          var here = g ? g.position.clone() : floor.clone();
+          if (t - mark < .3 && g) {
+            g.position.addScaledVector(d, Math.max(0, 40 - (t - mark) * 150) * dt);
+          }
+          if (t - mark > .28 && t - mark < .34) {
+            FX.rings(new THREE.Vector3(here.x, .12, here.z), ARC, 4, { maxR: 20, life: .7, gap: 40 });
+            FX.dust(new THREE.Vector3(here.x, 0, here.z), 12, 0xcfd6e6, 16, 5);
+            FX.cracks(new THREE.Vector3(here.x, .08, here.z), 16, 22, 0x101020);
+            addShake(3);
+            if (typeof hitstop === 'function') hitstop(.14);
+          }
+          if (e && !e.dead) {
+            e.anchorT = .4;
+            e.anchorPos.copy(here).addScaledVector(d, 3.6);
+            e.anchorPos.y = Math.max(0, 1.6 - (t - mark) * 3.4);
+            e.pos.lerp(e.anchorPos, Math.min(1, dt * 12));
+            e.vel.set(0, 0, 0);
+            e.stunT = Math.max(e.stunT || 0, .6);
+            if (Math.random() < dt * 10) {
+              FX.blood(e.pos.clone().add(up(1)), up(1), 4, 1.1);
+            }
+          }
+          if (g && g.__jaw) g.__jaw.rotation.x = .5 + Math.sin(t * 12) * .3;
+          if (t > mark + .95) {
+            phase = 2; mark = t;
+            /* the jaws take hold */
+            var jat = e && !e.dead ? e.pos.clone().add(up(1.6)) : floor.clone().add(up(1.6));
+            FX.impact(jat, ARC2, 3);
+            FX.blood(jat, side.clone(), 12, 1.8);
+            addShake(1.8);
+          }
+          return true;
+        }
+
+        /* BEAT THREE — and it runs again, with them, and lets go */
+        if (phase === 2) {
+          if (g) {
+            g.position.addScaledVector(d, 46 * dt);
+            g.position.y = Math.abs(Math.sin(leg * .7)) * 1.1;
+          }
+          if (e && !e.dead && g) {
+            e.anchorT = .4;
+            e.anchorPos.copy(g.position).addScaledVector(d, 3).add(up(2.6));
+            e.pos.lerp(e.anchorPos, Math.min(1, dt * 16));
+            e.vel.set(0, 0, 0);
+            if (Math.random() < dt * 30) {
+              FX.streaks(e.pos.clone(), 0x8b0f22, 2, 14, .7);
+              FX.blood(e.pos.clone(), d.clone().negate(), 4, 1.2);
+            }
+          }
+          if (t > mark + .62) {
+            phase = 3;
+            var out2 = e && !e.dead ? e.pos.clone() : floor.clone().add(up(2));
+            FX.flash('#dff4ff', .55, .28);
+            FX.impact(out2, 0xffffff, 4.2);
+            FX.cross(out2, ARC2, 11, .3);
+            FX.speedRing(out2, ARC, 18, .34);
+            FX.mangaLines(1, .34);
+            if (GD && GD.arc) {
+              for (var b = 0; b < 8; b++) {
+                GD.arc(out2.clone(),
+                  new THREE.Vector3(Math.cos(b / 8 * TAU), .3, Math.sin(b / 8 * TAU)),
+                  { reach: 20, depth: 3, life: .42 });
+              }
+            }
+            if (typeof hitstop === 'function') hitstop(.22);
+            addShake(3.8);
+            if (e) e.anchorT = 0;
+            G.dice(e, { dir: d, power: 2.6, cubes: 26 });
+          }
+          return true;
+        }
+
+        if (t > mark + 1.5) {
+          if (g) {
+            if (MG && MG.dismiss) MG.dismiss(g, g.position.clone().add(up(2)));
+            else scene.remove(g);
+          }
+          return false;
+        }
+        if (g) g.position.addScaledVector(d, 30 * dt);
+        return true;
+      } });
+
+      if (mine() && window.JJFEVER && window.JJFEVER.perform) {
+        window.JJFEVER.perform(3.2, function (a, dt, pl) {
+          var to = floor.clone().sub(pl.pos).setY(0);
+          if (to.lengthSq() > .01) pl.facing = Math.atan2(to.x, to.z);
+          pl.vel.set(0, 0, 0);
+        }, null, 'mgaVone');
+      }
+    } },
+
+    /* 2+3 · GREAT MAW — a mouth that size does not bite twice */
+    gv2: { name: 'TAKEN WHOLE', color: '#4fd8ff', hold: 3.15, run: function (e, d, p, G) {
+      var GD = window.JJGARDEN, MG = window.JJMEGUMI;
+      var ARC = (GD && GD.ARC) || 0x4fd8ff, ARC2 = (GD && GD.ARC2) || 0x9fe8ff;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var stand = floor.clone().addScaledVector(d, 13);
+      var g = (GD && GD.buildMaw) ? GD.buildMaw() : null;
+      var mouth = function () {
+        return stand.clone().add(up(4.6)).addScaledVector(d, -5.4);
+      };
+
+      if (MG && MG.pool) MG.pool(new THREE.Vector3(stand.x, 0, stand.z), 13, 3.6);
+      FX.cracks(new THREE.Vector3(stand.x, .05, stand.z), 14, 20, 0x101020);
+      if (g) {
+        g.position.set(stand.x, -14, stand.z);
+        g.rotation.y = Math.atan2(-d.x, -d.z);
+        scene.add(g);
+      }
+      FX.speedRing(p, ARC2, 14, .32);
+      addShake(1.6);
+
+      var t = 0, phase = 0, mark = 0, flap = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt; flap += dt * 9;
+        if (typeof scene === 'undefined') return false;
+        if (g) {
+          g.position.y = Math.min(0, -14 + 30 * t);
+          if (g.__wings) g.__wings.forEach(function (w, i) {
+            w.rotation.z = Math.sin(flap) * .55 * (i ? -1 : 1);
+          });
+        }
+
+        /* BEAT ONE — the tongue, and they leave the floor */
+        if (phase === 0) {
+          if (t > .5 && g) {
+            if (g.__jaw) g.__jaw.rotation.x = 1.1;
+            if (g.__inner) g.__inner.rotation.x = .6;
+          }
+          if (t > .5 && e && !e.dead) {
+            e.anchorT = .4;
+            e.anchorPos.copy(floor).add(up(Math.min(7, (t - .5) * 11)));
+            e.pos.lerp(e.anchorPos, Math.min(1, dt * 10));
+            e.vel.set(0, 0, 0);
+            e.stunT = Math.max(e.stunT || 0, .5);
+            if (g && GD && GD.tongueAt) GD.tongueAt(g, mouth(), e.pos.clone().add(up(1.6)));
+          }
+          if (t > .5 && t < .58) {
+            FX.impact(p.clone(), 0x5e2038, 2.6);
+            FX.blood(p.clone(), d.clone().negate(), 9, 1.4);
+            addShake(1.4);
+            if (typeof hitstop === 'function') hitstop(.07);
+          }
+          if (t > 1.05) { phase = 1; mark = t; FX.mangaLines(.8, .26); }
+          return true;
+        }
+
+        /* BEAT TWO — held in front of it while the arcs climb them */
+        if (phase === 1) {
+          var hold = mouth().clone().addScaledVector(d, -6);
+          if (e && !e.dead) {
+            e.anchorT = .4;
+            e.anchorPos.copy(hold);
+            e.pos.lerp(hold, Math.min(1, dt * 6));
+            e.vel.set(0, 0, 0);
+            if (g && GD && GD.tongueAt) GD.tongueAt(g, mouth(), e.pos.clone().add(up(1.6)));
+            if (GD && GD.arc && Math.random() < dt * 26) {
+              GD.arc(e.pos.clone().add(up(Math.random() * 3)),
+                new THREE.Vector3((Math.random() - .5), (Math.random() - .5), (Math.random() - .5)),
+                { reach: 11, depth: 2, life: .22 });
+            }
+            if (Math.random() < dt * 12) FX.blood(e.pos.clone().add(up(1.6)), up(1), 3, .9);
+          }
+          if (t > mark + .9) { phase = 2; mark = t; }
+          return true;
+        }
+
+        /* BEAT THREE — in, and shut, and gone */
+        if (phase === 2) {
+          if (e && !e.dead) {
+            e.anchorT = .4;
+            e.anchorPos.copy(mouth());
+            e.pos.lerp(e.anchorPos, Math.min(1, dt * 9));
+            e.vel.set(0, 0, 0);
+            if (g && GD && GD.tongueAt) GD.tongueAt(g, mouth(), e.pos.clone().add(up(1.2)));
+          }
+          if (t > mark + .5) {
+            phase = 3; mark = t;
+            var at = mouth();
+            if (g) {
+              if (g.__jaw) g.__jaw.rotation.x = 0;
+              if (g.__inner) g.__inner.rotation.x = 0;
+            }
+            if (g && GD && GD.tongueIn) GD.tongueIn(g);
+            FX.flash('#dff4ff', .7, .3);
+            FX.impact(at.clone(), 0xffffff, 4.6);
+            FX.cross(at.clone(), ARC2, 12, .32);
+            FX.speedRing(at.clone(), ARC, 20, .36);
+            FX.mangaLines(1, .36);
+            if (GD && GD.arc) {
+              for (var b = 0; b < 10; b++) {
+                GD.arc(at.clone(),
+                  new THREE.Vector3(Math.cos(b / 10 * TAU), .2 + Math.random() * .6, Math.sin(b / 10 * TAU)),
+                  { reach: 24, depth: 3, life: .5 });
+              }
+            }
+            if (typeof hitstop === 'function') hitstop(.26);
+            addShake(4.2);
+            if (e) e.anchorT = 0;
+            /* nothing comes back out of it */
+            G.erase(e, { color: ARC2, dir: d, power: 2.2 });
+          }
+          return true;
+        }
+
+        /* and it goes back down, and the floor is empty */
+        if (t > mark + .5) {
+          if (g) {
+            if (MG && MG.pool) MG.pool(new THREE.Vector3(stand.x, 0, stand.z), 12, 1.2);
+            FX.rings(new THREE.Vector3(stand.x, .12, stand.z), ARC, 4, { maxR: 22, life: .8, gap: 44 });
+            var s3 = 0;
+            addFx({ t: 1e9, update: function (dd) {
+              s3 += dd;
+              g.position.y = -26 * s3;
+              if (s3 > .9) {
+                scene.remove(g);
+                g.traverse(function (o) { if (o.isMesh && o.material) o.material.dispose(); });
+                return false;
+              }
+              return true;
+            } });
+          }
+          return false;
+        }
+        return true;
+      } });
+
+      if (mine() && window.JJFEVER && window.JJFEVER.perform) {
+        window.JJFEVER.perform(3.25, function (a, dt, pl) {
+          var to = floor.clone().sub(pl.pos).setY(0);
+          if (to.lengthSq() > .01) pl.facing = Math.atan2(to.x, to.z);
+          pl.vel.set(0, 0, 0);
+        }, null, 'mgaVtwo');
       }
     } },
 
@@ -2541,7 +2815,7 @@
     c1: 'sever', c1s: 'gone', c2: 'flat', c3: 'dice', c4: 'sever', cr: 'sever',
     ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever',
     mg1: 'dice', mg2: 'burn', mg3: 'gone', mg4: 'flat', mgr: 'gone',
-    ga1: 'dice', ga2: 'dice', ga3: 'gone', gdom: 'gone'
+    ga1: 'dice', ga2: 'dice', ga3: 'sever', gv1: 'dice', gv2: 'gone', gdom: 'gone'
   };
 
   /* =====================================================================
@@ -2636,37 +2910,109 @@
       }
     };
 
-    /* 3 · the sign held while the wheel turns, opened as it turns again,
-       and thrown down on the third */
+    /* 3 · the toad: a hand out for the tongue, drawn back while it reels
+       them in, and closed when the mouth does */
     FV.finPose.mgaThree = function (r, a, out) {
       var t = a.t, k;
       stance(r, 1);
-      if (t < 1.0) {                          // held
+      if (t < .95) {                          // the hand out
+        k = out(Math.min(1, t / .26));
+        r.shoulderR.rotation.x = -1.62 * k;
+        r.shoulderR.rotation.z = -.28 * k;
+        r.elbowR.rotation.x = -.16 * k;
+        r.shoulderL.rotation.x = -.6 * k;
+        r.elbowL.rotation.x = -1.4 * k;
+        r.spine.rotation.x = -.18 * k;
+        r.neck.rotation.x = -.3 * k;
+      } else if (t < 2.0) {                   // drawn back, in time with it
+        k = out(Math.min(1, (t - .95) / .4));
+        var pull = Math.sin((t - .95) * 7) * .12;
+        r.shoulderR.rotation.x = -1.62 + .5 * k + pull;
+        r.shoulderR.rotation.z = -.28 + .5 * k;
+        r.elbowR.rotation.x = -.16 - 1.5 * k;
+        r.shoulderL.rotation.x = -.6 - .2 * k;
+        r.elbowL.rotation.x = -1.4;
+        r.spine.rotation.x = -.18 + .3 * k;
+        r.neck.rotation.x = -.3 + .1 * k;
+        r.hips.position.y = r.hipsBaseY - .22 - .2 * k;
+      } else {                                // and the fist shuts
+        k = out(Math.min(1, (t - 2.0) / .2));
+        r.shoulderR.rotation.x = -1.12 - .5 * k;
+        r.shoulderR.rotation.z = .22 - .4 * k;
+        r.elbowR.rotation.x = -1.66 + .3 * k;
+        r.shoulderL.rotation.x = -.8 - .4 * k;
+        r.elbowL.rotation.x = -1.4 - .3 * k;
+        r.spine.rotation.x = .12 - .3 * k;
+        r.neck.rotation.x = -.2 - .2 * k;
+        r.hips.position.y = r.hipsBaseY - .42 - .12 * k;
+      }
+    };
+
+    /* 1+2 · the merge, thrown away from him and followed through */
+    FV.finPose.mgaVone = function (r, a, out) {
+      var t = a.t, k;
+      stance(r, 1);
+      if (t < 1.0) {                          // both hands brought together
         k = out(Math.min(1, t / .3));
         sign(r, k);
-        r.neck.rotation.x = -.4 * k;          // watching the wheel
-        r.spine.rotation.x = -.1 * k;
-      } else if (t < 2.05) {                  // opened, slowly
-        k = out(Math.min(1, (t - 1.0) / .5));
-        sign(r, 1);
-        r.shoulderL.rotation.z = .5 + .5 * k;
-        r.shoulderR.rotation.z = -.5 - .5 * k;
-        r.elbowL.rotation.x = -1.5 + .7 * k;
-        r.elbowR.rotation.x = -1.5 + .7 * k;
-        r.neck.rotation.x = -.4 + .15 * k;
-        r.spine.rotation.x = -.1;
-      } else {                                // and thrown down
-        k = out(Math.min(1, (t - 2.05) / .24));
-        r.shoulderL.rotation.x = -1.1 + 1.1 * k;
-        r.shoulderR.rotation.x = -1.1 + 2.4 * k;
-        r.shoulderL.rotation.z = 1.0 - .7 * k;
-        r.shoulderR.rotation.z = -1.0 + .8 * k;
-        r.elbowL.rotation.x = -.8 + .6 * k;
-        r.elbowR.rotation.x = -.8 + .8 * k;
-        r.spine.rotation.x = -.1 + .5 * k;
-        r.neck.rotation.x = -.25 + .5 * k;
-        r.hips.position.y = r.hipsBaseY - .22 - .26 * k;
-        r.kneeL.rotation.x = .3 + .45 * k; r.kneeR.rotation.x = .22 + .45 * k;
+        r.spine.rotation.x = .16 * k;
+        r.neck.rotation.x = -.12 * k;
+        r.hips.position.y = r.hipsBaseY - .22 - .2 * k;
+      } else if (t < 1.95) {                  // and sent, arm following it
+        k = out(Math.min(1, (t - 1.0) / .22));
+        r.shoulderL.rotation.x = -1.1 - .6 * k;
+        r.shoulderR.rotation.x = -1.1 - 1.1 * k;
+        r.shoulderL.rotation.z = .5 - 1.0 * k;
+        r.shoulderR.rotation.z = -.5 + .9 * k;
+        r.elbowL.rotation.x = -1.5 + 1.3 * k;
+        r.elbowR.rotation.x = -1.5 + 1.4 * k;
+        r.spine.rotation.x = .16 - .56 * k;
+        r.neck.rotation.x = -.12 - .28 * k;
+        r.hips.position.y = r.hipsBaseY - .42 + .3 * k;
+      } else {                                // held, watching it come back
+        k = out(Math.min(1, (t - 1.95) / .3));
+        r.shoulderL.rotation.x = -1.7 + .9 * k;
+        r.shoulderR.rotation.x = -2.2 + 1.3 * k;
+        r.shoulderL.rotation.z = -.5 + .8 * k;
+        r.shoulderR.rotation.z = .4 - .7 * k;
+        r.elbowL.rotation.x = -.2 - .5 * k;
+        r.elbowR.rotation.x = -.1 - .6 * k;
+        r.spine.rotation.x = -.4 + .34 * k;
+        r.neck.rotation.x = -.4 + .24 * k;
+        r.hips.position.y = r.hipsBaseY - .12 - .24 * k;
+      }
+    };
+
+    /* 2+3 · the mouth: opened wide, held open, and shut */
+    FV.finPose.mgaVtwo = function (r, a, out) {
+      var t = a.t, k;
+      stance(r, 1);
+      if (t < 1.05) {                         // both arms opened
+        k = out(Math.min(1, t / .32));
+        r.shoulderL.rotation.x = -1.6 * k; r.shoulderR.rotation.x = -1.6 * k;
+        r.shoulderL.rotation.z = 1.4 * k; r.shoulderR.rotation.z = -1.4 * k;
+        r.elbowL.rotation.x = -.12; r.elbowR.rotation.x = -.12;
+        r.spine.rotation.x = -.24 * k;
+        r.neck.rotation.x = -.42 * k;
+      } else if (t < 2.0) {                   // and held there, shaking
+        var shake = Math.sin((t - 1.05) * 16) * .05;
+        r.shoulderL.rotation.x = -1.6 + shake; r.shoulderR.rotation.x = -1.6 - shake;
+        r.shoulderL.rotation.z = 1.4 + shake; r.shoulderR.rotation.z = -1.4 - shake;
+        r.elbowL.rotation.x = -.12; r.elbowR.rotation.x = -.12;
+        r.spine.rotation.x = -.24;
+        r.neck.rotation.x = -.42;
+      } else {                                // shut, both hands at once
+        k = out(Math.min(1, (t - 2.0) / .2));
+        r.shoulderL.rotation.x = -1.6 + 1.15 * k;
+        r.shoulderR.rotation.x = -1.6 + 1.15 * k;
+        r.shoulderL.rotation.z = 1.4 - 1.3 * k;
+        r.shoulderR.rotation.z = -1.4 + 1.3 * k;
+        r.elbowL.rotation.x = -.12 - 1.4 * k;
+        r.elbowR.rotation.x = -.12 - 1.4 * k;
+        r.spine.rotation.x = -.24 + .56 * k;
+        r.neck.rotation.x = -.42 + .56 * k;
+        r.hips.position.y = r.hipsBaseY - .22 - .34 * k;
+        r.kneeL.rotation.x = .3 + .5 * k; r.kneeR.rotation.x = .22 + .5 * k;
       }
     };
 

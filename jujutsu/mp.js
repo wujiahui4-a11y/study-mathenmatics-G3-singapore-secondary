@@ -1859,16 +1859,19 @@
         if (close && (kind === 'mg4' || kind === 'mg2')) addShake(1.2);
         else if (near) addShake(.5);
         break;
-      /* ---- Megumi awakened: the chain, and the garden at the end of it.
-         Same rule — the merged shikigami are bodies, so the garden module
+      /* ---- Megumi awakened: the four on the bar, plus the two merges
+         that have no key of their own — gv1 is 1-then-2 and gv2 is
+         2-then-3, and they arrive as ordinary casts because that is what
+         they are. The merged shikigami are bodies, so the garden module
          builds the real ones. The domain itself arrives as its own 'dom'
          message; `gdom` here is only the sign that it is coming. */
-      case 'gaw': case 'ga1': case 'ga2': case 'ga3': case 'gdom':
+      case 'gaw': case 'ga1': case 'ga2': case 'ga3':
+      case 'gv1': case 'gv2': case 'gdom':
         if (window.JJGARDEN && window.JJGARDEN.remoteFx &&
             window.JJGARDEN.remoteFx[kind]) {
           window.JJGARDEN.remoteFx[kind](pos.clone(), yaw, f);
         }
-        if (close && (kind === 'ga3' || kind === 'gaw' || kind === 'gdom')) addShake(1.6);
+        if (close && (kind === 'gv1' || kind === 'gv2' || kind === 'gaw' || kind === 'gdom')) addShake(1.6);
         else if (near) addShake(.6);
         break;
 
