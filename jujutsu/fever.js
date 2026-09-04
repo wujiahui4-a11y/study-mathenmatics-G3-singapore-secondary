@@ -893,7 +893,7 @@
       arm.add(fist);
       /* the cursed energy still on his knuckles — kept small, or it
          washes the whole bottom of the frame out */
-      var glow = FX.billboard(FX.T.glow, GOLD, .3);
+      var glow = FX.billboard(FX.T.star, GOLD, .3);
       glow.scale.setScalar(.85);
       arm.add(glow);
       arm.position.set(s * .74, -.62, -1.5);
@@ -952,7 +952,7 @@
       FX.mangaLines(.5, .2);
       /* his own arm, thrown out at what he just hit */
       var reach = hits[0].point.clone();
-      var fist = FX.billboard(FX.T.glow, GOLD, .7);
+      var fist = FX.billboard(FX.T.star, GOLD, .7);
       fist.scale.setScalar(2.2);
       fist.position.copy(reach);
       scene.add(fist);

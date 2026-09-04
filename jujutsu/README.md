@@ -689,14 +689,93 @@ switch handling**:
 `JJCOMBAT.swapNow(id)` is the same swap without the wait, for the spawn menu
 and for anything driving the game from outside.
 
+## Megumi's awakening — and the garden at the end of it
+
+`F` opens the Ten Shadows for thirty seconds and swaps the whole bar. The
+base kit is five separate shikigami, one at a time; awakened, the idea
+changes — he stops calling them out one by one and starts **putting them
+together**. So the four are a chain, and each one is the one before it taken
+further, which is what 渾 (Totality) means in the first place.
+
+| Key | Move | It is the one before it, merged |
+| --- | --- | --- |
+| `1` | **Divine Dogs: Totality** 玉犬・渾 | the two dogs merged mid-run into one body, twice the size, and it does not stop at the first thing it reaches |
+| `2` | **Chimera** 嵌合 | the variant of 1 — not two of one thing but *three different* ones: the serpent's jaws, Nue's wings and the toad's tongue in one body, and it leaps |
+| `3` | **Mahoraga** 八握剣異戒神将魔虚羅 | the variant of 2 taken to its end. The wheel over its head turns once per strike, and the same swing works better each time: 26, then 34, then 52 |
+| `4` | **Chimera Shadow Garden** 嵌合暗翳庭 | the domain |
+
+`R` stays **Rabbit Escape** either way — the rabbits are how he leaves, awake
+or not.
+
+### The chimera has to land *on* somebody
+
+The first cut of the leap always travelled its full twenty six units, which
+means it sailed clean over whoever it was aimed at and landed behind them.
+It picks the nearest body in front of it now and comes down on that, and
+only goes the full distance when there is nobody there. The arc is as tall
+as the leap is long, so a short one is a pounce rather than a parabola.
+
+Both screens run the same search over their own copy of the fight, so the
+ghost on somebody else's screen lands where the real one did **without the
+landing spot having to travel**.
+
+### The garden
+
+Everything goes black — `JJSTAGE.hide` with the sky set to `0x02030a` — and
+what is left is three things, which is exactly what the reference picture is:
+
+- a **red-magenta square lattice** on the floor, one set of lines each way,
+  clipped to a circle so the garden has an edge rather than a wall;
+- **branching cyan lightning** thrown three at a time every fiftieth of a
+  second from him outward, each one a recursive tree that forks three ways at
+  the trunk and twice at every branch after it;
+- him, in silhouette, because nothing in the palette lights him.
+
+It runs on its own tick rather than on an action, so he can move and fight
+inside it the way Hakari can inside his. Twenty two seconds, thirty eight
+units, nine damage every six tenths to everything standing on the shadow, and
+he is untouchable in his own.
+
+**Two bugs the picture found.** The arcs were drawn as quads as tall as they
+were long, which fills the frame with pale ribbons instead of lightning — the
+height is capped in absolute units now. And the bright core asked for
+`FX.T.glow`, which **does not exist**: a billboard with no map is a plain
+white plane, so the first build of this had a white box standing in front of
+him. `fever.js` was asking for the same missing texture in two places and had
+the same white box on Hakari's punch-out.
+
+### The four endings, in three beats each
+
+The awakened moves merge things, so their finishers end somebody in stages.
+None of these is one hit, and none of them drags: about three seconds, in
+three readable beats.
+
+| | Beat one | Beat two | Beat three |
+| --- | --- | --- | --- |
+| **RUN TO GROUND** | it comes through the back of their legs and they go down on a knee | back across the other way, and now they are flat | the pool opens **under** them and it comes straight up out of the floor |
+| **PULLED THREE WAYS** | the tongue takes them off their feet and hauls them in | the wings beat, they come off the floor, and the jaws shake them | three shadows open, three of them take a hold each, and they disagree |
+| **ADAPTED** | the wheel turns once. The swing only opens them | the wheel turns again and the same swing follows all the way through, into the floor | the wheel turns a third time and stops. Overhead, straight down, and the line goes past them |
+| **IN THE GARDEN** | the floor lights and every shadow within reach opens at once | eight of them come out one after another, from eight directions | everything goes back into the floor and Mahoraga comes down through the middle |
+
+He never touches anybody in any of them, so all four **pose him** through
+`JJFEVER.perform` — the call, the hold, and the hand that closes it — and the
+poses go in the shared `finPose` table by name, so every other screen plays
+the same three beats off nothing but the name and the clock.
+
+That table is also where a bug had been sitting since the fever finishers
+were written: `FIN.remote` runs a finisher's own `run` to draw it, and `run`
+was free to call `perform` — so **watching somebody else's DRAGGED took over
+your own body**. A finisher that moves the caster now only does it on the
+screen of whoever threw it.
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — fifty of them, one
-per ability per fighter.
+and differently from every other skill in the game — fifty four of them,
+one per ability per fighter.
 
 Three things a finisher deliberately is not:
 
@@ -1193,7 +1272,7 @@ checked against each other without standing a broker up in between. That is
 how all of this is checked: two browsers, one playing every fighter in turn
 and throwing the whole kit, the other counting what arrives.
 
-**Thirty nine skills, six fighters and three awakened kits**, and for each
+**Thirty nine skills, six fighters and four awakened kits**, and for each
 one: the cast announced exactly once, the body posed, and something actually
 drawn.
 
@@ -1208,9 +1287,12 @@ drawn.
 | Sukuna | s1 | s2 | s3 | s4 | |
 | Choso awakened | ca1 | ca2 | ca3 | ca4 | |
 | Hakari in fever | ha1 | ha2 | ha3 | ha4 | |
+| Megumi awakened | ga1 | ga2 | ga3 | gdom | mgr |
 
 plus Gojo's entrance, Yuji's awakening, the finishers that take their caster
-over, and both domains.
+over, and all three domains — the garden included, which is rebuilt on the
+watching screen as the real lattice and the real arcs rather than a puff of
+rings where one happened.
 
 ## The stage
 
@@ -1462,6 +1544,7 @@ disk.
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |
 | `fever.js` | what the jackpot buys: Hakari's four fever moves, the hole-punching first person, and the aura |
+| `garden.js` | Megumi awakened: Totality, the Chimera, Mahoraga, and the Chimera Shadow Garden |
 | `finisher.js` | one short finisher per skill, and the health lock they run under |
 | `maps.js` | the stage: one white baseplate with a grid on it |
 | `mp.js` | the online mode, appended inside the game's module |

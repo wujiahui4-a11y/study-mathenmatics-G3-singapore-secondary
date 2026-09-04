@@ -36,7 +36,14 @@
   var GORE = window.JJGORE;
   var TAU = Math.PI * 2;
 
-  var F = { cd: 0, live: 0 };
+  var F = { cd: 0, live: 0, remote: false };
+
+  /* Whether the body this finisher is being performed with is ours. A
+     finisher that moves and poses the caster may only do that on the
+     screen of whoever threw it: everybody else is watching a copy of him
+     that arrives in the state packet, and taking their own body over to
+     replay it would leave them standing in somebody else's fight. */
+  function mine() { return !F.remote; }
   var COOLDOWN = 7;              // often enough to see, rare enough to mean something
 
   var FIN = window.JJFIN = {
@@ -883,7 +890,7 @@
 
         /* and he goes after them, and comes down through them */
         var FV = window.JJFEVER;
-        if (FV && FV.perform) {
+        if (mine() && FV && FV.perform) {
           FV.perform(UPTIME + CHASE + HANG + 1.1, function (a, dt, pl) {
             /* crouch, then launch */
             if (a.stage === 0 && a.t > UPTIME * .55) {
@@ -1080,7 +1087,7 @@
       } });
 
       /* and he is doing it, with an arm out to each of them */
-      if (FV2 && FV2.perform) {
+      if (mine() && FV2 && FV2.perform) {
         FV2.perform(SMASH + PULL + CLOSE + .3, function (a, dt, pl) {
           var to = mid.clone().sub(pl.pos).setY(0);
           if (to.lengthSq() > .01) pl.facing = Math.atan2(to.x, to.z);
@@ -1447,6 +1454,697 @@
         /* the swarm clears and the floor is empty */
         G.erase(e, { dir: d, power: 1.4 });
       }, 1450);
+    } },
+
+    /* =================================================================
+       MEGUMI AWAKENED
+       The four awakened moves are a chain — each one is the one before
+       it merged into something further along — so their finishers are
+       built the same way. Not one hit and a body: three beats, and the
+       thing that lands in the third could not have landed in the first.
+       They run to about three seconds, which is long enough to have
+       parts and short enough that nobody is waiting through it.
+       ============================================================== */
+
+    /* the caster's part, when it is our body he is standing in. On every
+       other screen he arrives in his own packets, so this does nothing */
+    /* 1 · TOTALITY — one hound, three passes, and it never leaves the
+       ground until the last one */
+    ga1: { name: 'RUN TO GROUND', color: '#4fd8ff', hold: 2.6, run: function (e, d, p, G) {
+      var GD = window.JJGARDEN, MG = window.JJMEGUMI;
+      var ARC = (GD && GD.ARC) || 0x4fd8ff, ARC2 = (GD && GD.ARC2) || 0x9fe8ff;
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+
+      /* one pass of it: in from twenty out, through them, and gone */
+      function pass(travel, life, delay, onHit) {
+        setTimeout(function () {
+          if (typeof scene === 'undefined' || !GD || !GD.buildTotality) { if (onHit) onHit(null, travel); return; }
+          var g = GD.buildTotality();
+          var from = floor.clone().addScaledVector(travel, -20);
+          var to = floor.clone().addScaledVector(travel, 20);
+          g.position.copy(from);
+          g.rotation.y = Math.atan2(travel.x, travel.z);
+          scene.add(g);
+          if (MG && MG.pool) MG.pool(new THREE.Vector3(from.x, 0, from.z), 6, .5);
+          var t = 0, bound = 0, hit = false;
+          addFx({ t: 1e9, update: function (dt) {
+            t += dt; bound += dt * 21;
+            var k = Math.min(1, t / life);
+            g.position.lerpVectors(from, to, k);
+            g.position.y = Math.abs(Math.sin(bound)) * .8;
+            if (g.__legs) g.__legs.forEach(function (l, n) {
+              l.rotation.x = Math.sin(bound + (n % 2 ? Math.PI : 0)) * 1.1;
+            });
+            if (GD.arc && Math.random() < dt * 12) {
+              GD.arc(g.position.clone().add(up(1.8)), travel.clone().negate(),
+                { reach: 6, depth: 1, life: .18 });
+            }
+            if (!hit && k >= .5) { hit = true; if (onHit) onHit(g, travel); }
+            if (k >= 1) {
+              if (MG && MG.dismiss) MG.dismiss(g, g.position.clone()); else scene.remove(g);
+              return false;
+            }
+            return true;
+          } });
+        }, delay);
+      }
+
+      FX.speedRing(p, ARC2, 12, .3);
+      if (MG && MG.pool) MG.pool(floor.clone(), 8, 2.4);
+      addShake(1.2);
+
+      /* BEAT ONE — through the back of the legs. They go down on a knee */
+      pass(d.clone().negate(), .62, 0, function (g, tr) {
+        FX.impact(p.clone().add(up(-1.6)), ARC, 2.2);
+        FX.slash(p.clone().add(up(-1.4)), tr, 0xe8ecf5, 5, .16);
+        FX.blood(p.clone().add(up(-1.4)), tr, 9, 1.4);
+        if (typeof hitstop === 'function') hitstop(.06);
+        addShake(1);
+        if (e && !e.dead) {
+          e.anchorT = .5;
+          e.anchorPos.copy(floor).add(up(1.1));
+          e.stunT = Math.max(e.stunT || 0, .6);
+        }
+      });
+
+      /* BEAT TWO — back across the other way, and now they are flat */
+      pass(side.clone(), .58, 850, function (g, tr) {
+        FX.impact(p.clone().add(up(-.8)), ARC2, 2.8);
+        FX.slash(p.clone().add(up(-.8)), tr, 0xffffff, 7, .18);
+        FX.blood(p.clone().add(up(-.8)), tr, 13, 1.9);
+        FX.mangaLines(.7, .24);
+        if (typeof hitstop === 'function') hitstop(.09);
+        addShake(1.8);
+        if (e && !e.dead) {
+          e.anchorT = .5;
+          e.anchorPos.copy(floor).addScaledVector(tr, 3.2).add(up(.5));
+        }
+      });
+
+      /* BEAT THREE — straight up out of the floor under them. Under where
+         they ARE: the second pass skids them sideways, and a shadow that
+         opens where they used to be is a shadow that misses. */
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        var spot = (e && !e.dead) ? new THREE.Vector3(e.pos.x, 0, e.pos.z) : floor.clone();
+        if (MG && MG.pool) MG.pool(spot.clone(), 5.5, 1.2);
+        FX.rings(new THREE.Vector3(spot.x, .12, spot.z), ARC, 3,
+          { maxR: 12, life: .5, gap: 44 });
+        var g = (GD && GD.buildTotality) ? GD.buildTotality() : null;
+        if (g) {
+          g.position.set(spot.x, -9, spot.z);
+          g.rotation.y = Math.atan2(-d.x, -d.z);
+          g.rotation.x = -1.15;                       // nose up, out of the ground
+          scene.add(g);
+        }
+        var t = 0, bit = false;
+        addFx({ t: 1e9, update: function (dt) {
+          t += dt;
+          if (g) g.position.y = -9 + 34 * t;
+          if (GD && GD.arc && Math.random() < dt * 26) {
+            GD.arc(new THREE.Vector3(spot.x, Math.max(0, (g ? g.position.y : 0) + 1), spot.z),
+              new THREE.Vector3((Math.random() - .5), 1, (Math.random() - .5)),
+              { reach: 9, depth: 2, life: .24 });
+          }
+          if (e && !e.dead && !bit) {
+            e.anchorT = .4;
+            e.anchorPos.copy(spot).add(up(Math.max(0, 34 * t - 7)));
+            e.pos.lerp(e.anchorPos, Math.min(1, dt * 14));
+            e.vel.set(0, 0, 0);
+          }
+          if (!bit && t > .34) {
+            bit = true;
+            var hitAt = spot.clone().add(up(6));
+            FX.flash('#cdf0ff', .5, .26);
+            FX.impact(hitAt, ARC2, 4);
+            FX.cross(hitAt, 0xffffff, 10, .3);
+            FX.speedRing(hitAt, ARC, 16, .34);
+            FX.mangaLines(1, .32);
+            if (typeof hitstop === 'function') hitstop(.2);
+            addShake(3.4);
+            if (e) e.anchorT = 0;
+            G.dice(e, { dir: up(1), power: 2.2, cubes: 24 });
+          }
+          if (t > .9) {
+            if (g) { if (MG && MG.dismiss) MG.dismiss(g, g.position.clone()); else scene.remove(g); }
+            return false;
+          }
+          return true;
+        } });
+      }, 1750);
+
+      /* and he is the one doing it: point, sign, and drive it down */
+      if (mine() && window.JJFEVER && window.JJFEVER.perform) {
+        window.JJFEVER.perform(2.7, function (a, dt, pl) {
+          var to = floor.clone().sub(pl.pos).setY(0);
+          if (to.lengthSq() > .01) pl.facing = Math.atan2(to.x, to.z);
+          pl.vel.set(0, 0, 0);
+        }, null, 'mgaOne');
+      }
+    } },
+
+    /* 2 · CHIMERA — three different things share a body, so they take
+       hold of them in three places and then disagree about where to go */
+    ga2: { name: 'PULLED THREE WAYS', color: '#9fe8ff', hold: 2.75, run: function (e, d, p, G) {
+      var GD = window.JJGARDEN, MG = window.JJMEGUMI;
+      var ARC = (GD && GD.ARC) || 0x4fd8ff, ARC2 = (GD && GD.ARC2) || 0x9fe8ff;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var TOP = 13;
+      var lift = 0, made = [];
+
+      function chimeraAt(ang, dist, y) {
+        var away = new THREE.Vector3(Math.cos(ang), 0, Math.sin(ang));
+        var at = floor.clone().addScaledVector(away, dist).add(up(y));
+        var c = (GD && GD.buildChimera) ? GD.buildChimera() : null;
+        if (!c) return null;
+        c.position.copy(at);
+        c.rotation.y = Math.atan2(-away.x, -away.z);
+        scene.add(c);
+        made.push(c);
+        if (MG && MG.pool) MG.pool(new THREE.Vector3(at.x, 0, at.z), 5, 1.2);
+        return c;
+      }
+      /* the tongue is the part that reaches: stretch it from the body to
+         wherever they are, every frame */
+      function reach(c, target) {
+        if (!c || !c.__tongue) return;
+        var len = c.position.distanceTo(target);
+        var seg = Math.max(.6, len / c.__tongue.length);
+        c.__tongue.forEach(function (m, i) {
+          m.position.z = 2 + seg * i;
+          m.scale.z = seg / 1.2;
+        });
+        var to = target.clone().sub(c.position);
+        c.rotation.y = Math.atan2(to.x, to.z);
+        c.rotation.x = -Math.asin(Math.max(-1, Math.min(1, to.y / Math.max(.01, len))));
+      }
+
+      FX.speedRing(p, ARC2, 13, .32);
+      addShake(1.3);
+
+      /* Everything in this stands on the FAR side of them. The first cut
+         of it put one of the three on the caster's own side, at fourteen
+         units — which is where the chase camera lives, so the last beat
+         played from inside a chimera's ribs. */
+      var far = Math.atan2(d.z, d.x);
+
+      /* BEAT ONE — the tongue comes out of a shadow and takes them off
+         their feet, in toward the jaws */
+      var lead = chimeraAt(far, 15, 1.4);
+      var t1 = 0, caught = false;
+      addFx({ t: 1e9, update: function (dt) {
+        t1 += dt;
+        if (!e || e.dead || typeof scene === 'undefined') return false;
+        var tgt = e.pos.clone().add(up(2.4));
+        if (lead) {
+          if (lead.__wings) lead.__wings.forEach(function (w, i) {
+            w.rotation.z = Math.sin(t1 * 12) * .6 * (i ? -1 : 1);
+          });
+          if (lead.__jaw) lead.__jaw.rotation.x = .4 + Math.sin(t1 * 7) * .25;
+          reach(lead, tgt);
+        }
+        if (!caught && t1 > .28) {
+          caught = true;
+          FX.impact(tgt.clone(), 0x5e2038, 2);
+          FX.blood(tgt.clone(), d.clone().negate(), 8, 1.3);
+          if (typeof hitstop === 'function') hitstop(.06);
+          addShake(1.1);
+        }
+        /* and it hauls them in */
+        if (caught && lead) {
+          var pull = lead.position.clone().sub(e.pos).setY(0);
+          if (pull.length() > 5) pull.normalize(); else pull.set(0, 0, 0);
+          e.anchorT = .4;
+          e.anchorPos.copy(e.pos).addScaledVector(pull, dt * 17).add(up(0));
+          e.anchorPos.y = Math.max(0, e.pos.y);
+          e.pos.lerp(e.anchorPos, Math.min(1, dt * 12));
+          e.vel.set(0, 0, 0);
+          if (GD && GD.arc && Math.random() < dt * 9) {
+            GD.arc(tgt.clone(), new THREE.Vector3((Math.random() - .5), .6, (Math.random() - .5)),
+              { reach: 6, depth: 1, life: .18 });
+          }
+        }
+        return t1 < .88;
+      } });
+
+      /* BEAT TWO — the wings, and the jaws, and they are off the floor */
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        FX.speedRing(p.clone(), ARC, 15, .3);
+        FX.mangaLines(.8, .26);
+        addShake(1.6);
+        var t2 = 0, shakes = 0;
+        addFx({ t: 1e9, update: function (dt) {
+          t2 += dt;
+          if (!e || e.dead || typeof scene === 'undefined') return false;
+          lift = Math.min(1, t2 / .5);
+          if (lead) {
+            lead.position.y = 1.4 + TOP * lift;
+            if (lead.__wings) lead.__wings.forEach(function (w, i) {
+              w.rotation.z = Math.sin(t2 * 20) * .9 * (i ? -1 : 1);
+            });
+            if (lead.__jaw) lead.__jaw.rotation.x = .12 + Math.abs(Math.sin(t2 * 14)) * .5;
+            reach(lead, e.pos.clone().add(up(2.4)));
+          }
+          e.anchorT = .4;
+          /* shaken side to side in the jaws */
+          var wob = Math.sin(t2 * 26) * .9 * lift;
+          e.anchorPos.set(floor.x + wob, TOP * lift, floor.z - wob * .6);
+          e.pos.lerp(e.anchorPos, Math.min(1, dt * 15));
+          e.vel.set(0, 0, 0);
+          if (t2 > .5 && shakes < 4 && t2 > .5 + shakes * .13) {
+            shakes++;
+            var at2 = e.pos.clone().add(up(2.4));
+            FX.impact(at2, shakes % 2 ? ARC2 : 0x5e2038, 1.6);
+            FX.blood(at2, new THREE.Vector3(wob, 0, 0), 7, 1.2);
+            addShake(.8);
+          }
+          return t2 < .92;
+        } });
+      }, 900);
+
+      /* BEAT THREE — three of them, one hold each, and they pull */
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        var three = [];
+        for (var i = -1; i <= 1; i++) {
+          var c = chimeraAt(far + i * 1.9, 19, TOP - 1);
+          if (c) three.push(c);
+        }
+        FX.flash('#cdf0ff', .4, .22);
+        FX.mangaLines(1, .3);
+        addShake(2);
+        var t3 = 0, torn = false;
+        addFx({ t: 1e9, update: function (dt) {
+          t3 += dt;
+          if (typeof scene === 'undefined') return false;
+          var tgt = e && !e.dead ? e.pos.clone().add(up(2.4)) : floor.clone().add(up(TOP));
+          three.forEach(function (c, i) {
+            reach(c, tgt);
+            /* each of them backs off, and they are all holding on */
+            var away = c.position.clone().sub(floor).setY(0).normalize();
+            c.position.addScaledVector(away, dt * (torn ? 22 : 3.4));
+            if (c.__jaw) c.__jaw.rotation.x = .1;
+          });
+          if (e && !e.dead && !torn) {
+            e.anchorT = .4;
+            e.anchorPos.set(floor.x, TOP, floor.z);
+            e.pos.lerp(e.anchorPos, Math.min(1, dt * 12));
+            e.vel.set(0, 0, 0);
+            if (GD && GD.arc && Math.random() < dt * 20) {
+              GD.arc(tgt.clone(), new THREE.Vector3((Math.random() - .5), (Math.random() - .5), (Math.random() - .5)),
+                { reach: 8, depth: 2, life: .2 });
+            }
+          }
+          if (!torn && t3 > .55) {
+            torn = true;
+            FX.flash('#ffffff', .6, .26);
+            FX.impact(tgt.clone(), 0xffffff, 4.2);
+            FX.cross(tgt.clone(), 0xffffff, 11, .3);
+            FX.blood(tgt.clone(), new THREE.Vector3(1, 0, 0), 24, 2.6);
+            FX.mangaLines(1, .34);
+            if (typeof hitstop === 'function') hitstop(.22);
+            addShake(3.6);
+            if (e) e.anchorT = 0;
+            G.dice(e, { dir: new THREE.Vector3(1, .2, 0), power: 2.6, cubes: 28 });
+          }
+          if (t3 > 1.15) {
+            made.forEach(function (c) {
+              if (MG && MG.dismiss) MG.dismiss(c, c.position.clone()); else scene.remove(c);
+            });
+            return false;
+          }
+          return true;
+        } });
+      }, 1850);
+
+      if (mine() && window.JJFEVER && window.JJFEVER.perform) {
+        window.JJFEVER.perform(2.85, function (a, dt, pl) {
+          var to = floor.clone().sub(pl.pos).setY(0);
+          if (to.lengthSq() > .01) pl.facing = Math.atan2(to.x, to.z);
+          pl.vel.set(0, 0, 0);
+        }, null, 'mgaTwo');
+      }
+    } },
+
+    /* 3 · MAHORAGA — it is not that it hits harder each time. It is that
+       the same swing works, and then works better, and then there is
+       nothing left for it to work on */
+    ga3: { name: 'ADAPTED', color: '#ffb03a', hold: 3.05, run: function (e, d, p, G) {
+      var GD = window.JJGARDEN, MG = window.JJMEGUMI;
+      var ARC = (GD && GD.ARC) || 0x4fd8ff, ARC2 = (GD && GD.ARC2) || 0x9fe8ff;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var stand = floor.clone().addScaledVector(d, 9);
+      var m = (GD && GD.buildMahoraga) ? GD.buildMahoraga() : null;
+      var turns = 0;
+
+      if (MG && MG.pool) MG.pool(new THREE.Vector3(stand.x, 0, stand.z), 12, 3.4);
+      FX.cracks(new THREE.Vector3(stand.x, .05, stand.z), 14, 20, 0x101020);
+      if (m) {
+        m.position.set(stand.x, -18, stand.z);
+        m.rotation.y = Math.atan2(-d.x, -d.z);
+        scene.add(m);
+      }
+
+      /* it comes up out of the shadow, and then it stands there while the
+         wheel does the work */
+      var t = 0, spin = 0, rate = 1.6, swing = 0, wound = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        if (m) {
+          m.position.y = Math.min(0, -18 + 46 * t);
+          spin += dt * rate;
+          if (m.__wheel) m.__wheel.rotation.z = spin;
+          /* the arm winds back and comes across; `wound` is where in the
+             swing it is, and each beat sets it going again */
+          if (m.__arms && m.__arms[1]) m.__arms[1].rotation.z = 0;
+          if (m.__blade) {
+            m.__blade.rotation.y = swing;
+            m.__blade.rotation.z = wound;
+          }
+        }
+        if (GD && GD.arc && m && Math.random() < dt * 10) {
+          GD.arc(m.position.clone().add(up(12.4)),
+            new THREE.Vector3((Math.random() - .5), (Math.random() - .5) * .4, (Math.random() - .5)),
+            { reach: 9, depth: 2, life: .24 });
+        }
+        return t < 3.1;
+      } });
+
+      /* one turn of the wheel, and the swing that comes out of it */
+      function turn(delay, power, then) {
+        setTimeout(function () {
+          if (typeof scene === 'undefined') return;
+          turns++;
+          rate = 1.6 + turns * 5.5;                 // it turns faster every time
+          /* the wheel making up its mind */
+          if (m && m.__wheel) {
+            for (var i = 0; i < 5 + turns * 3; i++) {
+              if (GD && GD.arc) {
+                GD.arc(m.position.clone().add(up(12.4)),
+                  new THREE.Vector3(Math.cos(i), (Math.random() - .5), Math.sin(i)).normalize(),
+                  { reach: 8 + turns * 4, depth: 2, life: .3 });
+              }
+            }
+          }
+          FX.speedRing(stand.clone().add(up(12.4)), ARC2, 6 + turns * 3, .3);
+          addShake(.8 + turns * .4);
+          /* the swing, a beat behind it */
+          var s = 0;
+          addFx({ t: 1e9, update: function (dt) {
+            s += dt;
+            wound = -1.5 + Math.min(1, s / .26) * 3.2;
+            swing = -1.1 + Math.min(1, s / .26) * 2.2;
+            return s < .3;
+          } });
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            if (then) then(power);
+          }, 260);
+        }, delay);
+      }
+
+      /* BEAT ONE — the wheel turns once. It only opens them */
+      turn(0, 1, function () {
+        var hitAt = p.clone();
+        FX.slash(hitAt, d.clone().negate(), 0xb8c2d8, 8, .2);
+        FX.impact(hitAt, 0xb8c2d8, 2.2);
+        FX.blood(hitAt, d.clone().negate(), 10, 1.5);
+        if (typeof hitstop === 'function') hitstop(.07);
+        addShake(1.2);
+        if (e && !e.dead) {
+          e.stunT = Math.max(e.stunT || 0, .5);
+          e.anchorT = .4;
+          e.anchorPos.copy(floor).addScaledVector(d, -1.4).add(up(1.2));
+        }
+      });
+
+      /* BEAT TWO — the wheel turns again, and the same swing follows all
+         the way through. Down into the floor */
+      turn(1000, 2, function () {
+        var hitAt = p.clone().add(up(-.6));
+        FX.slash(hitAt, d.clone().negate(), 0xffffff, 12, .24);
+        FX.slash(hitAt.clone().add(up(-.8)), d.clone().negate(), ARC2, 10, .22);
+        FX.impact(hitAt, 0xffffff, 3.4);
+        FX.blood(hitAt, new THREE.Vector3(-d.x, .3, -d.z), 18, 2.2);
+        FX.mangaLines(.9, .28);
+        FX.rings(new THREE.Vector3(floor.x, .12, floor.z), ARC, 3, { maxR: 16, life: .6, gap: 40 });
+        FX.dust(new THREE.Vector3(floor.x, 0, floor.z), 10, 0xb9bfc9, 14, 4);
+        if (typeof hitstop === 'function') hitstop(.14);
+        addShake(2.4);
+        if (e && !e.dead) {
+          e.anchorT = .5;
+          e.anchorPos.copy(floor).add(up(.4));
+          e.stunT = Math.max(e.stunT || 0, .8);
+        }
+      });
+
+      /* BEAT THREE — the wheel turns a third time and stops. Overhead,
+         straight down, and the line it leaves goes past them */
+      turn(2050, 3, function () {
+        rate = 0;
+        var hitAt = p.clone().add(up(-.4));
+        FX.flash('#ffffff', .7, .3);
+        FX.tint('#0b1826', .5, .3);
+        /* the blade coming down, drawn as the one long line it is */
+        var bolt = FX.billboard(FX.T.bolt, 0xffffff, 1);
+        var a1 = new THREE.Vector3(floor.x, 26, floor.z);
+        var a2 = new THREE.Vector3(floor.x, 0, floor.z);
+        var len = FX.orientAlong(bolt, a1, a2);
+        bolt.scale.set(len, len * .1, 1);
+        scene.add(bolt);
+        addFx({ t: .4, update: function (dd) {
+          this.t -= dd;
+          bolt.material.opacity = Math.max(0, this.t / .4);
+          if (this.t <= 0) { scene.remove(bolt); bolt.material.dispose(); return false; }
+          return true;
+        } });
+        for (var i = 0; i < 10; i++) {
+          if (GD && GD.arc) {
+            GD.arc(new THREE.Vector3(floor.x, 1 + i * 2.4, floor.z),
+              new THREE.Vector3((Math.random() - .5), (Math.random() - .5) * .5, (Math.random() - .5)).normalize(),
+              { reach: 14, depth: 3, life: .4 });
+          }
+        }
+        FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 22, 30, 0x101020);
+        FX.rings(new THREE.Vector3(floor.x, .12, floor.z), ARC2, 5, { maxR: 30, life: .9, gap: 44 });
+        FX.mangaLines(1, .36);
+        if (typeof hitstop === 'function') hitstop(.26);
+        addShake(4.2);
+        if (e) e.anchorT = 0;
+        G.erase(e, { color: ARC2, dir: up(-1), power: 2 });
+        /* and it goes back down where it came from */
+        setTimeout(function () {
+          if (typeof scene === 'undefined' || !m) return;
+          if (MG && MG.pool) MG.pool(new THREE.Vector3(stand.x, 0, stand.z), 11, 1.4);
+          var s = 0;
+          addFx({ t: 1e9, update: function (dt) {
+            s += dt;
+            m.position.y = -22 * s;
+            if (s > .9) {
+              scene.remove(m);
+              m.traverse(function (o) { if (o.isMesh && o.material) o.material.dispose(); });
+              return false;
+            }
+            return true;
+          } });
+        }, 500);
+      });
+
+      if (mine() && window.JJFEVER && window.JJFEVER.perform) {
+        window.JJFEVER.perform(3.15, function (a, dt, pl) {
+          var to = floor.clone().sub(pl.pos).setY(0);
+          if (to.lengthSq() > .01) pl.facing = Math.atan2(to.x, to.z);
+          pl.vel.set(0, 0, 0);
+        }, null, 'mgaThree');
+      }
+    } },
+
+    /* 4 · CHIMERA SHADOW GARDEN — inside it every surface is a shadow, so
+       there is no direction for anything to not come from */
+    gdom: { name: 'IN THE GARDEN', color: '#d8365e', hold: 3.2, run: function (e, d, p, G) {
+      var GD = window.JJGARDEN, MG = window.JJMEGUMI;
+      var ARC = (GD && GD.ARC) || 0x4fd8ff, ARC2 = (GD && GD.ARC2) || 0x9fe8ff;
+      var GRID = (GD && GD.GRID) || 0xd8365e;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+
+      /* BEAT ONE — the floor under them lights, and every shadow within
+         reach of them opens at once */
+      FX.rings(new THREE.Vector3(floor.x, .1, floor.z), GRID, 4, { maxR: 20, life: 1.1, gap: 36 });
+      FX.tint('#12040b', .45, .5);
+      addShake(1.2);
+      var opened = [];
+      for (var i = 0; i < 10; i++) {
+        var a = i / 10 * TAU;
+        var at = floor.clone().add(new THREE.Vector3(Math.cos(a) * (5 + Math.random() * 7), 0,
+          Math.sin(a) * (5 + Math.random() * 7)));
+        opened.push(at);
+        if (MG && MG.pool) MG.pool(at, 2.4 + Math.random() * 1.6, 3.2);
+      }
+      var crack = (GD && GD.crackle)
+        ? GD.crackle(function () { return e && !e.dead ? e.pos.clone() : null; },
+            function () { return !!e && !e.dead; })
+        : null;
+      var t0 = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t0 += dt;
+        if (!e || e.dead) return false;
+        e.anchorT = .4;
+        e.anchorPos.copy(floor).add(up(.2));
+        e.pos.lerp(e.anchorPos, Math.min(1, dt * 8));
+        e.vel.set(0, 0, 0);
+        e.stunT = Math.max(e.stunT || 0, .4);
+        return t0 < 3;
+      } });
+
+      /* BEAT TWO — and then they come out. One after another, from ten
+         directions, and none of them stops for the last one */
+      var STRIKE = [
+        function (at, away) {                       // the hound
+          var g = (GD && GD.buildTotality) ? GD.buildTotality() : (MG && MG.buildDog ? MG.buildDog(false) : null);
+          return { obj: g, y: 0, speed: 34, color: ARC };
+        },
+        function () {                               // the serpent
+          return { obj: MG && MG.buildSnake ? MG.buildSnake() : null, y: 2.2, speed: 40, color: 0x7b7bb8 };
+        },
+        function () {                               // the chimera itself
+          return { obj: GD && GD.buildChimera ? GD.buildChimera() : null, y: 3.4, speed: 30, color: ARC2 };
+        },
+        function () {                               // Nue
+          return { obj: MG && MG.buildNue ? MG.buildNue() : null, y: 6.5, speed: 36, color: 0xa9b6e8 };
+        }
+      ];
+      var shots = 8;
+      for (var s = 0; s < shots; s++) {
+        (function (n) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            var ang = (n / shots) * TAU + .7;
+            var away = new THREE.Vector3(Math.cos(ang), 0, Math.sin(ang));
+            var spec = STRIKE[n % STRIKE.length]();
+            var from = floor.clone().addScaledVector(away, 17).add(up(spec.y));
+            var to = floor.clone().addScaledVector(away, -13).add(up(spec.y));
+            var o = spec.obj;
+            if (o) {
+              o.position.copy(from);
+              o.rotation.y = Math.atan2(-away.x, -away.z);
+              scene.add(o);
+            }
+            if (MG && MG.pool) MG.pool(new THREE.Vector3(from.x, 0, from.z), 4, .6);
+            var t = 0, hit = false, life = 30 / spec.speed;
+            addFx({ t: 1e9, update: function (dt) {
+              t += dt;
+              var k = Math.min(1, t / life);
+              if (o) {
+                o.position.lerpVectors(from, to, k);
+                if (o.__wings) o.__wings.forEach(function (w, i) {
+                  w.rotation.z = Math.sin(t * 22) * .8 * (i ? -1 : 1);
+                });
+                if (o.__legs) o.__legs.forEach(function (l, j) {
+                  l.rotation.x = Math.sin(t * 24 + (j % 2 ? Math.PI : 0)) * 1.1;
+                });
+                if (o.__segs) o.__segs.forEach(function (sg, j) {
+                  sg.position.x = Math.sin(t * 16 - j * .6) * .5;
+                });
+              }
+              if (!hit && k >= .5) {
+                hit = true;
+                var at = floor.clone().add(up(spec.y + 1.4));
+                FX.impact(at, spec.color, 2 + (n % 3) * .4);
+                FX.slash(at, away.clone().negate(), 0xe8ecf5, 6, .16);
+                FX.blood(at, away.clone().negate(), 8, 1.4);
+                if (GD && GD.arc) {
+                  GD.arc(at.clone(), away.clone().negate(), { reach: 12, depth: 2, life: .26 });
+                }
+                if (typeof hitstop === 'function') hitstop(.05);
+                addShake(.9 + n * .12);
+                if (e && !e.dead) {
+                  e.anchorT = .4;
+                  e.anchorPos.copy(floor).add(up(Math.min(6, n * .8)));
+                  e.pos.lerp(e.anchorPos, .5);
+                }
+              }
+              if (k >= 1) {
+                if (o) { if (MG && MG.dismiss) MG.dismiss(o, o.position.clone()); else scene.remove(o); }
+                return false;
+              }
+              return true;
+            } });
+          }, 1000 + n * 120);
+        })(s);
+      }
+
+      /* BEAT THREE — everything goes back into the floor, and the last
+         thing in the garden is the one that adapted */
+      setTimeout(function () {
+        if (typeof scene === 'undefined') return;
+        if (crack) crack.stop();
+        opened.forEach(function (at) { if (MG && MG.pool) MG.pool(at, 3.4, .8); });
+        FX.mangaLines(1, .34);
+        FX.speedRing(floor.clone().add(up(3)), ARC2, 20, .4);
+        addShake(1.8);
+
+        var m = (GD && GD.buildMahoraga) ? GD.buildMahoraga() : null;
+        if (m) {
+          m.position.set(floor.x, 34, floor.z);
+          m.rotation.y = Math.atan2(-d.x, -d.z);
+          m.rotation.x = Math.PI;                    // coming down head first
+          scene.add(m);
+        }
+        var t2 = 0, split = false;
+        addFx({ t: 1e9, update: function (dt) {
+          t2 += dt;
+          if (typeof scene === 'undefined') return false;
+          if (m) {
+            m.position.y = 34 - 78 * t2;
+            if (m.__wheel) m.__wheel.rotation.z += dt * 26;
+          }
+          if (GD && GD.arc && Math.random() < dt * 40) {
+            GD.arc(new THREE.Vector3(floor.x, Math.max(1, m ? m.position.y : 10), floor.z),
+              new THREE.Vector3((Math.random() - .5), (Math.random() - .5) * .4, (Math.random() - .5)).normalize(),
+              { reach: 16, depth: 3, life: .3 });
+          }
+          if (!split && t2 > .42) {
+            split = true;
+            FX.flash('#ffffff', .8, .34);
+            FX.tint('#2a0410', .6, .4);
+            /* the whole floor grid answers it */
+            for (var i = 0; i < 7; i++) {
+              FX.ring(new THREE.Vector3(floor.x, .12 + i * .02, floor.z), GRID,
+                { maxR: 12 + i * 6, life: .8 + i * .06 });
+            }
+            for (i = 0; i < 16; i++) {
+              GD && GD.arc && GD.arc(new THREE.Vector3(floor.x, 2, floor.z),
+                new THREE.Vector3(Math.cos(i / 16 * TAU), .2 + Math.random() * .5, Math.sin(i / 16 * TAU)),
+                { reach: 30, depth: 3, life: .6 });
+            }
+            FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 26, 34, 0x2a0410);
+            FX.debris(new THREE.Vector3(floor.x, 0, floor.z), 22, 26, 0x1a1a2c);
+            if (typeof hitstop === 'function') hitstop(.28);
+            addShake(4.6);
+            if (e) e.anchorT = 0;
+            G.erase(e, { color: GRID, dir: up(-1), power: 2.4 });
+          }
+          if (t2 > 1.05) {
+            if (m) {
+              scene.remove(m);
+              m.traverse(function (o) { if (o.isMesh && o.material) o.material.dispose(); });
+            }
+            return false;
+          }
+          return true;
+        } });
+      }, 2100);
+
+      if (mine() && window.JJFEVER && window.JJFEVER.perform) {
+        window.JJFEVER.perform(3.3, function (a, dt, pl) {
+          var to = floor.clone().sub(pl.pos).setY(0);
+          if (to.lengthSq() > .01) pl.facing = Math.atan2(to.x, to.z);
+          pl.vel.set(0, 0, 0);
+        }, null, 'mgaFour');
+      }
     } },
 
     /* F · Idle Death Gamble — the machine pays out, with them in it */
@@ -1842,8 +2540,170 @@
     s1: 'dice', s2: 'sever', s3: 'burn', s4: 'dice',
     c1: 'sever', c1s: 'gone', c2: 'flat', c3: 'dice', c4: 'sever', cr: 'sever',
     ca1: 'sever', ca2: 'flat', ca3: 'sever', ca4: 'sever',
-    mg1: 'dice', mg2: 'burn', mg3: 'gone', mg4: 'flat', mgr: 'gone'
+    mg1: 'dice', mg2: 'burn', mg3: 'gone', mg4: 'flat', mgr: 'gone',
+    ga1: 'dice', ga2: 'dice', ga3: 'gone', gdom: 'gone'
   };
+
+  /* =====================================================================
+     WHAT MEGUMI IS DOING WHILE IT HAPPENS
+     He never touches anybody: the shikigami do it and he stands there
+     and calls them. So his four awakened finishers pose him in three
+     beats each — the call, the hold, and the hand that closes it — and
+     the poses go in the shared table by name so every other screen can
+     play them off nothing but the name and the clock.
+     ================================================================== */
+  (function registerPoses() {
+    var FV = window.JJFEVER;
+    if (!FV || !FV.finPose) return;
+
+    function sign(r, k) {                     // both hands together, in front
+      r.shoulderL.rotation.x = -1.1 * k; r.shoulderR.rotation.x = -1.1 * k;
+      r.shoulderL.rotation.z = .5 * k; r.shoulderR.rotation.z = -.5 * k;
+      r.elbowL.rotation.x = -1.5 * k; r.elbowR.rotation.x = -1.5 * k;
+    }
+    function stance(r, k) {                   // weight down, feet apart
+      r.hipL.rotation.x = -.16 * k; r.hipR.rotation.x = .1 * k;
+      r.kneeL.rotation.x = .3 * k; r.kneeR.rotation.x = .22 * k;
+      r.hips.position.y = r.hipsBaseY - .22 * k;
+    }
+
+    /* 1 · point it at them, close the sign, drive it into the floor */
+    FV.finPose.mgaOne = function (r, a, out) {
+      var t = a.t, k;
+      stance(r, 1);
+      if (t < .85) {                          // the arm out, following the run
+        k = out(Math.min(1, t / .3));
+        r.shoulderR.rotation.x = -1.55 * k;
+        r.shoulderR.rotation.z = -.2 * k + Math.sin(t * 3) * .25 * k;
+        r.elbowR.rotation.x = -.14;
+        r.shoulderL.rotation.x = -.2 * k;
+        r.spine.rotation.y = -.2 * k;
+        r.neck.rotation.y = .2 * k;
+      } else if (t < 1.75) {                  // the sign
+        k = out(Math.min(1, (t - .85) / .28));
+        sign(r, k);
+        r.shoulderR.rotation.x = -1.55 + .45 * k;
+        r.spine.rotation.x = .12 * k;
+        r.spine.rotation.y = -.2 + .2 * k;
+        r.neck.rotation.x = .12 * k;
+      } else {                                // and both hands down, hard
+        k = out(Math.min(1, (t - 1.75) / .22));
+        sign(r, 1 - k);
+        r.shoulderL.rotation.x = -1.1 + 2.0 * k;
+        r.shoulderR.rotation.x = -1.1 + 2.0 * k;
+        r.shoulderL.rotation.z = .5 - .34 * k;
+        r.shoulderR.rotation.z = -.5 + .34 * k;
+        r.elbowL.rotation.x = -1.5 + 1.4 * k;
+        r.elbowR.rotation.x = -1.5 + 1.4 * k;
+        r.spine.rotation.x = .12 + .38 * k;
+        r.neck.rotation.x = .12 + .3 * k;
+        r.hips.position.y = r.hipsBaseY - .22 - .3 * k;
+        r.kneeL.rotation.x = .3 + .5 * k; r.kneeR.rotation.x = .22 + .5 * k;
+      }
+    };
+
+    /* 2 · a hand across to call it, the same hand up as it lifts them,
+       and then both arms opened wide, which is the pull */
+    FV.finPose.mgaTwo = function (r, a, out) {
+      var t = a.t, k;
+      stance(r, 1);
+      if (t < .9) {                           // the sweep
+        k = out(Math.min(1, t / .26));
+        r.shoulderR.rotation.x = -1.5 * k;
+        r.shoulderR.rotation.z = -1.2 + 1.05 * k;
+        r.elbowR.rotation.x = -.3 * k;
+        r.shoulderL.rotation.x = -.3 * k;
+        r.spine.rotation.y = .35 - .5 * k;
+        r.neck.rotation.y = -.1 * k;
+      } else if (t < 1.85) {                  // and it goes up, and so does he
+        k = out(Math.min(1, (t - .9) / .34));
+        r.shoulderR.rotation.x = -1.5 - 1.2 * k;
+        r.shoulderR.rotation.z = -.15;
+        r.shoulderL.rotation.x = -.3 - 2.0 * k;
+        r.elbowR.rotation.x = -.3 + .3 * k;
+        r.spine.rotation.x = -.16 * k;
+        r.neck.rotation.x = -.42 * k;
+        r.hips.position.y = r.hipsBaseY - .22 + .18 * k;
+      } else {                                // both arms opened, and held
+        k = out(Math.min(1, (t - 1.85) / .2));
+        r.shoulderL.rotation.x = -2.3 + .9 * k;
+        r.shoulderR.rotation.x = -2.7 + 1.3 * k;
+        r.shoulderL.rotation.z = 1.35 * k;
+        r.shoulderR.rotation.z = -1.35 * k;
+        r.elbowL.rotation.x = -.1; r.elbowR.rotation.x = -.1;
+        r.spine.rotation.x = -.16 - .1 * k;
+        r.neck.rotation.x = -.42 + .2 * k;
+      }
+    };
+
+    /* 3 · the sign held while the wheel turns, opened as it turns again,
+       and thrown down on the third */
+    FV.finPose.mgaThree = function (r, a, out) {
+      var t = a.t, k;
+      stance(r, 1);
+      if (t < 1.0) {                          // held
+        k = out(Math.min(1, t / .3));
+        sign(r, k);
+        r.neck.rotation.x = -.4 * k;          // watching the wheel
+        r.spine.rotation.x = -.1 * k;
+      } else if (t < 2.05) {                  // opened, slowly
+        k = out(Math.min(1, (t - 1.0) / .5));
+        sign(r, 1);
+        r.shoulderL.rotation.z = .5 + .5 * k;
+        r.shoulderR.rotation.z = -.5 - .5 * k;
+        r.elbowL.rotation.x = -1.5 + .7 * k;
+        r.elbowR.rotation.x = -1.5 + .7 * k;
+        r.neck.rotation.x = -.4 + .15 * k;
+        r.spine.rotation.x = -.1;
+      } else {                                // and thrown down
+        k = out(Math.min(1, (t - 2.05) / .24));
+        r.shoulderL.rotation.x = -1.1 + 1.1 * k;
+        r.shoulderR.rotation.x = -1.1 + 2.4 * k;
+        r.shoulderL.rotation.z = 1.0 - .7 * k;
+        r.shoulderR.rotation.z = -1.0 + .8 * k;
+        r.elbowL.rotation.x = -.8 + .6 * k;
+        r.elbowR.rotation.x = -.8 + .8 * k;
+        r.spine.rotation.x = -.1 + .5 * k;
+        r.neck.rotation.x = -.25 + .5 * k;
+        r.hips.position.y = r.hipsBaseY - .22 - .26 * k;
+        r.kneeL.rotation.x = .3 + .45 * k; r.kneeR.rotation.x = .22 + .45 * k;
+      }
+    };
+
+    /* 4 · both arms out over the whole floor, dropped while it runs, and
+       one hand closed at the end of it */
+    FV.finPose.mgaFour = function (r, a, out) {
+      var t = a.t, k;
+      stance(r, 1);
+      if (t < 1.0) {                          // the floor opened
+        k = out(Math.min(1, t / .34));
+        r.shoulderL.rotation.x = -1.5 * k; r.shoulderR.rotation.x = -1.5 * k;
+        r.shoulderL.rotation.z = 1.4 * k; r.shoulderR.rotation.z = -1.4 * k;
+        r.elbowL.rotation.x = -.12; r.elbowR.rotation.x = -.12;
+        r.spine.rotation.x = -.14 * k;
+        r.neck.rotation.x = -.2 * k;
+      } else if (t < 2.1) {                   // he lets it happen
+        k = out(Math.min(1, (t - 1.0) / .34));
+        r.shoulderL.rotation.x = -1.5 + 1.25 * k;
+        r.shoulderR.rotation.x = -1.5 + 1.25 * k;
+        r.shoulderL.rotation.z = 1.4 - 1.15 * k;
+        r.shoulderR.rotation.z = -1.4 + 1.15 * k;
+        r.elbowL.rotation.x = -.12 - .3 * k; r.elbowR.rotation.x = -.12 - .3 * k;
+        r.spine.rotation.x = -.14 + .1 * k;
+        r.spine.rotation.y = Math.sin(t * 2.2) * .07;
+        r.neck.rotation.x = -.2 + .1 * k;
+      } else {                                // and closes his hand
+        k = out(Math.min(1, (t - 2.1) / .26));
+        r.shoulderR.rotation.x = -.25 - 2.3 * k + 3.1 * k * Math.max(0, (t - 2.44) / .3);
+        r.shoulderR.rotation.z = -.25 + .1 * k;
+        r.elbowR.rotation.x = -.42 - .9 * k;
+        r.shoulderL.rotation.x = -.25 - .3 * k;
+        r.spine.rotation.x = -.04 - .12 * k;
+        r.neck.rotation.x = -.1 - .28 * k;
+        r.hips.position.y = r.hipsBaseY - .22 - .18 * k;
+      }
+    };
+  })();
 
   /* =====================================================================
      WHICH SKILL DID IT
@@ -1944,7 +2804,11 @@
     var p = (pos || ent.pos).clone().add(up(2.8));
     say(cut.name, cut.color);
     FX.zoom(-3, .25);
+    /* the caster is somebody else and arrives in their own packets — this
+       screen draws the effects and nothing else */
+    F.remote = true;
     try { cut.run(ent, d, p, onMe ? NO_KIT : realKit()); } catch (err) {}
+    F.remote = false;
   };
 
   /* the effect list, for anything that wants to know what a skill does */

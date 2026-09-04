@@ -1168,8 +1168,14 @@
 
   window.addEventListener('keydown', function (e) {
     if (!started || player.char !== 'megumi' || e.repeat) return;
+    /* This handler is registered before the awakened one, and a capture
+       listener that stops the event stops every listener after it — so
+       while the shadow is open the base kit stands down on the four and
+       lets the merged ones have them. R is his either way: the rabbits
+       are how he leaves, awake or not. */
+    if (window.JJAW && window.JJAW.megumi && e.code !== 'KeyR') return;
     if (player.react || (player.action && (player.action.type === 'kb' ||
-        player.action.type === 'void'))) {
+        player.action.type === 'void' || player.action.type === 'gaw'))) {
       if (window.JJNOTICE && Math.random() < .5) window.JJNOTICE('NO TECHNIQUE WHILE HIT', '#ff8b98');
       return;
     }
