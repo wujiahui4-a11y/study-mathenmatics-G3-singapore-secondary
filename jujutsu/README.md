@@ -978,13 +978,64 @@ off to one side, facing back.
 | **THE VERDICT** | held for it, the finding read as a column standing on them, and the gavel behind it. What is left is a seal on an empty floor |
 | **HELD IN CONTEMPT** | four docks come up and box them in, and the fifth comes up underneath |
 
+## Yuta Okkotsu
+
+**Four moves, and no R.** Everybody else on this roster has a fifth thing
+they do on their own; his fifth thing is a person, and she is already on
+`3` and `4`. His bar is the only one in the game with six entries instead
+of seven, and `R` is deliberately left alone.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Cursed Katana** 呪具・刀 | the sword — and a cut a great deal longer than the sword is |
+| `2` | **Blue** 蒼 | the one he copied. Weaker than the man he took it from, and still the second best thing in the game at pulling a fight into one spot and then letting go of it |
+| `3` | **Rika's Arm** 里香・腕 | she puts one hand through, at about six times the size of one |
+| `4` | **True Love** 完全顕現・里香 | all of her |
+
+### His energy is too much for the move it is in
+
+He is a boy with a sword doing considerably more damage than a sword does,
+so **every cut of his is drawn several times longer than the blade and
+several times wider than the swing**. That overspill is not decoration, it
+is the character: `JJYUTA.spill` draws the five metres of cut that got away
+past where the swing stopped, and it is on all four moves. The katana hits
+what the blade reached at full damage *and* what the overspill went through
+at 55 %, which is most of the road.
+
+### Rika is not a ghost
+
+She is pale, solid, lit, and she casts a shadow. The one thing she must
+never look like is a translucent blue overlay, which is what a cursed
+spirit in a game always is. Her body is off-white with dark bands, her
+hair is nine heavy strands hanging past the shoulders, and **the only part
+of her that glows is the inside of her mouth**.
+
+Two placement lessons, both of which cost a pass:
+
+- **She fights his fight, not hers.** The full manifestation comes up beside
+  him, so a sweep aimed straight out of her own shoulders lands eight metres
+  off whatever he pointed at. She is handed the lane *he* is facing down and
+  turns to it.
+- **She is fourteen metres tall.** Four in front and eight to the side put
+  her level with the chase camera, which sees her shins and nothing else.
+  She stands out where the fight is.
+
+### The four endings
+
+| | What it does |
+| --- | --- |
+| **CUT DOWN** | three cuts, each one further past the end of the sword than the last, and the third goes through the floor |
+| **COLLAPSED** | the copied one, getting *smaller* and heavier the whole time — the frightening way round for something that is pulling |
+| **IN HER HAND** | she does not hit them with it. She picks them up, holds them there, and then closes it |
+| **TAKEN BY HER** | all of her, out and whole; she opens, and it is the only light in the shot |
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — seventy one of them,
+and differently from every other skill in the game — seventy five of them,
 one per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -1482,7 +1533,7 @@ checked against each other without standing a broker up in between. That is
 how all of this is checked: two browsers, one playing every fighter in turn
 and throwing the whole kit, the other counting what arrives.
 
-**Fifty four skills, nine fighters and four awakened kits**, and for each
+**Fifty eight skills, ten fighters and four awakened kits**, and for each
 one: the cast announced exactly once, the body posed, and something actually
 drawn.
 
@@ -1497,6 +1548,7 @@ drawn.
 | Mahito | t1 | t2 | t3 | t4 | tr |
 | Todo | b1 | b2 | b3 | b4 | br |
 | Higuruma | j1 | j2 | j3 | j4 | jr |
+| Yuta | o1 | o2 | o3 | o4 | — |
 | Sukuna | s1 | s2 | s3 | s4 | |
 | Choso awakened | ca1 | ca2 | ca3 | ca4 | |
 | Hakari in fever | ha1 | ha2 | ha3 | ha4 | |
@@ -1757,6 +1809,7 @@ disk.
 | `mahito.js` | Mahito: the seam, the warp, and the five shapes he leaves people in |
 | `todo.js` | Todo: the clap, the swap drawn at both ends, and a very large man punching |
 | `higuruma.js` | Higuruma: the seal, the black sword, and the court that hands down the verdict |
+| `yuta.js` | Yuta: the overspill on every cut, and Rika, who is not a ghost |
 | `void.js` | Unlimited Void: the hand sign, the barrier and everything inside it |
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |

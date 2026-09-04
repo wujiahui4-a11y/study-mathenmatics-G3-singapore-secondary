@@ -1916,6 +1916,19 @@
         else if (near) addShake(.5);
         break;
 
+      /* ---------------------------------------------------------- YUTA
+         Four, because he has four. The overspill on his cuts is drawn
+         here too — it is most of what a Yuta move looks like, and a copy
+         without it is a boy waving a stick. */
+      case 'o1': case 'o2': case 'o3': case 'o4':
+        if (window.JJYUTA && window.JJYUTA.remote &&
+            window.JJYUTA.remote[kind]) {
+          window.JJYUTA.remote[kind](pos.clone(), yaw);
+        }
+        if (close && (kind === 'o4' || kind === 'o3')) addShake(1.5);
+        else if (near) addShake(.5);
+        break;
+
       case 'n4':
         /* the shot he framed, and the twenty four stills inside it */
         if (window.JJNAOYA && window.JJNAOYA.remoteFrames) {
