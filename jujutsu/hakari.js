@@ -1038,9 +1038,9 @@
     a.center = player.pos.clone();
     player.iframes = Math.max(player.iframes, 2);
     if (window.JJGAMBLE) window.JJGAMBLE.begin(a.center.clone(), player.facing);
-    if (window.MPJJ && window.MPJJ.relay) {
-      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: 'hdom' });
-    }
+    /* the cast is not published here: mp.js watches player.action and
+       announces it, and a pub of our own would play it twice. The domain
+       itself travels as its own 'dom' message from gamble.js. */
   }
 
   var DOM_R = 32;

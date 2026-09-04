@@ -94,6 +94,7 @@
     machineParts();
     var c = MCOL[i % MCOL.length];
     var g = new THREE.Group();
+    g.__machine = true;               // so a watcher's copy can be counted
     var body = new THREE.Mesh(MGEO.body,
       new THREE.MeshStandardMaterial({ color: c, roughness: .5, metalness: .2 }));
     body.position.y = 2.2;
@@ -304,6 +305,15 @@
     cls('.word.w2', 'in', true);
     FX.letterbox(false);
     try { sfx.raise(); } catch (e) {}
+    /* Everyone else builds it on the same beat it opens. It used to be
+       announced only when the sixth ring of machines settled, nine seconds
+       in, so for those nine seconds the caster stood in a white room that
+       nobody else could see. */
+    if (window.MPJJ && window.MPJJ.relay) {
+      window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id, k: 'gamble',
+        x: Math.round(G.center.x * 10) / 10, z: Math.round(G.center.z * 10) / 10,
+        y: Math.round((G.yaw || 0) * 100) / 100, r: R, d: 1.4, dur: PLAY });
+    }
   }
 
   function stepOpen(dt) {
@@ -435,11 +445,6 @@
         e.vel.set(0, 0, 0);
       });
       if (window.JJNOTICE) window.JJNOTICE('TWO MOVES OPENS A RICHII', '#ffd964');
-      if (window.MPJJ && window.MPJJ.relay) {
-        window.MPJJ.relay.pub({ t: 'dom', id: window.MPJJ.id, k: 'gamble',
-          x: Math.round(G.center.x * 10) / 10, z: Math.round(G.center.z * 10) / 10,
-          y: Math.round(G.yaw * 100) / 100, r: R, d: 1.4, dur: PLAY });
-      }
     }
   }
 
@@ -916,8 +921,12 @@
   var _poseAction = poseAction;
   poseAction = function (r, a) {
     if (!a) return _poseAction(r, a);
-    if (a.type === 'hdom' && r === player.rig) { poseDomain(r, G.t); return; }
-    if (a.type === 'hwin' && r === player.rig) { poseCine(r, CINE.t); return; }
+    /* Ours runs off the domain's own clocks; somebody else's is rebuilt
+       from a packet, so it runs off the clock that came with it. Either
+       way the poses are the same ones. */
+    var mine = r === player.rig;
+    if (a.type === 'hdom') { poseDomain(r, mine ? G.t : a.t); return; }
+    if (a.type === 'hwin') { poseCine(r, mine ? CINE.t : a.t); return; }
     return _poseAction(r, a);
   };
 
@@ -1070,6 +1079,9 @@
     setTimeout(function () {
       if (typeof scene === 'undefined') return;
       made.forEach(function (m) { scene.remove(m); });
+      /* and the sky comes back — it used to be left white for good on
+         every screen but the caster's */
+      if (window.JJSTAGE) { delete window.JJSTAGE.hide.sky; window.JJSTAGE.show(); }
     }, (dur || PLAY) * 1000);
   };
 })();

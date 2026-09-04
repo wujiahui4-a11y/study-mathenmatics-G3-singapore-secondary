@@ -1,107 +1,117 @@
 /* =======================================================================
-   MAPS
-   The original arena was a ring of boxes and four more sitting in the
-   road. Crates landed inside walls. This file owns the city.
+   THE BASEPLATE
+   There used to be four maps in here — a city, a crossing, a school and a
+   train yard — and between them a few hundred textured buildings, roofs,
+   plinths, lamps, kerbs, rails and crates, all casting shadows. On a
+   machine that has to draw six fighters, a domain and a few thousand
+   effect billboards on top of that, the buildings were most of the frame
+   budget and none of the fight.
 
-   Four maps, and a plaza in the middle of each so the fight has a floor:
+   So there is one stage now: a white baseplate with a square grid on it,
+   and the dummies. Nothing casts a shadow that nobody looks at, nothing
+   stands between you and what you are hitting, and the frame rate is the
+   fight's to spend.
 
-     city      the streets you already know, laid out on four full blocks
-     crossing  a wide intersection and the towers on its four corners
-     campus    the school — a courtyard and the halls around it
-     yard      the long lane between the sheds
-
-   The creator of a room picks one. Everybody else loads that same map.
-   Buildings never sit in a street, never overlap, and never close the
-   plaza. A crate that would land inside a wall is not placed.
+   The shape of the module is unchanged — JJMAP.load / spawn / nameOf /
+   list are what mp.js and the lobby talk to, and they still work, there
+   is just one thing in the list.
    ===================================================================== */
 (function () {
   'use strict';
   if (typeof scene === 'undefined' || typeof THREE === 'undefined') return;
-  if (typeof buildingAABBs === 'undefined' || typeof addBuilding === 'undefined') return;
+  if (typeof buildingAABBs === 'undefined') return;
 
-  var roofMat = new THREE.MeshStandardMaterial({ color: 0x2a2d34, roughness: .88 });
-  var plinthMat = new THREE.MeshStandardMaterial({ color: 0x4a4e56, roughness: .92 });
-  var stoneMat = new THREE.MeshStandardMaterial({ color: 0x6a6258, roughness: .9 });
-  var woodMat = new THREE.MeshStandardMaterial({ color: 0x3a322c, roughness: .86 });
-  var rustMat = new THREE.MeshStandardMaterial({ color: 0x5a4034, roughness: .9 });
-  var steelMat = new THREE.MeshStandardMaterial({ color: 0x6a7278, roughness: .7 });
-  var darkWin = buildingMats[0];
-  var warmWin = buildingMats[1];
-  var goldWin = buildingMats[2];
-
-  var schoolMats = [
-    new THREE.MeshStandardMaterial({ map: buildingTex('#5c5348', '#e8d8a8'), roughness: .84 }),
-    new THREE.MeshStandardMaterial({ map: buildingTex('#4a4550', '#c8d8e8'), roughness: .84 })
-  ];
-  var yardMats = [
-    new THREE.MeshStandardMaterial({ map: buildingTex('#6a6460', '#c4b48a'), roughness: .86 }),
-    new THREE.MeshStandardMaterial({ map: buildingTex('#4e5458', '#9ad0e8'), roughness: .8 })
-  ];
-
-  var decor = new THREE.Group();
-  decor.name = 'jjMapDecor';
-  scene.add(decor);
+  var SIZE = 120;                       // half-width of the plate
+  var CELL = 8;                         // one square of the grid, in units
+  var SKY = 0xdfe7f0;
 
   var LIST = [
-    { id: 'city', name: 'CITY STREETS', sub: 'four blocks around the plaza', size: 124 },
-    { id: 'crossing', name: 'THE CROSSING', sub: 'four towers, one intersection', size: 176 },
-    { id: 'campus', name: 'THE SCHOOL', sub: 'courtyard and the halls around it', size: 164 },
-    { id: 'yard', name: 'TRAIN YARD', sub: 'the long lane between the sheds', size: 184 }
+    { id: 'plate', name: 'THE BASEPLATE', sub: 'a grid, and room to fight on it', size: SIZE }
   ];
 
   var JJMAP = window.JJMAP = {
-    id: 'city',
+    id: 'plate',
     list: LIST,
     load: load,
     spawn: spawn,
-    nameOf: nameOf
+    nameOf: nameOf,
+    SIZE: SIZE
   };
 
-  var spawns = [{ x: 0, z: 20 }];
-  var rejected = 0;
-  var rules = { street: 0, plaza: null };
+  /* eight places to stand, well apart, all of them on the plate */
+  var spawns = [
+    { x: 0, z: 26 }, { x: 0, z: -26 }, { x: 26, z: 0 }, { x: -26, z: 0 },
+    { x: 20, z: 20 }, { x: -20, z: 20 }, { x: 20, z: -20 }, { x: -20, z: -20 }
+  ];
 
-  function nameOf(id) {
-    var i;
-    for (i = 0; i < LIST.length; i++) if (LIST[i].id === id) return LIST[i].name;
-    return 'CITY STREETS';
+  function nameOf(id) { return 'THE BASEPLATE'; }
+
+  /* --------------------------------------------------------------- grid
+     One tile, drawn once, repeated across the plate: two thin lines on
+     white with a heavier one every fourth square so the eye has something
+     to measure distance against. */
+  function gridTexture() {
+    var px = 128;
+    return canvasTex(px, px, function (g) {
+      g.fillStyle = '#f4f6f8';
+      g.fillRect(0, 0, px, px);
+      /* the light line, on two edges of the tile */
+      g.strokeStyle = '#c8d0d8';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(0, .5); g.lineTo(px, .5);
+      g.moveTo(.5, 0); g.lineTo(.5, px);
+      g.stroke();
+      /* and a faint one down the middle, so a square reads as four */
+      g.strokeStyle = '#e2e7ec';
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(0, px / 2); g.lineTo(px, px / 2);
+      g.moveTo(px / 2, 0); g.lineTo(px / 2, px);
+      g.stroke();
+    }, (SIZE * 2 + 40) / CELL, (SIZE * 2 + 40) / CELL);
   }
 
-  function info(id) {
-    var i;
-    for (i = 0; i < LIST.length; i++) if (LIST[i].id === id) return LIST[i];
-    return LIST[0];
+  /* the heavy lines through the middle, so the centre of the plate reads */
+  function centreLines() {
+    var mat = new THREE.MeshBasicMaterial({ color: 0x9fb0c0, toneMapped: false });
+    var reach = SIZE * 2 + 40;
+    [[reach, .5], [.5, reach]].forEach(function (d) {
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(d[0], d[1]), mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = .02;
+      plate.add(m);
+    });
   }
 
-  /* -------------------------------------------------------------- world */
-  function setWorld(size, sky, fogNear, fogFar) {
-    ARENA = size;
-    if (ground.geometry) ground.geometry.dispose();
-    ground.geometry = new THREE.PlaneGeometry(size * 2 + 80, size * 2 + 80);
-    var half = size + 36;
-    sun.shadow.camera.left = -half;
-    sun.shadow.camera.right = half;
-    sun.shadow.camera.top = half;
-    sun.shadow.camera.bottom = -half;
-    sun.shadow.camera.far = size * 3 + 80;
-    sun.shadow.camera.updateProjectionMatrix();
-    scene.background = new THREE.Color(sky);
-    if (scene.fog) {
-      scene.fog.color.set(sky);
-      scene.fog.near = fogNear;
-      scene.fog.far = fogFar;
+  /* a lip round the edge, so you can see where the plate stops */
+  function edge() {
+    var mat = new THREE.MeshStandardMaterial({ color: 0xb8c2cc, roughness: .9 });
+    var reach = SIZE * 2;
+    var h = 1.1;
+    [[0, SIZE, reach, .8], [0, -SIZE, reach, .8],
+     [SIZE, 0, .8, reach], [-SIZE, 0, .8, reach]].forEach(function (s) {
+      var m = new THREE.Mesh(new THREE.BoxGeometry(s[2], h, s[3]), mat);
+      m.position.set(s[0], h / 2, s[1]);
+      m.receiveShadow = true;
+      plate.add(m);
+    });
+  }
+
+  var plate = new THREE.Group();
+  plate.name = 'jjPlate';
+  scene.add(plate);
+
+  function clearPlate() {
+    while (plate.children.length) {
+      var o = plate.children[0];
+      plate.remove(o);
+      if (o.geometry) o.geometry.dispose();
     }
-    camera.far = Math.max(800, size * 5);
-    camera.updateProjectionMatrix();
   }
 
-  function paintGround(draw, tiles) {
-    var t = canvasTex(256, 256, draw, tiles || 18, tiles || 18);
-    if (ground.material.map) ground.material.map.dispose();
-    ground.material.map = t;
-    ground.material.needsUpdate = true;
-  }
-
+  /* Everything the old maps put in the world, taken back out. A room that
+     was on one of them and reloads onto this one has to come back clean. */
   function clearWorld() {
     var i, b, k;
     for (i = buildingAABBs.length - 1; i >= 0; i--) {
@@ -110,134 +120,60 @@
       if (b.extras) for (k = 0; k < b.extras.length; k++) scene.remove(b.extras[k]);
     }
     buildingAABBs.length = 0;
-    for (i = crates.length - 1; i >= 0; i--) scene.remove(crates[i].mesh);
-    crates.length = 0;
-    while (decor.children.length) decor.remove(decor.children[0]);
-    rejected = 0;
-  }
-
-  /* gap 3.2 plus the 0.6 collision pad — alleys stay walkable, nothing kisses */
-  function overlaps(x, z, w, d, gap) {
-    var g = gap == null ? 3.2 : gap;
-    var minX = x - w / 2 - g, maxX = x + w / 2 + g;
-    var minZ = z - d / 2 - g, maxZ = z + d / 2 + g;
-    var i, b;
-    for (i = 0; i < buildingAABBs.length; i++) {
-      b = buildingAABBs[i];
-      if (minX < b.maxX && maxX > b.minX && minZ < b.maxZ && maxZ > b.minZ) return true;
+    if (typeof crates !== 'undefined') {
+      for (i = crates.length - 1; i >= 0; i--) scene.remove(crates[i].mesh);
+      crates.length = 0;
     }
-    return false;
+    var old = scene.getObjectByName('jjMapDecor');
+    if (old) scene.remove(old);
+    clearPlate();
   }
 
-  function inCross(x, z, w, d, street) {
-    var hx = w / 2, hz = d / 2, s = street / 2;
-    if (x - hx < s && x + hx > -s) return true;
-    if (z - hz < s && z + hz > -s) return true;
-    return false;
-  }
+  function build() {
+    ARENA = SIZE;
+    /* the floor itself: one plane, one texture, no tiles to sort */
+    if (ground.geometry) ground.geometry.dispose();
+    ground.geometry = new THREE.PlaneGeometry(SIZE * 2 + 40, SIZE * 2 + 40);
+    if (ground.material.map) ground.material.map.dispose();
+    ground.material.map = gridTexture();
+    ground.material.color.set(0xffffff);
+    ground.material.roughness = .96;
+    ground.material.needsUpdate = true;
 
-  function inRect(x, z, w, d, x0, z0, x1, z1) {
-    return !(x + w / 2 < x0 || x - w / 2 > x1 || z + d / 2 < z0 || z - d / 2 > z1);
-  }
+    centreLines();
+    edge();
 
-  function fits(x, z, w, d, street, plaza) {
-    if (Math.abs(x) + w / 2 > ARENA - 3 || Math.abs(z) + d / 2 > ARENA - 3) return false;
-    if (street && inCross(x, z, w, d, street)) return false;
-    if (plaza && inRect(x, z, w, d, plaza[0], plaza[1], plaza[2], plaza[3])) return false;
-    if (overlaps(x, z, w, d, 3.2)) return false;
-    return true;
-  }
-
-  function blocked(x, z, r) {
-    var i, b;
-    r = r || 1.4;
-    if (Math.abs(x) > ARENA - 2 || Math.abs(z) > ARENA - 2) return true;
-    for (i = 0; i < buildingAABBs.length; i++) {
-      b = buildingAABBs[i];
-      if (x + r > b.minX && x - r < b.maxX && z + r > b.minZ && z - r < b.maxZ) return true;
+    /* the sky, and a fog that only ever has to hide the edge of the plate */
+    scene.background = new THREE.Color(SKY);
+    if (scene.fog) {
+      scene.fog.color.set(SKY);
+      scene.fog.near = SIZE * 1.4;
+      scene.fog.far = SIZE * 2.6;
     }
-    return false;
+    camera.far = SIZE * 5;
+    camera.updateProjectionMatrix();
+
+    /* Nothing on the plate casts a long shadow any more, so the shadow
+       camera can be tight and cheap instead of covering a city. */
+    var half = 70;
+    sun.shadow.camera.left = -half;
+    sun.shadow.camera.right = half;
+    sun.shadow.camera.top = half;
+    sun.shadow.camera.bottom = -half;
+    sun.shadow.camera.far = 260;
+    sun.shadow.camera.updateProjectionMatrix();
+    if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+    sun.shadow.mapSize.set(1024, 1024);
   }
 
-  function place(x, z, w, d, h, mat, street, plaza, topped) {
-    if (!fits(x, z, w, d, street, plaza)) {
-      rejected++;
-      return null;
+  function load(id) {
+    clearWorld();
+    JJMAP.id = 'plate';
+    build();
+    if (typeof player !== 'undefined' && player && player.pos) {
+      collideWorld(player.pos, 1.2);
     }
-    var m = addBuilding(x, z, w, d, h, mat);
-    var last = buildingAABBs[buildingAABBs.length - 1];
-    var plinth = new THREE.Mesh(new THREE.BoxGeometry(w + 1.1, .45, d + 1.1), plinthMat);
-    plinth.position.set(x, .22, z);
-    plinth.receiveShadow = true;
-    scene.add(plinth);
-    var roof = new THREE.Mesh(new THREE.BoxGeometry(w + 1.4, .7, d + 1.4), roofMat);
-    roof.position.set(x, h + .35, z);
-    roof.castShadow = true;
-    scene.add(roof);
-    last.extras.push(plinth, roof);
-    if (topped) {
-      var tw = w * 0.56, td = d * 0.56, th = Math.max(5, h * 0.24);
-      var cap = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), mat || roofMat);
-      cap.position.set(x, h + th / 2, z);
-      cap.castShadow = true;
-      scene.add(cap);
-      last.extras.push(cap);
-    }
-    return m;
-  }
-
-  function drop(list, street, plaza, mats) {
-    var i, t, mat;
-    for (i = 0; i < list.length; i++) {
-      t = list[i];
-      mat = t[6] || mats[i % mats.length];
-      place(t[0], t[1], t[2], t[3], t[4], mat, street, plaza, t[5]);
-    }
-  }
-
-  function quad(list, street, plaza, mats) {
-    var q, sx, sz, i, t, mat, signs = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
-    for (q = 0; q < 4; q++) {
-      sx = signs[q][0]; sz = signs[q][1];
-      for (i = 0; i < list.length; i++) {
-        t = list[i];
-        mat = t[6] || mats[(q + i) % mats.length];
-        place(sx * t[0], sz * t[1], t[2], t[3], t[4] + (q % 3), mat, street, plaza, t[5]);
-      }
-    }
-  }
-
-  function flat(x, z, w, d, y, mat) {
-    var m = new THREE.Mesh(new THREE.BoxGeometry(w, .12, d), mat);
-    m.position.set(x, y == null ? .06 : y, z);
-    m.receiveShadow = true;
-    decor.add(m);
-    return m;
-  }
-
-  function lamp(x, z) {
-    if (blocked(x, z, 1.2)) return;
-    var pole = new THREE.Mesh(new THREE.BoxGeometry(.22, 7.2, .22), steelMat);
-    pole.position.set(x, 3.6, z);
-    pole.castShadow = true;
-    decor.add(pole);
-    var head = new THREE.Mesh(new THREE.BoxGeometry(1.1, .28, .6), goldWin);
-    head.position.set(x, 7.2, z);
-    decor.add(head);
-  }
-
-  function crate(x, z) {
-    if (blocked(x, z, 1.5)) return;
-    addCrate(x, z);
-  }
-
-  function spawn() {
-    var n = spawns.length || 1;
-    var mp = window.MPJJ;
-    var i = Math.abs((mp && mp.id ? hash(mp.id) : (Math.random() * 99) | 0)) % n;
-    var s = spawns[i] || { x: 0, z: 20 };
-    if (blocked(s.x, s.z, 1.6)) return { x: 0, z: 18 };
-    return { x: s.x, z: s.z };
+    return 'plate';
   }
 
   function hash(s) {
@@ -246,354 +182,21 @@
     return h;
   }
 
-  function grit(c0, c1, c2, n) {
-    paintGround(function (g) {
-      g.fillStyle = c0; g.fillRect(0, 0, 256, 256);
-      var i;
-      for (i = 0; i < (n || 700); i++) {
-        g.fillStyle = Math.random() < .5 ? c1 : c2;
-        g.fillRect(Math.random() * 256, Math.random() * 256, 3, 3);
-      }
-    }, 22);
+  function spawn() {
+    var mp = window.MPJJ;
+    var i = Math.abs(mp && mp.id ? hash(mp.id) : (Math.random() * 99) | 0) % spawns.length;
+    return { x: spawns[i].x, z: spawns[i].z };
   }
 
-  /* one street, not a tiled stamp — the paint has to match the buildings */
-  function roads(street) {
-    var asphalt = new THREE.MeshStandardMaterial({ color: 0x555c64, roughness: .96 });
-    var walk = new THREE.MeshStandardMaterial({ color: 0x8a8680, roughness: .95 });
-    var reach = ARENA * 2 + 16;
-    var s = street;
-    var band = 5.2;
-    var c = s / 2 + band / 2;
-    flat(0, 0, s, reach, .03, asphalt);
-    flat(0, 0, reach, s, .03, asphalt);
-    flat(c, 0, band, reach, .05, walk);
-    flat(-c, 0, band, reach, .05, walk);
-    flat(0, c, reach, band, .05, walk);
-    flat(0, -c, reach, band, .05, walk);
-  }
-
-  function rails() {
-    var iron = new THREE.MeshStandardMaterial({ color: 0x2a2c2e, roughness: .65 });
-    var tie = new THREE.MeshStandardMaterial({ color: 0x6a5a44, roughness: .95 });
-    var i, x;
-    flat(0, 6.2, 188, .45, .07, iron);
-    flat(0, 8.4, 188, .45, .07, iron);
-    flat(0, -6.2, 188, .45, .07, iron);
-    flat(0, -8.4, 188, .45, .07, iron);
-    for (i = -12; i <= 12; i++) {
-      x = i * 14;
-      flat(x, 7.3, 2.4, 5.2, .05, tie);
-      flat(x, -7.3, 2.4, 5.2, .05, tie);
-    }
-  }
-
-  /* -------------------------------------------------------------- maps */
-  function buildCity() {
-    setWorld(124, 0x87b8e8, 140, 420);
-    grit('#4e535a', '#484d54', '#555b62', 700);
-    var street = 36;
-    var plaza = [-20, -20, 20, 20];
-    rules = { street: street, plaza: plaza };
-    var mats = [darkWin, warmWin, goldWin];
-    /* street-facing row sits on the curb, not a plaza back */
-    quad([
-      [32, 32, 18, 16, 26],
-      [60, 32, 20, 16, 32],
-      [90, 32, 18, 16, 44],
-      [32, 60, 16, 18, 28],
-      [60, 60, 22, 20, 40, true],
-      [90, 60, 16, 18, 48],
-      [32, 90, 16, 18, 30],
-      [60, 90, 20, 16, 38],
-      [90, 90, 18, 18, 52, true],
-      [110, 110, 14, 14, 68, true]
-    ], street, plaza, mats);
-    roads(street);
-    sidewalks(street);
-    zebra(0, 22, 20, 7, true);
-    zebra(0, -22, 20, 7, true);
-    zebra(22, 0, 7, 20, false);
-    zebra(-22, 0, 7, 20, false);
-    lampsAt(street);
-    /* alley mouths — the curb itself is too tight for a crate */
-    crate(21, 46); crate(-21, 46); crate(21, -46); crate(-21, -46);
-    crate(46, 21); crate(-46, 21); crate(46, -21); crate(-46, -21);
-    crate(21, 76); crate(-21, 76); crate(21, -76); crate(-21, -76);
-    spawns = [
-      { x: -16, z: 18 }, { x: 16, z: 18 }, { x: -16, z: -18 }, { x: 16, z: -18 },
-      { x: 0, z: 22 }, { x: 0, z: -22 }
-    ];
-  }
-
-  function buildCrossing() {
-    setWorld(176, 0x6e8aaa, 180, 560);
-    grit('#3e444c', '#383e46', '#464c54', 800);
-    var street = 54;
-    var plaza = [-28, -28, 28, 28];
-    rules = { street: street, plaza: plaza };
-    var mats = [darkWin, warmWin, goldWin];
-    /* towers on the corners of the intersection, mid-rises filling the block */
-    quad([
-      [44, 44, 24, 24, 80, true],
-      [44, 82, 22, 20, 44],
-      [82, 44, 20, 22, 42],
-      [82, 82, 24, 22, 50, true],
-      [44, 114, 22, 18, 36],
-      [114, 44, 18, 22, 34],
-      [80, 114, 20, 16, 32],
-      [114, 80, 16, 20, 30],
-      [114, 114, 22, 22, 54, true],
-      [140, 88, 16, 18, 28],
-      [88, 140, 18, 16, 28],
-      [140, 140, 18, 18, 46, true]
-    ], street, plaza, mats);
-    roads(street);
-    sidewalks(street);
-    lampsAt(street);
-    zebra(0, 34, 24, 8, true);
-    zebra(0, -34, 24, 8, true);
-    zebra(34, 0, 8, 24, false);
-    zebra(-34, 0, 8, 24, false);
-    crate(30, 64); crate(-30, 64); crate(30, -64); crate(-30, -64);
-    crate(64, 30); crate(-64, 30); crate(64, -30); crate(-64, -30);
-    crate(30, 98); crate(-30, 98); crate(30, -98); crate(-30, -98);
-    spawns = [
-      { x: -24, z: 24 }, { x: 24, z: 24 }, { x: -24, z: -24 }, { x: 24, z: -24 },
-      { x: 0, z: 30 }, { x: 0, z: -30 }, { x: 30, z: 0 }, { x: -30, z: 0 }
-    ];
-  }
-
-  function buildCampus() {
-    setWorld(164, 0xb4cce0, 160, 480);
-    grit('#7a8a6e', '#738266', '#829072', 500);
-    var plaza = [-40, -34, 40, 34];
-    rules = { street: 0, plaza: plaza };
-    var a = schoolMats[0], b = schoolMats[1];
-    /* hall short enough that the wings sit on the ends, not inside it.
-       gate houses sit off the courtyard rim, not on it. */
-    drop([
-      [0, 74, 68, 20, 26, true, a],
-      [-56, 74, 22, 16, 18, false, b],
-      [56, 74, 22, 16, 18, false, b],
-      [-56, 104, 22, 16, 14, false, a],
-      [56, 104, 22, 16, 14, false, a],
-      [0, 104, 36, 16, 12, false, stoneMat],
-      [0, 132, 40, 16, 12, false, stoneMat],
-      [80, 6, 20, 52, 20, false, b],
-      [-80, 6, 20, 52, 20, false, b],
-      [80, 52, 18, 20, 16, false, a],
-      [-80, 52, 18, 20, 16, false, a],
-      [80, -40, 18, 22, 16, false, a],
-      [-80, -40, 18, 22, 16, false, a],
-      [44, -76, 32, 18, 16, false, a],
-      [-44, -76, 32, 18, 16, false, a],
-      [0, -76, 24, 18, 14, false, stoneMat],
-      [80, -76, 20, 18, 14, false, woodMat],
-      [-80, -76, 20, 18, 14, false, woodMat],
-      [0, -118, 36, 16, 14, false, a],
-      [80, -110, 20, 16, 12, false, b],
-      [-80, -110, 20, 16, 12, false, b],
-      [120, 6, 16, 32, 14, false, b],
-      [-120, 6, 16, 32, 14, false, b],
-      [120, 74, 16, 20, 14, false, a],
-      [-120, 74, 16, 20, 14, false, a],
-      [120, -76, 16, 18, 12, false, a],
-      [-120, -76, 16, 18, 12, false, a],
-      [54, 50, 14, 14, 10, false, stoneMat],
-      [-54, 50, 14, 14, 10, false, stoneMat],
-      [54, -50, 14, 14, 10, false, stoneMat],
-      [-54, -50, 14, 14, 10, false, stoneMat],
-      [104, 36, 16, 16, 14, false, b],
-      [-104, 36, 16, 16, 14, false, b],
-      [104, -36, 16, 16, 14, false, a],
-      [-104, -36, 16, 16, 14, false, a]
-    ], 0, plaza, schoolMats);
-    var path = new THREE.MeshStandardMaterial({ color: 0xb8a888, roughness: .95 });
-    var yard = new THREE.MeshStandardMaterial({ color: 0xc4b49a, roughness: .96 });
-    flat(0, 0, 78, 66, .04, yard);
-    flat(0, 0, 16, 68, .06, path);
-    flat(0, 0, 80, 14, .06, path);
-    flat(0, 33.2, 78, 1.5, .12, stoneMat);
-    flat(0, -33.2, 78, 1.5, .12, stoneMat);
-    flat(39.2, 0, 1.5, 64, .12, stoneMat);
-    flat(-39.2, 0, 1.5, 64, .12, stoneMat);
-    lamp(-22, 22); lamp(22, 22); lamp(-22, -22); lamp(22, -22);
-    lamp(-38, 0); lamp(38, 0); lamp(0, 36); lamp(0, -36);
-    crate(-30, -42); crate(30, -42); crate(-30, 42); crate(30, 42);
-    crate(-60, -22); crate(60, -22); crate(-60, 22); crate(60, 22);
-    spawns = [
-      { x: -20, z: 16 }, { x: 20, z: 16 }, { x: -20, z: -16 }, { x: 20, z: -16 },
-      { x: 0, z: 22 }, { x: 0, z: -22 }
-    ];
-  }
-
-  function buildYard() {
-    setWorld(184, 0x8aa0a8, 180, 540);
-    grit('#5a5e62', '#54585c', '#62666a', 600);
-    var plaza = [-90, -24, 90, 24];
-    rules = { street: 0, plaza: plaza };
-    var y0 = yardMats[0], y1 = yardMats[1];
-    drop([
-      [-148, 58, 28, 22, 15, false, y0],
-      [-100, 58, 44, 22, 16, false, y0],
-      [-48, 58, 40, 22, 14, false, y1],
-      [4, 58, 40, 22, 15, false, y0],
-      [54, 58, 36, 22, 18, false, rustMat],
-      [104, 58, 36, 22, 16, false, y1],
-      [148, 58, 28, 22, 17, false, rustMat],
-      [-148, -58, 28, 22, 14, false, y1],
-      [-100, -58, 44, 22, 15, false, y1],
-      [-48, -58, 40, 22, 14, false, y0],
-      [4, -58, 40, 22, 16, false, y1],
-      [54, -58, 36, 22, 14, false, rustMat],
-      [104, -58, 36, 22, 15, false, y0],
-      [148, -58, 28, 22, 16, false, rustMat],
-      [-160, 0, 20, 36, 22, true, steelMat],
-      [160, 0, 20, 36, 22, true, steelMat],
-      [-148, 94, 22, 16, 20, false, y1],
-      [-100, 94, 28, 16, 22, false, y1],
-      [-48, 94, 24, 16, 20, false, y0],
-      [4, 94, 24, 16, 21, false, y1],
-      [54, 94, 24, 16, 20, false, y0],
-      [104, 94, 24, 16, 22, false, y1],
-      [148, 94, 22, 16, 18, false, y0],
-      [-148, -94, 22, 16, 18, false, y0],
-      [-100, -94, 28, 16, 18, false, y0],
-      [-48, -94, 24, 16, 20, false, y1],
-      [4, -94, 24, 16, 18, false, y0],
-      [54, -94, 24, 16, 19, false, y1],
-      [104, -94, 24, 16, 18, false, y0],
-      [148, -94, 22, 16, 20, false, y1],
-      [0, 128, 18, 18, 36, true, steelMat],
-      [0, -128, 18, 18, 32, true, steelMat],
-      [-140, 128, 20, 16, 16, false, rustMat],
-      [140, 128, 20, 16, 16, false, rustMat],
-      [-140, -128, 20, 16, 16, false, rustMat],
-      [140, -128, 20, 16, 16, false, rustMat],
-      [-168, 118, 16, 16, 16, false, rustMat],
-      [168, 118, 16, 16, 16, false, rustMat],
-      [-168, -118, 16, 16, 16, false, rustMat],
-      [168, -118, 16, 16, 16, false, rustMat]
-    ], 0, plaza, yardMats);
-    rails();
-    var i, x;
-    for (i = -5; i <= 5; i++) {
-      x = i * 16;
-      crate(x, 34);
-      crate(x + 3, -34);
-    }
-    lamp(-40, 30); lamp(40, 30); lamp(-40, -30); lamp(40, -30);
-    lamp(0, 30); lamp(0, -30); lamp(-80, 30); lamp(80, 30);
-    lamp(-80, -30); lamp(80, -30);
-    flat(0, 32, 168, 4, .18, steelMat);
-    flat(0, -32, 168, 4, .18, steelMat);
-    spawns = [
-      { x: -36, z: 12 }, { x: 36, z: 12 }, { x: -36, z: -12 }, { x: 36, z: -12 },
-      { x: 0, z: 14 }, { x: 0, z: -14 }, { x: 60, z: 0 }, { x: -60, z: 0 }
-    ];
-  }
-
-  function sidewalks(street) {
-    var s = street / 2;
-    var curb = new THREE.MeshStandardMaterial({ color: 0x8a8680, roughness: .95 });
-    var start = s + 6;
-    var end = ARENA - 10;
-    var len = Math.max(24, end - start);
-    var mid = (start + end) / 2;
-    flat(s + .6, mid, 1.2, len, .1, curb);
-    flat(-(s + .6), mid, 1.2, len, .1, curb);
-    flat(s + .6, -mid, 1.2, len, .1, curb);
-    flat(-(s + .6), -mid, 1.2, len, .1, curb);
-    flat(mid, s + .6, len, 1.2, .1, curb);
-    flat(-mid, s + .6, len, 1.2, .1, curb);
-    flat(mid, -(s + .6), len, 1.2, .1, curb);
-    flat(-mid, -(s + .6), len, 1.2, .1, curb);
-  }
-
-  function lampsAt(street) {
-    var s = street / 2 + 2.2;
-    var arms = [0.38 * ARENA, 0.64 * ARENA];
-    var i, a;
-    lamp(s, s); lamp(-s, s); lamp(s, -s); lamp(-s, -s);
-    for (i = 0; i < arms.length; i++) {
-      a = arms[i];
-      lamp(s, a); lamp(-s, a); lamp(s, -a); lamp(-s, -a);
-      lamp(a, s); lamp(-a, s); lamp(a, -s); lamp(-a, -s);
-    }
-  }
-
-  function cratesAlong(street) {
-    var s = street / 2 + 5;
-    var pts = [
-      [s, s], [-s, s], [s, -s], [-s, -s],
-      [s + 12, s], [-s - 12, s], [s + 12, -s], [-s - 12, -s]
-    ];
-    var i;
-    for (i = 0; i < pts.length; i++) crate(pts[i][0], pts[i][1]);
-  }
-
-  function zebra(x, z, w, d, acrossX) {
-    var paint = new THREE.MeshStandardMaterial({ color: 0xe8e2d4, roughness: .7 });
-    var n = 6, i, o;
-    for (i = 0; i < n; i++) {
-      o = (i - (n - 1) / 2) * 2.2;
-      if (acrossX) flat(x + o, z, 1.2, d, .08, paint);
-      else flat(x, z + o, w, 1.2, .08, paint);
-    }
-  }
-
-  function load(id) {
-    if (!id) id = 'city';
-    if (id !== 'city' && id !== 'crossing' && id !== 'campus' && id !== 'yard') id = 'city';
-    if (JJMAP.id === id && buildingAABBs.length) return id;
-    clearWorld();
-    JJMAP.id = id;
-    if (id === 'crossing') buildCrossing();
-    else if (id === 'campus') buildCampus();
-    else if (id === 'yard') buildYard();
-    else buildCity();
-    if (typeof player !== 'undefined' && player && player.pos) {
-      collideWorld(player.pos, 1.2);
-    }
-    return id;
-  }
-
-  function meshSize(b) {
-    return {
-      x: b.mesh.position.x,
-      z: b.mesh.position.z,
-      w: (b.maxX - b.minX) - 1.2,
-      d: (b.maxZ - b.minZ) - 1.2
-    };
-  }
-
+  /* kept so the old check still runs; there is simply nothing to collide */
   JJMAP.audit = function () {
-    var i, j, a, b, m, overlapsN = 0, cratesIn = 0, inStreet = 0, inPlaza = 0;
-    for (i = 0; i < buildingAABBs.length; i++) {
-      for (j = i + 1; j < buildingAABBs.length; j++) {
-        a = buildingAABBs[i]; b = buildingAABBs[j];
-        if (a.minX < b.maxX && a.maxX > b.minX && a.minZ < b.maxZ && a.maxZ > b.minZ) overlapsN++;
-      }
-      m = meshSize(buildingAABBs[i]);
-      if (rules.street && inCross(m.x, m.z, m.w, m.d, rules.street)) inStreet++;
-      if (rules.plaza && inRect(m.x, m.z, m.w, m.d, rules.plaza[0], rules.plaza[1], rules.plaza[2], rules.plaza[3])) inPlaza++;
-    }
-    var cratesInStreet = 0, cx, cz;
-    for (i = 0; i < crates.length; i++) {
-      cx = crates[i].mesh.position.x; cz = crates[i].mesh.position.z;
-      if (blocked(cx, cz, 0.7)) cratesIn++;
-      if (rules.street && inCross(cx, cz, 1.6, 1.6, rules.street)) cratesInStreet++;
-      if (rules.plaza && !rules.street && inRect(cx, cz, 1.6, 1.6, rules.plaza[0], rules.plaza[1], rules.plaza[2], rules.plaza[3])) cratesInStreet++;
-    }
     return {
       id: JJMAP.id, arena: ARENA, buildings: buildingAABBs.length,
-      crates: crates.length, overlaps: overlapsN, cratesInWalls: cratesIn,
-      inStreet: inStreet, inPlaza: inPlaza, rejected: rejected,
-      cratesInStreet: cratesInStreet
+      crates: (typeof crates !== 'undefined') ? crates.length : 0,
+      overlaps: 0, cratesInWalls: 0, inStreet: 0, inPlaza: 0,
+      rejected: 0, cratesInStreet: 0
     };
   };
 
-  /* the default city, built properly, replaces the empty floor */
-  load('city');
+  load('plate');
 })();

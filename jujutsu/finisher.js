@@ -972,7 +972,7 @@
               r.hipL.rotation.x = -.6 + .5 * f; r.kneeL.rotation.x = 1.2 - .8 * f;
               r.hipR.rotation.x = -.3 + .3 * f; r.kneeR.rotation.x = .9 - .6 * f;
             }
-          });
+          }, 'ha3one');
         } else {
           /* no fever module: at least finish them */
           setTimeout(function () {
@@ -1106,7 +1106,7 @@
             r.spine.rotation.x = -.2 + .5 * k;
             r.hips.position.y = r.hipsBaseY - .35 * k;
           }
-        });
+        }, 'ha3two');
       }
     } },
 

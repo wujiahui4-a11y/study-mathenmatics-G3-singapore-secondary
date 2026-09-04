@@ -999,6 +999,66 @@ The multiplayer code is appended **inside the game's own module**, which is how
 it can reach `player`, `enemies`, `Enemy`, `scene`, `hurtPlayer` and the rest.
 Everything is behind `MPJJ.active`, so the offline game is unchanged.
 
+### What travels, and what has to be rebuilt
+
+An ability's visuals are made by the caster's own client, so without help the
+other screens show a body miming a move in an empty street. Two things carry
+it across:
+
+- **The cast is announced.** `announceCasts` watches `player.action` and sends
+  the type the moment it changes, so no cast function has to remember to. A
+  module that also publishes one of its own gets the effect played **twice** —
+  that was Hakari's shutter and his domain, and both pubs are gone.
+- **`remoteFx` rebuilds it** at that fighter's feet, from the same routines the
+  caster used, with the damage left out. A kind with no case falls through to a
+  white blob, which is what the whole of Hakari's fever kit was doing.
+
+The pose is separate. The state packet carries the action's type, clock and
+length, and the other end calls the game's own `poseAction` with it — so a
+pose is right on every screen as long as it only reads those. Three of
+Hakari's read more, and all three now survive a network-built action:
+
+| Read | Fix |
+| --- | --- |
+| `a.dance` (Fever Rush) | never travelled — falls back to the same two seconds |
+| `a.stage`, `a.landed` (Gachinko) | the stage travels as `sg`; the landing is read back off the clock |
+| `a.pose` (a finisher driving him) | a callback cannot travel, so the finisher's **name** does, as `fk`, and the pose comes out of `JJFEVER.finPose` |
+
+And two things that are state rather than events: **`hf`** carries whether he
+is in fever, which starts and stops the aura on his body on every other screen
+the way `aw` does for Gojo; and the domain is announced **when it opens**
+rather than when its sixth ring of machines settles, which used to leave the
+caster alone in a white room for nine seconds.
+
+The receive half is exposed as `MPJJ.receive`, so one client's outgoing
+packets can be fed straight into another's receive path and the two halves
+checked against each other without standing a broker up in between.
+
+## The stage
+
+There is one, and it is a **white baseplate with a square grid on it**.
+
+There used to be four maps — a city, a crossing, a school and a train yard —
+and between them a few hundred textured buildings with roofs, plinths, lamps,
+kerbs, rails and crates, all casting shadows across a 176-unit arena. On a
+machine that already has to draw six fighters, a domain and a few thousand
+effect billboards, that was most of the frame budget and none of the fight.
+
+So all of it is gone. What is left is one plane with a repeating grid tile, a
+pair of heavier lines through the middle so the centre reads, a low lip round
+the edge so you can see where the plate stops, and the dummies. Nothing casts
+a shadow nobody looks at and nothing stands between you and what you are
+hitting. The shadow camera came down with it — 70 units and a 1024 map instead
+of 110 and 2048, because there is nothing tall left to cast.
+
+Measured on the same software renderer the tests run under: **5 fps on the
+city, 21 on the plate**, with zero buildings, zero crates and about three
+thousand triangles in the whole scene.
+
+`JJMAP` keeps its shape — `load`, `spawn`, `nameOf`, `list` — so the lobby and
+`mp.js` are unchanged; the list simply has one thing in it, and `load` clears
+anything an older room left behind before it builds.
+
 ## Spawn cutscene
 
 Entering the arena — and every respawn after a defeat — plays a short anime
@@ -1224,6 +1284,7 @@ disk.
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |
 | `fever.js` | what the jackpot buys: Hakari's four fever moves, the hole-punching first person, and the aura |
 | `finisher.js` | one short finisher per skill, and the health lock they run under |
+| `maps.js` | the stage: one white baseplate with a grid on it |
 | `mp.js` | the online mode, appended inside the game's module |
 | `three.module.min.js` | vendored three.js 0.160.0 |
 | `mqtt.min.js` | vendored MQTT client |

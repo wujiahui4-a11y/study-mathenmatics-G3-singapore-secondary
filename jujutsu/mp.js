@@ -147,7 +147,7 @@
     active: false, code: null, id: uid(), name: '',
     relay: null, fighters: {},        // id -> { id, name, char, e (Enemy), tx, tz, tyaw, ... }
     sendAcc: 0, kills: 0, deaths: 0, joined: false,
-    map: 'city', host: false
+    map: 'plate', host: false
   };
 
   function el(id) { return document.getElementById(id); }
@@ -178,7 +178,7 @@
       'margin-top:12px;font-size:13px;min-height:58px}',
       '#jjStatus{font-size:12px;color:#9a9080;margin-top:12px;min-height:16px}',
       '#jjStatus.err{color:#ff8f84}',
-      '#jjMaps{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 4px}',
+      '#jjMaps{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 4px}',
       '#jjMaps button{display:block;text-align:left;padding:10px 12px;background:transparent;',
       'border:1px solid rgba(212,180,90,.28);color:#efe6d4;cursor:pointer;font:inherit;border-radius:0}',
       '#jjMaps button.on{border-color:#f3dd8c;background:rgba(40,28,12,.7)}',
@@ -270,7 +270,7 @@
       '  <div id="jjRoomBox" style="display:none">',
       '    <label>ROOM CODE — TELL YOUR FRIENDS</label>',
       '    <div class="code" id="jjCodeOut">------</div>',
-      '    <div id="jjMapNow">CITY STREETS</div>',
+      '    <div id="jjMapNow">THE BASEPLATE</div>',
       '    <div class="list" id="jjList"></div>',
       '    <div class="row"><button id="jjFight">ENTER THE ARENA</button>',
       '    <button id="jjLeave" class="ghost">LEAVE</button></div>',
@@ -459,7 +459,7 @@
     if (!host) return;
     host.innerHTML = '';
     var maps = (window.JJMAP && window.JJMAP.list) || [
-      { id: 'city', name: 'CITY STREETS', sub: 'the plaza you already know' }
+      { id: 'plate', name: 'THE BASEPLATE', sub: 'a grid, and room to fight on it' }
     ];
     maps.forEach(function (m) {
       var b = document.createElement('button');
@@ -480,7 +480,7 @@
   }
 
   function mapName(id) {
-    return (window.JJMAP && window.JJMAP.nameOf) ? window.JJMAP.nameOf(id) : 'CITY STREETS';
+    return (window.JJMAP && window.JJMAP.nameOf) ? window.JJMAP.nameOf(id) : 'THE BASEPLATE';
   }
 
   function applyMap(id, fromPeer) {
@@ -750,6 +750,11 @@
       g.visYaw = (m.vy || 0) / 100;
       g.attack = m.at || 0;
       g.action = m.ac ? { type: m.ac, t: (m.ap || 0) / 100, dur: (m.ad || 1) / 100 } : null;
+      /* Some poses are driven by which beat of the move they are on rather
+         than by the clock alone, so the stage travels with the action.
+         A finisher that has taken its caster over travels by name. */
+      if (g.action && m.sg != null) g.action.stage = m.sg;
+      if (g.action && m.fk) g.action.fin = m.fk;
       if (g.action && m.ac === 'dash') {
         g.action.kind = m.dk || 'fwd';
         g.action.side = m.ds || 0;
@@ -779,6 +784,14 @@
         g.aw = !!m.aw;
         if (window.JJAW) window.JJAW.remote(g, g.aw);
         if (g.aw) feed('<b>' + esc(g.name) + '</b> awakened');
+      }
+      /* and Hakari in fever, which is his awakening and looks like one */
+      if (!!m.hf !== !!g.fever) {
+        g.fever = !!m.hf;
+        if (window.JJFEVER && window.JJFEVER.remoteAura) {
+          window.JJFEVER.remoteAura(g, g.fever);
+        }
+        if (g.fever) feed('<b>' + esc(g.name) + '</b> hit the jackpot');
       }
       g.e.drawBars();
       return;
@@ -1432,11 +1445,19 @@
       dk: (player.action && player.action.type === 'dash') ? player.action.kind : 0,
       ds: (player.action && player.action.type === 'dash') ? (player.action.side || 0) : 0,
       ad: awakening() ? 360 : (player.action ? Math.round(player.action.dur * 100) : 0),
+      /* which beat of the move he is on, for the poses that are staged
+         rather than timed, and the name of a finisher that has taken him
+         over so the other screens can pose it too */
+      sg: (player.action && player.action.stage != null) ? player.action.stage : null,
+      fk: (player.action && player.action.fin) ? player.action.fin : 0,
       rk: player.react ? player.react.type : 0,
       rt: player.react ? Math.round(player.react.t * 100) : 0,
       rd: player.react ? Math.round(player.react.dur * 100) : 0,
       rs: player.react ? player.react.side : 0,
-      aw: (window.JJAW && window.JJAW.active) ? 1 : 0
+      aw: (window.JJAW && window.JJAW.active) ? 1 : 0,
+      /* Hakari's fever is his awakening: the bar, the boost and the aura
+         all hang off it, so it travels the same way Gojo's does */
+      hf: (window.JJHAKARI && window.JJHAKARI.fever > 0 && player.char === 'hakari') ? 1 : 0
     });
   }
 
@@ -1637,6 +1658,46 @@
         FX.mote(mid, 0xffd964, 8, .6);
         if (close) addShake(.5);
         break;
+
+      /* ------------------------------------------------- HAKARI IN FEVER
+         All five of these are built by his own module, so what everybody
+         else sees is the same container, the same fists and the same
+         broken road the caster sees. The hits travel separately. */
+      case 'ha1':
+        if (window.JJFEVER && window.JJFEVER.remote) {
+          window.JJFEVER.remote.ha1(pos.clone(), yaw);
+        }
+        if (near) addShake(.8);
+        break;
+      case 'ha1j':
+        if (window.JJFEVER && window.JJFEVER.remote) {
+          window.JJFEVER.remote.ha1j(pos.clone(), yaw);
+        }
+        if (close) addShake(.9);
+        break;
+      case 'ha2':
+        if (window.JJFEVER && window.JJFEVER.remote) {
+          window.JJFEVER.remote.ha2(pos.clone(), yaw);
+        }
+        if (near) addShake(.4);
+        break;
+      case 'ha3':
+        if (window.JJFEVER && window.JJFEVER.remote) {
+          window.JJFEVER.remote.ha3(pos.clone(), yaw);
+        }
+        break;
+      case 'ha4':
+        if (window.JJFEVER && window.JJFEVER.remote) {
+          window.JJFEVER.remote.ha4(pos.clone(), yaw);
+        }
+        if (close) addShake(1);
+        break;
+      case 'hafin':
+        if (window.JJFEVER && window.JJFEVER.remote) {
+          window.JJFEVER.remote.hafin(pos.clone(), yaw);
+        }
+        if (close) addShake(.8);
+        break;
       case 'y1':
         setTimeout(function () {
           var at = mid.clone().addScaledVector(fwd, 2.6);
@@ -1814,6 +1875,23 @@
         break;
       case 'void':
         break;                                        // this animates itself
+      case 'dash':
+        break;                                        // JJDASH.remote draws it
+      case 'hwin':
+        /* his jackpot payout: the machine coming apart and the aura going
+           up. He poses it himself off the action that travelled. */
+        FX.rings(new THREE.Vector3(pos.x, .12, pos.z), 0xffd964, 5,
+          { maxR: 24, life: .9, gap: 46 });
+        FX.beam(pos.clone(), new THREE.Vector3(0, 1, 0), 40, 0xffd964,
+          { radius: 1.4, life: 1.1 });
+        for (i = 0; i < 16; i++) {
+          FX.streaks(pos.clone().add(new THREE.Vector3(
+            (Math.random() - .5) * 4, Math.random() * 5, (Math.random() - .5) * 4)),
+            [0xffe94d, 0xff4d4d, 0xffb03a, 0x4de26a, 0x4dc9ff, 0x9a6bff, 0xff5ec4][i % 7],
+            2, 16, 1.3);
+        }
+        if (close) addShake(1);
+        break;
       case 'n1': case 'n2': case 'n3': case 'nr': case 'nrf':
         FX.ring(pos, 0x9be7ff, { maxR: 8, life: .4 });
         FX.slash(mid.clone().addScaledVector(fwd, 1.6), fwd, 0xcfefff, 3, .18);
@@ -1844,6 +1922,12 @@
   if (window.__game) {
     window.__game.getCam = function () { return { yaw: camYaw, pitch: camPitch }; };
   }
+
+  /* The receive half of the room, out where it can be driven directly.
+     Feeding one client's outgoing packets straight into another's receive
+     is how the two halves get checked against each other without standing
+     a broker up in the middle of them. */
+  MP.receive = onMessage;
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectUI);
   else injectUI();

@@ -40,9 +40,9 @@
     cds[key] = FCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
     if (name) { try { showSplash(name, sub || '', '#ffd964'); } catch (e) {} }
-    if (window.MPJJ && window.MPJJ.relay) {
-      window.MPJJ.relay.pub({ t: 'cast', id: window.MPJJ.id, k: type });
-    }
+    /* NOT published here: mp.js watches player.action and announces every
+       cast on its own, so a pub of our own would play it twice on every
+       other screen */
     return player.action;
   }
   function ready(key) {
@@ -59,8 +59,14 @@
      ================================================================ */
   var RAIN = [0xffe94d, 0xff4d4d, 0xffb03a, 0x4de26a, 0x4dc9ff, 0x9a6bff, 0xff5ec4];
 
-  FV.bigAura = function () {
-    if (FV.aura) return FV.aura;
+  /* getPos/alive make this work for anybody: the caster follows his own
+     position and his own fever clock, a remote Hakari follows the body the
+     network is driving and the flag that came with it. */
+  FV.bigAura = function (getPos, alive) {
+    var mine = !getPos;
+    if (mine && FV.aura) return FV.aura;
+    if (!getPos) getPos = function () { return player.pos; };
+    if (!alive) alive = function () { return HK.fever > 0; };
     var live = true, t = 0, acc = 0, rise = 0, snap = 0, bolt = 0;
     var parts = [], junk = [];
     function keep(m) { scene.add(m); junk.push(m); return m; }
@@ -106,13 +112,13 @@
     keep(disc);
 
     addFx({ t: 1e9, update: function (dt) {
-      if (!live || HK.fever <= 0) {
+      var p = live ? getPos() : null;
+      if (!live || !p || !alive()) {
         junk.forEach(function (m) { scene.remove(m); m.material.dispose(); });
-        FV.aura = null;
+        if (mine) FV.aura = null;
         return false;
       }
       t += dt;
-      var p = player.pos;
       /* a fast flicker on top of a slow swell — a steady glow reads as fog */
       var flick = .82 + .18 * Math.sin(t * 26) + .1 * Math.sin(t * 41.3);
       var pulse = (.8 + .2 * Math.sin(t * 6)) * flick;
@@ -221,8 +227,9 @@
       }
       return true;
     } });
-    FV.aura = { stop: function () { live = false; } };
-    return FV.aura;
+    var handle = { stop: function () { live = false; } };
+    if (mine) FV.aura = handle;
+    return handle;
   };
 
   /* ===================================================================
@@ -1163,11 +1170,83 @@
      frame by whatever callback it was given, so it can jump, punch, and
      land, and the pose comes from the same place.
      ================================================================ */
-  FV.perform = function (dur, step, pose) {
-    var a = { type: 'hafin', t: 0, dur: dur, stage: 0, step: step, pose: pose };
+  FV.perform = function (dur, step, pose, fin) {
+    var a = { type: 'hafin', t: 0, dur: dur, stage: 0, step: step, pose: pose, fin: fin };
     player.action = a;
     player.iframes = Math.max(player.iframes, dur + .3);
     return a;
+  };
+
+  /* The poses a finisher performs, by name, so the other screens can play
+     the same beats off a packet that carries nothing but the name and the
+     clock. The exact heights do not matter here — a remote body is put
+     where the network says it is; only the shape of him has to match. */
+  FV.finPose = {
+    /* thrown up, launched after, held over them, and driven down */
+    ha3one: function (r, a, out) {
+      var t = a.t;
+      if (t < .34) {                                     // the throw
+        var k = out(t / .34);
+        r.shoulderL.rotation.x = -2.9 * k; r.shoulderR.rotation.x = -2.9 * k;
+        r.spine.rotation.x = -.3 * k; r.neck.rotation.x = -.5 * k;
+        r.hipL.rotation.x = .3 * k; r.hipR.rotation.x = .3 * k;
+        r.kneeL.rotation.x = .7 * k; r.kneeR.rotation.x = .7 * k;
+        r.hips.position.y = r.hipsBaseY - .45 * k;
+      } else if (t < 1.1) {                              // going up after them
+        r.shoulderL.rotation.x = -2.9; r.shoulderR.rotation.x = -2.9;
+        r.spine.rotation.x = -.24; r.neck.rotation.x = -.45;
+        r.hipL.rotation.x = -.8; r.kneeL.rotation.x = 1.5;
+        r.hipR.rotation.x = -.4; r.kneeR.rotation.x = 1.1;
+      } else if (t < 1.44) {                             // the wind-up
+        var w = out((t - 1.1) / .34);
+        r.shoulderL.rotation.x = -2.9 + .5 * w;
+        r.shoulderR.rotation.x = -2.9 - .8 * w;
+        r.shoulderR.rotation.z = -.5 * w;
+        r.elbowR.rotation.x = -1.5 * w;
+        r.spine.rotation.x = -.24 - .3 * w;
+        r.spine.rotation.y = -.5 * w;
+        r.neck.rotation.x = .3 * w;
+        r.hipL.rotation.x = -.9; r.kneeL.rotation.x = 1.6;
+        r.hipR.rotation.x = -.5; r.kneeR.rotation.x = 1.2;
+      } else {                                           // and down through them
+        var f = out(Math.min(1, (t - 1.44) / .2));
+        r.shoulderR.rotation.x = 2.6 * f - 3.7 * (1 - f);
+        r.shoulderL.rotation.x = -2.4 + 1.2 * f;
+        r.elbowR.rotation.x = -1.5 * (1 - f);
+        r.spine.rotation.x = -.54 + 1.1 * f;
+        r.neck.rotation.x = .3 - .7 * f;
+        r.hipL.rotation.x = -.6 + .5 * f; r.kneeL.rotation.x = 1.2 - .8 * f;
+        r.hipR.rotation.x = -.3 + .3 * f; r.kneeR.rotation.x = .9 - .6 * f;
+      }
+    },
+    /* an arm out to each of them: together, apart, together */
+    ha3two: function (r, a, out) {
+      var t = a.t, SMASH = .74, PULL = .44, CLOSE = .5, k;
+      if (t < SMASH) {
+        k = out(t / SMASH);
+        r.shoulderL.rotation.z = 1.3 - 1.05 * k;
+        r.shoulderR.rotation.z = -1.3 + 1.05 * k;
+        r.spine.rotation.x = .1 + .2 * k;
+        r.hips.position.y = r.hipsBaseY - .3 * k;
+        r.elbowL.rotation.x = -.3; r.elbowR.rotation.x = -.3;
+      } else if (t < SMASH + PULL) {
+        k = out((t - SMASH) / PULL);
+        r.shoulderL.rotation.z = .25 + 1.15 * k;
+        r.shoulderR.rotation.z = -.25 - 1.15 * k;
+        r.elbowL.rotation.x = -.3 + .2 * k; r.elbowR.rotation.x = -.3 + .2 * k;
+        r.spine.rotation.x = .3 - .5 * k;
+        r.neck.rotation.x = -.2 * k;
+        r.hips.position.y = r.hipsBaseY - .3 + .3 * k;
+      } else {
+        k = out(Math.min(1, (t - SMASH - PULL) / CLOSE));
+        r.shoulderL.rotation.z = 1.4 - 1.2 * k;
+        r.shoulderR.rotation.z = -1.4 + 1.2 * k;
+        r.elbowL.rotation.x = -.1 - .3 * k; r.elbowR.rotation.x = -.1 - .3 * k;
+        r.spine.rotation.x = -.2 + .5 * k;
+        r.hips.position.y = r.hipsBaseY - .35 * k;
+      }
+      r.shoulderL.rotation.x = -1.5; r.shoulderR.rotation.x = -1.5;
+    }
   };
 
   function stepPerform(a, dt) {
@@ -1180,7 +1259,11 @@
   function poseFever(r, a) {
     if (a.type === 'hafin') {
       rp(r);
-      if (a.pose) { try { a.pose(r, a, E.out); } catch (e) {} }
+      /* A remote copy of this action is rebuilt from a packet, so it has no
+         callback on it — it has the finisher's name instead, and the pose
+         comes out of the table. */
+      var fn = a.pose || (a.fin && FV.finPose[a.fin]);
+      if (fn) { try { fn(r, a, E.out); } catch (e) {} }
       return true;
     }
     var t = a.t, out = E.out;
@@ -1290,8 +1373,11 @@
          from a crouch and settles into a stride. */
       case 'ha3': {
         rp(r);
-        if (t < a.dance) {
-          var ph = t / a.dance;                          // 0 → 1 over the dance
+        /* a.dance is set at the cast and does not travel, so a remote copy
+           of this action falls back to the same two seconds */
+        var DANCE = a.dance == null ? 2 : a.dance;
+        if (t < DANCE) {
+          var ph = t / DANCE;                            // 0 → 1 over the dance
           var d2 = t * 9.4, sd = Math.sin(d2), cd = Math.cos(d2);
           var sw = Math.sin(t * 4.7);                    // the slow weight shift
           /* the figure changes a third of the way in and again at two
@@ -1334,7 +1420,7 @@
           return true;
         }
         /* the run: out of the crouch, then low and long */
-        var rt = t - a.dance;
+        var rt = t - DANCE;
         var open = out(Math.min(1, rt / .22));
         var g = rt * 24;
         var sg = Math.sin(g), cg = Math.cos(g);
@@ -1360,7 +1446,12 @@
          then the same again — the second one is a jump off the crater. */
       case 'ha4': {
         rp(r);
-        if (a.stage === 0) {                              // tucked, going up
+        /* The stage travels, but the moment he landed does not, so a remote
+           copy reads it back off the clock: the beats are the same every
+           time the move is thrown. */
+        var stg = a.stage == null ? (t < .3 ? 0 : (t < .95 ? 1 : (t < 1.5 ? 2 : 3))) : a.stage;
+        var land = a.landed == null ? .95 : a.landed;
+        if (stg === 0) {                                  // tucked, going up
           var u = out(Math.min(1, t / .3));
           r.spine.rotation.x = -.42 * u;
           r.neck.rotation.x = -.4 * u;
@@ -1372,7 +1463,7 @@
           r.hips.position.y = r.hipsBaseY + .55 * u;
           return true;
         }
-        if (a.stage === 1) {                              // turned over, driving
+        if (stg === 1) {                                  // turned over, driving
           var f = out(Math.min(1, (t - .3) / .22));
           r.spine.rotation.x = -.42 + 1.05 * f;
           r.neck.rotation.x = -.4 + .95 * f;
@@ -1387,8 +1478,8 @@
           r.hips.position.y = r.hipsBaseY + .55 - .4 * f;
           return true;
         }
-        if (a.stage === 2) {                              // absorbed, folded up
-          var l = out(Math.min(1, (t - (a.landed || 0)) / .22));
+        if (stg === 2) {                                  // absorbed, folded up
+          var l = out(Math.min(1, (t - land) / .22));
           r.spine.rotation.x = .75 - .3 * l;
           r.neck.rotation.x = .5 - .3 * l;
           r.shoulderL.rotation.x = 1.5 - .4 * l; r.shoulderR.rotation.x = 1.5 - .4 * l;
@@ -1400,7 +1491,7 @@
           return true;
         }
         /* and off it again, thrown open */
-        var b = out(Math.min(1, (t - (a.landed || 0) - .38) / .28));
+        var b = out(Math.min(1, (t - land - .38) / .28));
         r.spine.rotation.x = .45 - .95 * b;
         r.neck.rotation.x = .2 - .7 * b;
         r.shoulderL.rotation.x = 1.1 - 4 * b; r.shoulderR.rotation.x = 1.1 - 4 * b;
@@ -1519,22 +1610,166 @@
   FV.buildContainer = buildContainer;
   FV.dent = dent;
 
-  /* what everybody else sees */
+  /* =====================================================================
+     WHAT EVERYBODY ELSE SEES
+     The visuals are made by the caster's own client, so without these the
+     other screens get a body miming a move in an empty street. Each one
+     builds the same thing the caster built, on the same beats, with the
+     damage left out — the hits travel as their own messages.
+     ================================================================== */
+  function later(ms, fn) {
+    setTimeout(function () { if (typeof scene !== 'undefined') fn(); }, ms);
+  }
+
   FV.remote = {
+    /* the container, called up and then kicked down the road */
     ha1: function (pos, yaw) {
       var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        rollContainer(pos.clone().addScaledVector(d, 5.5), d, true);
-      }, 420);
+      var spot = pos.clone().addScaledVector(d, BOX.len / 2 + 3);
+      spot.y = BOX.tall / 2;
+      var piv = new THREE.Group();
+      piv.rotation.y = Math.atan2(d.x, d.z) - Math.PI / 2;
+      piv.add(buildContainer());
+      piv.position.copy(spot);
+      piv.scale.setScalar(.05);
+      scene.add(piv);
+      FX.rings(spot.clone(), GOLD, 4, { maxR: 16, life: .55, ground: false, gap: 40 });
+      FX.speedRing(spot.clone(), HOT, 14, .35);
+      var gt = 0;
+      addFx({ t: C1.call + C1.hold + C1.wind, update: function (dt) {
+        this.t -= dt; gt += dt;
+        piv.scale.setScalar(.05 + E.out(Math.min(1, gt / C1.call)) * .95);
+        if (this.t > 0) return true;
+        scene.remove(piv);
+        piv.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+        FX.speedRing(pos.clone().addScaledVector(d, 4).add(new THREE.Vector3(0, 2, 0)), HOT, 14, .32);
+        rollContainer(spot.clone(), d, true);
+        return false;
+      } });
+      later((C1.call + C1.hold) * 1000, function () {
+        FX.dust(new THREE.Vector3(spot.x, 0, spot.z), 8, 0xcfc3a8, 16, 4);
+        FX.cracks(new THREE.Vector3(spot.x, 0, spot.z), 10, 14, 0x2a2418);
+      });
     },
+    /* and the one summoned overhead and driven straight down */
+    ha1j: function (pos) {
+      var piv = new THREE.Group();
+      piv.add(buildContainer());
+      piv.position.copy(pos).add(new THREE.Vector3(0, 12, 0));
+      piv.scale.setScalar(.05);
+      scene.add(piv);
+      FX.rings(pos.clone().add(new THREE.Vector3(0, 11, 0)), GOLD, 4,
+        { maxR: 18, life: .55, ground: false, gap: 40 });
+      var t = 0, dropped = false, landed = false;
+      addFx({ t: 4, update: function (dt) {
+        this.t -= dt; t += dt;
+        if (!dropped) {
+          var k = E.out(Math.min(1, t / .55));
+          piv.scale.setScalar(.05 + k * .95);
+          piv.rotation.y = t * 3.4;
+          piv.rotation.z = (1 - k) * .9;
+          if (t >= .55) { dropped = true; FX.speedRing(piv.position.clone(), HOT, 15, .3); }
+          return true;
+        }
+        if (!landed) {
+          piv.position.y -= 58 * dt;
+          piv.rotation.z += dt * 3.4;
+          if (piv.position.y <= BOX.tall / 2) {
+            landed = true;
+            var at = new THREE.Vector3(piv.position.x, 0, piv.position.z);
+            FX.impact(piv.position.clone(), GOLD, 4.2);
+            FX.rings(at.clone(), GOLD, 5, { maxR: 30, life: .9, gap: 45 });
+            FX.cracks(at.clone(), 20, 30, 0x2a2418);
+            FX.debris(at.clone(), 28, 28, 0x6a6e78);
+            FX.dust(at.clone(), 16, 0xcfc3a8, 22, 6);
+          }
+          return true;
+        }
+        if (this.t > 2.2) return true;
+        scene.remove(piv);
+        piv.traverse(function (o) { if (o.isMesh) o.material.dispose(); });
+        return false;
+      } });
+    },
+    /* the rush, with every fist and its afterimages */
+    ha2: function (pos, yaw) {
+      var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      var side = new THREE.Vector3(-d.z, 0, d.x);
+      var n = 0, acc = 0;
+      addFx({ t: 2.2, update: function (dt) {
+        this.t -= dt;
+        acc += dt;
+        if (acc > .055 && this.t > .1) {
+          acc = 0; n++;
+          var at = pos.clone()
+            .addScaledVector(d, 2.2 + Math.random() * 1.4)
+            .addScaledVector(side, (Math.random() - .5) * 1.8)
+            .add(new THREE.Vector3(0, 2.4 + Math.random() * 1.6, 0));
+          ghostFist(at, d, n);
+          FX.impact(at, GOLD, .8);
+          FX.streaks(at, RAIN[n % RAIN.length], 2, 12, .5);
+        }
+        return this.t > 0;
+      } });
+    },
+    /* two seconds of colour standing off him, and then the charge */
+    ha3: function (pos, yaw) {
+      var d = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      var t = 0;
+      addFx({ t: 4.6, update: function (dt) {
+        this.t -= dt; t += dt;
+        var at = pos.clone();
+        if (t < 2) {
+          if (Math.random() < .5) {
+            FX.streaks(at.clone().add(new THREE.Vector3(
+              (Math.random() - .5) * 2, .5 + Math.random() * 4, (Math.random() - .5) * 2)),
+              RAIN[(Math.random() * RAIN.length) | 0], 2, 12, 1);
+          }
+        }
+        return this.t > 0;
+      } });
+      later(2000, function () {
+        FX.speedRing(pos.clone().add(new THREE.Vector3(0, 2, 0)), HOT, 12, .32);
+        FX.dust(new THREE.Vector3(pos.x, 0, pos.z), 8, 0xcfc3a8, 14, 4);
+      });
+    },
+    /* up, the ground breaks, and it breaks again on the way back up */
     ha4: function (pos) {
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        FX.rings(new THREE.Vector3(pos.x, .12, pos.z), GOLD, 5, { maxR: 30, life: .9, gap: 42 });
-        FX.debris(pos.clone(), 22, 24, 0x6a6e78);
-        FX.dust(pos.clone(), 12, 0xcfc3a8, 18, 5);
-      }, 700);
+      function shock(at, power) {
+        FX.rings(new THREE.Vector3(at.x, .12, at.z), GOLD, 5,
+          { maxR: 30 * power, life: .9, gap: 42 });
+        FX.cracks(new THREE.Vector3(at.x, 0, at.z), 18, 28 * power, 0x2a2418);
+        FX.debris(new THREE.Vector3(at.x, 0, at.z), 26, 26 * power, 0x6a6e78);
+        FX.dust(new THREE.Vector3(at.x, 0, at.z), 14, 0xcfc3a8, 20 * power, 5);
+        FX.shockwave(new THREE.Vector3(at.x, .2, at.z), GOLD, power);
+      }
+      later(1170, function () { shock(pos, 1); });
+      later(1550, function () {
+        shock(pos, 1.25);
+        FX.rings(pos.clone().add(new THREE.Vector3(0, 1, 0)), HOT, 4,
+          { maxR: 18, life: .7, ground: false, gap: 40 });
+      });
+    },
+    /* a finisher playing on somebody else's screen: he is posed off the
+       packet, and this is the noise that goes with it */
+    hafin: function (pos) {
+      FX.speedRing(pos.clone().add(new THREE.Vector3(0, 2, 0)), HOT, 12, .32);
+      FX.mangaLines(.6, .24);
+    }
+  };
+
+  /* The aura, on a Hakari somebody else is driving. It is started and
+     stopped off a flag that travels with their state, and it follows the
+     body the network is moving rather than ours. */
+  FV.remoteAura = function (f, on) {
+    if (!f || !f.e) return;
+    if (on && !f.fvAura) {
+      f.fvAura = FV.bigAura(
+        function () { return f.e && !f.e.dead ? f.e.pos : null; },
+        function () { return !!f.fever; });
+    } else if (!on && f.fvAura) {
+      f.fvAura.stop();
+      f.fvAura = null;
     }
   };
 })();
