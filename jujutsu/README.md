@@ -8,8 +8,9 @@ meter and glass frames.
 
 ## Playing
 
-Title screen → **PLAY ONLINE WITH FRIENDS**. Twelve fighters: Gojo, Naoya,
-Yuji, Hakari, Choso, Megumi, Mahito, Todo, Higuruma, Yuta, Muta and Ryu.
+Title screen → **PLAY ONLINE WITH FRIENDS**. Thirteen fighters: Gojo,
+Naoya, Yuji, Hakari, Choso, Megumi, Mahito, Todo, Higuruma, Yuta, Muta,
+Ryu and Nanami.
 
 * **Create a room** gives you a six character code.
 * Everyone else types that code and joins.
@@ -25,7 +26,7 @@ back in combat and starts the eight seconds again, and pressing `C` a second
 time cancels. You cannot switch at all while awakened.
 
 **The roster panel folds up.** At a dozen fighters the list was taller than
-the screen, so it collapses to a single header — `▸ FIGHTERS 12` — and
+the screen, so it collapses to a single header — `▸ FIGHTERS 13` — and
 clicking it opens a scrolling body 46 % of the viewport high, with the
 fighter you are currently playing scrolled into view. The toggle is wired
 once at load rather than inside `buildCharList`, because every character
@@ -1166,13 +1167,81 @@ pointing where he is looking.
 | **AT ZERO RANGE** | three discharges into contact, each bigger than the last, and the fourth is straight down through them |
 | **LEVELLED** | held, and held, and held. Then the road is a different shape |
 
+## Kento Nanami
+
+**Ratio Technique** 十劃呪法. A grade 1 sorcerer who used to be a salaryman
+and never stopped being one. His technique is arithmetic: divide whatever
+is in front of him into ten parts and hit it at the seven-to-three line,
+and that spot is a weak point whether the thing had one or not. It works
+on a special grade curse and it works on a wall.
+
+Which makes him the least theatrical fighter on the roster and the most
+**measured** one. Nothing in his file is thrown wildly. Every move draws
+the division on the target first — ten ticks up the body with the seventh
+one lit, `JJNANAMI.marks()` — and then puts a blunt weapon through that
+mark. The weapon has no edge on it: a cleaver wrapped in white cloth with
+black spots, the same cloth as his tie, which is the only joke he makes.
+It works by breaking things.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Ratio Technique** 十劃呪法 | measure, step in, and one strike on the line. It lands a Black Flash |
+| `2` | **Blunt Cleave** 鈍刀 | two hands, across, and it does not slice — it throws them |
+| `3` | **Collapse** 瓦落瓦落 | the extension. Ten divisions laid down a lane of road, and the seventh gives way |
+| `4` | **Thrown Blade** 投擲 | it goes out end over end, it lands, and then he goes and gets it |
+| `R` | **Overtime** 時間外労働 | the special. The binding vow says he works fixed hours; past them it lapses and his output does not |
+
+Against a standing target the four land **34 each** — the tightest cluster
+of any kit here — and `R` lands 58. `R` is a **skill**: the vow lapses, he
+swings once, it is over in under two seconds. No cinema bars, no domain.
+
+### The cone belongs on the man, not on the swing
+
+`enemiesNear` measures its cone from the point you hand it, and every
+swing in this file lands a few units *ahead* of him. So somebody standing
+right on top of him came out **behind** the strike point and was rejected
+by a swing that would obviously have hit them — which is exactly the case
+`R` was tested in, and it dealt zero. `inFront(reach, cone)` measures the
+angle from the player and the distance from the weapon, and all three
+melee moves use it.
+
+### He lands Black Flash more than anybody
+
+So `1` and two of his endings borrow Yuji's — `JJYUJI.blackFlash(at)` —
+for the distortion, rather than reimplementing it. It is his most
+characteristic single frame and it belongs to him as much as to Yuji.
+
+### What it looks like
+
+Blonde hair with a neat part, round tinted glasses with no arms over the
+ears, a blue shirt with the sleeves rolled to the elbow so the forearms
+are bare, brown leather braces over the shoulders and down to the
+waistband, a narrow spotted tie, cream slacks with a crease down each leg,
+brown shoes. **Nothing in his palette glows.** The only lit thing in the
+whole file is the division line, and it is a cold near-white — a ruler,
+not an aura.
+
+The tie took a pass: built at the width of the gap between the braces it
+covered the shirt entirely, so it is narrower now and the braces sit out
+at the edges of the chest where they belong.
+
+### The five endings
+
+| | What it does |
+| --- | --- |
+| **SEVEN TO THREE** | he measures, hits, measures again on what is left, hits again, and the third one is a Black Flash |
+| **BLUNT FORCE** | four across, alternating sides, none of them cutting anything — and then straight down into the road with them on it |
+| **THE WHOLE LINE** | ten divisions laid across the ground *they* are standing in. They are on the seventh |
+| **ON ITS WAY BACK** | out through them, back through them, out again — and then he catches it and does it once more by hand |
+| **PAST SIX O'CLOCK** | it is raised, held, and it is not working hours any more |
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — eighty five of them,
+and differently from every other skill in the game — ninety of them,
 one per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -1670,7 +1739,7 @@ checked against each other without standing a broker up in between. That is
 how all of this is checked: two browsers, one playing every fighter in turn
 and throwing the whole kit, the other counting what arrives.
 
-**Seventy skills, twelve fighters and four awakened kits**, and for each
+**Seventy six skills, thirteen fighters and four awakened kits**, and for each
 one: the cast announced exactly once, the body posed, and something actually
 drawn.
 
@@ -1688,6 +1757,7 @@ drawn.
 | Yuta | o1 | o2 | o3 | o4 | or |
 | Muta | k1 | k2 | k3 | k4 | kr |
 | Ryu | r1 | r2 | r3 | r4 | rr |
+| Nanami | w1 | w2 | w3 | w4 | wr |
 | Sukuna | s1 | s2 | s3 | s4 | |
 | Choso awakened | ca1 | ca2 | ca3 | ca4 | |
 | Hakari in fever | ha1 | ha2 | ha3 | ha4 | |
@@ -1951,6 +2021,7 @@ disk.
 | `yuta.js` | Yuta: four ordinary cuts, one that is not, and the overspill on all of them |
 | `muta.js` | Muta: everything he fights with is built on the spot and scrapped after |
 | `ryu.js` | Ryu: five ways of letting an enormous amount of it out, all fired from his hair |
+| `nanami.js` | Nanami: the seven-to-three line, drawn before every swing, and a weapon with no edge |
 | `void.js` | Unlimited Void: the hand sign, the barrier and everything inside it |
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |

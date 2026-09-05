@@ -1960,6 +1960,20 @@
         else if (near) addShake(.5);
         break;
 
+      /* -------------------------------------------------------- NANAMI
+         The measurement is most of what a move of his looks like — ten
+         ticks up whatever he is about to hit with the seventh one lit —
+         so the copy draws it before it draws the swing. */
+      case 'w1': case 'w2': case 'w3': case 'w4': case 'wr':
+        if (window.JJNANAMI && window.JJNANAMI.remote &&
+            window.JJNANAMI.remote[kind]) {
+          window.JJNANAMI.remote[kind](pos.clone(), yaw, f);
+        }
+        if (close && kind === 'wr') addShake(1.9);
+        else if (close) addShake(1.1);
+        else if (near) addShake(.5);
+        break;
+
       case 'n4':
         /* the shot he framed, and the twenty four stills inside it */
         if (window.JJNAOYA && window.JJNAOYA.remoteFrames) {

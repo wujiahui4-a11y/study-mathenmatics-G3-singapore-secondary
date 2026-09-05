@@ -4415,6 +4415,341 @@
       } });
     } },
 
+    /* =================================================================
+       KENTO NANAMI
+       Nobody on this roster is less theatrical about it. Every one of
+       these begins the same way — ten ticks drawn up whatever is left
+       of them, with the seventh one lit — and ends with a blunt thing
+       arriving at that mark. He does not improvise, and he does not
+       finish anybody with a flourish. He finishes them on the line.
+       ============================================================== */
+
+    /* 1 · the measurement, three times, and the third one is the answer */
+    w1: { name: 'SEVEN TO THREE', color: '#d8e4ec', hold: 2, run: function (e, d, p, G) {
+      var NA = window.JJNANAMI;
+      var RAT = (NA && NA.RAT) || 0xd8e4ec, RAT2 = (NA && NA.RAT2) || 0xffffff;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var cleaver = (NA && NA.buildCleaver) ? NA.buildCleaver() : null;
+      if (cleaver) {
+        cleaver.position.copy(p).add(up(8));
+        cleaver.rotation.y = Math.atan2(d.x, d.z);
+        cleaver.rotation.x = -Math.PI * .5;
+        scene.add(cleaver);
+      }
+      FX.mangaLines(.4, .4);
+      FX.zoom(-4, .4);
+      if (e && !e.dead) { e.anchorT = 1.6; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2); }
+
+      var t = 0, n = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.6)) : p.clone().add(up(2.6)));
+        /* he measures, hits, measures again on what is left, hits again */
+        if (n < 3 && t > .3 + n * .38) {
+          var i = n++;
+          if (NA && NA.marks) NA.marks(at.clone(), 5.2 - i * 1.2, .34);
+          if (cleaver) {
+            cleaver.position.copy(at).addScaledVector(d, -1.4).add(up(3 - i * .8));
+            cleaver.rotation.z = 1.2 - i * .4;
+          }
+          FX.slash(at.clone(), new THREE.Vector3(0, -1, 0), i < 2 ? RAT : RAT2, 12 + i * 4, .24);
+          FX.impact(at.clone(), RAT2, 3.4 + i);
+          FX.cross(at.clone(), RAT, 9 + i * 3, .26);
+          FX.blood(at.clone(), d, 12 + i * 5, 2);
+          FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 9 + i * 4, 12 + i * 5, 0x4a5058);
+          if (typeof hitstop === 'function') hitstop(.09 + i * .04);
+          addShake(2 + i * .7);
+        }
+        if (t > 1.55) {
+          var at2 = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone().add(up(2.5)));
+          FX.flash('#ffffff', .6, .3);
+          if (NA && NA.marks) NA.marks(at2.clone(), 6, .5);
+          /* the last one is a Black Flash, because he lands more of them
+             than anybody and this is the one that would be */
+          if (window.JJYUJI && window.JJYUJI.blackFlash) window.JJYUJI.blackFlash(at2.clone());
+          FX.shockwave(at2.clone(), RAT2, 2);
+          FX.cutLine(at2.clone().addScaledVector(side, -14), at2.clone().addScaledVector(side, 14),
+            RAT2, 1.6, .4);
+          FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 22, 28, 0x4a5058);
+          FX.debris(new THREE.Vector3(floor.x, .1, floor.z), 18, 22, 0x6a7078);
+          FX.mangaLines(1, .34);
+          if (typeof hitstop === 'function') hitstop(.24);
+          addShake(4.2);
+          if (e) e.anchorT = 0;
+          G.sever(e, { dir: side, power: 2.6, cubes: 18 });
+          if (cleaver) {
+            scene.remove(cleaver);
+            cleaver.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+          }
+          return false;
+        }
+        return true;
+      } });
+    } },
+
+    /* 2 · it has no edge on it, so there is nothing clean about this */
+    w2: { name: 'BLUNT FORCE', color: '#d8e4ec', hold: 2, run: function (e, d, p, G) {
+      var NA = window.JJNANAMI;
+      var RAT = (NA && NA.RAT) || 0xd8e4ec, RAT2 = (NA && NA.RAT2) || 0xffffff;
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var cleaver = (NA && NA.buildCleaver) ? NA.buildCleaver() : null;
+      if (cleaver) {
+        cleaver.position.copy(p).addScaledVector(side, -7).add(up(3));
+        cleaver.rotation.y = Math.atan2(d.x, d.z);
+        cleaver.scale.setScalar(1.5);
+        scene.add(cleaver);
+      }
+      FX.mangaLines(.4, .4);
+      if (e && !e.dead) { e.anchorT = 1.6; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2); }
+
+      var t = 0, n = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone().add(up(2.5)));
+        /* four across, alternating sides, none of them cutting anything */
+        if (n < 4 && t > .28 + n * .28) {
+          var i = n++;
+          var ax = (i % 2 ? side.clone() : side.clone().negate());
+          if (cleaver) {
+            cleaver.position.copy(at).addScaledVector(ax, -5);
+            cleaver.rotation.z = (i % 2 ? 1 : -1) * 1.3;
+          }
+          FX.slash(at.clone(), ax, i < 3 ? RAT : RAT2, 15 + i * 2, .24);
+          FX.impact(at.clone(), RAT2, 3.2 + i * .5);
+          FX.shockwave(at.clone(), RAT, .9 + i * .3);
+          FX.blood(at.clone(), ax, 9 + i * 3, 1.8);
+          if (typeof hitstop === 'function') hitstop(.07 + i * .02);
+          addShake(1.8 + i * .5);
+        }
+        /* and the last one is straight down into the road with them on it */
+        if (t > 1.5) {
+          var at2 = (e && !e.dead ? e.pos.clone().add(up(2.4)) : p.clone().add(up(2.4)));
+          var on = new THREE.Vector3(at2.x, .1, at2.z);
+          if (cleaver) { cleaver.position.copy(at2).add(up(6)); cleaver.rotation.z = 0; }
+          FX.flash('#ffffff', .6, .3);
+          if (NA && NA.marks) NA.marks(at2.clone(), 6, .5);
+          FX.cutLine(at2.clone().add(up(10)), on.clone(), RAT2, 2, .45);
+          FX.impact(on.clone().add(up(.8)), RAT2, 8);
+          FX.rings(on.clone(), RAT, 5, { maxR: 22, life: .8, gap: 30 });
+          FX.cracks(on.clone(), 26, 30, 0x4a5058);
+          FX.debris(on.clone(), 22, 26, 0x6a7078);
+          FX.dust(new THREE.Vector3(on.x, 0, on.z), 18, 0xc8ccd4, 22, 6);
+          FX.mangaLines(1, .34);
+          if (typeof hitstop === 'function') hitstop(.26);
+          addShake(4.6);
+          if (e) e.anchorT = 0;
+          G.flatten(e, { crater: 22 });
+          if (cleaver) {
+            scene.remove(cleaver);
+            cleaver.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+          }
+          return false;
+        }
+        return true;
+      } });
+    } },
+
+    /* 3 · the ratio stops being about a person and becomes about a place */
+    w3: { name: 'THE WHOLE LINE', color: '#ffffff', hold: 2.4, run: function (e, d, p, G) {
+      var NA = window.JJNANAMI;
+      var RAT = (NA && NA.RAT) || 0xd8e4ec, RAT2 = (NA && NA.RAT2) || 0xffffff;
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var floor = new THREE.Vector3(p.x, .1, p.z);
+      FX.mangaLines(.5, .5);
+      FX.zoom(-5, .5);
+      if (e && !e.dead) { e.anchorT = 2; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.4); }
+
+      var t = 0, drawn = 0, gone = false;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone().add(up(2.5)));
+        var on = new THREE.Vector3(at.x, .1, at.z);
+        /* ten divisions laid across the ground THEY are standing in */
+        if (drawn < 10 && t > .25 + drawn * .07) {
+          var i = drawn++;
+          var lit = (i === 6);
+          var r = lit ? 15 : 9;
+          var a2 = i / 10 * Math.PI;
+          var ax = new THREE.Vector3(Math.cos(a2), 0, Math.sin(a2));
+          FX.cutLine(on.clone().addScaledVector(ax, -r), on.clone().addScaledVector(ax, r),
+            lit ? RAT2 : RAT, lit ? .9 : .3, lit ? .9 : .5);
+          if (lit) {
+            FX.impact(on.clone().add(up(1.2)), RAT2, 4);
+            addShake(1.6);
+          } else FX.mote(on.clone().add(up(.5)), RAT, 1.6, .2);
+        }
+        /* they are on the seventh one, and the seventh one gives */
+        if (!gone && t > 1.5) {
+          gone = true;
+          if (NA && NA.marks) NA.marks(at.clone(), 6, .6);
+          FX.flash('#ffffff', .7, .34);
+          FX.shockwave(on.clone().add(up(1)), RAT2, 2.6);
+          FX.lattice(at.clone(), d, 3, 4, 4, 4, RAT2, { stagger: 16, life: .45, width: .34 });
+          FX.rings(on.clone(), RAT, 6, { maxR: 28, life: .9, gap: 28 });
+          FX.cracks(on.clone(), 30, 34, 0x4a5058);
+          FX.debris(on.clone(), 26, 30, 0x6a7078);
+          FX.dust(new THREE.Vector3(on.x, 0, on.z), 20, 0xc8ccd4, 26, 7);
+          FX.cracks(floor.clone(), 18, 24, 0x4a5058);
+          FX.blood(at.clone(), d, 26, 2.8);
+          FX.mangaLines(1.1, .36);
+          if (typeof hitstop === 'function') hitstop(.26);
+          addShake(4.6);
+          if (e) e.anchorT = 0;
+          G.dice(e, { dir: new THREE.Vector3(0, -1, 0), power: 2.6, cubes: 30 });
+        }
+        return t < 1.9;
+      } });
+    } },
+
+    /* 4 · out, and then the part nobody else on the roster would do */
+    w4: { name: 'ON ITS WAY BACK', color: '#d8e4ec', hold: 2.2, run: function (e, d, p, G) {
+      var NA = window.JJNANAMI;
+      var RAT = (NA && NA.RAT) || 0xd8e4ec, RAT2 = (NA && NA.RAT2) || 0xffffff;
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var cleaver = (NA && NA.buildCleaver) ? NA.buildCleaver() : null;
+      var home = p.clone().addScaledVector(d, -3).add(up(3.1));
+      if (cleaver) {
+        cleaver.position.copy(home);
+        cleaver.rotation.y = Math.atan2(d.x, d.z);
+        scene.add(cleaver);
+      }
+      FX.mangaLines(.4, .45);
+      if (e && !e.dead) { e.anchorT = 1.8; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.2); }
+
+      var t = 0, spin = 0, passes = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone().add(up(2.5)));
+        spin += dt * 16;
+        /* three passes: out through them, back through them, out again */
+        if (cleaver) {
+          cleaver.rotation.x = spin;
+          var leg = Math.min(2.99, Math.max(0, (t - .25) / .42));
+          var k = leg - Math.floor(leg);
+          var a2 = Math.floor(leg) % 2 ? at.clone() : home.clone();
+          var b2 = Math.floor(leg) % 2 ? home.clone() : at.clone();
+          cleaver.position.lerpVectors(a2, b2, E2(k));
+        }
+        if (passes < 3 && t > .55 + passes * .42) {
+          var i = passes++;
+          if (NA && NA.marks) NA.marks(at.clone(), 5 - i * .8, .3);
+          FX.slash(at.clone(), i % 2 ? d.clone().negate() : d.clone(), i < 2 ? RAT : RAT2, 13, .22);
+          FX.impact(at.clone(), RAT2, 3.2 + i * .6);
+          FX.blood(at.clone(), i % 2 ? d.clone().negate() : d.clone(), 11 + i * 4, 2);
+          FX.mote(at.clone(), RAT, 2.4, .22);
+          if (typeof hitstop === 'function') hitstop(.08 + i * .03);
+          addShake(2 + i * .6);
+        }
+        /* and he catches it, and puts it through them once more by hand */
+        if (t > 1.72) {
+          var at2 = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone().add(up(2.5)));
+          if (cleaver) { cleaver.position.copy(at2).addScaledVector(d, -2); cleaver.rotation.x = 0; }
+          FX.flash('#ffffff', .6, .3);
+          if (window.JJYUJI && window.JJYUJI.blackFlash) window.JJYUJI.blackFlash(at2.clone());
+          FX.cutLine(at2.clone().addScaledVector(d, -6), at2.clone().addScaledVector(d, 24), RAT2, 1.6, .45);
+          FX.cross(at2.clone(), RAT2, 13, .3);
+          FX.cracks(new THREE.Vector3(at2.x, .1, at2.z), 22, 26, 0x4a5058);
+          FX.debris(new THREE.Vector3(at2.x, .1, at2.z), 18, 22, 0x6a7078);
+          FX.blood(at2.clone(), d, 24, 2.6);
+          FX.mangaLines(1, .34);
+          if (typeof hitstop === 'function') hitstop(.24);
+          addShake(4.2);
+          if (e) e.anchorT = 0;
+          G.sever(e, { dir: d, power: 2.8, cubes: 20 });
+          if (cleaver) {
+            scene.remove(cleaver);
+            cleaver.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+          }
+          return false;
+        }
+        return true;
+      } });
+    } },
+
+    /* R · the special. The vow says he works fixed hours. It is not
+       those hours any more */
+    wr: { name: 'PAST SIX O’CLOCK', color: '#ffffff', hold: 2.7, run: function (e, d, p, G) {
+      var NA = window.JJNANAMI;
+      var RAT = (NA && NA.RAT) || 0xd8e4ec, RAT2 = (NA && NA.RAT2) || 0xffffff;
+      var STEEL = (NA && NA.STEEL) || 0x4d84a8;
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var floor = new THREE.Vector3(p.x, .1, p.z);
+      /* the vow lapsing. Everything goes in and the light goes cold —
+         and that is the whole of the build-up, because he does not
+         announce anything */
+      FX.converge(p.clone().add(up(2.8)), RAT, 40, 15, 1);
+      FX.tint('#0d1620', .45, 1.4);
+      FX.zoom(-8, .8);
+      FX.mangaLines(.4, .8);
+      if (typeof hitstop === 'function') hitstop(.16);
+      if (e && !e.dead) { e.anchorT = 2.4; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.8); }
+
+      var cleaver = (NA && NA.buildCleaver) ? NA.buildCleaver() : null;
+      if (cleaver) {
+        cleaver.position.copy(p).add(up(14));
+        cleaver.rotation.y = Math.atan2(d.x, d.z);
+        cleaver.rotation.x = -Math.PI * .5;
+        cleaver.scale.setScalar(2.4);
+        scene.add(cleaver);
+      }
+
+      var t = 0, fired = false;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.6)) : p.clone().add(up(2.6)));
+        if (!fired) {
+          /* it is raised, held, and the ticks are drawn on the way up */
+          var k = E2(Math.min(1, t / 1.5));
+          if (cleaver) cleaver.position.copy(at).add(up(9 + k * 7)).addScaledVector(d, -3);
+          if (Math.random() < dt * 26) FX.mote(at.clone().add(up(9)), Math.random() < .5 ? RAT : RAT2, 9, .35);
+          if (Math.random() < dt * 6) {
+            if (NA && NA.marks) NA.marks(at.clone(), 8, .4);
+            addShake(.8);
+          }
+        }
+        if (!fired && t > 1.6) {
+          fired = true;
+          var on = new THREE.Vector3(at.x, .1, at.z);
+          if (cleaver) { cleaver.position.copy(at).add(up(1)); cleaver.rotation.z = .1; }
+          /* the measurement at the scale of the swing, not of the man */
+          if (NA && NA.marks) NA.marks(at.clone(), 13, .8);
+          FX.flash('#ffffff', .85, .4);
+          if (window.JJYUJI && window.JJYUJI.blackFlash) window.JJYUJI.blackFlash(at.clone());
+          FX.cutLine(at.clone().add(up(18)), on.clone(), RAT2, 3.2, .6);
+          FX.cutLine(at.clone().addScaledVector(side, -22), at.clone().addScaledVector(side, 22),
+            RAT2, 2, .5);
+          FX.shockwave(at.clone(), RAT2, 3.4);
+          FX.impact(on.clone().add(up(1)), RAT2, 12);
+          FX.rings(on.clone(), RAT, 6, { maxR: 34, life: 1, gap: 28 });
+          /* the road either side of the line goes as well */
+          for (var i = 1; i < 8; i++) {
+            var a2 = on.clone().addScaledVector(side, (i % 2 ? 1 : -1) * i * 3.5);
+            FX.cracks(a2, 12 + i, 14 + i * 2, 0x4a5058);
+            if (i % 2) FX.debris(a2, 10, 16, 0x6a7078);
+            FX.dust(new THREE.Vector3(a2.x, 0, a2.z), 7, 0xc8ccd4, 14, 6);
+          }
+          FX.cracks(floor.clone(), 24, 30, 0x4a5058);
+          FX.blood(at.clone(), d, 30, 3);
+          FX.mangaLines(1.3, .45);
+          if (typeof hitstop === 'function') hitstop(.32);
+          addShake(5.4);
+          if (e) e.anchorT = 0;
+          G.halve(e, { dir: d, power: 1.8, stand: .3, color: 0xd8e4ec });
+          if (cleaver) {
+            scene.remove(cleaver);
+            cleaver.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+          }
+        }
+        return t < 2.4;
+      } });
+    } },
+
     /* -------------------------------------------------------- SUKUNA */
     /* 1 · Dismantle — the net, and the cubes it cut them into */
     s1: { name: 'DISMANTLED', color: '#ff2a4a', hold: .9, run: function (e, d, p, G) {
@@ -4759,7 +5094,8 @@
     j1: 'sever', j2: 'flat', j3: 'dice', j4: 'gone', jr: 'dice',
     o1: 'sever', o2: 'sever', o3: 'sever', o4: 'dice', or: 'gone',
     k1: 'sever', k2: 'flat', k3: 'gone', k4: 'burn', kr: 'dice',
-    r1: 'gone', r2: 'burn', r3: 'dice', r4: 'flat', rr: 'gone'
+    r1: 'gone', r2: 'burn', r3: 'dice', r4: 'flat', rr: 'gone',
+    w1: 'sever', w2: 'flat', w3: 'dice', w4: 'sever', wr: 'sever'
   };
 
   /* =====================================================================
