@@ -1945,6 +1945,21 @@
         else if (near) addShake(.5);
         break;
 
+      /* ----------------------------------------------------------- RYU
+         Everything he throws leaves a point on his HEAD, so the copy is
+         handed the packet — his rig is inside it, and the bore is read
+         off it exactly the way it is read locally. A shot that started
+         at his chest instead would be a different character. */
+      case 'r1': case 'r2': case 'r3': case 'r4': case 'rr':
+        if (window.JJRYU && window.JJRYU.remote &&
+            window.JJRYU.remote[kind]) {
+          window.JJRYU.remote[kind](pos.clone(), yaw, f);
+        }
+        if (close && kind === 'rr') addShake(2);
+        else if (close) addShake(1.1);
+        else if (near) addShake(.5);
+        break;
+
       case 'n4':
         /* the shot he framed, and the twenty four stills inside it */
         if (window.JJNAOYA && window.JJNAOYA.remoteFrames) {

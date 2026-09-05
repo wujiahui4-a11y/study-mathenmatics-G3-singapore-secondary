@@ -774,7 +774,7 @@
      THE SPECIAL. Not another piece of ordnance — the whole frame comes
      together around him, and then it turns.
      ================================================================== */
-  var SPIN = { dmg: 60, radius: 12, dur: 2.6, rate: 26 };
+  var SPIN = { dmg: 54, radius: 11, dur: 1.6, rate: 26 };
 
   function buildFrame() {
     var g = new THREE.Group();
@@ -808,12 +808,10 @@
 
   function castSpin() {
     if (!ready('kr')) return;
-    var a = start('kr', SPIN.dur + .8, 'kr', 'ULTRA SPIN', '超高速回転');
+    var a = start('kr', SPIN.dur + .5, 'kr', 'ULTRA SPIN', '超高速回転');
     a.dir = aim();
     a.hit = [];
-    player.iframes = Math.max(player.iframes, SPIN.dur + 1);
-    FX.letterbox(true);
-    later((SPIN.dur + 1.4) * 1000, function () { FX.letterbox(false); });
+    player.iframes = Math.max(player.iframes, .9);
     try { sfx.raise(); } catch (e) {}
   }
   function stepSpin(a, dt) {
@@ -827,17 +825,17 @@
       scene.add(g);
       keep(g);
       a.frame = g;
-      /* it takes longer to build than anything else of his, because it
-         is the only thing he builds around himself */
-      assemble(g, .8);
-      FX.cracks(new THREE.Vector3(p.pos.x, .06, p.pos.z), 14, 18, 0x3a3f46);
-      addShake(2);
+      /* it still takes the longest of his to build, because it is the
+         only thing he builds around himself — but half a second, not one */
+      assemble(g, .5);
+      FX.cracks(new THREE.Vector3(p.pos.x, .06, p.pos.z), 12, 15, 0x3a3f46);
+      addShake(1.6);
     }
     if (a.frame) {
       a.frame.position.copy(p.pos);
-      if (a.t > .85) {
+      if (a.t > .62) {
         /* and then it turns, and keeps turning faster */
-        var w = Math.min(1, (a.t - .85) / .5);
+        var w = Math.min(1, (a.t - .62) / .38);
         a.frame.rotation.y += dt * SPIN.rate * w;
         if (a.frame.__arms) a.frame.__arms.forEach(function (arm2, i) {
           arm2.rotation.z = (i ? -1 : 1) * (.2 + w * 1.15);
@@ -853,13 +851,13 @@
         }
       }
     }
-    if (a.stage < 2 && a.t > .85) {
+    if (a.stage < 2 && a.t > .62) {
       a.stage = 2;
-      FX.flash('#fff0d0', .5, .26);
-      FX.rings(new THREE.Vector3(p.pos.x, .12, p.pos.z), HOT, 4,
-        { maxR: SPIN.radius * 1.8, life: .7, gap: 38 });
-      FX.mangaLines(.9, .3);
-      addShake(3);
+      FX.flash('#fff0d0', .4, .22);
+      FX.rings(new THREE.Vector3(p.pos.x, .12, p.pos.z), HOT, 3,
+        { maxR: SPIN.radius * 1.6, life: .6, gap: 38 });
+      FX.mangaLines(.6, .22);
+      addShake(2.2);
       try { sfx.redBoom(); } catch (e) {}
     }
     /* everything inside the circle, once, and it is a lot */
@@ -870,27 +868,27 @@
         a.hit.push(e);
         var kb = e.pos.clone().sub(p.pos).setY(0);
         if (kb.lengthSq() < .01) kb.copy(d);
-        kb.normalize().multiplyScalar(38); kb.y = 22;
+        kb.normalize().multiplyScalar(30); kb.y = 17;
         e.damage(SPIN.dmg, kb, {
-          react: 'blow', reactDur: 1.2, spark: FLASH, stun: 1.2,
+          react: 'blow', reactDur: 1, spark: FLASH, stun: .9,
           bleed: true, death: 'dice' });
-        FX.impact(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), FLASH, 4.4);
-        sparks(e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), 14);
-        FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), kb.clone().normalize(), 18, 2.4);
-        addShake(3);
-        if (typeof hitstop === 'function') hitstop(.12);
+        FX.impact(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), FLASH, 3.8);
+        sparks(e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), 12);
+        FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), kb.clone().normalize(), 15, 2.2);
+        addShake(2.2);
+        if (typeof hitstop === 'function') hitstop(.1);
       });
     }
     if (a.stage < 3 && a.t > a.dur - .4) {
       a.stage = 3;
       /* and it comes apart at speed, which is the whole payoff */
-      FX.flash('#ffe7c0', .6, .3);
-      FX.rings(new THREE.Vector3(p.pos.x, .12, p.pos.z), HOT, 5,
-        { maxR: SPIN.radius * 2.4, life: .9, gap: 34 });
-      FX.dust(new THREE.Vector3(p.pos.x, 0, p.pos.z), 16, 0x9aa0a8, 20, 6);
-      FX.mangaLines(1, .34);
-      addShake(4);
-      if (typeof hitstop === 'function') hitstop(.2);
+      FX.flash('#ffe7c0', .45, .24);
+      FX.rings(new THREE.Vector3(p.pos.x, .12, p.pos.z), HOT, 4,
+        { maxR: SPIN.radius * 2, life: .7, gap: 34 });
+      FX.dust(new THREE.Vector3(p.pos.x, 0, p.pos.z), 13, 0x9aa0a8, 17, 5);
+      FX.mangaLines(.7, .26);
+      addShake(2.6);
+      if (typeof hitstop === 'function') hitstop(.12);
       if (a.frame) { scrap(a.frame, p.pos.clone().add(new THREE.Vector3(0, 4, 0))); a.frame = null; }
     }
   }

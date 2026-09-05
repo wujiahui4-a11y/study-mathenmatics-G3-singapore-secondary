@@ -8,8 +8,8 @@ meter and glass frames.
 
 ## Playing
 
-Title screen → **PLAY ONLINE WITH FRIENDS**. Eleven fighters: Gojo, Naoya,
-Yuji, Hakari, Choso, Megumi, Mahito, Todo, Higuruma, Yuta and Muta.
+Title screen → **PLAY ONLINE WITH FRIENDS**. Twelve fighters: Gojo, Naoya,
+Yuji, Hakari, Choso, Megumi, Mahito, Todo, Higuruma, Yuta, Muta and Ryu.
 
 * **Create a room** gives you a six character code.
 * Everyone else types that code and joins.
@@ -24,13 +24,13 @@ wind-down and a timer appears above the ability bar; taking a hit puts you
 back in combat and starts the eight seconds again, and pressing `C` a second
 time cancels. You cannot switch at all while awakened.
 
-**The roster panel folds up.** At eleven fighters the list was taller than
-the screen, so it collapses to a single header — `▸ FIGHTERS 11` — and
+**The roster panel folds up.** At a dozen fighters the list was taller than
+the screen, so it collapses to a single header — `▸ FIGHTERS 12` — and
 clicking it opens a scrolling body 46 % of the viewport high, with the
 fighter you are currently playing scrolled into view. The toggle is wired
 once at load rather than inside `buildCharList`, because every character
 module calls that function on the way in and a listener per call would
-have stacked eleven deep.
+have stacked a dozen deep.
 
 ## Hakari Kinji
 
@@ -1055,10 +1055,18 @@ five — the body braces, and the frame is full anyway.
 | `4` | **Missile Pod** 弾幕 | a shoulder rack and eight of them, each going up before it goes anywhere else |
 | `R` | **Ultra Spin** 超高速回転 | the special. The whole frame assembles *around* him, and then it turns |
 
+It is a **skill, not an ultimate**, and it took a pass to make that true.
+It shipped with `FX.letterbox(true)`, a three-and-a-half second cast and
+three and a half seconds of invulnerability — which is the treatment this
+game gives a domain expansion, and it read as one. The cinema bars are
+gone, the cast is 2.1 seconds, the invulnerability is 0.9, and the numbers
+came down with them. It is still the biggest thing he does. It is no
+longer a cutscene.
+
 ### Four normals of the same weight, and one that is not
 
 This is the rule the kit was built to. Against a standing target the four
-land 32, 34, 35 and 32; `R` lands 60. Getting there took three passes, and
+land 32, 34, 35 and 32; `R` lands 54. Getting there took three passes, and
 every one of them was a hit-detection bug rather than a number:
 
 - **The drill searched from its own tip**, which is held out to one side —
@@ -1091,13 +1099,80 @@ Every one of them ends with the weapon in pieces on the floor beside them.
 | **ORDNANCE** | four pods in a ring overhead, twelve arcing in three at a time, and then every tube that is left at once |
 | **SCRAPPED** | the frame comes together around him and spins up, and keeps spinning up. Then he lets go of all of it, in one direction |
 
+## Ryu Ishigori
+
+**Cursed Energy Discharge** 呪力放出. A Culling Game player out of the Meiji
+era with, by most accounts, the highest raw cursed energy output of anybody
+in it — and the plainest technique in the series to go with it. He does not
+shape cursed energy into anything. He lets an enormous amount of it out, in
+a direction.
+
+**The direction is the joke.** It comes out of his *hair* — a pompadour
+built in the shape of a cannon, with a bore in the front of it — which
+leaves both hands free the whole time he is firing. So this file never puts
+a weapon in his hands: `rig.bore` is an `Object3D` parented to his head,
+and every shot in the kit is spawned there and aimed by where his head is
+pointing.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Cursed Energy Discharge** 呪力放出 | one bolt, straight out, and it stops at the first person it reaches |
+| `2` | **Flare Shot** 曳光弾 | the rapid burst — six tracers in a shallow fan, so it covers a lane instead of a line |
+| `3` | **Tracking Shots** 追尾弾 | four that leave in entirely the wrong direction and then come back. The turn is the whole move |
+| `4` | **Point Blank** 零距離放出 | no aiming at all. He walks into them and lets the whole discharge out at zero range |
+| `R` | **Granite Blast** 花崗岩 | the special. He holds the charge, and what comes out is 74 metres long and 13 wide |
+
+Against a standing target the four land 34, 36, 36 and 34; `R` lands 58.
+And `R` is a **skill**: a held charge, a beam, and it is over in two
+seconds. No cinema bars, no domain, no long invulnerability.
+
+### Two bugs that only a man who fires out of his hair can have
+
+Both of them cost a pass, and neither would exist for a fighter who
+punches:
+
+- **The bore is six units off the floor.** `enemiesNear` measures to a
+  chest at two and a half, so a shot fired *level* out of his hair sails
+  cleanly over the top of everybody. `aim3()` now builds the direction in
+  three dimensions from the bore to the nearest chest, and only falls back
+  to level-and-slightly-down when there is nobody in front of him.
+- **A bolt travels 96 units a second, which is five units a frame.** Tested
+  as a point at its new position it steps straight through a 4.6-unit
+  sphere and out the other side. `sweepHit()` tests the *segment* it
+  covered since the last frame instead, and all three projectile moves use
+  it.
+
+### What it looks like
+
+Black jacket with heavy cream fur at the neck, the cuffs and the hem, worn
+open over a bare chest; a pendant on a cord; a maroon belt with a yellow
+four-pointed star on the buckle; black trousers, blue eyes. The cursed
+energy is the pale blue-white it is drawn as, and it is the only thing in
+the file that glows.
+
+The pompadour took two passes. Built as a stack of lifts going straight up
+it was a chimney, and the bore ended up on the crown pointing at the sky —
+so the mass now steps up and *back* off the head with a lip hanging over
+the brow, and the barrel is set into the front of that lip, over his eyes,
+pointing where he is looking.
+
+### The five endings
+
+| | What it does |
+| --- | --- |
+| **PUT A HOLE IN THEM** | three shots, each narrower and brighter than the last, and then one that does not stop at them |
+| **LIT UP** | twenty tracers over the whole body in a second and a bit, and then every tube he has into one point |
+| **NOWHERE TO STAND** | eight go out wide and *hang* there, which is the frightening part, and then all eight at once |
+| **AT ZERO RANGE** | three discharges into contact, each bigger than the last, and the fourth is straight down through them |
+| **LEVELLED** | held, and held, and held. Then the road is a different shape |
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — eighty of them,
+and differently from every other skill in the game — eighty five of them,
 one per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -1595,7 +1670,7 @@ checked against each other without standing a broker up in between. That is
 how all of this is checked: two browsers, one playing every fighter in turn
 and throwing the whole kit, the other counting what arrives.
 
-**Sixty four skills, eleven fighters and four awakened kits**, and for each
+**Seventy skills, twelve fighters and four awakened kits**, and for each
 one: the cast announced exactly once, the body posed, and something actually
 drawn.
 
@@ -1612,6 +1687,7 @@ drawn.
 | Higuruma | j1 | j2 | j3 | j4 | jr |
 | Yuta | o1 | o2 | o3 | o4 | or |
 | Muta | k1 | k2 | k3 | k4 | kr |
+| Ryu | r1 | r2 | r3 | r4 | rr |
 | Sukuna | s1 | s2 | s3 | s4 | |
 | Choso awakened | ca1 | ca2 | ca3 | ca4 | |
 | Hakari in fever | ha1 | ha2 | ha3 | ha4 | |
@@ -1874,6 +1950,7 @@ disk.
 | `higuruma.js` | Higuruma: the seal, the black sword, and the court that hands down the verdict |
 | `yuta.js` | Yuta: four ordinary cuts, one that is not, and the overspill on all of them |
 | `muta.js` | Muta: everything he fights with is built on the spot and scrapped after |
+| `ryu.js` | Ryu: five ways of letting an enormous amount of it out, all fired from his hair |
 | `void.js` | Unlimited Void: the hand sign, the barrier and everything inside it |
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |
