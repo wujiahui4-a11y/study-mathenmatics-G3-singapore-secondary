@@ -1,0 +1,3258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jujutsu Battleground</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Finger+Paint&family=Cinzel:wght@600;700;900&family=Barlow:wght@400;500;600;700&display=swap');
+  :root {
+    --gold: #d4b45a;
+    --gold-hi: #f3dd8c;
+    --blood: #9a1c2e;
+    --ink: #08070b;
+    --paper: #efe6d4;
+    --mute: #9a9080;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #000; font-family: 'Barlow', 'Segoe UI', Arial, sans-serif; }
+  canvas { display: block; }
+  .fp { font-family: 'Finger Paint', 'Cinzel', cursive; }
+
+  #crosshair {
+    position: fixed; left: 50%; top: 50%; width: 6px; height: 6px;
+    margin: -3px 0 0 -3px; border-radius: 50%;
+    background: rgba(255,255,255,.9); box-shadow: 0 0 6px rgba(120,200,255,.9);
+    pointer-events: none; z-index: 5;
+  }
+  #shatterCv {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 9;
+  }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
+  #charCard {
+    position: absolute; left: 18px; top: 16px;
+    min-width: 268px; padding: 12px 16px 12px 18px; color: #fff;
+    background: linear-gradient(180deg, rgba(12,10,12,.72), rgba(6,5,8,.58));
+    border: 1px solid rgba(212,180,90,.45);
+    border-left: 3px solid var(--gold);
+    box-shadow: 0 10px 28px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,230,160,.12);
+  }
+  #charCard .name {
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    font-size: 17px; letter-spacing: 2px; color: #fff8e6;
+    text-shadow: 0 1px 0 #000, 0 0 12px rgba(212,180,90,.35);
+  }
+  #charCard .sub {
+    font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 2.4px;
+    color: var(--gold); margin: 4px 0 8px;
+  }
+  .barWrap {
+    height: 8px; background: rgba(0,0,0,.5); overflow: hidden;
+    border: 1px solid rgba(212,180,90,.55);
+  }
+  #hpFill {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, #6a1018, #d4343c 55%, #f0d78a);
+    box-shadow: 0 0 10px rgba(212,52,60,.55);
+    transition: width .15s;
+  }
+
+  #charList {
+    position: absolute; left: 18px; top: 118px;
+    display: flex; flex-direction: column; gap: 7px;
+    pointer-events: auto;
+  }
+  /* The roster is a folded list: a header you click, and a panel that
+     scrolls. It started as a plain column, which was fine at four
+     fighters and reached the bottom of the screen at ten. */
+  #charList .clHead {
+    font-family: 'Cinzel', serif;
+    font-size: 10px; letter-spacing: 4px; color: var(--gold);
+    text-shadow: 0 1px 4px rgba(0,0,0,.7);
+    display: flex; align-items: center; gap: 7px;
+    min-width: 168px; padding: 6px 11px; cursor: pointer;
+    background: rgba(8,7,10,.5);
+    border: 1px solid rgba(212,180,90,.28);
+    transition: border-color .15s, background .15s;
+  }
+  #charList .clHead:hover { border-color: var(--gold-hi); background: rgba(20,16,12,.62); }
+  #charList .clHead .caret {
+    display: inline-block; font-size: 9px; letter-spacing: 0;
+    transition: transform .16s;
+  }
+  #charList.open .clHead .caret { transform: rotate(90deg); }
+  #charList .clHead .clCount {
+    margin-left: auto; letter-spacing: 1px;
+    color: rgba(212,180,90,.6);
+  }
+  #clBody {
+    display: none; flex-direction: column; gap: 7px;
+    max-height: 46vh; overflow-y: auto; overflow-x: hidden;
+    padding-right: 5px;
+    scrollbar-width: thin; scrollbar-color: rgba(212,180,90,.45) rgba(8,7,10,.4);
+  }
+  #charList.open #clBody { display: flex; }
+  #clBody::-webkit-scrollbar { width: 7px; }
+  #clBody::-webkit-scrollbar-track { background: rgba(8,7,10,.45); }
+  #clBody::-webkit-scrollbar-thumb {
+    background: rgba(212,180,90,.42);
+    border: 1px solid rgba(212,180,90,.25);
+  }
+  #clBody::-webkit-scrollbar-thumb:hover { background: rgba(212,180,90,.7); }
+  .charItem {
+    display: flex; align-items: center; gap: 10px;
+    min-width: 168px; padding: 4px 12px 4px 4px; cursor: pointer;
+    background: rgba(8,7,10,.5);
+    border: 1px solid rgba(212,180,90,.28);
+    transition: border-color .15s, background .15s, transform .15s;
+  }
+  .charItem:hover { border-color: var(--gold-hi); background: rgba(20,16,12,.62); }
+  .charItem.active {
+    border-color: var(--gold);
+    background: rgba(40,28,12,.7);
+    box-shadow: 0 0 14px rgba(212,180,90,.18);
+  }
+  .charItem img {
+    width: 40px; height: 40px;
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(212,180,90,.4);
+  }
+  .charItem .cname {
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    color: #fff8e6; font-size: 13px; letter-spacing: 1.4px;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  .charItem .ctech { color: rgba(239,230,212,.55); font-size: 9px; letter-spacing: 1px; }
+  #charList .clHint { font-size: 9px; letter-spacing: 2px; color: rgba(212,180,90,.55); text-shadow: 0 1px 3px #000; }
+
+  #moves {
+    position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
+    display: flex; gap: 8px; align-items: stretch;
+  }
+  .move {
+    position: relative; overflow: hidden;
+    min-width: 90px; height: 56px; padding: 7px 12px 8px;
+    background: linear-gradient(180deg, rgba(14,12,14,.7), rgba(6,5,8,.55));
+    border: 1px solid rgba(212,180,90,.5);
+    color: #fff; text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    box-shadow: 0 8px 18px rgba(0,0,0,.4);
+  }
+  .move .key {
+    position: absolute; top: 4px; left: 7px;
+    font-family: 'Cinzel', serif;
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    color: var(--gold);
+  }
+  .move .name {
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    font-size: 13px; line-height: 1.05; letter-spacing: .4px;
+    color: #fff8e6; text-shadow: 0 1px 4px rgba(0,0,0,.65);
+    white-space: nowrap;
+  }
+  .move .cd {
+    position: absolute; left: 0; bottom: 0; width: 100%; height: 0%;
+    background: rgba(212,180,90,.28);
+    pointer-events: none;
+  }
+  .move.onCd { border-color: rgba(212,180,90,.22); }
+  .move.onCd .name { color: rgba(239,230,212,.4); }
+
+  #projWrap {
+    position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%);
+    width: 260px; display: none;
+  }
+  #projWrap .plabel {
+    font-family: 'Cinzel', serif;
+    font-size: 10px; letter-spacing: 4px; color: var(--gold); text-align: center;
+    text-shadow: 0 1px 4px rgba(0,0,0,.7); margin-bottom: 3px;
+  }
+  #projBar {
+    height: 7px; overflow: hidden;
+    background: rgba(0,0,0,.45); border: 1px solid rgba(212,180,90,.5);
+  }
+  #projFill { height: 100%; width: 0%; background: linear-gradient(90deg, #c9a24a, #fff1b8); }
+
+  #vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 7; opacity: 0;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(255,20,30,.55) 100%);
+    transition: opacity .25s;
+  }
+
+  #splash {
+    position: fixed; left: 0; right: 0; top: 24%; text-align: center;
+    pointer-events: none; z-index: 8; opacity: 0; transition: opacity .2s;
+  }
+  #splash .big {
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    font-size: 42px; letter-spacing: 6px; color: #fff8e6;
+    text-shadow: 0 0 22px var(--glow, #d4b45a), 0 0 60px var(--glow, #9a1c2e);
+  }
+  #splash .small { font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 7px; color: var(--gold); margin-top: 4px; }
+
+  /* ---------- title / pause ---------- */
+  #menu {
+    position: fixed; inset: 0; z-index: 20; display: flex;
+    align-items: center; justify-content: center; flex-direction: column;
+    color: #efe6d4; text-align: center; cursor: default;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(154,28,46,.42), transparent 52%),
+      radial-gradient(ellipse at 18% 80%, rgba(40,24,90,.28), transparent 46%),
+      radial-gradient(ellipse at 82% 70%, rgba(154,28,46,.18), transparent 40%),
+      #08070b;
+  }
+  #menu.is-pause { background: rgba(6,5,8,.84); }
+  .menu-veil, .menu-orn { pointer-events: none; }
+  .menu-veil {
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 3px, rgba(0,0,0,.08) 3px 4px),
+      radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,.55) 100%);
+  }
+  .menu-orn {
+    position: absolute; width: 56px; height: 56px;
+    border: 1.5px solid rgba(212,180,90,.55);
+  }
+  .menu-orn.tl { top: 22px; left: 22px; border-right: 0; border-bottom: 0; }
+  .menu-orn.tr { top: 22px; right: 22px; border-left: 0; border-bottom: 0; }
+  .menu-orn.bl { bottom: 22px; left: 22px; border-right: 0; border-top: 0; }
+  .menu-orn.br { bottom: 22px; right: 22px; border-left: 0; border-top: 0; }
+  .menu-shell { position: relative; z-index: 1; width: min(920px, 92vw); padding: 8px 12px 4px; }
+  .menu-kicker {
+    font-family: 'Cinzel', serif;
+    font-size: 11px; letter-spacing: 7px; color: var(--gold);
+    margin-bottom: 8px;
+  }
+  #menu h1 {
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    font-size: clamp(40px, 7.2vw, 78px); font-weight: 400; line-height: .92;
+    letter-spacing: 3px;
+    background: linear-gradient(180deg, #fff6d8 0%, #f0d78a 40%, #c9a24a 72%, #8a1a28 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 8px 28px rgba(154,28,46,.45));
+  }
+  #menu h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 12px; letter-spacing: 6px; color: var(--mute);
+    margin: 14px 0 0;
+  }
+  #menu h2::before, #menu h2::after {
+    content: ''; display: inline-block; width: 42px; height: 1px;
+    margin: 0 12px 4px; background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    vertical-align: middle;
+  }
+  #menuRoster {
+    display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;
+    margin: 26px 0 14px;
+  }
+  .roster-card {
+    width: 110px; padding: 0; cursor: pointer;
+    background: #0c0a0c;
+    border: 1px solid rgba(212,180,90,.28);
+    color: inherit; font: inherit;
+    transition: border-color .15s, transform .15s, box-shadow .15s;
+  }
+  .roster-card:hover { border-color: var(--gold-hi); transform: translateY(-3px); }
+  .roster-card.active {
+    border-color: var(--gold);
+    box-shadow: 0 0 26px rgba(212,180,90,.28);
+  }
+  .roster-card img {
+    display: block; width: 100%; height: 96px; object-fit: cover;
+    background: #0c0a0c; border: 0;
+  }
+  .roster-card .rn {
+    display: block; padding: 7px 0 8px;
+    font-family: 'Cinzel', serif;
+    font-size: 11px; letter-spacing: 1.6px; color: #efe6d4;
+    background: rgba(0,0,0,.55);
+    border-top: 1px solid rgba(212,180,90,.2);
+  }
+  .roster-card.active .rn { color: var(--gold-hi); background: rgba(40,28,10,.7); }
+  #menuPick .pn {
+    font-family: 'Finger Paint', 'Cinzel', cursive;
+    font-size: 20px; letter-spacing: 3px; color: #fff8e6;
+  }
+  #menuPick .ps {
+    font-family: 'Cinzel', serif;
+    font-size: 11px; letter-spacing: 3px; color: var(--gold); margin-top: 3px;
+  }
+  .menu-actions {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    margin: 22px 0 18px;
+  }
+  .menu-btn, #jjOnline {
+    appearance: none; cursor: pointer;
+    min-width: 220px; padding: 13px 26px;
+    font-family: 'Cinzel', serif;
+    font-size: 14px; font-weight: 700; letter-spacing: 2.4px;
+    border: 1px solid var(--gold);
+    transition: transform .15s, box-shadow .15s, background .15s, color .15s;
+  }
+  .menu-btn.primary, #menuFight {
+    background: linear-gradient(180deg, #f3dd8c, #c9a24a);
+    color: #1a1208;
+    box-shadow: 0 8px 24px rgba(201,162,74,.28), inset 0 1px 0 rgba(255,255,220,.55);
+  }
+  .menu-btn.primary:hover, #menuFight:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(201,162,74,.4);
+  }
+  #jjOnline {
+    position: static !important; transform: none !important; bottom: auto !important; left: auto !important;
+    background: transparent; color: var(--gold-hi);
+  }
+  #jjOnline:hover { background: rgba(212,180,90,.1); }
+  #menu .controls {
+    max-width: 640px; margin: 0 auto;
+    font-size: 12px; line-height: 1.7; color: #c8bba6;
+    background: rgba(8,7,10,.4);
+    border: 1px solid rgba(212,180,90,.16);
+    padding: 10px 16px 8px;
+  }
+  #menu .ctrl-universal { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; margin-bottom: 10px; }
+  #menu .kchip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px;
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(212,180,90,.22);
+    color: #d8cbb4; font-size: 11px; letter-spacing: .4px;
+  }
+  #menu .kchip b {
+    font-family: 'Cinzel', serif; color: var(--gold-hi); letter-spacing: 1px;
+  }
+  #menu .ctrl-kits { text-align: left; display: grid; gap: 3px; }
+  #menu .kit-row, #menu .ctrl-kits > div {
+    display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: baseline;
+    font-size: 12px; color: #c8bba6;
+  }
+  #menu .controls b { color: #fff4d6; font-weight: 600; }
+  #menu .controls .cn {
+    font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 1.4px; color: var(--gold);
+  }
+  #menu .controls .cn.ny { color: #9fd8ff; }
+  #menu .controls .cn.yj { color: #ff7f9a; }
+  #menu .controls .cn.hk { color: #ffcc4d; }
+  #menu .controls .cn.ch { color: #d4143c; }
+  #menu .controls .cn.aw { color: #c7a6ff; }
+  #menu .kit-note { display: block; grid-column: 2; color: #8a8070; font-size: 11px; }
+  #menu .go {
+    margin-top: 16px;
+    font-family: 'Cinzel', serif;
+    font-size: 12px; letter-spacing: 4px; color: var(--gold);
+    animation: pulse 1.6s infinite;
+  }
+  #menu.is-pause .go { display: none; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (max-width: 720px) {
+    .roster-card { width: 78px; }
+    .roster-card img { width: 64px; height: 64px; }
+    #menu .kit-row, #menu .ctrl-kits > div { grid-template-columns: 1fr; }
+    .menu-btn, #jjOnline { min-width: 180px; }
+  }
+</style>
+</head>
+<body>
+<div id="crosshair"></div>
+<div id="vignette"></div>
+<canvas id="shatterCv"></canvas>
+<div id="splash"><div class="big"></div><div class="small"></div></div>
+
+<div id="hud">
+  <div id="charCard">
+    <div class="name">GOJO SATORU</div>
+    <div class="sub">THE HONORED ONE &mdash; LIMITLESS</div>
+    <div class="barWrap"><div id="hpFill"></div></div>
+  </div>
+  <div id="charList">
+    <div class="clHead"><span class="caret">&#9656;</span><span>FIGHTERS</span><span class="clCount"></span></div>
+    <div id="clBody"></div>
+    <div class="clHint">PRESS C TO SWITCH</div>
+  </div>
+  <div id="projWrap">
+    <div class="plabel">PROJECTION</div>
+    <div id="projBar"><div id="projFill"></div></div>
+  </div>
+  <div id="moves"></div>
+</div>
+
+<div id="menu">
+  <div class="menu-veil"></div>
+  <div class="menu-orn tl"></div>
+  <div class="menu-orn tr"></div>
+  <div class="menu-orn bl"></div>
+  <div class="menu-orn br"></div>
+  <div class="menu-shell">
+    <div class="menu-kicker">CURSED ENERGY ARENA</div>
+    <h1>JUJUTSU<br>BATTLEGROUND</h1>
+    <h2>FIVE SORCERERS &middot; ONE CITY</h2>
+    <div id="menuRoster"></div>
+    <div id="menuPick">
+      <div class="pn">GOJO SATORU</div>
+      <div class="ps">THE HONORED ONE &mdash; LIMITLESS</div>
+    </div>
+    <div class="menu-actions">
+      <button type="button" id="menuFight" class="menu-btn primary">ENTER THE ARENA</button>
+    </div>
+    <div class="controls">
+      <div class="ctrl-universal">
+        <span class="kchip"><b>WASD</b> walk</span>
+        <span class="kchip"><b>SHIFT</b> run</span>
+        <span class="kchip"><b>Q</b> dash</span>
+        <span class="kchip"><b>SPACE</b> jump</span>
+        <span class="kchip"><b>C</b> switch</span>
+        <span class="kchip"><b>LMB</b> punch</span>
+        <span class="kchip"><b>F</b> awaken</span>
+      </div>
+      <div class="ctrl-kits">
+        <div class="kit-row" id="menuKit"></div>
+      </div>
+    </div>
+    <div class="go">PICK A FIGHTER, THEN ENTER</div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+
+/* ============================================================
+   JUJUTSU BATTLEGROUND — Jujutsu Shenanigans style 3D arena
+   Characters:
+     GOJO  — Limitless (Red / Rapid / Twofold / Palm / Teleport)
+     NAOYA — Projection Sorcery, 24 FPS rule, frames, bleed
+   ============================================================ */
+
+let ARENA = 88;
+let timeScale = 1, hitstopT = 0;
+
+/* ---------------- renderer / scene ---------------- */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87b8e8);
+scene.fog = new THREE.Fog(0x87b8e8, 90, 260);
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 900);
+
+const hemi = new THREE.HemisphereLight(0xcfe4ff, 0x4a4438, 0.9);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2d8, 1.6);
+sun.position.set(60, 90, 40);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -110; sun.shadow.camera.right = 110;
+sun.shadow.camera.top = 110; sun.shadow.camera.bottom = -110;
+sun.shadow.camera.far = 300;
+scene.add(sun);
+
+const shatterCv = document.getElementById("shatterCv");
+const shCtx = shatterCv.getContext("2d");
+function sizeShatter() { shatterCv.width = innerWidth; shatterCv.height = innerHeight; }
+sizeShatter();
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  sizeShatter();
+});
+
+/* ---------------- textures ---------------- */
+function canvasTex(w, h, fn, repX = 1, repY = 1) {
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  fn(c.getContext("2d"));
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repX, repY);
+  t.magFilter = THREE.NearestFilter;
+  return t;
+}
+const groundTex = canvasTex(256, 256, g => {
+  g.fillStyle = "#5a5f66"; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 900; i++) {
+    g.fillStyle = Math.random() < .5 ? "#54595f" : "#61666d";
+    g.fillRect(Math.random() * 256, Math.random() * 256, 3, 3);
+  }
+  g.strokeStyle = "#484c52"; g.lineWidth = 3;
+  g.strokeRect(0, 0, 256, 256);
+  g.fillStyle = "#d8d2c0";
+  g.fillRect(120, 0, 16, 60); g.fillRect(120, 100, 16, 60); g.fillRect(120, 200, 16, 56);
+}, 22, 22);
+
+function buildingTex(base, win) {
+  return canvasTex(128, 256, g => {
+    g.fillStyle = base; g.fillRect(0, 0, 128, 256);
+    for (let y = 12; y < 244; y += 24) {
+      for (let x = 10; x < 118; x += 22) {
+        g.fillStyle = Math.random() < .35 ? win : "#20242e";
+        g.fillRect(x, y, 13, 15);
+        g.fillStyle = "rgba(255,255,255,.12)";
+        g.fillRect(x, y, 13, 3);
+      }
+    }
+  });
+}
+
+/* ---------------- arena ---------------- */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(ARENA * 2 + 60, ARENA * 2 + 60),
+  new THREE.MeshStandardMaterial({ map: groundTex, roughness: .95 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const buildingAABBs = [];
+const buildingMats = [
+  new THREE.MeshStandardMaterial({ map: buildingTex("#8d97a5", "#ffe9a0"), roughness: .8 }),
+  new THREE.MeshStandardMaterial({ map: buildingTex("#a89a8c", "#c8ecff"), roughness: .8 }),
+  new THREE.MeshStandardMaterial({ map: buildingTex("#7f8a99", "#ffd27a"), roughness: .8 }),
+];
+function addBuilding(x, z, w, d, h, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat || buildingMats[Math.floor(Math.random() * 3)]);
+  m.position.set(x, h / 2, z);
+  m.castShadow = m.receiveShadow = true;
+  scene.add(m);
+  const pad = .6;
+  buildingAABBs.push({
+    minX: x - w / 2 - pad, maxX: x + w / 2 + pad,
+    minZ: z - d / 2 - pad, maxZ: z + d / 2 + pad,
+    h, mesh: m, extras: []
+  });
+  return m;
+}
+
+/* crates — maps.js puts them on sidewalks, never inside a wall */
+const crateMat = new THREE.MeshStandardMaterial({ color: 0xb98a4a, roughness: .9 });
+const crateGeo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
+const crates = [];
+function addCrate(x, z) {
+  const m = new THREE.Mesh(crateGeo, crateMat);
+  m.position.set(x, 0.8, z);
+  m.castShadow = m.receiveShadow = true;
+  scene.add(m);
+  crates.push({ mesh: m, vel: new THREE.Vector3(), av: new THREE.Vector3() });
+  return m;
+}
+
+/* ============================================================
+   R15 THIN ANIME RIG — supports Gojo / Naoya / enemy variants
+   ============================================================ */
+function boxMesh(w, h, d, color) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
+    new THREE.MeshStandardMaterial({ color, roughness: .72 }));
+  m.castShadow = true;
+  return m;
+}
+
+function makeAnimeRig(cfg) {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const M = boxMesh;
+  const HIPS_Y = 2.56;
+
+  /* pelvis */
+  const hips = new THREE.Group(); hips.position.y = HIPS_Y; body.add(hips);
+  const pelvis = M(1.0, .72, .58, cfg.pants); pelvis.position.y = .36; hips.add(pelvis);
+  if (cfg.naoya) {
+    /* hakama skirt + himo belt with knot */
+    const skirt = M(1.18, .52, .74, cfg.pants); skirt.position.y = .2; hips.add(skirt);
+    const belt = M(1.1, .16, .68, 0x3c414e); belt.position.y = .68; hips.add(belt);
+    const knot = M(.3, .18, .14, 0x4a505e); knot.position.set(0, .66, .4); hips.add(knot);
+    const strapL = M(.12, .5, .1, 0xdadee6); strapL.position.set(-.12, .38, .4); strapL.rotation.z = .12; hips.add(strapL);
+    const strapR = strapL.clone(); strapR.position.x = .12; strapR.rotation.z = -.12; hips.add(strapR);
+  } else {
+    const belt = M(1.04, .12, .62, 0x0b0c12); belt.position.y = .72; hips.add(belt);
+  }
+
+  /* chest */
+  const spine = new THREE.Group(); spine.position.y = .76; hips.add(spine);
+  const chest = M(1.28, 1.1, .64, cfg.torso); chest.position.y = .55; spine.add(chest);
+  if (cfg.naoya) {
+    /* kimono lapels crossing + white under-collar */
+    const lapL = M(.6, 1.0, .1, 0x232946); lapL.position.set(-.24, .58, .3); lapL.rotation.z = .32; spine.add(lapL);
+    const lapR = M(.6, 1.0, .1, 0x1b2038); lapR.position.set(.24, .58, .32); lapR.rotation.z = -.32; spine.add(lapR);
+    const underc = M(.4, .42, .12, 0xf2f2ee); underc.position.set(0, .96, .3); spine.add(underc);
+    const btn1 = M(.05, .05, .04, 0xb8bcc4); btn1.position.set(0, 1.0, .38); spine.add(btn1);
+    const btn2 = btn1.clone(); btn2.position.y = .88; spine.add(btn2);
+  }
+
+  /* neck + head */
+  const neck = new THREE.Group(); neck.position.y = 1.12; spine.add(neck);
+  const neckM = M(.26, .24, .26, cfg.naoya ? 0xf2f2ee : cfg.skin); neckM.position.y = .08; neck.add(neckM);
+  const head = new THREE.Group(); head.position.y = .18; neck.add(head);
+  const skull = M(.9, .92, .9, cfg.skin); skull.position.y = .48; head.add(skull);
+
+  if (cfg.gojo) {
+    const hairC = 0xf2f6ff;
+    const hairTop = M(1.0, .36, .98, hairC); hairTop.position.y = .96; head.add(hairTop);
+    const hairBack = M(.98, .5, .24, hairC); hairBack.position.set(0, .78, -.38); head.add(hairBack);
+    for (let i = 0; i < 8; i++) {
+      const th = i / 8 * Math.PI * 2;
+      const s = M(.2, .42 + Math.random() * .28, .2, hairC);
+      s.position.set(Math.cos(th) * .27, 1.2, Math.sin(th) * .27);
+      s.rotation.z = -Math.cos(th) * .5;
+      s.rotation.x = Math.sin(th) * .5;
+      head.add(s);
+    }
+    const sTop = M(.22, .5, .22, hairC); sTop.position.y = 1.3; sTop.rotation.z = .12; head.add(sTop);
+    for (let i = -1; i <= 1; i++) {
+      const b = M(.26, .34, .1, hairC);
+      b.position.set(i * .27, .86, .44);
+      b.rotation.x = -.12;
+      head.add(b);
+    }
+    const bf = M(.96, .26, .96, 0x0d0e14); bf.position.y = .58; head.add(bf);
+    const collar = M(1.04, .42, .72, 0x11142a); collar.position.set(0, 1.08, 0); spine.add(collar);
+  } else if (cfg.naoya) {
+    const hairC = 0x8f9c52, hairD = 0x76833f;
+    /* swept olive hair */
+    const hairTop = M(1.0, .34, 1.0, hairC); hairTop.position.set(0, .96, -.04); head.add(hairTop);
+    const hairBack = M(.96, .62, .26, hairD); hairBack.position.set(0, .68, -.4); head.add(hairBack);
+    /* swept-back spikes */
+    for (let i = 0; i < 5; i++) {
+      const s = M(.2, .4 + Math.random() * .2, .22, i % 2 ? hairC : hairD);
+      s.position.set(-.34 + i * .17, 1.16, -.1 - (i % 2) * .12);
+      s.rotation.x = .55;
+      s.rotation.z = (i - 2) * .1;
+      head.add(s);
+    }
+    /* asymmetric fringe (longer over right eye) */
+    const b1 = M(.3, .32, .1, hairC); b1.position.set(-.26, .88, .43); b1.rotation.x = -.1; head.add(b1);
+    const b2 = M(.26, .46, .1, hairD); b2.position.set(.03, .82, .45); b2.rotation.x = -.12; b2.rotation.z = -.08; head.add(b2);
+    const b3 = M(.28, .58, .1, hairC); b3.position.set(.3, .76, .44); b3.rotation.x = -.14; b3.rotation.z = -.14; head.add(b3);
+    /* narrow smug eyes + brows + smirk */
+    const e1 = M(.15, .07, .05, 0x2a2418); e1.position.set(-.2, .56, .46); head.add(e1);
+    const e2 = M(.15, .07, .05, 0x2a2418); e2.position.set(.2, .56, .46); head.add(e2);
+    const br1 = M(.17, .05, .05, hairD); br1.position.set(-.2, .66, .46); br1.rotation.z = -.18; head.add(br1);
+    const br2 = M(.17, .05, .05, hairD); br2.position.set(.2, .66, .46); br2.rotation.z = .18; head.add(br2);
+    const smirk = M(.2, .04, .04, 0xb87a5e); smirk.position.set(.08, .26, .46); smirk.rotation.z = .16; head.add(smirk);
+    /* tall white shirt collar */
+    const collar = M(.62, .34, .56, 0xf2f2ee); collar.position.set(0, 1.16, .02); spine.add(collar);
+  } else if (cfg.face) {
+    const e1 = M(.13, .13, .05, 0x14141c), e2 = e1.clone();
+    e1.position.set(-.2, .58, .45); e2.position.set(.2, .58, .45);
+    head.add(e1, e2);
+  }
+
+  /* arms */
+  const armW = cfg.naoya ? .52 : .36;
+  function arm(side) {
+    const sh = new THREE.Group(); sh.position.set(.76 * side + (cfg.naoya ? .04 * side : 0), .92, 0); spine.add(sh);
+    const pad = M(cfg.naoya ? .58 : .46, .4, cfg.naoya ? .58 : .46, cfg.torso); pad.position.y = -.1; sh.add(pad);
+    const up = M(armW, 1.0, armW, cfg.torso); up.position.y = -.52; sh.add(up);
+    const el = new THREE.Group(); el.position.y = -1.02; sh.add(el);
+    if (cfg.naoya) {
+      /* wide kimono sleeve to mid-forearm, then white shirt cuff */
+      const sleeve = M(.5, .5, .5, cfg.torso); sleeve.position.y = -.22; el.add(sleeve);
+      const cuff = M(.34, .5, .34, 0xf2f2ee); cuff.position.y = -.68; el.add(cuff);
+    } else {
+      const lo = M(.32, .92, .32, cfg.torso); lo.position.y = -.46; el.add(lo);
+    }
+    const hand = M(.32, .28, .34, cfg.skin); hand.position.y = -1.04; el.add(hand);
+    const anchor = new THREE.Object3D(); anchor.position.y = -1.2; el.add(anchor);
+    return { sh, el, anchor };
+  }
+  const aL = arm(-1), aR = arm(1);
+
+  /* legs (naoya: wide hakama trousers) */
+  const upW = cfg.naoya ? .62 : .46, loW = cfg.naoya ? .56 : .4;
+  function leg(side) {
+    const hip = new THREE.Group(); hip.position.set(.3 * side, .04, 0); hips.add(hip);
+    const up = M(upW, 1.18, cfg.naoya ? .64 : .48, cfg.pants); up.position.y = -.59; hip.add(up);
+    const kn = new THREE.Group(); kn.position.y = -1.18; hip.add(kn);
+    const lo = M(loW, 1.14, cfg.naoya ? .58 : .42, cfg.pants2 || cfg.pants); lo.position.y = -.57; kn.add(lo);
+    const an = new THREE.Group(); an.position.y = -1.14; kn.add(an);
+    const foot = M(.42, .24, .78, cfg.shoes); foot.position.set(0, -.12, .14); an.add(foot);
+    return { hip, kn, an };
+  }
+  const lL = leg(-1), lR = leg(1);
+
+  const rig = {
+    root, body, hips, spine, neck, head,
+    shoulderL: aL.sh, elbowL: aL.el, handL: aL.anchor,
+    shoulderR: aR.sh, elbowR: aR.el, handR: aR.anchor,
+    hipL: lL.hip, kneeL: lL.kn, ankleL: lL.an,
+    hipR: lR.hip, kneeR: lR.kn, ankleR: lR.an,
+    hipsBaseY: HIPS_Y,
+  };
+
+  if (cfg.naoya) {
+    /* tanto blade, hidden until used */
+    const tanto = new THREE.Group();
+    const blade = boxMesh(.07, .6, .13, 0xe8edf4); blade.position.y = -.42; tanto.add(blade);
+    const guard = boxMesh(.16, .05, .2, 0x3a3f4c); guard.position.y = -.1; tanto.add(guard);
+    const grip = boxMesh(.09, .22, .11, 0x23262e); grip.position.y = .04; tanto.add(grip);
+    tanto.position.y = -1.15;
+    tanto.visible = false;
+    aR.el.add(tanto);
+    rig.tanto = tanto;
+  }
+  return rig;
+}
+const JOINTS = ["hips","spine","neck","head","shoulderL","shoulderR","elbowL","elbowR","hipL","hipR","kneeL","kneeR","ankleL","ankleR"];
+function resetPose(r) {
+  for (const j of JOINTS) r[j].rotation.set(0, 0, 0);
+  r.hips.position.y = r.hipsBaseY;
+  r.hips.position.x = 0;
+}
+
+const GOJO_CFG  = { gojo: true, torso: 0x191d33, pants: 0x14151d, shoes: 0x1c1e2e, skin: 0xf2c992 };
+const NAOYA_CFG = { naoya: true, torso: 0x1b2038, pants: 0xc9cdd4, pants2: 0xbfc3cb, shoes: 0x2a2c34, skin: 0xf2c992 };
+const DUMMY_CFG  = { face: true, torso: 0xc9a06a, pants: 0x8a6b44, shoes: 0x5c4630, skin: 0xd8b57e };
+const ATTACK_CFG = { face: true, torso: 0xa8433a, pants: 0x5c2a26, shoes: 0x33201e, skin: 0xe6c26a };
+
+/* ============================================================
+   ANIMATION — procedural idle / walk / run / air (+ per-char flair)
+   ============================================================ */
+const lerp = (a, b, w) => a + (b - a) * w;
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const ease = x => x * x * (3 - 2 * x);
+
+function applyLocomotion(r, t, gait, moveAmt, runAmt, onGround, vy) {
+  if (!onGround) {
+    r.spine.rotation.x = vy > 2 ? .1 : -.14;
+    r.shoulderL.rotation.x = -.55; r.shoulderR.rotation.x = -.55;
+    r.shoulderL.rotation.z = -.5;  r.shoulderR.rotation.z = .5;
+    r.elbowL.rotation.x = -.5;     r.elbowR.rotation.x = -.5;
+    r.hipL.rotation.x = -.55; r.kneeL.rotation.x = .85;
+    r.hipR.rotation.x = .25;  r.kneeR.rotation.x = .5;
+    r.ankleL.rotation.x = .2; r.ankleR.rotation.x = .25;
+    return;
+  }
+  const w = ease(moveAmt);
+  const run = ease(runAmt);
+  const sL = Math.sin(gait), cL = Math.cos(gait);
+  const sR = Math.sin(gait + Math.PI), cR = Math.cos(gait + Math.PI);
+
+  const br = Math.sin(t * 2.1) * .5 + .5;
+  const idle = {
+    spineX: .03 + br * .022, spineY: Math.sin(t * .4) * .04,
+    neckX: -.05 + br * .018, neckY: Math.sin(t * .33) * .16,
+    shX: .06 + br * .04, elX: -.18 - br * .05,
+    hipsY: -.02 * br, hipsRotY: Math.sin(t * .5) * .03,
+    hipX: 0, kneeX: .06,
+  };
+  const legAmp = lerp(.5, 1.02, run);
+  const armAmp = lerp(.42, .95, run);
+  const kneeAmp = lerp(.55, 1.25, run);
+  const lean = lerp(-.05, -.24, run);
+  const bobAmp = lerp(.05, .11, run);
+
+  r.hipL.rotation.x = lerp(idle.hipX, -sL * legAmp, w);
+  r.hipR.rotation.x = lerp(idle.hipX, -sR * legAmp, w);
+  r.kneeL.rotation.x = lerp(idle.kneeX, .08 + Math.max(0, cL) * kneeAmp + run * .18, w);
+  r.kneeR.rotation.x = lerp(idle.kneeX, .08 + Math.max(0, cR) * kneeAmp + run * .18, w);
+  r.ankleL.rotation.x = lerp(0, -(r.hipL.rotation.x + r.kneeL.rotation.x) * .38, w);
+  r.ankleR.rotation.x = lerp(0, -(r.hipR.rotation.x + r.kneeR.rotation.x) * .38, w);
+  r.hipL.rotation.z = lerp(-.035, 0, w);
+  r.hipR.rotation.z = lerp(.035, 0, w);
+
+  r.shoulderL.rotation.x = lerp(idle.shX, sL * armAmp, w);
+  r.shoulderR.rotation.x = lerp(idle.shX, sR * armAmp, w);
+  r.shoulderL.rotation.z = lerp(-.08, -.06, w);
+  r.shoulderR.rotation.z = lerp(.08, .06, w);
+  r.elbowL.rotation.x = lerp(idle.elX, -.2 - Math.max(0, -sL) * (.3 + run * .8) - run * .45, w);
+  r.elbowR.rotation.x = lerp(idle.elX, -.2 - Math.max(0, -sR) * (.3 + run * .8) - run * .45, w);
+
+  r.spine.rotation.x = lerp(idle.spineX, lean, w);
+  r.spine.rotation.y = lerp(idle.spineY, sL * .09, w);
+  r.neck.rotation.x = lerp(idle.neckX, -lean * .55, w);
+  r.neck.rotation.y = lerp(idle.neckY, -sL * .05, w);
+  r.hips.rotation.y = lerp(idle.hipsRotY, -sL * .1, w);
+
+  r.hips.position.y = r.hipsBaseY + lerp(idle.hipsY, -(1 - Math.abs(cL)) * bobAmp, w);
+}
+
+/* Naoya's arrogant idle / swagger / anime sprint, layered on top */
+function applyNaoyaFlair(r, t, moveAmt, runAmt, onGround) {
+  if (!onGround) return;
+  const idleW = 1 - ease(moveAmt);
+  if (idleW > .05) {
+    /* right hand on hip, chin up, weight on one leg */
+    r.shoulderR.rotation.x = lerp(r.shoulderR.rotation.x, .3, idleW);
+    r.shoulderR.rotation.z = lerp(r.shoulderR.rotation.z, .62, idleW);
+    r.elbowR.rotation.x = lerp(r.elbowR.rotation.x, -1.18, idleW);
+    r.neck.rotation.x = lerp(r.neck.rotation.x, -.14, idleW);
+    r.neck.rotation.z = lerp(r.neck.rotation.z, .07, idleW);
+    r.spine.rotation.z = lerp(0, -.045, idleW);
+    r.hips.position.x = lerp(r.hips.position.x, .1, idleW);
+    r.hipL.rotation.z = lerp(r.hipL.rotation.z, -.1, idleW);
+    /* occasional hair caress with the left hand */
+    const cyc = t % 8;
+    if (cyc < 1.6) {
+      const k = Math.sin(Math.PI * clamp01(cyc / 1.6)) * idleW;
+      r.shoulderL.rotation.x = lerp(r.shoulderL.rotation.x, -2.5, k);
+      r.elbowL.rotation.x = lerp(r.elbowL.rotation.x, -1.5, k);
+      r.neck.rotation.z = lerp(r.neck.rotation.z, -.1, k);
+    }
+  }
+  const runW = ease(runAmt) * ease(moveAmt);
+  if (runW > .05) {
+    /* anime sprint: deep lean, arms swept back, chin forward */
+    r.spine.rotation.x = lerp(r.spine.rotation.x, -.42, runW);
+    r.neck.rotation.x = lerp(r.neck.rotation.x, .3, runW);
+    r.shoulderL.rotation.x = lerp(r.shoulderL.rotation.x, .78, runW);
+    r.shoulderR.rotation.x = lerp(r.shoulderR.rotation.x, .85, runW);
+    r.shoulderL.rotation.z = lerp(r.shoulderL.rotation.z, -.3, runW);
+    r.shoulderR.rotation.z = lerp(r.shoulderR.rotation.z, .3, runW);
+    r.elbowL.rotation.x = lerp(r.elbowL.rotation.x, -.2, runW);
+    r.elbowR.rotation.x = lerp(r.elbowR.rotation.x, -.2, runW);
+  }
+}
+
+/* ---------------- vfx helpers ---------------- */
+function radialSprite(inner, outer) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  const gr = g.createRadialGradient(32, 32, 2, 32, 32, 32);
+  gr.addColorStop(0, inner); gr.addColorStop(1, outer);
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+const TEX_GLOW = radialSprite("rgba(255,255,255,1)", "rgba(255,255,255,0)");
+
+const fx = [];
+function addFx(obj) { fx.push(obj); }
+
+function spark(pos, color, n = 6, spd = 14, size = 1.4) {
+  for (let i = 0; i < n; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: TEX_GLOW, color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    s.position.copy(pos);
+    const v = new THREE.Vector3((Math.random() - .5), (Math.random() - .3), (Math.random() - .5)).normalize().multiplyScalar(spd * (0.4 + Math.random() * .8));
+    const life = .3 + Math.random() * .25;
+    s.scale.setScalar(size * (0.6 + Math.random() * .7));
+    scene.add(s);
+    addFx({ t: life, update(dt) {
+      this.t -= dt;
+      s.position.addScaledVector(v, dt);
+      v.y -= 20 * dt;
+      s.material.opacity = Math.max(0, this.t / life);
+      if (this.t <= 0) { scene.remove(s); s.material.dispose(); return false; }
+      return true;
+    }});
+  }
+}
+
+/* falling glass shards for frame breaks */
+function glassShards(pos, n = 10) {
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(.2 + Math.random() * .3, .3 + Math.random() * .5, .05),
+      new THREE.MeshBasicMaterial({ color: 0xcfeaff, transparent: true, opacity: .8 }));
+    m.position.copy(pos).add(new THREE.Vector3((Math.random() - .5) * 2.4, (Math.random() - .5) * 4, (Math.random() - .5) * .8));
+    scene.add(m);
+    const v = new THREE.Vector3((Math.random() - .5) * 8, 2 + Math.random() * 5, (Math.random() - .5) * 8);
+    const av = (Math.random() - .5) * 12;
+    addFx({ t: .9, update(dt) {
+      this.t -= dt;
+      v.y -= 24 * dt;
+      m.position.addScaledVector(v, dt);
+      m.rotation.x += av * dt; m.rotation.z += av * dt;
+      m.material.opacity = Math.min(.8, this.t * 1.6);
+      if (this.t <= 0) { scene.remove(m); m.material.dispose(); return false; }
+      return true;
+    }});
+  }
+}
+
+function ringWave(pos, color, maxR = 10, life = .5, up = false) {
+  const geo = new THREE.TorusGeometry(1, .12, 8, 40);
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  const m = new THREE.Mesh(geo, mat);
+  m.position.copy(pos);
+  if (!up) m.rotation.x = -Math.PI / 2;
+  scene.add(m);
+  addFx({ t: life, update(dt) {
+    this.t -= dt;
+    const p = 1 - this.t / life;
+    m.scale.setScalar(1 + p * maxR);
+    mat.opacity = 1 - p;
+    if (this.t <= 0) { scene.remove(m); geo.dispose(); mat.dispose(); return false; }
+    return true;
+  }});
+}
+
+function damageNumber(pos, text, color = "#fff") {
+  const c = document.createElement("canvas");
+  c.width = 192; c.height = 64;
+  const g = c.getContext("2d");
+  let size = 38;
+  g.font = `bold ${size}px Arial`;
+  while (size > 16 && g.measureText(text).width > 182) {
+    size -= 2;
+    g.font = `bold ${size}px Arial`;
+  }
+  g.textAlign = "center";
+  g.lineWidth = 6; g.strokeStyle = "rgba(0,0,0,.85)";
+  g.strokeText(text, 96, 44); g.fillStyle = color; g.fillText(text, 96, 44);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+  s.scale.set(5.1, 1.7, 1);
+  s.position.copy(pos).add(new THREE.Vector3((Math.random() - .5) * 1.4, 1 + Math.random(), (Math.random() - .5) * 1.4));
+  scene.add(s);
+  addFx({ t: .8, update(dt) {
+    this.t -= dt;
+    s.position.y += 2.4 * dt;
+    s.material.opacity = Math.min(1, this.t * 2.5);
+    if (this.t <= 0) { scene.remove(s); s.material.map.dispose(); s.material.dispose(); return false; }
+    return true;
+  }});
+}
+
+function ghostAfterimage(rig, color = 0x66aaff, alpha = .5) {
+  const g = new THREE.Group();
+  rig.root.updateMatrixWorld(true);
+  rig.root.traverse(o => {
+    if (o.isMesh && o.visible) {
+      const m = new THREE.Mesh(o.geometry, new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: alpha, blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      o.getWorldPosition(m.position);
+      o.getWorldQuaternion(m.quaternion);
+      o.getWorldScale(m.scale);
+      g.add(m);
+    }
+  });
+  scene.add(g);
+  addFx({ t: .3, update(dt) {
+    this.t -= dt;
+    g.children.forEach(m => m.material.opacity = this.t / .3 * alpha);
+    if (this.t <= 0) {
+      g.children.forEach(m => m.material.dispose());
+      scene.remove(g); return false;
+    }
+    return true;
+  }});
+}
+
+let shakeMag = 0;
+function addShake(m) { shakeMag = Math.max(shakeMag, m); }
+function hitstop(t) { hitstopT = Math.max(hitstopT, t); }
+
+/* ---------------- audio ---------------- */
+let AC = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === "suspended") AC.resume();
+  return AC;
+}
+function tone(f, dur, type = "square", vol = .1, slide = 0, delay = 0) {
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime + delay;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t0);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, f + slide), t0 + dur);
+  g.gain.setValueAtTime(vol, t0);
+  g.gain.exponentialRampToValueAtTime(.001, t0 + dur);
+  o.connect(g).connect(ac.destination);
+  o.start(t0); o.stop(t0 + dur + .05);
+}
+function noiseBurst(dur = .25, vol = .18, freq = 800, type = "lowpass") {
+  const ac = audio(); if (!ac) return;
+  const n = ac.sampleRate * dur;
+  const buf = ac.createBuffer(1, n, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const src = ac.createBufferSource(); src.buffer = buf;
+  const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+  const g = ac.createGain(); g.gain.value = vol;
+  src.connect(f).connect(g).connect(ac.destination);
+  src.start();
+}
+const sfx = {
+  punch()   { noiseBurst(.09, .14, 1200); tone(140, .07, "square", .1, -60); },
+  palm()    { noiseBurst(.12, .2, 600); tone(90, .12, "sine", .16, -30); },
+  kick()    { noiseBurst(.14, .18, 900); tone(120, .12, "square", .12, -70); },
+  whoosh()  { noiseBurst(.16, .08, 500); },
+  dash()    { noiseBurst(.14, .1, 700); tone(300, .12, "sine", .05, 250); },
+  redFire() { noiseBurst(.3, .2, 1000); tone(180, .35, "sawtooth", .12, 300); },
+  redBoom() { noiseBurst(.5, .3, 700); tone(70, .5, "sawtooth", .2, -40); tone(140, .4, "square", .08, -80); },
+  raise()   { tone(500, .5, "sine", .06, 500); },
+  shatter() {
+    noiseBurst(.35, .22, 2400, "highpass");
+    tone(2100, .18, "sine", .07, -1300);
+    tone(1500, .22, "triangle", .06, -900, .04);
+    tone(2600, .14, "sine", .05, -1500, .08);
+  },
+  frame() {
+    tone(1400, .4, "sine", .08, 200);
+    tone(2100, .5, "sine", .05, 150, .05);
+    noiseBurst(.2, .08, 3000, "highpass");
+  },
+  stab()    { noiseBurst(.1, .18, 2600, "highpass"); tone(900, .08, "sawtooth", .08, -500); },
+  bleed()   { tone(220, .1, "sine", .08, -80); },
+  tpDone()  { tone(900, .16, "sine", .09, -520); noiseBurst(.12, .08, 1800, "highpass"); },
+  hurt()    { tone(200, .2, "sawtooth", .12, -120); },
+};
+
+/* ---------------- collision ---------------- */
+function collideWorld(pos, radius) {
+  pos.x = Math.max(-ARENA, Math.min(ARENA, pos.x));
+  pos.z = Math.max(-ARENA, Math.min(ARENA, pos.z));
+  for (const b of buildingAABBs) {
+    const cx = Math.max(b.minX, Math.min(pos.x, b.maxX));
+    const cz = Math.max(b.minZ, Math.min(pos.z, b.maxZ));
+    const dx = pos.x - cx, dz = pos.z - cz;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < radius * radius) {
+      if (d2 > 1e-6) {
+        const d = Math.sqrt(d2);
+        pos.x = cx + dx / d * radius;
+        pos.z = cz + dz / d * radius;
+      } else {
+        const pushL = pos.x - b.minX + radius, pushR = b.maxX - pos.x + radius;
+        const pushB = pos.z - b.minZ + radius, pushF = b.maxZ - pos.z + radius;
+        const m = Math.min(pushL, pushR, pushB, pushF);
+        if (m === pushL) pos.x = b.minX - radius;
+        else if (m === pushR) pos.x = b.maxX + radius;
+        else if (m === pushB) pos.z = b.minZ - radius;
+        else pos.z = b.maxZ + radius;
+      }
+    }
+  }
+}
+
+/* ---------------- glass frames (Projection Sorcery) ---------------- */
+function makeGlassPane() {
+  const grp = new THREE.Group();
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(3.4, 6, .22),
+    new THREE.MeshBasicMaterial({ color: 0x9fd4ff, transparent: true, opacity: .22, depthWrite: false }));
+  grp.add(glass);
+  const fm = new THREE.MeshBasicMaterial({ color: 0xeef7ff });
+  const mk = (w, h, x, y) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, .26), fm);
+    m.position.set(x, y, 0); grp.add(m);
+  };
+  mk(3.6, .14, 0, 3); mk(3.6, .14, 0, -3); mk(.14, 6.1, 1.73, 0); mk(.14, 6.1, -1.73, 0);
+  /* crack lines on the glass */
+  const lm = new THREE.MeshBasicMaterial({ color: 0xdff2ff, transparent: true, opacity: .5 });
+  for (let i = 0; i < 4; i++) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(.04, 2 + Math.random() * 2.4, .24), lm);
+    l.position.set((Math.random() - .5) * 2.4, (Math.random() - .5) * 3.6, 0);
+    l.rotation.z = (Math.random() - .5) * 1.4;
+    grp.add(l);
+  }
+  return grp;
+}
+
+/* ---------------- player ---------------- */
+const player = {
+  char: "gojo",
+  rig: makeAnimeRig(GOJO_CFG),
+  pos: new THREE.Vector3(0, 0, 20),
+  vel: new THREE.Vector3(),
+  facing: Math.PI, visYaw: 0,
+  onGround: true, hp: 100, maxHp: 100,
+  animT: 0, gait: 0, ghostAcc: 0,
+  attackT: 0, attackArm: 0, comboN: 0, comboReset: 0,
+  action: null, iframes: 0,
+  dead: false, deathT: 0,
+  /* projection sorcery state */
+  proj: 0, frameT: 0, frameMesh: null,
+  dashCh: 1, rWindow: 0,
+  vis24: 0,
+};
+scene.add(player.rig.root);
+
+function handWorld(anchor) {
+  anchor.updateWorldMatrix(true, false);
+  return anchor.getWorldPosition(new THREE.Vector3());
+}
+
+/* ---------------- enemies ---------------- */
+/* attack dummy M1-M4 swing poses: guard stance, jab L, jab R, hook L, heavy straight */
+function poseDummySwing(r, n, st) {
+  r.shoulderL.rotation.x = -.55; r.shoulderR.rotation.x = -.55;
+  r.elbowL.rotation.x = -1.25;  r.elbowR.rotation.x = -1.25;
+  r.spine.rotation.x = -.08;
+  r.kneeL.rotation.x = .18; r.kneeR.rotation.x = .18;
+  r.hipL.rotation.z = -.05; r.hipR.rotation.z = .05;
+  if (n < 0) return;
+  const ext = ease(clamp01(st / .16)) * (1 - ease(clamp01((st - .22) / .26)));
+  switch (n) {
+    case 0:   /* left jab */
+      r.shoulderL.rotation.x = -.55 - 1.2 * ext;
+      r.elbowL.rotation.x = -1.25 + 1.15 * ext;
+      r.spine.rotation.y = .32 * ext;
+      break;
+    case 1:   /* right jab */
+      r.shoulderR.rotation.x = -.55 - 1.2 * ext;
+      r.elbowR.rotation.x = -1.25 + 1.15 * ext;
+      r.spine.rotation.y = -.32 * ext;
+      break;
+    case 2:   /* left hook */
+      r.shoulderL.rotation.x = -.55 - .5 * ext;
+      r.shoulderL.rotation.z = -.95 * ext;
+      r.elbowL.rotation.x = -1.25 + .6 * ext;
+      r.spine.rotation.y = .6 * ext;
+      r.hips.rotation.y = .25 * ext;
+      break;
+    case 3: { /* heavy straight with a lunge */
+      const wind = ease(clamp01(st / .14));
+      const go = ease(clamp01((st - .14) / .14)) * (1 - ease(clamp01((st - .46) / .3)));
+      r.spine.rotation.y = .45 * wind - 1.05 * go * wind;
+      r.shoulderR.rotation.x = -.3 - 1.55 * go;
+      r.shoulderR.rotation.z = .25 * wind * (1 - go);
+      r.elbowR.rotation.x = -1.5 + 1.45 * go;
+      r.spine.rotation.x = -.08 - .22 * go;
+      r.kneeR.rotation.x = .18 + .35 * go;
+      r.hips.position.y = r.hipsBaseY - .14 * go;
+      break;
+    }
+  }
+}
+
+const enemies = [];
+const debris = [];
+class Enemy {
+  constructor(x, z, kind) {
+    this.kind = kind;                 // "dummy": stands still · "attacker": rooted, loops M1-M4
+    this.rig = makeAnimeRig(kind === "attacker" ? ATTACK_CFG : DUMMY_CFG);
+    if (kind === "attacker") {
+      const band = boxMesh(.96, .14, .96, 0xd83a2a);
+      band.position.y = .78;
+      this.rig.head.add(band);
+    }
+    this.spawn = new THREE.Vector3(x, 0, z);
+    this.pos = this.spawn.clone();
+    this.vel = new THREE.Vector3();
+    this.hp = this.maxHp = kind === "attacker" ? 120 : 100;
+    this.onGround = true;
+    this.stunT = 0; this.flung = false;
+    this.anchorT = 0; this.anchorPos = new THREE.Vector3();
+    this.lockT = 0;
+    this.swing = -1; this.swingT = 0; this.hitAt = null;
+    this.react = null;
+    this.dead = false; this.respawnT = 0;
+    this.animT = Math.random() * 9;
+    this.facing = 0;
+    /* projection sorcery */
+    this.proj = 0;             // 0..100 meter
+    this.frameT = 0;           // frozen in glass frame
+    this.frameOwner = null;
+    this.frameMesh = null;
+    this.bleed = 0;            // bleed stacks 0..3
+    this.hemo = null;          // { ticks, acc }
+    this.vis24 = 0;
+    /* bars */
+    this.hpC = document.createElement("canvas");
+    this.hpC.width = 96; this.hpC.height = 26;
+    this.hpTex = new THREE.CanvasTexture(this.hpC);
+    this.hpSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.hpTex, transparent: true, depthWrite: false }));
+    this.hpSpr.scale.set(4, 1.1, 1);
+    this.rig.root.add(this.hpSpr);
+    this.hpSpr.position.y = 6.5;
+    this.drawBars();
+    scene.add(this.rig.root);
+  }
+  drawBars() {
+    const g = this.hpC.getContext("2d");
+    g.clearRect(0, 0, 96, 26);
+    g.fillStyle = "rgba(0,0,0,.6)"; g.fillRect(0, 0, 96, 12);
+    g.fillStyle = this.kind === "attacker" ? "#ff6a5a" : "#48d868";
+    g.fillRect(2, 2, 92 * Math.max(0, this.hp / this.maxHp), 8);
+    /* projection meter under hp */
+    if (this.proj > 0 || this.frameT > 0) {
+      g.fillStyle = "rgba(0,0,0,.6)"; g.fillRect(0, 13, 96, 7);
+      g.fillStyle = "#7fd4ff";
+      g.fillRect(1, 14, 94 * clamp01(this.proj / 100), 5);
+    }
+    /* bleed pips */
+    for (let i = 0; i < this.bleed; i++) {
+      g.fillStyle = "#ff3b4e";
+      g.fillRect(2 + i * 9, 21, 7, 5);
+    }
+    this.hpTex.needsUpdate = true;
+  }
+  applyProj(amount, byPlayer = true) {
+    if (this.dead || this.frameT > 0) return;
+    this.proj = Math.min(130, this.proj + amount);
+    if (this.proj >= 100) this.enterFrame(byPlayer ? "player" : null);
+    this.drawBars();
+  }
+  enterFrame(owner) {
+    this.proj = 0;
+    this.frameT = 3;
+    this.react = null;
+    this.frameOwner = owner;
+    this.anchorT = 0; this.lockT = 0; this.flung = false;
+    this.vel.set(0, 0, 0);
+    this.stunT = Math.max(this.stunT, .3);
+    this.rig.root.scale.z = .12;                    // flattened into the film frame
+    this.rig.body.rotation.set(0, 0, 0);
+    this.frameMesh = makeGlassPane();
+    this.frameMesh.position.copy(this.pos).add(new THREE.Vector3(0, 3, 0));
+    this.frameMesh.rotation.y = this.facing;
+    scene.add(this.frameMesh);
+    sfx.frame();
+    addShake(.25);
+    ringWave(this.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0x9fd8ff, 5, .5, true);
+    damageNumber(this.pos.clone().add(new THREE.Vector3(0, 6, 0)), "FRAMED!", "#9fd8ff");
+    this.drawBars();
+  }
+  unframe(shattered) {
+    this.frameT = 0;
+    this.frameOwner = null;
+    this.rig.root.scale.z = 1;
+    if (this.frameMesh) {
+      if (shattered) {
+        glassShards(this.frameMesh.position, 12);
+        spark(this.frameMesh.position, 0xcfeaff, 10, 16, 1.4);
+        sfx.shatter();
+      }
+      scene.remove(this.frameMesh);
+      this.frameMesh.traverse(o => { if (o.isMesh) o.material.dispose?.(); });
+      this.frameMesh = null;
+    }
+  }
+  damage(amount, knock, opts = {}) {
+    if (this.dead) return;
+    if (this.frameT > 0) {
+      if (!opts.noFrameBonus && this.frameOwner === "player") {
+        amount *= 3;
+        damageNumber(this.pos.clone().add(new THREE.Vector3(0, 6.2, 0)), "BREAK x3", "#cfeaff");
+      }
+      this.unframe(true);
+    }
+    this.hp -= amount;
+    if (opts.react) this.react = { type: opts.react, t: 0, dur: opts.reactDur ?? .5, side: opts.side ?? (Math.random() < .5 ? -1 : 1) };
+    this.drawBars();
+    damageNumber(this.pos.clone().add(new THREE.Vector3(0, 5.4, 0)), Math.round(amount), opts.color || "#fff");
+    spark(this.pos.clone().add(new THREE.Vector3(0, 3.2, 0)), opts.spark || 0xffffff, 5, 12);
+    if (knock) {
+      this.vel.add(knock);
+      if (knock.lengthSq() > 300) { this.flung = true; this.onGround = false; this.anchorT = 0; this.lockT = 0; }
+    }
+    this.stunT = Math.max(this.stunT, opts.stun ?? .25);
+    if (this.hp <= 0) this.die();
+  }
+  directDamage(n, color, canKill = false) {
+    if (this.dead) return;
+    if (!canKill && this.hp - n < 1) n = Math.max(0, this.hp - 1);
+    if (n <= 0) return;
+    this.hp -= n;
+    damageNumber(this.pos.clone().add(new THREE.Vector3(0, 5, 0)), Math.round(n), color);
+    this.drawBars();
+    if (this.hp <= 0) this.die();
+  }
+  die() {
+    this.dead = true;
+    this.respawnT = 4;
+    this.unframe(false);
+    this.rig.root.updateMatrixWorld(true);
+    const meshes = [];
+    this.rig.root.traverse(o => { if (o.isMesh) meshes.push(o); });
+    for (const o of meshes) {
+      const m = new THREE.Mesh(o.geometry, o.material.clone());
+      m.material.transparent = true;
+      o.getWorldPosition(m.position);
+      o.getWorldQuaternion(m.quaternion);
+      m.castShadow = true;
+      scene.add(m);
+      debris.push({
+        mesh: m, t: 1.4,
+        vel: new THREE.Vector3((Math.random() - .5) * 16, 8 + Math.random() * 10, (Math.random() - .5) * 16),
+        av: new THREE.Vector3(Math.random() * 8, Math.random() * 8, Math.random() * 8),
+      });
+    }
+    scene.remove(this.rig.root);
+  }
+  respawn() {
+    this.dead = false;
+    this.hp = this.maxHp;
+    this.pos.copy(this.spawn);
+    this.vel.set(0, 0, 0);
+    this.flung = false; this.stunT = 0; this.anchorT = 0; this.lockT = 0;
+    this.proj = 0; this.bleed = 0; this.hemo = null;
+    this.react = null; this.swing = -1; this.swingT = 0; this.hitAt = null;
+    this.rig.body.rotation.set(0, 0, 0);
+    this.rig.root.scale.z = 1;
+    this.drawBars();
+    scene.add(this.rig.root);
+    spark(this.spawn.clone().add(new THREE.Vector3(0, 3, 0)), 0xaaddff, 10, 10);
+  }
+  /* per-skill hit reaction animations, layered over the current pose */
+  applyReact(dt) {
+    if (!this.react) return;
+    const rc = this.react;
+    rc.t += dt;
+    if (rc.t >= rc.dur) { this.react = null; return; }
+    const r = this.rig;
+    const k = rc.t / rc.dur;
+    const env = 1 - ease(k);              // eases out over the duration
+    const snap = Math.min(1, rc.t * 14);  // snaps in fast
+    const e2 = env * snap;
+    const t = this.animT;
+    switch (rc.type) {
+      case "head":      /* head snapped back by a jab */
+        r.neck.rotation.x = -.6 * e2;
+        r.neck.rotation.z = .25 * rc.side * e2;
+        r.spine.rotation.x = -.22 * e2;
+        r.spine.rotation.y = .3 * rc.side * e2;
+        r.shoulderL.rotation.x = .3 * e2; r.shoulderR.rotation.x = .3 * e2;
+        break;
+      case "gut":       /* doubled over clutching the stomach */
+        r.spine.rotation.x = .8 * e2;
+        r.neck.rotation.x = .35 * e2;
+        r.shoulderL.rotation.x = -1.15 * e2; r.shoulderR.rotation.x = -1.15 * e2;
+        r.shoulderL.rotation.z = .3 * e2;    r.shoulderR.rotation.z = -.3 * e2;
+        r.elbowL.rotation.x = -1.5 * e2;     r.elbowR.rotation.x = -1.5 * e2;
+        r.kneeL.rotation.x = .5 * e2;        r.kneeR.rotation.x = .5 * e2;
+        r.hips.position.y = r.hipsBaseY - .28 * e2;
+        break;
+      case "stab":      /* clutch the wound, tremble, sag down */
+        r.spine.rotation.x = (.55 + .25 * Math.sin(Math.min(1, k * 2) * Math.PI)) * snap;
+        r.spine.rotation.z = Math.sin(t * 26) * .06 * env;
+        r.neck.rotation.x = .5 * snap * (1 - k * .4);
+        r.shoulderL.rotation.x = -1.2 * snap; r.shoulderR.rotation.x = -1.3 * snap;
+        r.shoulderL.rotation.z = .35 * snap;  r.shoulderR.rotation.z = -.35 * snap;
+        r.elbowL.rotation.x = -1.55 * snap;   r.elbowR.rotation.x = -1.6 * snap;
+        r.kneeL.rotation.x = (.35 + .3 * k) * snap;
+        r.kneeR.rotation.x = (.45 + .3 * k) * snap;
+        r.hips.position.y = r.hipsBaseY - (.2 + .25 * k) * snap;
+        break;
+      case "pummel":    /* jerked around by a rapid barrage */
+        r.spine.rotation.x = -.08 + Math.sin(t * 38) * .14;
+        r.spine.rotation.y = Math.sin(t * 31) * .18;
+        r.neck.rotation.x = Math.sin(t * 33 + 1) * .3 - .1;
+        r.neck.rotation.z = Math.sin(t * 27) * .14;
+        r.shoulderL.rotation.x = .5 + Math.sin(t * 29) * .25;
+        r.shoulderR.rotation.x = .5 + Math.cos(t * 26) * .25;
+        r.shoulderL.rotation.z = -.25; r.shoulderR.rotation.z = .25;
+        r.elbowL.rotation.x = -.3; r.elbowR.rotation.x = -.3;
+        r.hips.position.y = r.hipsBaseY - .1 + Math.sin(t * 40) * .03;
+        break;
+      case "stagger":   /* knocked back onto the heels, arms windmilling */
+        r.spine.rotation.x = -.42 * e2;
+        r.neck.rotation.x = -.35 * e2;
+        r.shoulderL.rotation.x = -.9 * e2 + Math.sin(t * 16) * .25 * env;
+        r.shoulderR.rotation.x = -.9 * e2 + Math.cos(t * 15) * .25 * env;
+        r.shoulderL.rotation.z = -.5 * e2; r.shoulderR.rotation.z = .5 * e2;
+        r.hipL.rotation.x = -.35 * e2; r.kneeL.rotation.x = .2 * snap;
+        r.hipR.rotation.x = .25 * e2;  r.kneeR.rotation.x = .45 * e2;
+        break;
+    }
+  }
+  /* 24 FPS rule: entities under Projection render position at 24 Hz */
+  syncVis(dt) {
+    if (this.proj > 0) {
+      this.vis24 += dt;
+      if (this.vis24 < 1 / 24) return;
+      this.vis24 = 0;
+    }
+    this.rig.root.position.copy(this.pos);
+  }
+  update(dt) {
+    if (this.dead) {
+      this.respawnT -= dt;
+      if (this.respawnT <= 0) this.respawn();
+      return;
+    }
+    /* frozen in a glass frame */
+    if (this.frameT > 0) {
+      this.frameT -= dt;
+      if (this.frameT <= 0) this.unframe(false);
+      return;
+    }
+    const r = this.rig;
+    this.animT += dt;
+    resetPose(r);
+
+    /* projection meter passive drain (2%/s, 1.3%/s while bleeding) */
+    if (this.proj > 0) {
+      this.proj = Math.max(0, this.proj - dt * (this.bleed > 0 ? 1.3 : 2));
+      if (Math.random() < dt * 4) this.drawBars();
+    }
+    /* hemorrhage damage over time (paused by frames; can't kill) */
+    if (this.hemo) {
+      this.hemo.acc += dt;
+      while (this.hemo && this.hemo.acc >= .5) {
+        this.hemo.acc -= .5;
+        if (this.bleed <= 0) { this.hemo = null; break; }
+        this.directDamage(1, "#ff6677");
+        if (Math.random() < .5) spark(this.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), 0xd82a3c, 2, 5, .9);
+        this.hemo.ticks++;
+        if (this.hemo.ticks >= 39) { this.bleed = 0; this.hemo = null; this.drawBars(); }
+      }
+    }
+
+    if (this.anchorT > 0) {
+      /* anchored mid-air: arched back, limbs dangling and slowly flailing */
+      this.anchorT -= dt;
+      this.vel.set(0, 0, 0);
+      this.pos.lerp(this.anchorPos, Math.min(1, dt * 12));
+      const fl = this.animT * 3.2;
+      r.body.rotation.x = Math.max(r.body.rotation.x - dt * 1.8, -.42);
+      r.neck.rotation.x = -.5;
+      r.shoulderL.rotation.z = -1.2 + Math.sin(fl) * .25;
+      r.shoulderR.rotation.z = 1.2 + Math.sin(fl + 1.4) * .25;
+      r.shoulderL.rotation.x = -.4 + Math.sin(fl * 1.3) * .3;
+      r.shoulderR.rotation.x = -.4 + Math.cos(fl * 1.1) * .3;
+      r.elbowL.rotation.x = -.5; r.elbowR.rotation.x = -.5;
+      r.hipL.rotation.x = -.55 + Math.sin(fl + .8) * .3;
+      r.hipR.rotation.x = .25 + Math.sin(fl + 2.6) * .3;
+      r.kneeL.rotation.x = .9; r.kneeR.rotation.x = .7;
+      this.syncVis(dt);
+      if (Math.random() < dt * 8) spark(this.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0xbfe2ff, 1, 4, .8);
+      return;
+    }
+
+    if (this.lockT > 0) {
+      this.lockT -= dt;
+      this.vel.set(0, 0, 0);
+      r.body.rotation.x = .06;
+      r.shoulderL.rotation.x = .35; r.shoulderR.rotation.x = .35;
+      r.elbowL.rotation.x = -.5; r.elbowR.rotation.x = -.5;
+      r.kneeL.rotation.x = .15; r.kneeR.rotation.x = .15;
+      this.applyReact(dt);
+      this.syncVis(dt);
+      r.root.rotation.y = this.facing;
+      return;
+    }
+
+    this.vel.y -= 30 * dt;
+    this.pos.addScaledVector(this.vel, dt);
+    if (this.pos.y <= 0) {
+      this.pos.y = 0;
+      this.vel.y = 0;
+      if (this.flung) {
+        this.flung = false;
+        this.stunT = Math.max(this.stunT, .6);
+        ringWave(this.pos.clone().add(new THREE.Vector3(0, .2, 0)), 0xccccff, 4, .35);
+      }
+      this.onGround = true;
+      this.vel.x *= Math.pow(.001, dt);
+      this.vel.z *= Math.pow(.001, dt);
+    }
+    collideWorld(this.pos, 1);
+
+    if (this.flung) {
+      /* tumbling ragdoll with flailing limbs */
+      r.body.rotation.x += 9 * dt;
+      r.body.rotation.z += 5 * dt;
+      const fp = this.animT * 13;
+      r.shoulderL.rotation.x = Math.sin(fp) * 1.5;
+      r.shoulderR.rotation.x = Math.sin(fp + 2.1) * 1.5;
+      r.shoulderL.rotation.z = -.6; r.shoulderR.rotation.z = .6;
+      r.elbowL.rotation.x = -.5 + Math.sin(fp * 1.3) * .4;
+      r.elbowR.rotation.x = -.5 + Math.cos(fp * 1.2) * .4;
+      r.hipL.rotation.x = Math.sin(fp + 1) * 1.1;
+      r.hipR.rotation.x = Math.sin(fp + 3.2) * 1.1;
+      r.kneeL.rotation.x = .6 + Math.sin(fp * 1.4) * .4;
+      r.kneeR.rotation.x = .6 + Math.cos(fp * 1.5) * .4;
+      r.neck.rotation.x = Math.sin(fp * .9) * .4;
+    } else if (this.stunT > 0) {
+      this.stunT -= dt;
+      r.body.rotation.x *= .85; r.body.rotation.z *= .85;
+      r.body.rotation.x += Math.sin(this.animT * 30) * .05;
+      r.neck.rotation.z = Math.sin(this.animT * 24) * .12;
+      r.shoulderL.rotation.x = .3; r.shoulderR.rotation.x = .3;
+      r.elbowL.rotation.x = -.6; r.elbowR.rotation.x = -.6;
+      r.kneeL.rotation.x = .2; r.kneeR.rotation.x = .2;
+      this.applyReact(dt);
+    } else {
+      r.body.rotation.x *= .8; r.body.rotation.z *= .8;
+      if (this.kind === "attacker") {
+        /* attack dummy: rooted in place, endlessly cycling its M1 combo */
+        const toP = player.pos.clone().sub(this.pos); toP.y = 0;
+        if (!player.dead && toP.lengthSq() > .01) {
+          const want = Math.atan2(toP.x, toP.z);
+          let dyaw = want - this.facing;
+          while (dyaw > Math.PI) dyaw -= Math.PI * 2;
+          while (dyaw < -Math.PI) dyaw += Math.PI * 2;
+          this.facing += dyaw * Math.min(1, dt * 6);
+        }
+        this.swingT += dt;
+        const gap = this.swing === 3 ? 1.15 : .62;
+        if (this.swingT >= gap) {
+          this.swingT = 0;
+          this.swing = (this.swing + 1) % 4;
+          this.hitAt = .2;
+          if (player.pos.distanceTo(this.pos) < 14) sfx.whoosh();
+          /* spending a "move" burns one bleed stack, at a price */
+          if (this.swing === 3 && this.bleed > 0) {
+            this.bleed--;
+            this.directDamage(4, "#ff3b4e");
+            sfx.bleed();
+            this.drawBars();
+            if (this.bleed <= 0) this.hemo = null;
+          }
+        }
+        if (this.hitAt !== null) {
+          this.hitAt -= dt;
+          if (this.hitAt <= 0) {
+            this.hitAt = null;
+            const d2 = player.pos.clone().sub(this.pos); d2.y = 0;
+            if (!player.dead && d2.length() < 3.4) {
+              const heavy = this.swing === 3;
+              hurtPlayer(heavy ? 6 : 3, d2.normalize().multiplyScalar(heavy ? 12 : 5).setY(heavy ? 4 : 1.5));
+            }
+          }
+        }
+        poseDummySwing(r, this.swing, this.swingT);
+        r.root.rotation.y = this.facing;
+      } else {
+        /* normal dummy: just stands there */
+        const brr = Math.sin(this.animT * 1.6);
+        r.shoulderL.rotation.x = .05 + brr * .04;
+        r.shoulderR.rotation.x = .05 - brr * .04;
+        r.elbowL.rotation.x = r.elbowR.rotation.x = -.15;
+        r.spine.rotation.x = .03 + brr * .02;
+        r.neck.rotation.y = Math.sin(this.animT * .4) * .2;
+        r.root.rotation.y = this.facing;
+      }
+      this.applyReact(dt);
+    }
+    this.syncVis(dt);
+  }
+}
+{
+  const spots = [
+    [10, -8, "dummy"], [-12, -14, "dummy"], [18, 6, "dummy"], [-20, 8, "dummy"],
+    [4, -26, "dummy"], [-6, 18, "dummy"],
+    [28, -18, "attacker"], [-28, -20, "attacker"], [24, 22, "attacker"], [-24, 24, "attacker"],
+  ];
+  for (const [x, z, k] of spots) enemies.push(new Enemy(x, z, k));
+}
+
+function enemiesNear(pos, radius, dir = null, cosAngle = -1) {
+  const out = [];
+  for (const e of enemies) {
+    if (e.dead) continue;
+    const to = e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)).sub(pos);
+    const d = to.length();
+    if (d > radius) continue;
+    if (dir && d > .01) {
+      to.normalize();
+      if (to.dot(dir) < cosAngle) continue;
+    }
+    out.push(e);
+  }
+  return out;
+}
+function nearestFrontEnemy(range, cosAngle) {
+  const dir = camForward();
+  const origin = player.pos.clone().add(new THREE.Vector3(0, 2.5, 0));
+  const list = enemiesNear(origin, range, dir, cosAngle);
+  list.sort((a, b) => a.pos.distanceTo(player.pos) - b.pos.distanceTo(player.pos));
+  return list[0] || null;
+}
+function cursorTarget(minCos = .94, maxDist = 60) {
+  const camDir = new THREE.Vector3();
+  camera.getWorldDirection(camDir);
+  let best = null, bestCos = minCos;
+  for (const e of enemies) {
+    if (e.dead) continue;
+    const v = e.pos.clone().add(new THREE.Vector3(0, 2.8, 0)).sub(camera.position);
+    const d = v.length();
+    if (d > maxDist) continue;
+    v.normalize();
+    const c = v.dot(camDir);
+    if (c > bestCos) { bestCos = c; best = e; }
+  }
+  return best;
+}
+/* aim a ground position with the cursor, clamped to maxDist studs from the player */
+function aimPoint(maxDist = 50) {
+  const d = new THREE.Vector3();
+  camera.getWorldDirection(d);
+  let pt;
+  if (d.y < -.03) {
+    const t = camera.position.y / -d.y;
+    pt = camera.position.clone().addScaledVector(d, t);
+  } else {
+    pt = player.pos.clone().addScaledVector(camForward(), maxDist);
+  }
+  pt.y = 0;
+  const v = pt.sub(player.pos);
+  const L = v.length();
+  if (L > maxDist) v.multiplyScalar(maxDist / L);
+  const dest = player.pos.clone().add(v);
+  collideWorld(dest, 1);
+  return dest;
+}
+
+/* ---------------- player damage / projection ---------------- */
+const vignette = document.getElementById("vignette");
+let vigT = 0;
+function hurtPlayer(amount, knock) {
+  if (player.dead || player.iframes > 0) return;
+  player.hp -= amount;
+  vigT = .5;
+  sfx.hurt();
+  addShake(.25);
+  if (knock && player.frameT <= 0) player.vel.add(knock);
+  spark(player.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0xff4455, 5, 10);
+  if (player.hp <= 0) {
+    player.hp = 0;
+    player.dead = true;
+    player.deathT = 2.5;
+    player.action = null;
+    unframePlayer(false);
+    showSplash("DEFEATED", "RESPAWNING...", "#ff3355");
+  }
+}
+function applyProjPlayer(amount) {
+  if (player.frameT > 0) return;
+  player.proj = Math.min(130, player.proj + amount);
+  damageNumber(player.pos.clone().add(new THREE.Vector3(0, 5.6, 0)), "+" + Math.round(amount) + "%", "#7fd4ff");
+  if (player.proj >= 100) framePlayer();
+}
+function framePlayer() {
+  player.proj = 0;
+  player.frameT = 3;
+  player.action = null;
+  player.vel.set(0, 0, 0);
+  player.rig.root.scale.z = .12;
+  player.frameMesh = makeGlassPane();
+  player.frameMesh.position.copy(player.pos).add(new THREE.Vector3(0, 3, 0));
+  player.frameMesh.rotation.y = player.facing;
+  scene.add(player.frameMesh);
+  sfx.frame();
+  addShake(.3);
+  showSplash("FRAMED!", "24 FPS", "#7fd4ff");
+}
+function unframePlayer(shattered) {
+  player.frameT = 0;
+  player.rig.root.scale.z = 1;
+  if (player.frameMesh) {
+    if (shattered) { glassShards(player.frameMesh.position, 10); sfx.shatter(); }
+    scene.remove(player.frameMesh);
+    player.frameMesh = null;
+  }
+}
+
+/* ---------------- camera ---------------- */
+let camYaw = Math.PI, camPitch = .22;
+let mapView = null;
+function camForward() {
+  return new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw)).normalize();
+}
+function updateCamera(dt) {
+  if (mapView) {
+    camera.position.set(mapView.x, mapView.y, mapView.z);
+    camera.lookAt(mapView.lx, mapView.ly, mapView.lz);
+    return;
+  }
+  const fwd = camForward();
+  const dist = 9.5, height = 4.4;
+  const target = player.pos.clone().add(new THREE.Vector3(0, 3, 0));
+  const off = fwd.clone().multiplyScalar(-dist);
+  off.y = height + Math.sin(camPitch) * 7;
+  const desired = target.clone().add(off);
+  desired.y = Math.max(1, desired.y);
+  camera.position.copy(desired);
+  if (shakeMag > 0) {
+    camera.position.add(new THREE.Vector3(
+      (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag));
+    shakeMag = Math.max(0, shakeMag - dt * 2.2);
+  }
+  camera.lookAt(target.clone().add(new THREE.Vector3(0, camPitch * -4 + 1, 0)));
+}
+
+/* ---------------- splash ---------------- */
+const splash = document.getElementById("splash");
+let splashT = 0;
+function showSplash(big, small, glow) {
+  splash.querySelector(".big").textContent = big;
+  splash.querySelector(".small").textContent = small;
+  splash.style.setProperty("--glow", glow);
+  splash.style.opacity = 1;
+  splashT = 1.6;
+}
+
+/* ============================================================
+   SKILLS — shared infrastructure
+   ============================================================ */
+const cds = { m1: 0, red: 0, rapid: 0, twofold: 0, palm: 0, limitless: 0, n1: 0, n2: 0, n3: 0, nr: 0 };
+const CD = { red: 6, rapid: 9, twofold: 7, palm: 10, limitless: 6, n1: 8, n2: 9, n3: 10, nr: 7 };
+const busy = () => !!player.action || player.frameT > 0;
+function leftOf(dirV) { return new THREE.Vector3(dirV.z, 0, -dirV.x); }
+function facingVec() { return new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing)); }
+
+function holdTargetInFront(tgt, distF) {
+  const f = facingVec();
+  tgt.lockT = .15;
+  tgt.pos.copy(player.pos).addScaledVector(f, distF);
+  tgt.pos.y = 0;
+  tgt.facing = Math.atan2(-f.x, -f.z);
+  return f;
+}
+
+/* ----- M1 combo (per character) ----- */
+function punch() {
+  if (player.dead || cds.m1 > 0 || busy()) return;
+  const naoya = player.char === "naoya";
+  cds.m1 = naoya ? .27 : .32;
+  player.comboReset = .9;
+  const n = player.comboN;          // this hit: 0..3, finisher on the 4th
+  player.comboN = (n + 1) % 4;
+  player.attackT = .2;
+  player.attackArm = n % 2;
+  sfx.whoosh();
+  const dir = camForward();
+  const origin = player.pos.clone().add(new THREE.Vector3(0, 2.5, 0));
+  const hits = enemiesNear(origin.clone().addScaledVector(dir, 2.2), 2.6);
+  const last = n === 3;
+  for (const e of hits) {
+    if (naoya) {
+      /* full set = 8 dmg (2 per hit); final always knocks back w/ evadable stun, bypasses ragdoll */
+      const kb = last ? dir.clone().multiplyScalar(16).setY(4) : dir.clone().multiplyScalar(4).setY(.5);
+      e.damage(2, kb, { stun: last ? .7 : .3, color: "#cfe4ff",
+        react: last ? "stagger" : "head", reactDur: last ? .7 : .4, side: n % 2 ? -1 : 1 });
+    } else {
+      const kb = last ? dir.clone().multiplyScalar(26).setY(9) : dir.clone().multiplyScalar(5).setY(1);
+      e.damage(last ? 12 : 7, kb, { stun: .3, react: "head", reactDur: .4, side: n % 2 ? -1 : 1 });
+    }
+    hitstop(.05);
+    addShake(.12);
+    sfx.punch();   // punch_hit_#3, every character
+  }
+  if (hits.length && last) addShake(naoya ? .2 : .3);
+}
+
+/* ----- dash (Q) — Naoya has two charges, any direction ----- */
+function doDash() {
+  if (player.dead || busy() || player.dashCh < 1) return;
+  const fwd = camForward();
+  const rightv = new THREE.Vector3(-fwd.z, 0, fwd.x);
+  const mv = new THREE.Vector3();
+  if (keys["KeyW"]) mv.add(fwd);
+  if (keys["KeyS"]) mv.sub(fwd);
+  if (keys["KeyD"]) mv.add(rightv);
+  if (keys["KeyA"]) mv.sub(rightv);
+  if (mv.lengthSq() === 0) mv.copy(fwd);
+  mv.normalize();
+  player.dashCh -= 1;
+  player.vel.x += mv.x * 24;
+  player.vel.z += mv.z * 24;
+  sfx.dash();
+  ghostAfterimage(player.rig, player.char === "naoya" ? 0x9fd8ff : 0x4a7dff);
+  setTimeout(() => { if (!player.dead) ghostAfterimage(player.rig, player.char === "naoya" ? 0x9fd8ff : 0x4a7dff); }, 70);
+}
+
+/* ============================================================
+   GOJO KIT
+   ============================================================ */
+function castRed() {
+  if (player.char !== "gojo" || player.dead || cds.red > 0 || busy()) return;
+  cds.red = CD.red;
+  player.action = { type: "red", t: 0, dur: .85 };
+  showSplash("REVERSAL: RED", "CURSED TECHNIQUE", "#ff3344");
+  sfx.raise();
+  addFx({ t: .5, update(dt) {
+    this.t -= dt;
+    if (Math.random() < .75) {
+      const h = handWorld(player.rig.handR);
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_GLOW, color: 0xff5566, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      s.position.copy(h).add(new THREE.Vector3((Math.random() - .5) * 4, (Math.random() - .5) * 4, (Math.random() - .5) * 4));
+      s.scale.setScalar(.8);
+      scene.add(s);
+      addFx({ t: .3, update(dt2) {
+        this.t -= dt2;
+        s.position.lerp(handWorld(player.rig.handR), Math.min(1, dt2 * 12));
+        s.material.opacity = this.t / .3;
+        if (this.t <= 0) { scene.remove(s); s.material.dispose(); return false; }
+        return true;
+      }});
+    }
+    return this.t > 0;
+  }});
+}
+function fireRedOrb() {
+  sfx.redFire();
+  addShake(.35);
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  const start = handWorld(player.rig.handR).addScaledVector(dir, .8);
+
+  const grp = new THREE.Group();
+  const core = new THREE.Mesh(new THREE.SphereGeometry(.55, 18, 18),
+    new THREE.MeshBasicMaterial({ color: 0xff8899, transparent: true, opacity: .95, blending: THREE.AdditiveBlending }));
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(.95, 18, 18),
+    new THREE.MeshBasicMaterial({ color: 0xff2233, transparent: true, opacity: .45, blending: THREE.AdditiveBlending }));
+  const light = new THREE.PointLight(0xff3344, 80, 30);
+  grp.add(core, shell, light);
+  grp.position.copy(start);
+  scene.add(grp);
+
+  addFx({ t: 3, traveled: 0, update(dt) {
+    this.t -= dt;
+    const step = 52 * dt;
+    grp.position.addScaledVector(dir, step);
+    this.traveled += step;
+    const pl = 1 + Math.sin(performance.now() / 50) * .15;
+    core.scale.setScalar(pl); shell.scale.setScalar(pl);
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_GLOW, color: 0xff4455, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    s.position.copy(grp.position);
+    s.scale.setScalar(1.6);
+    scene.add(s);
+    addFx({ t: .3, update(dt2) {
+      this.t -= dt2;
+      s.scale.multiplyScalar(1 - dt2 * 2);
+      s.material.opacity = this.t / .3 * .8;
+      if (this.t <= 0) { scene.remove(s); s.material.dispose(); return false; }
+      return true;
+    }});
+
+    let boom = this.traveled >= 40 || grp.position.y <= .5 || this.t <= 0;
+    if (!boom) {
+      for (const b of buildingAABBs) {
+        if (grp.position.x > b.minX - 1 && grp.position.x < b.maxX + 1 &&
+            grp.position.z > b.minZ - 1 && grp.position.z < b.maxZ + 1 &&
+            grp.position.y < b.h + 1) { boom = true; break; }
+      }
+    }
+    if (!boom && enemiesNear(grp.position, 2.4).length) boom = true;
+    if (boom) {
+      explodeRed(grp.position.clone());
+      scene.remove(grp);
+      return false;
+    }
+    return true;
+  }});
+}
+function explodeRed(pos) {
+  sfx.redBoom();
+  addShake(1);
+  hitstop(.08);
+  const blast = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 24),
+    new THREE.MeshBasicMaterial({ color: 0xff4455, transparent: true, opacity: .8, blending: THREE.AdditiveBlending }));
+  blast.position.copy(pos);
+  scene.add(blast);
+  addFx({ t: .4, update(dt) {
+    this.t -= dt;
+    const p = 1 - this.t / .4;
+    blast.scale.setScalar(1 + p * 14);
+    blast.material.opacity = .8 * (1 - p);
+    if (this.t <= 0) { scene.remove(blast); blast.material.dispose(); return false; }
+    return true;
+  }});
+  ringWave(pos, 0xff3344, 16, .5, true);
+  ringWave(pos.clone().setY(Math.max(.3, pos.y - 2)), 0xff7788, 19, .6);
+  spark(pos, 0xff5566, 28, 30, 2.4);
+  for (const e of enemiesNear(pos, 15)) {
+    const d = e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)).sub(pos);
+    const dist = d.length();
+    const kb = d.normalize().multiplyScalar(46 * (1.25 - dist / 15 * .6));
+    kb.y = Math.max(kb.y, 15);
+    e.damage(32, kb, { color: "#ff5566", spark: 0xff3344 });
+  }
+  for (const c of crates) {
+    const d = c.mesh.position.clone().sub(pos);
+    if (d.length() < 15) {
+      c.vel.add(d.normalize().multiplyScalar(30).setY(18));
+      c.av.set(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+    }
+  }
+}
+function castRapid() {
+  if (player.char !== "gojo" || player.dead || cds.rapid > 0 || busy()) return;
+  const tgt = nearestFrontEnemy(6, .3);
+  if (!tgt) { showSplash("NO TARGET", "", "#8899bb"); return; }
+  cds.rapid = CD.rapid;
+  player.action = { type: "rapid", t: 0, dur: 1.75, tgt, locked: false, acc: 0, fin: false };
+  showSplash("RAPID PUNCHES", "", "#9fd0ff");
+  sfx.whoosh();
+}
+function castTwofold() {
+  if (player.char !== "gojo" || player.dead || cds.twofold > 0 || busy()) return;
+  cds.twofold = CD.twofold;
+  player.action = { type: "tf", t: 0, dur: .98, tgt: null, k1: false, k2: false, miss: false };
+  showSplash("TWOFOLD KICK", "", "#bfe2ff");
+  sfx.whoosh();
+}
+function castPalm() {
+  if (player.char !== "gojo" || player.dead || cds.palm > 0 || busy()) return;
+  const tgt = nearestFrontEnemy(4.2, .45);
+  if (!tgt) { showSplash("NO TARGET", "", "#8899bb"); return; }
+  cds.palm = CD.palm;
+  player.action = { type: "palm", t: 0, dur: 1.75, tgt, hits: [false, false, false], kicked: false };
+  showSplash("PALM BARRAGE", "", "#ffd27a");
+  sfx.whoosh();
+}
+let shatterState = null;
+function castLimitless() {
+  if (player.char !== "gojo" || player.dead || cds.limitless > 0 || busy()) return false;
+  const tgt = cursorTarget();
+  if (!tgt) { showSplash("NO TARGET", "AIM AT AN ENEMY", "#8899bb"); return false; }
+  cds.limitless = CD.limitless;
+  player.action = { type: "lim", t: 0, dur: 1.15, tgt, shattered: false, tp: false };
+  showSplash("LIMITLESS", "TELEPORT", "#6db9ff");
+  sfx.raise();
+  return true;
+}
+function startShatter() {
+  const cx = innerWidth / 2, cy = innerHeight / 2;
+  const maxR = Math.hypot(cx, cy);
+  const cracks = [];
+  const N = 16;
+  for (let i = 0; i < N; i++) {
+    const baseA = i / N * Math.PI * 2 + (Math.random() - .5) * .3;
+    let a = baseA, r = 8 + Math.random() * 18;
+    const pts = [[Math.cos(a) * r, Math.sin(a) * r]];
+    while (r < maxR * 1.08) {
+      r += maxR / 6 * (.55 + Math.random() * .75);
+      a += (Math.random() - .5) * .45;
+      pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    cracks.push({ pts, w: 1.4 + Math.random() * 1.8, ox: Math.cos(baseA), oy: Math.sin(baseA) });
+  }
+  shatterState = { t: 0, grow: .55, fade: .3, cracks };
+  sfx.shatter();
+}
+function drawShatter(dt) {
+  if (!shatterState) return;
+  const s = shatterState;
+  s.t += dt;
+  const g = shCtx;
+  g.clearRect(0, 0, shatterCv.width, shatterCv.height);
+  const cx = shatterCv.width / 2, cy = shatterCv.height / 2;
+  const growP = clamp01(s.t / s.grow);
+  const fadeP = clamp01((s.t - s.grow) / s.fade);
+  if (fadeP >= 1) { shatterState = null; g.clearRect(0, 0, shatterCv.width, shatterCv.height); return; }
+
+  g.save();
+  g.translate(cx, cy);
+  if (growP < .3) {
+    g.fillStyle = `rgba(210,240,255,${(0.3 - growP) * .9})`;
+    g.beginPath(); g.arc(0, 0, 60 + growP * 300, 0, 7); g.fill();
+  }
+  g.lineCap = "round";
+  for (const c of s.cracks) {
+    const n = Math.max(2, Math.ceil(c.pts.length * Math.min(1, growP * 1.25)));
+    const off = fadeP * 55;
+    g.save();
+    g.translate(c.ox * off, c.oy * off);
+    g.strokeStyle = `rgba(200,232,255,${(1 - fadeP) * .95})`;
+    g.lineWidth = c.w;
+    g.shadowColor = "rgba(120,200,255,.9)";
+    g.shadowBlur = 8;
+    g.beginPath();
+    g.moveTo(0, 0);
+    for (let i = 0; i < n; i++) g.lineTo(c.pts[i][0], c.pts[i][1]);
+    g.stroke();
+    g.strokeStyle = `rgba(255,255,255,${(1 - fadeP) * .5})`;
+    g.lineWidth = c.w * .4;
+    g.stroke();
+    g.restore();
+  }
+  g.restore();
+}
+
+/* ============================================================
+   NAOYA KIT — Projection Sorcery
+   ============================================================ */
+
+/* ----- 1: Projection Breaker ----- */
+function castN1() {
+  if (player.char !== "naoya" || player.dead || cds.n1 > 0 || busy()) return;
+  cds.n1 = CD.n1;
+  player.action = { type: "n1", t: 0, dur: .8, hit: false, dashed: false, lunged: false };
+  showSplash("PROJECTION BREAKER", "", "#9fd8ff");
+  sfx.whoosh();
+}
+
+/* ----- 2: Tanto stab (+ execution finisher <=14 HP) ----- */
+function castN2() {
+  if (player.char !== "naoya" || player.dead || cds.n2 > 0 || busy()) return;
+  cds.n2 = CD.n2;
+  player.action = { type: "n2", t: 0, dur: .78, stabbed: false, fin: false, finN: 0, tgt: null };
+  showSplash("TANTO", "", "#dfe6f2");
+  if (player.rig.tanto) player.rig.tanto.visible = true;
+  sfx.whoosh();
+}
+
+/* ----- 3: You're Not Toji (grab barrage + frame finisher <=25 HP) ----- */
+function castN3() {
+  if (player.char !== "naoya" || player.dead || cds.n3 > 0 || busy()) return;
+  cds.n3 = CD.n3;
+  player.action = { type: "n3", t: 0, dur: .62, tgt: null, grabbed: false, fin: false, acc: 0, framed: false, kicked: false };
+  showSplash("YOU'RE NOT TOJI!!!", "", "#ffd27a");
+  sfx.whoosh();
+}
+
+/* ----- R: Projection teleport / frame punch ----- */
+function castNaoyaR() {
+  if (player.char !== "naoya" || player.dead || busy()) return false;
+  const tgt = cursorTarget();
+  /* frame-punch variant: aim at a framed target while special is off cooldown */
+  if (tgt && tgt.frameT > 0 && cds.nr <= 0) {
+    player.action = { type: "nrf", t: 0, dur: .5, tgt, hopped: false, punched: false };
+    showSplash("PROJECTION SORCERY", "FRAME BREAK", "#9fd8ff");
+    sfx.raise();
+    return true;
+  }
+  if (cds.nr > 0) return false;
+  const dest = aimPoint(50);
+  const isSecond = player.rWindow > 0;
+  if (isSecond && !tgt) { showSplash("NO TARGET IN SIGHT", "", "#8899bb"); return false; }
+  player.action = { type: "nr", t: 0, dur: .55, from: player.pos.clone(), dest, hop: 0, second: isSecond };
+  player.iframes = Math.max(player.iframes, .6);
+  showSplash("PROJECTION SORCERY", "24 FPS", "#9fd8ff");
+  sfx.dash();
+  return true;
+}
+
+/* ============================================================
+   ACTION STEP
+   ============================================================ */
+function stepAction(a, dt) {
+  const p = player;
+  switch (a.type) {
+    /* ---------- GOJO ---------- */
+    case "red": {
+      if (a.t >= .5 && !a.fired) { a.fired = true; fireRedOrb(); }
+      break;
+    }
+    case "rapid": {
+      const tgt = a.tgt;
+      if (a.t >= .16 && !a.checked) {
+        a.checked = true;
+        const d = tgt.pos.clone().sub(p.pos); d.y = 0;
+        if (tgt.dead || d.length() > 5.2) { a.miss = true; a.dur = .55; sfx.whoosh(); }
+        else {
+          a.locked = true;
+          p.iframes = Math.max(p.iframes, 1.65);
+          sfx.kick();
+          addShake(.25);
+          tgt.damage(5, null, { stun: .4, react: "gut", reactDur: .45 });
+        }
+      }
+      if (a.locked && !tgt.dead && a.t < 1.42) {
+        holdTargetInFront(tgt, 2.1);
+        if (a.t >= .3) {
+          a.acc += dt;
+          if (a.acc > .09) {
+            a.acc = 0;
+            tgt.damage(3, null, { stun: .3, react: "pummel", reactDur: .3 });
+            sfx.punch();
+            addShake(.08);
+            spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, 2.4 + Math.random() * 1.4, (Math.random() - .5) * 1.4)), 0xaad4ff, 3, 12);
+          }
+        }
+      }
+      if (a.locked && a.t >= 1.45 && !a.fin) {
+        a.fin = true;
+        if (!tgt.dead) {
+          const f = facingVec();
+          tgt.lockT = 0;
+          tgt.damage(14, f.multiplyScalar(38).setY(12), { color: "#9fd0ff" });
+          sfx.kick();
+          addShake(.5);
+          hitstop(.06);
+        }
+      }
+      break;
+    }
+    case "tf": {
+      if (a.t >= .18 && !a.k1) {
+        a.k1 = true;
+        const tgt = nearestFrontEnemy(3.6, .45);
+        if (!tgt) { a.miss = true; a.dur = .5; }
+        else {
+          a.tgt = tgt;
+          p.iframes = Math.max(p.iframes, .95);
+          tgt.damage(8, null, { stun: .9, color: "#bfe2ff" });
+          tgt.anchorT = .8;
+          tgt.anchorPos.copy(tgt.pos).setY(3.4);
+          tgt.vel.set(0, 0, 0);
+          sfx.kick();
+          addShake(.3);
+          ringWave(tgt.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), 0xbfe2ff, 5, .35, true);
+        }
+      }
+      if (a.t >= .58 && !a.k2 && !a.miss) {
+        a.k2 = true;
+        p.vel.y = 8.5;
+        p.onGround = false;
+        const tgt = a.tgt;
+        if (tgt && !tgt.dead) {
+          const f = facingVec();
+          tgt.anchorT = 0;
+          tgt.damage(14, f.multiplyScalar(6).setY(27), { color: "#dff0ff" });
+          tgt.flung = true;
+          sfx.kick();
+          addShake(.5);
+          hitstop(.05);
+          spark(tgt.pos.clone().add(new THREE.Vector3(0, 3.5, 0)), 0xdff0ff, 12, 20, 1.8);
+        }
+      }
+      break;
+    }
+    case "palm": {
+      const tgt = a.tgt;
+      if (!tgt.dead && a.t < 1.28) holdTargetInFront(tgt, 1.9);
+      const times = [.3, .6, .9];
+      for (let i = 0; i < 3; i++) {
+        if (a.t >= times[i] && !a.hits[i]) {
+          a.hits[i] = true;
+          if (!tgt.dead) {
+            tgt.damage(6, null, { stun: .35, color: "#ffd27a", react: "gut", reactDur: .42 });
+            sfx.palm();
+            hitstop(.02);
+            addShake(.14);
+            spark(tgt.pos.clone().add(new THREE.Vector3(0, 2.3, 0)), 0xffd27a, 5, 10, 1.2);
+          }
+        }
+      }
+      if (a.t >= 1.3 && !a.kicked) {
+        a.kicked = true;
+        if (!tgt.dead) {
+          const f = facingVec();
+          const kick = leftOf(f).multiplyScalar(30).add(f.clone().multiplyScalar(4)).setY(10);
+          tgt.lockT = 0;
+          tgt.damage(10, kick, { color: "#ffd27a" });
+          sfx.kick();
+          addShake(.45);
+          hitstop(.05);
+          ghostAfterimage(tgt.rig, 0xffd27a);
+        }
+      }
+      break;
+    }
+    case "lim": {
+      if (a.t >= .35 && !a.shattered) {
+        a.shattered = true;
+        startShatter();
+        spark(player.pos.clone().add(new THREE.Vector3(0, 4.5, 0)), 0x9fd8ff, 8, 8, 1.2);
+      }
+      if (a.t >= .92 && !a.tp) {
+        a.tp = true;
+        const tgt = a.tgt;
+        ghostAfterimage(player.rig, 0x88bbff);
+        const f = camForward();
+        const dst = tgt.pos.clone().addScaledVector(f, -2.8);
+        dst.y = 0;
+        collideWorld(dst, 1);
+        p.pos.copy(dst);
+        p.vel.set(0, 0, 0);
+        p.facing = camYaw + Math.PI;
+        p.iframes = Math.max(p.iframes, .5);
+        sfx.tpDone();
+        spark(p.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0xbfe8ff, 14, 14, 1.6);
+        ringWave(p.pos.clone().add(new THREE.Vector3(0, .3, 0)), 0x8fd0ff, 6, .4);
+        ghostAfterimage(player.rig, 0xffffff);
+        addShake(.2);
+      }
+      break;
+    }
+
+    /* ---------- NAOYA ---------- */
+    case "n1": {
+      /* crouch -> i-frame back-dash -> full spin roundhouse */
+      if (a.t >= .12 && !a.dashed) {
+        a.dashed = true;
+        const f = facingVec();
+        p.vel.x -= f.x * 22; p.vel.z -= f.z * 22;
+        p.iframes = Math.max(p.iframes, .5);
+        ghostAfterimage(p.rig, 0x9fd8ff, .35);
+      }
+      if (a.t >= .3 && !a.lunged) {
+        a.lunged = true;
+        const f = facingVec();
+        p.vel.x += f.x * 34; p.vel.z += f.z * 34;
+        ghostAfterimage(p.rig, 0x9fd8ff, .35);
+        sfx.whoosh();
+      }
+      if (a.t >= .44 && !a.hit) {
+        a.hit = true;
+        const tgt = nearestFrontEnemy(4.8, .35);
+        if (tgt) {
+          const f = facingVec();
+          tgt.damage(12, f.multiplyScalar(30).setY(10), { color: "#9fd8ff" });
+          tgt.applyProj(35);
+          sfx.kick();
+          addShake(.4);
+          hitstop(.05);
+          ringWave(tgt.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 0x9fd8ff, 6, .4, true);
+        } else {
+          a.selfProj = true;
+        }
+        p.comboN = 0;   /* M1 count resets */
+      }
+      if (a.t >= a.dur - dt && a.selfProj && !a.paid) {
+        a.paid = true;
+        applyProjPlayer(30);   /* failed → projection applies to the user */
+      }
+      break;
+    }
+    case "n2": {
+      if (a.t >= .32 && !a.thrust) {
+        a.thrust = true;
+        const f = facingVec();
+        p.vel.x += f.x * 15; p.vel.z += f.z * 15;
+      }
+      if (a.t >= .4 && !a.stabbed) {
+        a.stabbed = true;
+        const tgt = nearestFrontEnemy(3.2, .45);
+        if (tgt) {
+          a.tgt = tgt;
+          tgt.damage(8, facingVec().multiplyScalar(4).setY(1), { stun: .8, color: "#dfe6f2", spark: 0xff3b4e, react: "stab", reactDur: 1 });
+          sfx.stab();
+          hitstop(.05);
+          addShake(.3);
+          spark(tgt.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), 0xd82a3c, 8, 12, 1.3);
+          /* bleed application */
+          if (tgt.bleed > 0) {
+            tgt.bleed = 3;
+            tgt.hemo = { ticks: 0, acc: 0 };   /* hemorrhage refresh */
+            damageNumber(tgt.pos.clone().add(new THREE.Vector3(0, 6, 0)), "HEMORRHAGE", "#ff3b4e");
+          } else {
+            tgt.bleed = 3;
+            damageNumber(tgt.pos.clone().add(new THREE.Vector3(0, 6, 0)), "BLEED x3", "#ff3b4e");
+          }
+          tgt.drawBars();
+          /* execution finisher: target at 14 HP or less */
+          if (!tgt.dead && tgt.hp <= 14) {
+            a.fin = true;
+            a.dur = 1.75;
+          }
+        } else {
+          applyProjPlayer(25);
+        }
+      }
+      /* --- finisher: blitz around, stab the neck, toss the corpse --- */
+      if (a.fin && a.tgt && !a.tgt.dead) {
+        const tgt = a.tgt;
+        if (a.t < 1.15) { tgt.lockT = .15; tgt.vel.set(0, 0, 0); }
+        const hopTimes = [.55, .68, .81, .94];
+        for (let i = a.finN; i < hopTimes.length; i++) {
+          if (a.t >= hopTimes[i]) {
+            a.finN = i + 1;
+            const ang = Math.random() * Math.PI * 2;
+            ghostAfterimage(p.rig, 0x9fd8ff, .3);
+            p.pos.copy(tgt.pos).add(new THREE.Vector3(Math.cos(ang) * 2, 0, Math.sin(ang) * 2));
+            p.facing = Math.atan2(tgt.pos.x - p.pos.x, tgt.pos.z - p.pos.z);
+            sfx.dash();
+            spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.6, 2 + Math.random() * 2, (Math.random() - .5) * 1.6)), 0xd82a3c, 3, 10, 1);
+          }
+        }
+        if (a.t >= 1.18 && !a.neck) {
+          a.neck = true;
+          p.pos.copy(tgt.pos).add(facingVec().multiplyScalar(-1.6));
+          tgt.damage(20, null, { stun: .5, color: "#ff3b4e", spark: 0xd82a3c, react: "stab", reactDur: .8 });
+          sfx.stab();
+          hitstop(.1);
+          addShake(.6);
+        }
+        if (a.t >= 1.45 && !a.toss) {
+          a.toss = true;
+          if (!tgt.dead) {
+            const f = facingVec();
+            tgt.lockT = 0;
+            tgt.damage(6, f.multiplyScalar(26).setY(9), { color: "#ff3b4e" });
+          }
+          sfx.kick();
+        }
+      }
+      break;
+    }
+    case "n3": {
+      /* run forward attempting the grab */
+      if (!a.grabbed && a.t < .45) {
+        const f = facingVec();
+        p.vel.x = f.x * 16; p.vel.z = f.z * 16;
+        const tgt = nearestFrontEnemy(2.6, .35);
+        if (tgt) {
+          a.grabbed = true;
+          a.tgt = tgt;
+          a.fin = tgt.hp <= 25;
+          a.dur = a.fin ? 2.9 : 1.75;
+          p.vel.set(0, 0, 0);
+          tgt.damage(2, null, { stun: .5, color: "#ffd27a", react: "gut", reactDur: .4 });
+          sfx.punch();
+          addShake(.2);
+        }
+      }
+      if (!a.grabbed && a.t >= .45 && !a.paid) {
+        a.paid = true;
+        a.dur = .62;
+        applyProjPlayer(25);
+      }
+      if (a.grabbed && a.tgt && !a.tgt.dead) {
+        const tgt = a.tgt;
+        /* barrage */
+        const barrageEnd = a.fin ? 1.9 : 1.5;
+        if (a.t < barrageEnd + .2) holdTargetInFront(tgt, 2);
+        if (a.t >= .5 && a.t < barrageEnd) {
+          a.acc += dt;
+          const rate = a.fin ? .07 : .1;
+          if (a.acc > rate) {
+            a.acc = 0;
+            tgt.damage(1, null, { stun: .3, color: "#ffd27a", react: "pummel", reactDur: .25 });
+            sfx.punch();
+            addShake(.06);
+            spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, 2.2 + Math.random() * 1.6, (Math.random() - .5) * 1.4)), 0xffe2a8, 2, 10);
+            if (a.fin && Math.random() < .3) ghostAfterimage(p.rig, 0x9fd8ff);
+          }
+        }
+        if (!a.fin) {
+          if (a.t >= 1.55 && !a.done) {
+            a.done = true;
+            tgt.lockT = 0;
+            tgt.stunT = Math.max(tgt.stunT, 1);   /* stunned in place */
+            tgt.applyProj(30);
+            p.comboN = 0;                          /* set to first M1 */
+          }
+        } else {
+          /* finisher: they retaliate — blocked — framed — kicked away */
+          if (a.t >= 2.1 && !a.framed) {
+            a.framed = true;
+            tgt.lockT = 0;
+            tgt.enterFrame("player");
+            damageNumber(tgt.pos.clone().add(new THREE.Vector3(0, 6.6, 0)), "BLOCKED!", "#fff");
+          }
+          if (a.t >= 2.55 && !a.kicked) {
+            a.kicked = true;
+            if (!tgt.dead) {
+              const f = facingVec();
+              tgt.damage(14, f.multiplyScalar(36).setY(13), { noFrameBonus: true, color: "#ffd27a" });
+              sfx.kick();
+              addShake(.55);
+              hitstop(.07);
+            }
+          }
+        }
+      }
+      break;
+    }
+    case "nr": {
+      /* projection dash: 24fps hops toward the aimed point */
+      const HOPS = 8;
+      const hopT = a.dur / HOPS;
+      while (a.hop < HOPS && a.t >= (a.hop + 1) * hopT) {
+        a.hop++;
+        ghostAfterimage(p.rig, 0x7fb8e0, .12);
+        p.pos.lerpVectors(a.from, a.dest, a.hop / HOPS);
+        collideWorld(p.pos, 1);
+        if (a.hop === HOPS) {
+          p.vel.set(0, 0, 0);
+          sfx.tpDone();
+          ringWave(p.pos.clone().add(new THREE.Vector3(0, .3, 0)), 0x9fd8ff, 5, .4);
+          spark(p.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0xbfe8ff, 8, 10, 1.2);
+          /* second teleport window, or cooldown */
+          if (!a.second) {
+            p.rWindow = 2.5;
+          } else {
+            p.rWindow = 0;
+            cds.nr = CD.nr;
+          }
+        }
+      }
+      break;
+    }
+    case "nrf": {
+      /* frame punch: blitz to the framed target and knock them out of the glass */
+      const tgt = a.tgt;
+      if (a.t >= .18 && !a.hopped) {
+        a.hopped = true;
+        ghostAfterimage(p.rig, 0x9fd8ff);
+        const f = camForward();
+        p.pos.copy(tgt.pos).addScaledVector(f, -2.2);
+        p.pos.y = 0;
+        collideWorld(p.pos, 1);
+        p.facing = camYaw + Math.PI;
+        sfx.dash();
+      }
+      if (a.t >= .32 && !a.punched) {
+        a.punched = true;
+        if (!tgt.dead && tgt.frameT > 0) {
+          const f = facingVec();
+          tgt.damage(8, f.multiplyScalar(30).setY(11), { color: "#9fd8ff" });   /* triple applies via frame break */
+          tgt.applyProj(27);   /* refills their meter by 27% */
+          sfx.punch();
+          addShake(.45);
+          hitstop(.07);
+        }
+      }
+      break;
+    }
+  }
+}
+
+/* ============================================================
+   ACTION POSES
+   ============================================================ */
+function poseAction(r, a) {
+  const p = player;
+  p.visYaw = 0;
+  switch (a.type) {
+    case "red": {
+      if (a.t < .5) {
+        const k = ease(clamp01(a.t / .35));
+        r.shoulderR.rotation.x = -2.25 * k;
+        r.elbowR.rotation.x = -.2;
+        r.shoulderL.rotation.x = -.5; r.elbowL.rotation.x = -1.1;
+        r.spine.rotation.x = .1 * k;
+        r.spine.rotation.y = -.3 * k;
+        r.neck.rotation.x = -.12 * k;
+      } else {
+        const k = ease(clamp01((a.t - .5) / .18));
+        r.shoulderR.rotation.x = lerp(-2.25, -1.45, k);
+        r.elbowR.rotation.x = -.06;
+        r.shoulderL.rotation.x = -.3; r.elbowL.rotation.x = -.8;
+        r.spine.rotation.x = lerp(.1, -.12, k);
+        r.spine.rotation.y = lerp(-.3, -.45, k);
+      }
+      break;
+    }
+    case "rapid": {
+      if (a.t < .3) {
+        const k = a.t / .3;
+        p.visYaw = k * Math.PI * 2;
+        r.hipR.rotation.x = -1.5 * Math.sin(k * Math.PI);
+        r.kneeR.rotation.x = .12;
+        r.hipL.rotation.x = .25; r.kneeL.rotation.x = .4;
+        r.shoulderL.rotation.z = -.9; r.shoulderR.rotation.z = .9;
+        r.spine.rotation.x = .12;
+      } else if (a.t < 1.45 && a.locked) {
+        const f = Math.sin(a.t * 46);
+        r.shoulderR.rotation.x = -1.35 + f * .55;
+        r.shoulderL.rotation.x = -1.35 - f * .55;
+        r.elbowR.rotation.x = -.22; r.elbowL.rotation.x = -.22;
+        r.spine.rotation.x = -.16;
+        r.hipL.rotation.x = -.24; r.hipR.rotation.x = .26;
+        r.kneeL.rotation.x = .3; r.kneeR.rotation.x = .34;
+        if (Math.random() < .3) ghostAfterimage(player.rig, 0x5588ff);
+      } else if (a.locked) {
+        const k = ease(clamp01((a.t - 1.45) / .18));
+        r.shoulderR.rotation.x = -1.85;
+        r.elbowR.rotation.x = -.04;
+        r.shoulderL.rotation.x = .35;
+        r.spine.rotation.y = -.55 * k;
+        r.spine.rotation.x = -.2;
+        r.hipL.rotation.x = -.35; r.hipR.rotation.x = .4; r.kneeR.rotation.x = .5;
+      }
+      break;
+    }
+    case "tf": {
+      if (a.t < .18) {
+        const k = ease(a.t / .18);
+        r.hipR.rotation.x = lerp(.45, -1.9, k);
+        r.kneeR.rotation.x = lerp(.9, .08, k);
+        r.spine.rotation.x = .3 * k;
+        r.shoulderL.rotation.x = -.85; r.shoulderR.rotation.x = .5;
+        r.ankleR.rotation.x = .3;
+      } else if (a.t < .58) {
+        const k = clamp01((a.t - .18) / .4);
+        r.hipR.rotation.x = lerp(-1.9, -1, k);
+        r.kneeR.rotation.x = .15;
+        r.spine.rotation.x = lerp(.3, .12, k);
+        r.shoulderL.rotation.x = -.6; r.shoulderR.rotation.x = .3;
+      } else {
+        const k = ease(clamp01((a.t - .58) / .18));
+        r.hipL.rotation.x = lerp(.3, -2.1, k);
+        r.kneeL.rotation.x = .1;
+        r.hipR.rotation.x = .35; r.kneeR.rotation.x = .6;
+        r.spine.rotation.x = .38;
+        r.shoulderL.rotation.x = .4; r.shoulderR.rotation.x = -.7;
+      }
+      break;
+    }
+    case "palm": {
+      r.shoulderL.rotation.x = -1.45; r.elbowL.rotation.x = -.12;
+      const times = [.3, .6, .9];
+      let strike = 0;
+      for (const st of times) {
+        const d = a.t - st;
+        if (d > -.08 && d < .1) strike = 1 - Math.abs(d) * 8;
+      }
+      r.shoulderR.rotation.x = -.55 - strike * 1.1;
+      r.elbowR.rotation.x = -.25 + strike * .1;
+      r.spine.rotation.y = -.15 - strike * .2;
+      r.spine.rotation.x = -.08;
+      if (a.t >= .95 && a.t < 1.28) {
+        const k = (a.t - .95) / .33;
+        p.visYaw = ease(k) * Math.PI * 2;
+        r.shoulderL.rotation.x = -.4; r.shoulderR.rotation.x = -.4;
+        r.shoulderL.rotation.z = -.7; r.shoulderR.rotation.z = .7;
+      } else if (a.t >= 1.28 && a.t < 1.5) {
+        const k = ease(clamp01((a.t - 1.28) / .15));
+        r.hipR.rotation.x = -1.35 * k;
+        r.kneeR.rotation.x = .1;
+        r.spine.rotation.y = .6 * k;
+        r.spine.rotation.x = .15;
+        r.shoulderL.rotation.x = .3; r.shoulderR.rotation.x = .3;
+      }
+      break;
+    }
+    case "lim": {
+      const k = ease(clamp01(a.t / .3));
+      const down = a.t > .95 ? ease(clamp01((a.t - .95) / .2)) : 0;
+      r.shoulderR.rotation.x = -2.95 * k * (1 - down);
+      r.elbowR.rotation.x = -.08;
+      r.shoulderL.rotation.x = .1;
+      r.neck.rotation.x = -.28 * k * (1 - down);
+      r.spine.rotation.x = .06;
+      if (a.shattered && !a.tp && Math.random() < .25)
+        spark(handWorld(player.rig.handR), 0x9fd8ff, 1, 3, .7);
+      break;
+    }
+
+    /* ---------- NAOYA ---------- */
+    case "n1": {
+      /* crouch anticipation -> back-dash slide -> spin roundhouse -> follow-through */
+      if (a.t < .12) {
+        const k = ease(a.t / .12);
+        r.spine.rotation.x = .38 * k;
+        r.neck.rotation.x = .2 * k;
+        r.kneeL.rotation.x = .85 * k; r.kneeR.rotation.x = .85 * k;
+        r.hipL.rotation.x = -.42 * k; r.hipR.rotation.x = -.42 * k;
+        r.shoulderL.rotation.x = .7 * k; r.shoulderR.rotation.x = .7 * k;
+        r.hips.position.y = r.hipsBaseY - .32 * k;
+      } else if (a.t < .3) {
+        const k = ease((a.t - .12) / .18);
+        r.spine.rotation.x = lerp(.38, -.52, k);
+        r.neck.rotation.x = lerp(.2, .38, k);
+        r.shoulderL.rotation.x = lerp(.7, -1.3, k);
+        r.shoulderR.rotation.x = lerp(.7, -1.3, k);
+        r.shoulderL.rotation.z = -.35 * k; r.shoulderR.rotation.z = .35 * k;
+        r.elbowL.rotation.x = -.3; r.elbowR.rotation.x = -.3;
+        r.hipL.rotation.x = lerp(-.42, -1, k); r.kneeL.rotation.x = lerp(.85, .2, k);
+        r.hipR.rotation.x = lerp(-.42, .32, k); r.kneeR.rotation.x = lerp(.85, 1.2, k);
+        r.hips.position.y = r.hipsBaseY - .18;
+      } else if (a.t < .56) {
+        const k = ease((a.t - .3) / .26);
+        p.visYaw = k * Math.PI * 2;
+        const kick = Math.sin(Math.min(1, k * 1.35) * Math.PI);
+        r.hipR.rotation.x = -1.85 * kick;
+        r.kneeR.rotation.x = 1.4 * (1 - kick) + .08;
+        r.ankleR.rotation.x = .35 * kick;
+        r.hipL.rotation.x = .3; r.kneeL.rotation.x = .55;
+        r.spine.rotation.x = .1;
+        r.spine.rotation.z = -.32 * kick;
+        r.neck.rotation.z = .15 * kick;
+        r.shoulderL.rotation.z = -1.25 * kick; r.shoulderR.rotation.z = 1.25 * kick;
+        r.shoulderL.rotation.x = -.3; r.shoulderR.rotation.x = -.3;
+        r.hips.position.y = r.hipsBaseY - .12;
+      } else {
+        const k = ease(clamp01((a.t - .56) / .24));
+        p.visYaw = Math.PI * 2;
+        r.hipR.rotation.x = lerp(-1.85, .2, k);
+        r.kneeR.rotation.x = lerp(.08, .5, k);
+        r.spine.rotation.z = lerp(-.32, 0, k);
+        r.spine.rotation.x = lerp(.1, .22, k);
+        r.kneeL.rotation.x = .55;
+        r.shoulderL.rotation.z = lerp(-1.25, -.15, k);
+        r.shoulderR.rotation.z = lerp(1.25, .15, k);
+        r.hips.position.y = r.hipsBaseY - .18 * (1 - k);
+      }
+      break;
+    }
+    case "n2": {
+      /* blade flourish -> deep stab lunge -> withdraw (or finisher blitz) */
+      if (a.t < .3) {
+        const k = ease(a.t / .3);
+        r.shoulderR.rotation.x = -1.25 * k;
+        r.shoulderR.rotation.z = .45 * k;
+        r.elbowR.rotation.x = -1.55 * k;
+        r.shoulderL.rotation.x = -.75 * k;
+        r.elbowL.rotation.x = -.9 * k;
+        r.spine.rotation.y = .4 * k;
+        r.spine.rotation.x = .08 * k;
+        r.neck.rotation.y = -.3 * k;
+        r.hipL.rotation.x = -.15 * k; r.kneeR.rotation.x = .35 * k;
+        r.hips.position.y = r.hipsBaseY - .1 * k;
+        if (r.tanto) r.tanto.rotation.x = ease(k) * Math.PI * 6;
+      } else if (a.t < .46) {
+        const k = ease(clamp01((a.t - .3) / .16));
+        r.shoulderR.rotation.x = lerp(-1.25, -1.62, k);
+        r.shoulderR.rotation.z = lerp(.45, .05, k);
+        r.elbowR.rotation.x = lerp(-1.55, -.02, k);
+        r.shoulderL.rotation.x = lerp(-.75, .65, k);
+        r.elbowL.rotation.x = lerp(-.9, -1.35, k);
+        r.spine.rotation.y = lerp(.4, -.55, k);
+        r.spine.rotation.x = lerp(.08, -.18, k);
+        r.neck.rotation.y = lerp(-.3, .1, k);
+        r.hipL.rotation.x = -.55 * k; r.kneeL.rotation.x = .35 * k;
+        r.hipR.rotation.x = .4 * k; r.kneeR.rotation.x = lerp(.35, .5, k);
+        r.hips.position.y = r.hipsBaseY - .22 * k;
+        if (r.tanto) r.tanto.rotation.x = 0;
+      } else if (!a.fin) {
+        const k = ease(clamp01((a.t - .46) / .32));
+        const inv = 1 - k;
+        r.shoulderR.rotation.x = -1.62 * inv - .2 * k;
+        r.elbowR.rotation.x = -.02 - .6 * k;
+        r.shoulderL.rotation.x = .65 * inv;
+        r.elbowL.rotation.x = -1.35 * inv - .2 * k;
+        r.spine.rotation.y = -.55 * inv;
+        r.spine.rotation.x = -.18 * inv;
+        r.hipL.rotation.x = -.55 * inv; r.hipR.rotation.x = .4 * inv;
+        r.kneeR.rotation.x = .5 * inv + .06;
+        r.hips.position.y = r.hipsBaseY - .22 * inv;
+      } else if (a.t < 1.15) {
+        /* finisher: blitzing slashes around the target, alternating sides */
+        const sl = Math.floor(a.t * 8) % 2 ? 1 : -1;
+        const jit = Math.sin(a.t * 34);
+        r.spine.rotation.y = .6 * sl;
+        r.spine.rotation.x = -.15;
+        r.neck.rotation.y = -.3 * sl;
+        r.shoulderR.rotation.x = -1.3 + jit * .3;
+        r.shoulderR.rotation.z = .3 * sl;
+        r.elbowR.rotation.x = -.15;
+        r.shoulderL.rotation.x = -.6 * sl;
+        r.elbowL.rotation.x = -.8;
+        r.kneeL.rotation.x = .5; r.kneeR.rotation.x = .5;
+        r.hipL.rotation.x = -.3; r.hipR.rotation.x = .2;
+        r.hips.position.y = r.hipsBaseY - .26;
+      } else if (a.t < 1.45) {
+        /* rising neck stab, up on the toes */
+        const k = ease(clamp01((a.t - 1.15) / .14));
+        r.shoulderR.rotation.x = lerp(-1.3, -2.05, k);
+        r.elbowR.rotation.x = -.04;
+        r.shoulderL.rotation.x = lerp(-.6, .5, k);
+        r.spine.rotation.y = -.5 * k;
+        r.spine.rotation.x = lerp(-.15, -.3, k);
+        r.neck.rotation.x = -.25 * k;
+        r.ankleL.rotation.x = -.3 * k; r.ankleR.rotation.x = -.3 * k;
+        r.hips.position.y = r.hipsBaseY + .08 * k;
+      } else {
+        /* wrenching the blade out and tossing the body */
+        const k = ease(clamp01((a.t - 1.45) / .2));
+        p.visYaw = k * Math.PI * .7;
+        r.shoulderR.rotation.x = lerp(-2.05, -.35, k);
+        r.shoulderR.rotation.z = .85 * k;
+        r.shoulderL.rotation.x = lerp(.5, -.9, k);
+        r.spine.rotation.y = lerp(-.5, .5, k);
+        r.spine.rotation.x = .12 * k;
+        r.kneeL.rotation.x = .3; r.kneeR.rotation.x = .4;
+      }
+      break;
+    }
+    case "n3": {
+      if (!a.grabbed) {
+        /* weaving sprint with a grasping reach */
+        const s = Math.sin(a.t * 26);
+        p.visYaw = Math.sin(a.t * 16) * .12;
+        r.spine.rotation.x = -.45;
+        r.spine.rotation.y = Math.sin(a.t * 20) * .15;
+        r.neck.rotation.x = .3;
+        r.shoulderL.rotation.x = -1.5 + Math.sin(a.t * 10) * .1;
+        r.elbowL.rotation.x = -.1;
+        r.shoulderR.rotation.x = .8;
+        r.elbowR.rotation.x = -.4;
+        r.hipL.rotation.x = -s * 1.05; r.hipR.rotation.x = s * 1.05;
+        r.kneeL.rotation.x = .45 + Math.max(0, Math.cos(a.t * 26)) * .85;
+        r.kneeR.rotation.x = .45 + Math.max(0, -Math.cos(a.t * 26)) * .85;
+        r.hips.position.y = r.hipsBaseY - .18;
+      } else if (!a.fin) {
+        /* alternating straights driven from the hips, with sudden knee strikes */
+        const alt = Math.sin(a.t * 22);
+        const kneeStrike = Math.sin(a.t * 2.9 - 1) > .93;
+        r.spine.rotation.x = -.22;
+        r.spine.rotation.y = alt * .38;
+        r.neck.rotation.x = .1;
+        r.shoulderR.rotation.x = -1.15 - Math.max(0, alt) * .75;
+        r.shoulderL.rotation.x = -1.15 - Math.max(0, -alt) * .75;
+        r.elbowR.rotation.x = -.18 - Math.max(0, -alt) * .95;
+        r.elbowL.rotation.x = -.18 - Math.max(0, alt) * .95;
+        if (kneeStrike) {
+          r.hipR.rotation.x = -1.35; r.kneeR.rotation.x = 1.25;
+          r.spine.rotation.x = -.32;
+        } else {
+          r.hipL.rotation.x = -.25; r.hipR.rotation.x = .28;
+          r.kneeL.rotation.x = .35; r.kneeR.rotation.x = .38;
+        }
+        r.hips.position.y = r.hipsBaseY - .12 + Math.sin(a.t * 44) * .02;
+      } else {
+        if (a.t < 1.9) {
+          /* overwhelming one-arm blur while the other caresses his hair */
+          const f = Math.sin(a.t * 54);
+          r.shoulderR.rotation.x = -1.35 + f * .65;
+          r.elbowR.rotation.x = -.12;
+          r.spine.rotation.y = -.15 + f * .08;
+          r.spine.rotation.x = -.12;
+          r.shoulderL.rotation.x = -2.55;
+          r.shoulderL.rotation.z = -.25;
+          r.elbowL.rotation.x = -1.42 + Math.sin(a.t * 2.2) * .12;
+          r.neck.rotation.z = -.14;
+          r.neck.rotation.x = -.16;
+          r.hipL.rotation.z = -.08;
+          r.kneeR.rotation.x = .3;
+          r.hips.position.x = .1;
+        } else if (a.t < 2.1) {
+          /* snapping into a cross-arm block */
+          const k = ease(clamp01((a.t - 1.9) / .08));
+          r.shoulderL.rotation.x = -1.05 * k; r.shoulderR.rotation.x = -1.05 * k;
+          r.elbowL.rotation.x = -1.35 * k;    r.elbowR.rotation.x = -1.35 * k;
+          r.spine.rotation.x = .12 * k;
+          r.neck.rotation.x = .2 * k;
+          r.kneeL.rotation.x = .3; r.kneeR.rotation.x = .3;
+          r.hips.position.y = r.hipsBaseY - .1 * k;
+        } else if (a.t < 2.55) {
+          /* dismissive flick, chin up, half turned away as the frame sets */
+          const k = ease(clamp01((a.t - 2.1) / .2));
+          p.visYaw = -.6 * k;
+          r.shoulderR.rotation.x = -.3;
+          r.shoulderR.rotation.z = .85 * k;
+          r.elbowR.rotation.x = -.25 + Math.sin((a.t - 2.1) * 18) * .2 * (1 - k);
+          r.shoulderL.rotation.x = .25;
+          r.neck.rotation.z = .12;
+          r.neck.rotation.x = -.18;
+          r.spine.rotation.y = .35 * k;
+        } else {
+          /* wheeling heavy kick */
+          const k = ease(clamp01((a.t - 2.55) / .14));
+          p.visYaw = lerp(-.6, 0, k);
+          r.hipR.rotation.x = -1.95 * k;
+          r.kneeR.rotation.x = .08;
+          r.ankleR.rotation.x = .3 * k;
+          r.spine.rotation.x = .35 * k;
+          r.spine.rotation.z = -.25 * k;
+          r.shoulderL.rotation.x = .5; r.shoulderR.rotation.x = -.85;
+          r.shoulderL.rotation.z = -.8 * k; r.shoulderR.rotation.z = .5;
+          r.kneeL.rotation.x = .4;
+          r.hips.position.y = r.hipsBaseY - .15 * k;
+        }
+      }
+      break;
+    }
+    case "nr": {
+      /* 24fps blitz: pose changes with every projection hop */
+      const mode = a.hop % 3;
+      r.spine.rotation.x = -.5;
+      r.neck.rotation.x = .32;
+      if (mode === 0) {
+        r.shoulderL.rotation.x = .95; r.shoulderR.rotation.x = .95;
+        r.shoulderL.rotation.z = -.35; r.shoulderR.rotation.z = .35;
+        r.hipL.rotation.x = -.9; r.kneeL.rotation.x = 1;
+        r.hipR.rotation.x = .55; r.kneeR.rotation.x = .25;
+      } else if (mode === 1) {
+        /* low slide */
+        r.spine.rotation.x = -.3;
+        r.hips.position.y = r.hipsBaseY - .5;
+        r.hipL.rotation.x = -1.3; r.kneeL.rotation.x = .2;
+        r.hipR.rotation.x = .8; r.kneeR.rotation.x = 1.5;
+        r.shoulderL.rotation.x = -.6; r.shoulderR.rotation.x = .8;
+      } else {
+        /* upright glide, hand raised in the technique sign */
+        r.shoulderR.rotation.x = -2.5; r.elbowR.rotation.x = -.1;
+        r.shoulderL.rotation.x = .8;
+        r.hipL.rotation.x = -.5; r.kneeL.rotation.x = .7;
+        r.hipR.rotation.x = .35; r.kneeR.rotation.x = .4;
+      }
+      break;
+    }
+    case "nrf": {
+      /* frame break: cock the fist behind, then a full-body straight */
+      if (a.t < .18) {
+        const k = ease(a.t / .18);
+        r.spine.rotation.y = .55 * k;
+        r.shoulderR.rotation.x = .75 * k;
+        r.shoulderR.rotation.z = .35 * k;
+        r.elbowR.rotation.x = -1.1 * k;
+        r.shoulderL.rotation.x = -.8 * k;
+        r.kneeL.rotation.x = .3; r.kneeR.rotation.x = .4;
+        r.hips.position.y = r.hipsBaseY - .12 * k;
+      } else {
+        const k = ease(clamp01((a.t - .18) / .16));
+        r.spine.rotation.y = lerp(.55, -.65, k);
+        r.spine.rotation.x = -.15 * k;
+        r.shoulderR.rotation.x = lerp(.75, -1.55, k);
+        r.shoulderR.rotation.z = lerp(.35, .05, k);
+        r.elbowR.rotation.x = lerp(-1.1, -.02, k);
+        r.shoulderL.rotation.x = lerp(-.8, .5, k);
+        r.elbowL.rotation.x = -.9;
+        r.hipL.rotation.x = -.5 * k; r.kneeL.rotation.x = .3;
+        r.hipR.rotation.x = .45 * k; r.kneeR.rotation.x = .55 * k;
+        r.hips.position.y = r.hipsBaseY - .18 * k;
+      }
+      break;
+    }
+  }
+}
+
+/* ---------------- input ---------------- */
+const keys = {};
+let locked = false, started = false;
+const menu = document.getElementById("menu");
+const menuFight = document.getElementById("menuFight");
+const menuSub = menu.querySelector("h2");
+
+function setMenuMode(pause) {
+  menu.classList.toggle("is-pause", !!pause);
+  if (menuSub) menuSub.textContent = pause ? "PAUSED" : "FIVE SORCERERS · ONE CITY";
+  if (menuFight) menuFight.textContent = pause ? "RESUME" : "ENTER THE ARENA";
+}
+function enterArenaLocal(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  started = true;
+  menu.style.display = "none";
+  audio();
+  renderer.domElement.requestPointerLock?.();
+}
+
+addEventListener("keydown", e => {
+  keys[e.code] = true;
+  if (!started && (e.code === "Enter" || e.code === "Space")) {
+    const lobby = document.getElementById("jjLobby");
+    if (lobby && lobby.style.display === "flex") return;
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    enterArenaLocal(e);
+    return;
+  }
+  if (!started) return;
+  if (player.char === "gojo") {
+    if (e.code === "Digit1") castRed();
+    if (e.code === "Digit2") castRapid();
+    if (e.code === "Digit3") castTwofold();
+    if (e.code === "Digit4") castPalm();
+    if (e.code === "KeyR") castLimitless();
+  } else {
+    if (e.code === "Digit1") castN1();
+    if (e.code === "Digit2") castN2();
+    if (e.code === "Digit3") castN3();
+    if (e.code === "KeyR") castNaoyaR();
+  }
+  if (e.code === "KeyQ") doDash();
+  if (e.code === "KeyC" && !e.repeat) switchChar(player.char === "gojo" ? "naoya" : "gojo");
+});
+addEventListener("keyup", e => keys[e.code] = false);
+
+if (menuFight) menuFight.addEventListener("click", enterArenaLocal);
+menu.addEventListener("click", (e) => {
+  if (!started) return;
+  if (e.target.closest("button, .roster-card, input, a, .controls")) return;
+  enterArenaLocal(e);
+});
+document.addEventListener("pointerlockchange", () => {
+  locked = document.pointerLockElement === renderer.domElement;
+  if (!locked && started) {
+    setMenuMode(true);
+    menu.style.display = "flex";
+  }
+});
+addEventListener("mousemove", e => {
+  if (!locked) return;
+  camYaw -= e.movementX * .0026;
+  camPitch = Math.max(-.5, Math.min(1.1, camPitch + e.movementY * .0022));
+});
+addEventListener("mousedown", e => {
+  if (!started) return;
+  if (!locked) { renderer.domElement.requestPointerLock?.(); }
+  if (e.button === 0) punch();
+});
+
+/* ---------------- player update ---------------- */
+const WALK_SPEED = 7.2, RUN_SPEED = 13.5;
+function updatePlayer(dt) {
+  const p = player;
+  const r = p.rig;
+  if (p.dead) {
+    p.deathT -= dt;
+    r.body.rotation.x = Math.min(r.body.rotation.x + dt * 4, Math.PI / 2);
+    if (p.deathT <= 0) {
+      p.dead = false; p.hp = p.maxHp;
+      p.pos.set(0, 0, 20); p.vel.set(0, 0, 0);
+      r.body.rotation.x = 0;
+      p.iframes = 2;
+      p.proj = 0;
+    }
+    r.root.position.copy(p.pos);
+    return;
+  }
+  /* frozen in own glass frame */
+  if (p.frameT > 0) {
+    p.frameT -= dt;
+    if (p.frameT <= 0) unframePlayer(false);
+    return;
+  }
+  p.iframes = Math.max(0, p.iframes - dt);
+  p.animT += dt;
+  if (p.comboReset > 0) { p.comboReset -= dt; if (p.comboReset <= 0) p.comboN = 0; }
+  for (const k in cds) cds[k] = Math.max(0, cds[k] - dt);
+  /* dash charges */
+  const dashMax = p.char === "naoya" ? 2 : 1;
+  p.dashCh = Math.min(dashMax, p.dashCh + dt / 2.2);
+  /* naoya double-teleport window */
+  if (p.rWindow > 0) {
+    p.rWindow -= dt;
+    if (p.rWindow <= 0 && cds.nr <= 0) cds.nr = CD.nr;
+  }
+  /* projection meter passive drain */
+  if (p.proj > 0) p.proj = Math.max(0, p.proj - dt * 2);
+
+  if (p.action) {
+    const a = p.action;
+    a.t += dt;
+    stepAction(a, dt);
+    if (p.action === a && a.t >= a.dur) {
+      p.action = null;
+      p.visYaw = 0;
+      if (r.tanto) r.tanto.visible = false;
+    }
+  }
+  const inAction = !!p.action;
+
+  const fwd = camForward();
+  const rightv = new THREE.Vector3(-fwd.z, 0, fwd.x);
+  const mv = new THREE.Vector3();
+  if (!inAction) {
+    if (keys["KeyW"]) mv.add(fwd);
+    if (keys["KeyS"]) mv.sub(fwd);
+    if (keys["KeyD"]) mv.add(rightv);
+    if (keys["KeyA"]) mv.sub(rightv);
+  }
+  const moving = mv.lengthSq() > 0;
+  if (moving) mv.normalize();
+  const running = moving && (keys["ShiftLeft"] || keys["ShiftRight"]);
+  const speed = running ? RUN_SPEED : WALK_SPEED;
+
+  const targetV = moving ? mv.multiplyScalar(speed) : new THREE.Vector3();
+  const drag = inAction ? 3 : 10;
+  p.vel.x += (targetV.x - p.vel.x) * Math.min(1, dt * drag);
+  p.vel.z += (targetV.z - p.vel.z) * Math.min(1, dt * drag);
+
+  if (keys["Space"] && p.onGround && !inAction) {
+    p.vel.y = 15;
+    p.onGround = false;
+    sfx.whoosh();
+  }
+  p.vel.y -= 34 * dt;
+  p.pos.addScaledVector(p.vel, dt);
+  if (p.pos.y <= 0) { p.pos.y = 0; p.vel.y = 0; p.onGround = true; }
+  collideWorld(p.pos, 1);
+
+  if (running && p.onGround && Math.hypot(p.vel.x, p.vel.z) > RUN_SPEED * .7) {
+    p.ghostAcc += dt;
+    const gap = p.char === "naoya" ? .2 : .24;
+    if (p.ghostAcc > gap) { p.ghostAcc = 0; ghostAfterimage(r, p.char === "naoya" ? 0x6a9cc0 : 0x2a4dcc, .16); }
+  }
+
+  let desired = p.facing;
+  if (inAction || p.attackT > 0) desired = camYaw + Math.PI;
+  else if (moving) desired = Math.atan2(targetV.x, targetV.z);
+  let dy = desired - p.facing;
+  while (dy > Math.PI) dy -= Math.PI * 2;
+  while (dy < -Math.PI) dy += Math.PI * 2;
+  p.facing += dy * Math.min(1, dt * 14);
+
+  /* ------- animation (24 FPS rule applies to Naoya's visuals) ------- */
+  const sp = Math.hypot(p.vel.x, p.vel.z);
+  if (sp > .4) p.gait += dt * (4.2 + sp * .92);
+  p.vis24 += dt;
+  const gate = p.char === "naoya" ? 1 / 24 : 0;
+  if (gate === 0 || p.vis24 >= gate) {
+    p.vis24 = 0;
+    const moveAmt = clamp01(sp / 2.2);
+    const runAmt = clamp01((sp - WALK_SPEED * .92) / (RUN_SPEED - WALK_SPEED));
+    resetPose(r);
+    applyLocomotion(r, p.animT, p.gait, moveAmt, runAmt, p.onGround, p.vel.y);
+    if (p.char === "naoya" && !inAction && p.attackT <= 0) applyNaoyaFlair(r, p.animT, moveAmt, runAmt, p.onGround);
+
+    if (p.attackT > 0) {
+      const L = p.attackArm === 0;
+      const sh = L ? r.shoulderL : r.shoulderR;
+      const el = L ? r.elbowL : r.elbowR;
+      const osh = L ? r.shoulderR : r.shoulderL;
+      const oel = L ? r.elbowR : r.elbowL;
+      sh.rotation.x = -1.75; el.rotation.x = -.08;
+      osh.rotation.x = -.7; oel.rotation.x = -1.35;
+      r.spine.rotation.y = L ? .38 : -.38;
+      r.spine.rotation.x = -.1;
+    }
+    if (p.action) poseAction(r, p.action);
+
+    r.root.rotation.y = p.facing + p.visYaw;
+    r.root.position.copy(p.pos);
+  }
+  if (p.attackT > 0) p.attackT -= dt;
+  p.hp = Math.min(p.maxHp, p.hp + dt * 1.2);
+}
+
+/* ---------------- props ---------------- */
+function updateProps(dt) {
+  for (const c of crates) {
+    c.vel.y -= 28 * dt;
+    c.mesh.position.addScaledVector(c.vel, dt);
+    c.mesh.rotation.x += c.av.x * dt;
+    c.mesh.rotation.y += c.av.y * dt;
+    c.mesh.rotation.z += c.av.z * dt;
+    if (c.mesh.position.y < .8) {
+      c.mesh.position.y = .8;
+      if (c.vel.y < -4) c.vel.y = -c.vel.y * .35; else c.vel.y = 0;
+      c.vel.x *= .9; c.vel.z *= .9;
+      c.av.multiplyScalar(.9);
+    }
+    c.mesh.position.x = Math.max(-ARENA, Math.min(ARENA, c.mesh.position.x));
+    c.mesh.position.z = Math.max(-ARENA, Math.min(ARENA, c.mesh.position.z));
+  }
+  for (let i = debris.length - 1; i >= 0; i--) {
+    const d = debris[i];
+    d.t -= dt;
+    d.vel.y -= 26 * dt;
+    d.mesh.position.addScaledVector(d.vel, dt);
+    d.mesh.rotation.x += d.av.x * dt;
+    d.mesh.rotation.y += d.av.y * dt;
+    if (d.mesh.position.y < .4) { d.mesh.position.y = .4; d.vel.multiplyScalar(.5); }
+    d.mesh.material.opacity = Math.min(1, d.t);
+    if (d.t <= 0) {
+      scene.remove(d.mesh);
+      d.mesh.material.dispose();
+      debris.splice(i, 1);
+    }
+  }
+}
+
+/* ============================================================
+   CHARACTERS / HUD
+   ============================================================ */
+const CHARS = {
+  gojo: {
+    name: "GOJO SATORU", sub: "THE HONORED ONE \u2014 LIMITLESS",
+    cfg: GOJO_CFG, glow: "#3a7dff",
+    moves: [
+      { key: "LMB", lbl: "Punch", cd: "m1", max: .32 },
+      { key: "Q", lbl: "Dash", cd: "dash", max: 1 },
+      { key: "1", lbl: "Reversal: Red", cd: "red", max: CD.red },
+      { key: "2", lbl: "Rapid Punches", cd: "rapid", max: CD.rapid },
+      { key: "3", lbl: "Twofold Kick", cd: "twofold", max: CD.twofold },
+      { key: "4", lbl: "Palm Barrage", cd: "palm", max: CD.palm },
+      { key: "R", lbl: "Limitless", cd: "limitless", max: CD.limitless },
+    ],
+  },
+  naoya: {
+    name: "NAOYA ZEN'IN", sub: "PROJECTION SORCERY \u2014 24 FPS",
+    cfg: NAOYA_CFG, glow: "#9fd8ff",
+    moves: [
+      { key: "LMB", lbl: "Punch", cd: "m1", max: .27 },
+      { key: "Q", lbl: "Dash x2", cd: "dash", max: 1 },
+      { key: "1", lbl: "Projection Breaker", cd: "n1", max: CD.n1 },
+      { key: "2", lbl: "Tanto", cd: "n2", max: CD.n2 },
+      { key: "3", lbl: "You're Not Toji", cd: "n3", max: CD.n3 },
+      { key: "R", lbl: "Projection", cd: "nr", max: CD.nr },
+    ],
+  },
+};
+
+/* portrait icons rendered from the actual models */
+function makePortrait(cfg) {
+  try {
+    const rnd = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    rnd.setSize(128, 128);
+    const sc = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(30, 1, .1, 50);
+    const rig = makeAnimeRig(cfg);
+    resetPose(rig);
+    rig.root.rotation.y = Math.PI + .4;
+    rig.neck.rotation.x = -.05;
+    sc.add(rig.root);
+    sc.add(new THREE.HemisphereLight(0xffffff, 0x33405c, 1.5));
+    const dl = new THREE.DirectionalLight(0xfff2dd, 1.6);
+    dl.position.set(2, 5, 4);
+    sc.add(dl);
+    cam.position.set(.6, 5.5, 3.8);
+    cam.lookAt(-.05, 5.05, 0);
+    rnd.render(sc, cam);
+    const url = rnd.domElement.toDataURL();
+    rnd.dispose();
+    return url;
+  } catch (e) { return ""; }
+}
+
+const movesEl = document.getElementById("moves");
+let cdEls = [];
+function buildMovesBar() {
+  movesEl.innerHTML = "";
+  cdEls = [];
+  for (const m of CHARS[player.char].moves) {
+    const d = document.createElement("div");
+    d.className = "move";
+    d.innerHTML = `<div class="key">${m.key}</div><div class="name">${m.lbl}</div><div class="cd"></div>`;
+    movesEl.appendChild(d);
+    cdEls.push({ el: d.querySelector(".cd"), box: d, def: m });
+  }
+}
+
+const charListEl = document.getElementById("charList");
+const menuRoster = document.getElementById("menuRoster");
+const menuPick = document.getElementById("menuPick");
+const clBody = document.getElementById("clBody");
+const clHead = charListEl.querySelector(".clHead");
+/* every character module calls buildCharList() as it loads, so the toggle
+   is wired once rather than eleven times */
+if (clHead) {
+  clHead.addEventListener("click", () => {
+    charListEl.classList.toggle("open");
+    if (charListEl.classList.contains("open")) {
+      const on = clBody.querySelector(".charItem.active");
+      if (on && on.scrollIntoView) on.scrollIntoView({ block: "nearest" });
+    }
+  });
+}
+function buildCharList() {
+  clBody.innerHTML = "";
+  for (const id of Object.keys(CHARS)) {
+    const c = CHARS[id];
+    const item = document.createElement("div");
+    item.className = "charItem" + (player.char === id ? " active" : "");
+    item.dataset.char = id;
+    item.innerHTML = `<img alt="${c.name}"><div><div class="cname">${c.name.split(" ")[0]}</div><div class="ctech">${c.sub.split("\u2014")[1] ?? ""}</div></div>`;
+    item.querySelector("img").src = c.portrait || "";
+    item.addEventListener("click", () => switchChar(id));
+    clBody.appendChild(item);
+  }
+  const count = clHead && clHead.querySelector(".clCount");
+  if (count) count.textContent = Object.keys(CHARS).length;
+  if (menuRoster) {
+    menuRoster.innerHTML = "";
+    for (const id of Object.keys(CHARS)) {
+      const c = CHARS[id];
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "roster-card" + (player.char === id ? " active" : "");
+      card.dataset.char = id;
+      card.innerHTML = `<img alt="${c.name}"><span class="rn">${c.name.split(" ")[0]}</span>`;
+      card.querySelector("img").src = c.portrait || "";
+      card.addEventListener("click", (e) => {
+        e.stopPropagation();
+        switchChar(id, true);
+      });
+      menuRoster.appendChild(card);
+    }
+  }
+  refreshCharList();
+}
+function refreshCharList() {
+  charListEl.querySelectorAll(".charItem").forEach(el =>
+    el.classList.toggle("active", el.dataset.char === player.char));
+  if (menuRoster) {
+    menuRoster.querySelectorAll(".roster-card").forEach(el =>
+      el.classList.toggle("active", el.dataset.char === player.char));
+  }
+  if (menuPick && CHARS[player.char]) {
+    menuPick.querySelector(".pn").textContent = CHARS[player.char].name;
+    menuPick.querySelector(".ps").textContent = CHARS[player.char].sub;
+  }
+  const kit = document.getElementById("menuKit");
+  if (kit && CHARS[player.char]) {
+    const c = CHARS[player.char];
+    const tint = { gojo: "", naoya: "ny", yuji: "yj", hakari: "hk", choso: "ch" }[player.char] || "";
+    const line = c.moves
+      .filter((m) => m.key !== "LMB" && m.key !== "Q")
+      .map((m) => `<b>${m.key}</b> ${m.lbl}`)
+      .join(" &nbsp;&middot;&nbsp; ");
+    kit.innerHTML = `<span class="cn ${tint}">${c.name.split(" ")[0]}</span><span>${line}</span>`;
+  }
+  const aw = document.querySelector("#menu .aw-row");
+  if (aw) aw.style.display = player.char === "gojo" ? "" : "none";
+}
+
+const cardName = document.querySelector("#charCard .name");
+const cardSub = document.querySelector("#charCard .sub");
+const projWrap = document.getElementById("projWrap");
+const projFill = document.getElementById("projFill");
+
+function switchChar(id, quiet) {
+  if (!CHARS[id] || id === player.char) return;
+  const p = player;
+  unframePlayer(false);
+  p.action = null;
+  p.visYaw = 0;
+  scene.remove(p.rig.root);
+  p.char = id;
+  p.rig = makeAnimeRig(CHARS[id].cfg);
+  scene.add(p.rig.root);
+  p.rig.root.position.copy(p.pos);
+  p.proj = 0; p.rWindow = 0; p.attackT = 0; p.comboN = 0;
+  p.dashCh = id === "naoya" ? 2 : 1;
+  for (const k in cds) cds[k] = 0;
+  cardName.textContent = CHARS[id].name;
+  cardSub.textContent = CHARS[id].sub;
+  cardName.style.textShadow = `0 0 8px ${CHARS[id].glow}`;
+  buildMovesBar();
+  refreshCharList();
+  if (quiet || !started) return;
+  showSplash(CHARS[id].name, CHARS[id].sub, CHARS[id].glow);
+  spark(p.pos.clone().add(new THREE.Vector3(0, 3, 0)), 0xbfe8ff, 12, 12, 1.4);
+  ghostAfterimage(p.rig, 0xffffff);
+  sfx.tpDone();
+}
+
+const hpFill = document.getElementById("hpFill");
+function updateHUD(dt) {
+  hpFill.style.width = (player.hp / player.maxHp * 100) + "%";
+  for (const c of cdEls) {
+    let frac;
+    if (c.def.cd === "dash") {
+      frac = player.dashCh >= (player.char === "naoya" ? 2 : 1) ? 0 : 1 - (player.dashCh % 1);
+    } else {
+      frac = cds[c.def.cd] / c.def.max;
+    }
+    c.el.style.height = frac * 100 + "%";
+    c.box.classList.toggle("onCd", frac > .02);
+  }
+  /* naoya projection meter */
+  const showProj = player.char === "naoya" || player.proj > 0;
+  projWrap.style.display = showProj ? "block" : "none";
+  if (showProj) projFill.style.width = clamp01(player.proj / 100) * 100 + "%";
+  if (vigT > 0) { vigT -= dt; vignette.style.opacity = Math.min(1, vigT * 2); }
+  else vignette.style.opacity = 0;
+  if (splashT > 0) { splashT -= dt; if (splashT <= 0) splash.style.opacity = 0; }
+}
+
+/* ---------------- main loop ---------------- */
+const clock = new THREE.Clock();
+function loop() {
+  requestAnimationFrame(loop);
+  let dt = Math.min(clock.getDelta(), 1 / 20);
+
+  if (hitstopT > 0) { hitstopT -= dt; timeScale = .12; }
+  else timeScale = 1;
+  const sdt = dt * timeScale;
+
+  if (started) {
+    updatePlayer(sdt);
+    for (const e of enemies) e.update(sdt);
+    updateProps(sdt);
+    for (let i = fx.length - 1; i >= 0; i--) if (!fx[i].update(sdt)) fx.splice(i, 1);
+    updateHUD(dt);
+    drawShatter(dt);
+  }
+  updateCamera(dt);
+  renderer.render(scene, camera);
+}
+
+/* ---------------- boot ---------------- */
+CHARS.gojo.portrait = makePortrait(GOJO_CFG);
+CHARS.naoya.portrait = makePortrait(NAOYA_CFG);
+buildMovesBar();
+buildCharList();
+loop();
+
+/* test hooks */
+window.__game = {
+  player, enemies, cds,
+  start() { started = true; menu.style.display = "none"; },
+  punch, doDash,
+  castRed, castRapid, castTwofold, castPalm, castLimitless,
+  castN1, castN2, castN3, castNaoyaR,
+  switchChar,
+  setCam(yaw, pitch) { camYaw = yaw; camPitch = pitch; },
+  setMapView(v) { mapView = v; },
+  face(y) { player.facing = y; },
+  frameEnemy(i) { enemies[i].enterFrame("player"); },
+  resetCds() { for (const k in cds) cds[k] = 0; player.rWindow = 0; },
+  get started() { return started; },
+  get shatterActive() { return !!shatterState; },
+};
+</script>
+</body>
+</html>
