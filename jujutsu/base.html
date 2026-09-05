@@ -65,11 +65,43 @@
     display: flex; flex-direction: column; gap: 7px;
     pointer-events: auto;
   }
+  /* The roster is a folded list: a header you click, and a panel that
+     scrolls. It started as a plain column, which was fine at four
+     fighters and reached the bottom of the screen at ten. */
   #charList .clHead {
     font-family: 'Cinzel', serif;
     font-size: 10px; letter-spacing: 4px; color: var(--gold);
     text-shadow: 0 1px 4px rgba(0,0,0,.7);
+    display: flex; align-items: center; gap: 7px;
+    min-width: 168px; padding: 6px 11px; cursor: pointer;
+    background: rgba(8,7,10,.5);
+    border: 1px solid rgba(212,180,90,.28);
+    transition: border-color .15s, background .15s;
   }
+  #charList .clHead:hover { border-color: var(--gold-hi); background: rgba(20,16,12,.62); }
+  #charList .clHead .caret {
+    display: inline-block; font-size: 9px; letter-spacing: 0;
+    transition: transform .16s;
+  }
+  #charList.open .clHead .caret { transform: rotate(90deg); }
+  #charList .clHead .clCount {
+    margin-left: auto; letter-spacing: 1px;
+    color: rgba(212,180,90,.6);
+  }
+  #clBody {
+    display: none; flex-direction: column; gap: 7px;
+    max-height: 46vh; overflow-y: auto; overflow-x: hidden;
+    padding-right: 5px;
+    scrollbar-width: thin; scrollbar-color: rgba(212,180,90,.45) rgba(8,7,10,.4);
+  }
+  #charList.open #clBody { display: flex; }
+  #clBody::-webkit-scrollbar { width: 7px; }
+  #clBody::-webkit-scrollbar-track { background: rgba(8,7,10,.45); }
+  #clBody::-webkit-scrollbar-thumb {
+    background: rgba(212,180,90,.42);
+    border: 1px solid rgba(212,180,90,.25);
+  }
+  #clBody::-webkit-scrollbar-thumb:hover { background: rgba(212,180,90,.7); }
   .charItem {
     display: flex; align-items: center; gap: 10px;
     min-width: 168px; padding: 4px 12px 4px 4px; cursor: pointer;
@@ -336,7 +368,8 @@
     <div class="barWrap"><div id="hpFill"></div></div>
   </div>
   <div id="charList">
-    <div class="clHead">FIGHTERS</div>
+    <div class="clHead"><span class="caret">&#9656;</span><span>FIGHTERS</span><span class="clCount"></span></div>
+    <div id="clBody"></div>
     <div class="clHint">PRESS C TO SWITCH</div>
   </div>
   <div id="projWrap">
@@ -3051,9 +3084,21 @@ function buildMovesBar() {
 const charListEl = document.getElementById("charList");
 const menuRoster = document.getElementById("menuRoster");
 const menuPick = document.getElementById("menuPick");
+const clBody = document.getElementById("clBody");
+const clHead = charListEl.querySelector(".clHead");
+/* every character module calls buildCharList() as it loads, so the toggle
+   is wired once rather than eleven times */
+if (clHead) {
+  clHead.addEventListener("click", () => {
+    charListEl.classList.toggle("open");
+    if (charListEl.classList.contains("open")) {
+      const on = clBody.querySelector(".charItem.active");
+      if (on && on.scrollIntoView) on.scrollIntoView({ block: "nearest" });
+    }
+  });
+}
 function buildCharList() {
-  charListEl.querySelectorAll(".charItem").forEach(el => el.remove());
-  const hint = charListEl.querySelector(".clHint");
+  clBody.innerHTML = "";
   for (const id of Object.keys(CHARS)) {
     const c = CHARS[id];
     const item = document.createElement("div");
@@ -3062,8 +3107,10 @@ function buildCharList() {
     item.innerHTML = `<img alt="${c.name}"><div><div class="cname">${c.name.split(" ")[0]}</div><div class="ctech">${c.sub.split("\u2014")[1] ?? ""}</div></div>`;
     item.querySelector("img").src = c.portrait || "";
     item.addEventListener("click", () => switchChar(id));
-    charListEl.insertBefore(item, hint);
+    clBody.appendChild(item);
   }
+  const count = clHead && clHead.querySelector(".clCount");
+  if (count) count.textContent = Object.keys(CHARS).length;
   if (menuRoster) {
     menuRoster.innerHTML = "";
     for (const id of Object.keys(CHARS)) {

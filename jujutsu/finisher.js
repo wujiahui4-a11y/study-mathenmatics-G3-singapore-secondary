@@ -55,6 +55,9 @@
 
   /* ------------------------------------------------------------- helpers */
   function up(y) { return new THREE.Vector3(0, y, 0); }
+  /* the one easing the cuts use; it lives up here so every one of them can
+     reach it rather than each carrying its own copy */
+  function E2(x) { return FX.ease.out(x); }
   function at(e, y) { return e.pos.clone().add(up(y == null ? 2.8 : y)); }
   function flat(v) { var c = v.clone(); c.y = 0; return c.lengthSq() < .01 ? new THREE.Vector3(0, 0, 1) : c.normalize(); }
 
@@ -3481,12 +3484,12 @@
 
     /* =================================================================
        YUTA OKKOTSU
-       Four, because he has four. Two of them are him and two of them
-       are her, and the two of hers are the ones nobody walks away from.
+       Five cuts, and the last one is the only one that is more than a
+       cut. He is a boy with a sword who puts far too much into it, so
+       every one of these ends somebody with the part that got away.
        ============================================================== */
 
-    /* 1 · the sword. What ends them is not the blade, it is the eleven
-       metres of cut that carried on past it */
+    /* 1 · three cuts, each one further past the end of the sword */
     o1: { name: 'CUT DOWN', color: '#eafcff', hold: 1.8, run: function (e, d, p, G) {
       var YT = window.JJYUTA;
       var CE = (YT && YT.CE) || 0x8fe6ff, CE2 = (YT && YT.CE2) || 0xeafcff;
@@ -3507,7 +3510,6 @@
       addFx({ t: 1e9, update: function (dt) {
         t += dt;
         if (typeof scene === 'undefined') return false;
-        /* THREE cuts, each one further past the end of the sword */
         if (n < 3 && t > .28 + n * .3) {
           var i = n++;
           var ax = i === 0 ? side.clone()
@@ -3525,13 +3527,12 @@
           addShake(1.8 + i * .8);
           if (typeof hitstop === 'function') hitstop(.08 + i * .05);
         }
-        /* and the last one keeps going through the floor */
         if (t > 1.25) {
           var at3 = (e && !e.dead ? e.pos.clone().add(up(2.4)) : p.clone());
           FX.flash('#ffffff', .6, .28);
           FX.cross(at3.clone(), 0xffffff, 13, .3);
           if (YT && YT.spill) YT.spill(at3.clone(), d, 40, 22, CE);
-          FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 24, 30, 0x2a3038);
+          FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 24, 30, 0x59636e);
           FX.mangaLines(1, .36);
           if (typeof hitstop === 'function') hitstop(.24);
           addShake(4);
@@ -3547,266 +3548,590 @@
       } });
     } },
 
-    /* 2 · the copied one. It is not as good as his, and it does not need
-       to be — it only has to not let go */
-    o2: { name: 'COLLAPSED', color: '#3a7dff', hold: 2.2, run: function (e, d, p, G) {
+    /* 2 · the thrust does not stop at them, and neither does he */
+    o2: { name: 'RUN CLEAN THROUGH', color: '#eafcff', hold: 1.7, run: function (e, d, p, G) {
       var YT = window.JJYUTA;
-      var COLD = (YT && YT.COLD) || 0x3a7dff, COLD2 = (YT && YT.COLD2) || 0xbcd8ff;
+      var CE = (YT && YT.CE) || 0x8fe6ff, CE2 = (YT && YT.CE2) || 0xeafcff;
       var floor = new THREE.Vector3(p.x, 0, p.z);
-      var core = floor.clone().add(up(4.5));
-      var orb = FX.billboard(FX.T.star, COLD, .95);
-      orb.position.copy(core);
-      scene.add(orb);
-      FX.rings(core.clone(), COLD, 3, { maxR: 14, life: .6, ground: false, gap: 44 });
-      addShake(1.4);
+      var kat = (YT && YT.buildKatana) ? YT.buildKatana() : null;
+      if (kat) {
+        kat.position.copy(p).addScaledVector(d, -6).add(up(2.4));
+        kat.rotation.y = Math.atan2(d.x, d.z);
+        kat.rotation.x = -Math.PI / 2;
+        scene.add(kat);
+      }
+      FX.converge(p.clone(), CE, 20, 9, .45);
+      FX.mangaLines(.5, .34);
+      if (e && !e.dead) { e.anchorT = .8; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 1.2); }
 
-      var t = 0, popped = false;
+      var t = 0, went = false, out2 = false;
       addFx({ t: 1e9, update: function (dt) {
         t += dt;
         if (typeof scene === 'undefined') return false;
-        FX.faceCam(orb, t * 3);
-        /* it gets smaller and heavier the whole time, which is the
-           frightening way round for a thing that is pulling */
-        orb.scale.setScalar(Math.max(.6, 6 - t * 3.4) + Math.sin(t * 22) * .3);
-        FX.converge(core.clone(), COLD, 5, 14 - t * 4, .3);
-        if (e && !e.dead && !popped) {
-          e.anchorT = .4;
-          e.anchorPos.copy(core);
-          e.pos.lerp(core, Math.min(1, dt * 4.5));
-          e.vel.set(0, 0, 0);
-          e.stunT = Math.max(e.stunT || 0, 1);
-          if (Math.random() < dt * 14) {
-            FX.blood(e.pos.clone().add(up(1.6)), core.clone().sub(e.pos).normalize(), 4, 1.1);
-          }
+        /* it goes in, it is held there, and then it keeps going */
+        if (kat) {
+          var k = t < .5 ? E2(t / .5) : 1;
+          kat.position.copy(p).addScaledVector(d, -6 + 8 * k).add(up(2.4));
         }
-        if (!popped && t > 1.45) {
-          popped = true;
-          FX.flash('#dfe9ff', .7, .3);
-          FX.impact(core.clone(), COLD2, 6.5);
-          FX.rings(core.clone(), COLD, 5, { maxR: 26, life: .9, ground: false, gap: 30 });
-          FX.rings(new THREE.Vector3(floor.x, .12, floor.z), COLD, 4, { maxR: 26, life: .8, gap: 34 });
-          FX.debris(new THREE.Vector3(floor.x, .1, floor.z), 20, 22, 0x6a7488);
-          FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 22, 28, 0x2a3038);
+        if (!went && t > .5) {
+          went = true;
+          var at = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone());
+          FX.cutLine(at.clone().addScaledVector(d, -4), at.clone().addScaledVector(d, 30), CE2, 1.4, .6);
+          FX.impact(at.clone(), CE2, 3.4);
+          FX.blood(at.clone(), d, 18, 2.2);
+          if (YT && YT.spill) YT.spill(at.clone(), d, 34, 6, CE);
+          if (typeof hitstop === 'function') hitstop(.2);
+          addShake(2.8);
+        }
+        /* and then he turns it, which is the part that ends them */
+        if (went && !out2 && t > 1.15) {
+          out2 = true;
+          var at2 = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone());
+          var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+          FX.flash('#ffffff', .6, .28);
+          FX.slash(at2.clone(), side, 0xffffff, 22, .3);
+          if (YT && YT.spill) YT.spill(at2.clone(), side, 30, 16, CE);
+          FX.cross(at2.clone(), CE2, 12, .3);
+          FX.blood(at2.clone(), side, 24, 2.6);
           FX.mangaLines(1, .34);
           if (typeof hitstop === 'function') hitstop(.24);
-          addShake(4.2);
+          addShake(4);
           if (e) e.anchorT = 0;
-          G.implode(e, { at: core, color: COLD, dir: d, cubes: 18 });
+          G.sever(e, { dir: side, power: 2.6, cubes: 18 });
         }
-        if (t > 1.9) {
-          scene.remove(orb); orb.material.dispose();
+        if (t > 1.5) {
+          if (kat) {
+            scene.remove(kat);
+            kat.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+          }
           return false;
         }
         return true;
       } });
     } },
 
-    /* 3 · she does not hit them with it. She picks them up */
-    o3: { name: 'IN HER HAND', color: '#f2f1e8', hold: 2.6, run: function (e, d, p, G) {
+    /* 3 · up, and then up again, and there is no third one */
+    o3: { name: 'STRAIGHT UP', color: '#8fe6ff', hold: 2.2, run: function (e, d, p, G) {
+      var YT = window.JJYUTA;
+      var CE = (YT && YT.CE) || 0x8fe6ff, CE2 = (YT && YT.CE2) || 0xeafcff;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var UP = new THREE.Vector3(0, 1, 0);
+      var TOP = 22;
+      FX.mangaLines(.7, .26);
+
+      var t = 0, n = 0, last = false;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        /* three rising cuts, and they get further off the floor each time */
+        if (n < 3 && t > .2 + n * .34) {
+          var i = n++;
+          var at = (e && !e.dead ? e.pos.clone().add(up(1.4)) : floor.clone().add(up(2)));
+          FX.slash(at.clone(), UP, i < 2 ? CE2 : 0xffffff, 15 + i * 4, .24);
+          FX.cutLine(at.clone().add(up(-2)), at.clone().add(up(18 + i * 6)), CE2, 1 + i * .3, .4);
+          if (YT && YT.spill) YT.spill(at.clone(), UP, 22 + i * 8, 9 + i * 3, CE);
+          FX.blood(at.clone(), UP, 11 + i * 5, 1.8);
+          addShake(1.6 + i * .7);
+          if (typeof hitstop === 'function') hitstop(.07 + i * .04);
+          if (e && !e.dead) {
+            e.anchorT = .4;
+            e.anchorPos.copy(floor).add(up(3 + i * 6.5));
+            e.pos.lerp(e.anchorPos, .7);
+            e.vel.set(0, 0, 0);
+          }
+        }
+        /* and the last one goes all the way through, from underneath */
+        if (!last && t > 1.5) {
+          last = true;
+          var high = (e && !e.dead ? e.pos.clone().add(up(1)) : floor.clone().add(up(TOP)));
+          FX.flash('#ffffff', .65, .3);
+          FX.cutLine(high.clone().add(up(-6)), high.clone().add(up(30)), 0xffffff, 1.8, .6);
+          if (YT && YT.spill) YT.spill(high.clone(), UP, 44, 20, CE);
+          FX.cross(high.clone(), CE2, 13, .32);
+          FX.blood(high.clone(), UP, 24, 2.6);
+          FX.mangaLines(1, .36);
+          if (typeof hitstop === 'function') hitstop(.26);
+          addShake(4.2);
+          if (e) e.anchorT = 0;
+          G.sever(e, { dir: UP, power: 2.6, cubes: 22 });
+        }
+        return t < 2.0;
+      } });
+    } },
+
+    /* 4 · the X, and then the same X again on the other diagonal, which
+       makes eight pieces out of four */
+    o4: { name: 'EIGHT PIECES', color: '#eafcff', hold: 2.0, run: function (e, d, p, G) {
       var YT = window.JJYUTA;
       var CE = (YT && YT.CE) || 0x8fe6ff, CE2 = (YT && YT.CE2) || 0xeafcff;
       var floor = new THREE.Vector3(p.x, 0, p.z);
       var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
-      var arm = (YT && YT.buildArm) ? YT.buildArm() : null;
-      if (arm) {
-        arm.position.copy(floor).addScaledVector(d, -14).add(up(16));
-        arm.rotation.y = Math.atan2(d.x, d.z);
-        arm.rotation.x = -1.3;
-        scene.add(arm);
-      }
-      FX.mote(floor.clone().add(up(5)), CE2, 4, .45);
-      addShake(1.6);
+      if (e && !e.dead) { e.anchorT = .9; e.anchorPos.copy(floor).add(up(1.4)); e.stunT = Math.max(e.stunT || 0, 1.4); }
+      FX.mangaLines(.6, .3);
 
-      var t = 0, grabbed = false, lifted = false, done = false;
-      var hold = floor.clone().add(up(11));
+      var t = 0, n = 0;
       addFx({ t: 1e9, update: function (dt) {
         t += dt;
         if (typeof scene === 'undefined') return false;
-
-        /* BEAT ONE — the hand comes in and closes */
-        if (!grabbed) {
-          var k = Math.min(1, t / .55);
-          if (arm) {
-            arm.position.copy(floor).addScaledVector(d, -14 + 14 * FX.ease.out(k)).add(up(16 - 13.4 * FX.ease.out(k)));
-            arm.rotation.x = -1.3 + FX.ease.out(k) * 1.3;
-            arm.__fingers.forEach(function (f, i) { f.rotation.x = -.7 + FX.ease.out(k) * .5; });
-          }
-          if (k >= 1) {
-            grabbed = true;
-            FX.impact(floor.clone().add(up(2.4)), CE2, 4);
-            FX.rings(new THREE.Vector3(floor.x, .12, floor.z), CE, 3, { maxR: 16, life: .6, gap: 40 });
-            FX.dust(new THREE.Vector3(floor.x, 0, floor.z), 12, 0xcfd8e0, 16, 5);
-            FX.blood(floor.clone().add(up(2.4)), side, 12, 1.8);
-            addShake(2.6);
-            if (typeof hitstop === 'function') hitstop(.14);
-            if (arm) arm.__fingers.forEach(function (f) { f.rotation.x = 1.1; });
-          }
-          return true;
+        /* four cuts, forty five degrees apart, each on its own frame */
+        if (n < 4 && t > .22 + n * .22) {
+          var i = n++;
+          var a = i * (Math.PI / 4);
+          var ax = side.clone().multiplyScalar(Math.cos(a))
+            .add(new THREE.Vector3(0, Math.sin(a), 0)).normalize();
+          var at = (e && !e.dead ? e.pos.clone().add(up(2.4)) : floor.clone().add(up(2.4)));
+          FX.slash(at.clone(), ax, i % 2 ? CE : CE2, 16, .24);
+          FX.cutLine(at.clone().addScaledVector(ax, -12), at.clone().addScaledVector(ax, 12),
+            CE2, 1.1, .45);
+          if (YT && YT.spill) YT.spill(at.clone(), ax, 24, 10, CE);
+          FX.blood(at.clone(), ax, 10, 1.7);
+          addShake(1.6);
+          if (typeof hitstop === 'function') hitstop(.07);
         }
-
-        /* BEAT TWO — and lifts them, and holds them there */
-        if (!lifted) {
-          var k2 = Math.min(1, (t - .55) / .5);
-          if (arm) {
-            arm.position.copy(floor).add(up(2.6 + 8.4 * FX.ease.out(k2)));
-            arm.rotation.x = FX.ease.out(k2) * .4;
-          }
-          if (e && !e.dead) {
-            e.anchorT = .4;
-            e.anchorPos.copy(floor).add(up(2.4 + 8.4 * FX.ease.out(k2)));
-            e.pos.lerp(e.anchorPos, Math.min(1, dt * 14));
-            e.vel.set(0, 0, 0);
-          }
-          if (k2 >= 1) { lifted = true; }
-          return true;
+        if (t > 1.2) {
+          var at2 = (e && !e.dead ? e.pos.clone().add(up(2.4)) : floor.clone().add(up(2.4)));
+          FX.flash('#ffffff', .6, .28);
+          FX.cross(at2.clone(), 0xffffff, 14, .32);
+          FX.lattice(at2.clone(), d, 3, 3, 4, 4, CE2, { stagger: 18, life: .45, width: .3 });
+          if (YT && YT.spill) YT.spill(at2.clone(), d, 30, 18, CE);
+          FX.blood(at2.clone(), side, 24, 2.6);
+          FX.mangaLines(1, .34);
+          if (typeof hitstop === 'function') hitstop(.24);
+          addShake(4);
+          if (e) e.anchorT = 0;
+          G.dice(e, { dir: side, power: 2.6, cubes: 30 });
+          return false;
         }
+        return true;
+      } });
+    } },
 
-        /* BEAT THREE — and then she closes it */
-        if (!done && t > 1.55) {
-          done = true;
-          if (arm) arm.__fingers.forEach(function (f) { f.rotation.x = 2.0; });
-          var at = hold.clone();
-          FX.flash('#eafcff', .7, .3);
-          FX.impact(at.clone(), CE2, 6);
-          FX.cross(at.clone(), 0xffffff, 12, .3);
-          if (YT && YT.spill) YT.spill(at.clone(), d, 26, 16, CE);
-          FX.blood(at.clone(), side, 26, 2.8);
+    /* R · the special. He does not cut faster or from a better angle. He
+       stops holding any of it back, and the road goes with them */
+    or: { name: 'NOTHING HELD BACK', color: '#ffffff', hold: 2.5, run: function (e, d, p, G) {
+      var YT = window.JJYUTA;
+      var CE = (YT && YT.CE) || 0x8fe6ff, CE2 = (YT && YT.CE2) || 0xeafcff;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      /* the wind-up: everything goes IN, and the frame goes quiet */
+      FX.converge(p.clone(), CE, 40, 18, .9);
+      FX.zoom(-9, .8);
+      FX.mangaLines(.4, .8);
+      FX.tint('#08161e', .5, 1.2);
+      if (typeof hitstop === 'function') hitstop(.18);
+      if (e && !e.dead) { e.anchorT = 1.2; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 1.8); }
+
+      var kat = (YT && YT.buildKatana) ? YT.buildKatana() : null;
+      if (kat) {
+        kat.position.copy(p).addScaledVector(side, -7).add(up(5));
+        kat.rotation.y = Math.atan2(d.x, d.z);
+        kat.rotation.z = 1.9;
+        kat.scale.setScalar(1.6);
+        scene.add(kat);
+      }
+      var t = 0, cut = false;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        if (kat && !cut) {
+          /* held over the shoulder, shaking, while it builds */
+          kat.position.copy(p).addScaledVector(side, -7 + Math.sin(t * 30) * .1).add(up(5));
+          if (Math.random() < dt * 30) {
+            var w = new THREE.Vector3();
+            kat.getWorldPosition(w);
+            FX.mote(w.clone().add(new THREE.Vector3(
+              (Math.random() - .5) * 4, (Math.random() - .5) * 5, (Math.random() - .5) * 4)), CE2, 2, .3);
+          }
+        }
+        if (!cut && t > 1.0) {
+          cut = true;
+          var at = (e && !e.dead ? e.pos.clone().add(up(2.6)) : p.clone());
+          if (kat) { kat.position.copy(at).addScaledVector(side, 5); kat.rotation.z = -1.1; }
+          /* and then all sixty metres of it at once */
+          FX.flash('#ffffff', 1, .4);
+          FX.slash(at.clone(), side, 0xffffff, 40, .4);
+          FX.slash(at.clone().add(up(-1.2)), side, CE2, 32, .32);
+          if (YT && YT.spill) {
+            YT.spill(at.clone(), d, 64, 30, CE);
+            YT.spill(at.clone(), d, 44, 16, CE2);
+          }
+          for (var i = 0; i < 9; i++) {
+            var k = i / 8 - .5;
+            FX.cutLine(at.clone().addScaledVector(side, k * 30),
+              at.clone().addScaledVector(side, k * 30).addScaledVector(d, 62),
+              i % 2 ? CE2 : 0xffffff, 1.6, .8);
+          }
+          FX.speedRing(at.clone(), CE2, 36, .5);
+          FX.rings(at.clone(), CE, 5, { maxR: 32, life: 1, ground: false, gap: 30 });
+          FX.cracks(new THREE.Vector3(floor.x + d.x * 16, .1, floor.z + d.z * 16), 28, 40, 0x59636e);
+          FX.dust(new THREE.Vector3(floor.x + d.x * 12, 0, floor.z + d.z * 12), 20, 0xcfd8e0, 28, 7);
+          FX.blood(at.clone(), side, 30, 3);
+          FX.mangaLines(1, .5);
+          if (typeof hitstop === 'function') hitstop(.36);
+          addShake(6);
+          if (e) e.anchorT = 0;
+          G.halve(e, { dir: side, power: 3.2 });
+          /* and a very long way down the road, a very small flash */
+          setTimeout(function () {
+            if (typeof scene === 'undefined') return;
+            var far = floor.clone().addScaledVector(d, 62).add(up(4));
+            FX.cross(far, 0xffffff, 9, .35);
+            FX.impact(far, CE2, 2.6);
+            FX.dust(new THREE.Vector3(far.x, 0, far.z), 10, 0xcfd8e0, 14, 5);
+          }, 380);
+        }
+        if (t > 1.9) {
+          if (kat) {
+            scene.remove(kat);
+            kat.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+          }
+          return false;
+        }
+        return true;
+      } });
+    } },
+
+    /* =================================================================
+       KOKICHI MUTA
+       He is not in the room and he never was. Everything that kills
+       anybody here is built out of nothing on the spot, spends itself,
+       and comes apart — because he never keeps a body he cannot
+       afford to lose. Every one of these ends with the weapon in
+       pieces on the floor beside them.
+       ============================================================== */
+
+    /* helper the five share: something assembles, and it is loud about it */
+    /* 1 · the cannon walks its shots in, and the last one is not ranging */
+    k1: { name: 'SHELLED', color: '#ffd23d', hold: 2, run: function (e, d, p, G) {
+      var MU = window.JJMUTA;
+      var WARN = (MU && MU.WARN) || 0xd8c24a, HOT = (MU && MU.HOT) || 0xff8a3d;
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      /* it is built behind him, far too big, and pointed at one person */
+      var gun = (MU && MU.buildCannon) ? MU.buildCannon() : null;
+      var muzzle = p.clone().addScaledVector(d, -13).add(up(4.4));
+      if (gun) {
+        gun.position.copy(muzzle);
+        gun.rotation.y = Math.atan2(d.x, d.z);
+        gun.scale.setScalar(2.3);
+        scene.add(gun);
+        if (MU.assemble) MU.assemble(gun, .8);
+      }
+      FX.mangaLines(.5, .5);
+      FX.zoom(-6, .5);
+      if (e && !e.dead) { e.anchorT = 1.4; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 1.8); }
+
+      var t = 0, n = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.6)) : p.clone().add(up(2.6)));
+        if (gun) gun.lookAt(at);
+        /* three ranging shells, each landing nearer than the last */
+        if (n < 3 && t > .85 + n * .3) {
+          var i = n++;
+          var miss = at.clone().addScaledVector(side, (i % 2 ? 1 : -1) * (7 - i * 3));
+          miss.y = .2;
+          if (gun) gun.position.copy(muzzle).addScaledVector(d, -1.2);
+          if (MU && MU.exhaust) MU.exhaust(muzzle.clone().addScaledVector(d, 5), d, 9);
+          FX.cutLine(muzzle.clone(), miss.clone(), WARN, .5, .16);
+          FX.impact(miss.clone(), HOT, 2.6 + i);
+          FX.cracks(miss.clone(), 6 + i * 3, 9 + i * 4, 0x3a3f46);
+          FX.debris(miss.clone(), 8, 10 + i * 4, 0x6a7078);
+          FX.dust(miss.clone(), 8, 0x9aa0a8, 10, 4);
+          addShake(1 + i * .5);
+        }
+        if (gun && t > .85) {
+          gun.position.lerp(muzzle, Math.min(1, dt * 7));   // the recoil, walked back out
+        }
+        /* and then the one that was aimed */
+        if (t > 1.85) {
+          FX.cutLine(muzzle.clone(), at.clone(), 0xffffff, 1.6, .3);
+          FX.flash('#ffe9a8', .7, .3);
+          FX.impact(at.clone(), WARN, 6);
+          FX.rings(at.clone(), HOT, 4, { maxR: 16, life: .6, ground: false, gap: 34 });
+          if (MU && MU.sparks) MU.sparks(at.clone(), 26);
+          FX.cracks(floor.clone(), 20, 26, 0x3a3f46);
+          FX.blood(at.clone(), d, 26, 2.8);
           FX.mangaLines(1, .36);
           if (typeof hitstop === 'function') hitstop(.26);
           addShake(4.4);
           if (e) e.anchorT = 0;
-          G.dice(e, { dir: new THREE.Vector3(0, -1, 0), power: 2.8, cubes: 28 });
-        }
-
-        /* and she takes it back up with her */
-        if (t > 2.05) {
-          if (arm) {
-            var s = (t - 2.05) / .5;
-            arm.position.y = 11 + s * 22;
-            if (s > 1) {
-              scene.remove(arm);
-              arm.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
-              return false;
-            }
-          } else return false;
+          G.sever(e, { dir: d, power: 3, cubes: 22 });
+          if (gun && MU.scrap) MU.scrap(gun, gun.position.clone());
+          return false;
         }
         return true;
       } });
     } },
 
-    /* 4 · all of her, and the only part of her that glows */
-    o4: { name: 'TAKEN BY HER', color: '#8fe6ff', hold: 3.0, run: function (e, d, p, G) {
-      var YT = window.JJYUTA;
-      var CE = (YT && YT.CE) || 0x8fe6ff, CE2 = (YT && YT.CE2) || 0xeafcff;
+    /* 2 · the fist goes out on the chain, comes back, and goes out again */
+    k2: { name: 'ON THE CHAIN', color: '#b2793f', hold: 2.1, run: function (e, d, p, G) {
+      var MU = window.JJMUTA;
+      var COP = (MU && MU.COP) || 0xb2793f, WARN = (MU && MU.WARN) || 0xd8c24a;
       var floor = new THREE.Vector3(p.x, 0, p.z);
-      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
-      var stand = floor.clone().addScaledVector(d, 12).addScaledVector(side, 5);
-      var her = (YT && YT.buildRika) ? YT.buildRika() : null;
-      if (her) {
-        her.position.set(stand.x, -22, stand.z);
-        her.rotation.y = Math.atan2(floor.x - stand.x, floor.z - stand.z);
-        scene.add(her);
+      var home = p.clone().addScaledVector(d, -2).add(up(3));
+      var fist = (MU && MU.buildFist) ? MU.buildFist() : null;
+      if (fist) {
+        fist.position.copy(home);
+        fist.rotation.y = Math.atan2(d.x, d.z);
+        fist.scale.setScalar(1.7);
+        scene.add(fist);
+        if (MU.assemble) MU.assemble(fist, .6);
       }
-      FX.tint('#0a1620', .45, 1.8);
-      FX.cracks(new THREE.Vector3(stand.x, .06, stand.z), 16, 22, 0x2a3038);
-      addShake(2.2);
+      FX.mangaLines(.5, .4);
+      if (e && !e.dead) { e.anchorT = 1.6; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2); }
 
-      var t = 0, up1 = false, opened = false, taken = false, drift = 0;
+      var t = 0, hits = 0;
       addFx({ t: 1e9, update: function (dt) {
-        t += dt; drift += dt * 1.6;
+        t += dt;
         if (typeof scene === 'undefined') return false;
-        if (her) {
-          her.position.y = Math.min(0, -22 + 34 * t) + (t > .7 ? Math.sin(drift) * .35 : 0);
-          if (her.__arms) her.__arms.forEach(function (a2, i) {
-            a2.rotation.z = (a2.__base ? a2.__base.z : 0) + Math.sin(drift * 1.3 + i * 2) * .24;
-          });
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.4)) : p.clone().add(up(2.4)));
+        /* two throws out and back, then one from straight above */
+        var k, from = home;
+        if (t < .7) { if (fist) fist.position.copy(home); }
+        else if (t < 1.15) {
+          k = E2(Math.min(1, (t - .7) / .28));
+          if (t - .7 > .28) k = 1 - E2(Math.min(1, (t - .98) / .17));
+          if (fist) fist.position.lerpVectors(home, at, k);
+        } else if (t < 1.6) {
+          k = E2(Math.min(1, (t - 1.15) / .26));
+          if (t - 1.15 > .26) k = 1 - E2(Math.min(1, (t - 1.41) / .19));
+          if (fist) fist.position.lerpVectors(home, at, k);
+        } else {
+          k = E2(Math.min(1, (t - 1.6) / .34));
+          from = at.clone().add(up(15));
+          if (fist) fist.position.lerpVectors(from, new THREE.Vector3(at.x, .8, at.z), k);
         }
+        if (fist) {
+          fist.rotation.z += dt * 5;
+          if (t < 1.6) MU.chain(home.clone(), fist.position.clone());
+        }
+        if (hits < 2 && t > .98 + hits * .45) {
+          hits++;
+          FX.impact(at.clone(), COP, 3);
+          FX.shockwave(at.clone(), 0xffffff, 1.4);
+          FX.blood(at.clone(), d, 14, 2);
+          if (MU && MU.sparks) MU.sparks(at.clone(), 10);
+          if (typeof hitstop === 'function') hitstop(.11);
+          addShake(2.2);
+        }
+        /* the last one does not stop at the body; it stops at the road */
+        if (t > 1.94) {
+          FX.flash('#ffe9a8', .6, .28);
+          FX.impact(new THREE.Vector3(at.x, .6, at.z), WARN, 6);
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), COP, 4, { maxR: 17, life: .7, gap: 32 });
+          FX.cracks(new THREE.Vector3(at.x, .1, at.z), 22, 26, 0x3a3f46);
+          FX.debris(new THREE.Vector3(at.x, .1, at.z), 18, 22, 0x6a7078);
+          FX.dust(new THREE.Vector3(at.x, 0, at.z), 16, 0x9aa0a8, 18, 6);
+          FX.mangaLines(1, .34);
+          if (typeof hitstop === 'function') hitstop(.26);
+          addShake(4.4);
+          if (e) e.anchorT = 0;
+          G.flatten(e, { crater: 20 });
+          if (fist && MU.scrap) MU.scrap(fist, fist.position.clone());
+          return false;
+        }
+        return true;
+      } });
+    } },
 
-        /* BEAT ONE — she is all the way out, and they are held for it */
-        if (!up1 && t > .8) {
-          up1 = true;
-          FX.flash('#eafcff', .5, .3);
-          FX.rings(new THREE.Vector3(stand.x, .12, stand.z), CE, 4, { maxR: 24, life: .9, gap: 40 });
-          addShake(2.6);
-        }
-        if (e && !e.dead && !taken) {
-          e.anchorT = .5;
-          e.anchorPos.copy(floor).add(up(.4 + Math.min(6, Math.max(0, t - .9) * 7)));
-          e.pos.lerp(e.anchorPos, Math.min(1, dt * 8));
-          e.vel.set(0, 0, 0);
-          e.stunT = Math.max(e.stunT || 0, 1.4);
-        }
+    /* 3 · it goes in, it is held there turning, and it comes out the back */
+    k3: { name: 'DRILLED', color: '#8a939c', hold: 2.3, run: function (e, d, p, G) {
+      var MU = window.JJMUTA;
+      var PALE = (MU && MU.PALE) || 0xc3cad1, WARN = (MU && MU.WARN) || 0xd8c24a;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var drill = (MU && MU.buildDrill) ? MU.buildDrill() : null;
+      var start = p.clone().addScaledVector(d, -7).add(up(2.6));
+      if (drill) {
+        drill.position.copy(start);
+        drill.rotation.y = Math.atan2(d.x, d.z);
+        drill.scale.setScalar(1.9);
+        scene.add(drill);
+        if (MU.assemble) MU.assemble(drill, .7);
+      }
+      FX.mangaLines(.5, .5);
+      FX.zoom(-5, .5);
+      if (e && !e.dead) { e.anchorT = 1.8; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.2); }
 
-        /* BEAT TWO — she opens, and it is the only light in the shot */
-        if (!opened && t > 1.5) {
-          opened = true;
-          if (her && her.__jaw) her.__jaw.rotation.x = 1.15;
-          FX.speedRing((her ? her.position.clone() : stand.clone()).add(up(10.6)), CE2, 26, .42);
-          if (YT && YT.spill) {
-            YT.spill((her ? her.position.clone() : stand.clone()).add(up(10)),
-              floor.clone().sub(stand).setY(0).normalize(), 34, 20, CE);
-          }
+      var t = 0, tick = 0, spin = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.4)) : p.clone().add(up(2.4)));
+        spin += dt * (t < .8 ? 14 : 46);
+        if (drill) {
+          if (drill.__bit) drill.__bit.rotation.z = spin;
+          /* in over half a second, then held, then all the way through */
+          var k = t < .8 ? 0
+            : (t < 1.15 ? E2((t - .8) / .35)
+              : (t < 1.95 ? 1 : 1 + E2(Math.min(1, (t - 1.95) / .3)) * .9));
+          drill.position.lerpVectors(start, at, Math.min(1, k));
+          if (k > 1) drill.position.copy(at).addScaledVector(d, (k - 1) * 9);
+          drill.position.y += Math.sin(t * 40) * .06;      // it does not sit still
+        }
+        /* while it is in, it throws everything it takes out */
+        if (t > 1.1 && t < 1.95 && (tick -= dt) <= 0) {
+          tick = .07;
+          FX.blood(at.clone(), d.clone().negate(), 5, 2.6);
+          if (MU && MU.sparks) MU.sparks(at.clone().addScaledVector(d, -.6), 3);
+          FX.mote(at.clone(), PALE, 1.4, .16);
+          addShake(.5);
+        }
+        if (t > 2.2) {
+          var out = at.clone().addScaledVector(d, 8);
+          FX.flash('#ffffff', .6, .3);
+          FX.cutLine(at.clone(), out, PALE, 1.2, .26);
+          FX.impact(out, WARN, 4.4);
+          FX.blood(out, d, 28, 3);
+          if (MU && MU.sparks) MU.sparks(out, 22);
+          FX.cracks(floor.clone(), 18, 22, 0x3a3f46);
           FX.mangaLines(1, .36);
-          addShake(3.4);
-          if (typeof hitstop === 'function') hitstop(.14);
+          if (typeof hitstop === 'function') hitstop(.26);
+          addShake(4);
+          if (e) e.anchorT = 0;
+          G.erase(e, { dir: d, color: PALE });
+          if (drill && MU.scrap) MU.scrap(drill, drill.position.clone());
+          return false;
         }
+        return true;
+      } });
+    } },
 
-        /* BEAT THREE — and they go in */
-        if (opened && !taken && t > 2.15) {
-          taken = true;
-          var mouth = (her ? her.position.clone() : stand.clone()).add(up(10.2))
-            .addScaledVector(floor.clone().sub(stand).setY(0).normalize(), -2.4);
-          if (e && !e.dead) {
-            /* carried up into it first, so the last frame is legible */
-            var s2 = 0;
-            addFx({ t: 1e9, update: function (dd) {
-              s2 += dd;
-              if (!e || e.dead || typeof scene === 'undefined') return false;
-              e.anchorT = .4;
-              e.anchorPos.copy(e.pos).lerp(mouth, Math.min(1, dd * 9));
-              e.pos.lerp(mouth, Math.min(1, dd * 9));
-              e.vel.set(0, 0, 0);
-              if (Math.random() < dd * 20) FX.mote(e.pos.clone().add(up(1)), CE2, 1.6, .24);
-              return s2 < .45;
-            } });
+    /* 4 · four pods in a ring, and none of them is saving anything */
+    k4: { name: 'ORDNANCE', color: '#ff8a3d', hold: 2.2, run: function (e, d, p, G) {
+      var MU = window.JJMUTA;
+      var HOT = (MU && MU.HOT) || 0xff8a3d, WARN = (MU && MU.WARN) || 0xd8c24a;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var pods = [];
+      for (var i = 0; i < 4; i++) {
+        var a = i / 4 * TAU + .4;
+        var pod = (MU && MU.buildPod) ? MU.buildPod() : null;
+        if (!pod) break;
+        pod.position.copy(p).add(new THREE.Vector3(Math.cos(a) * 9, 8 + (i % 2) * 2.5, Math.sin(a) * 9));
+        pod.scale.setScalar(1.5);
+        scene.add(pod);
+        if (MU.assemble) MU.assemble(pod, .55);
+        pods.push(pod);
+      }
+      FX.mangaLines(.5, .5);
+      if (e && !e.dead) { e.anchorT = 1.8; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.2); }
+
+      var t = 0, fired = 0, salvo = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.4)) : p.clone().add(up(2.4)));
+        for (var j = 0; j < pods.length; j++) pods[j].lookAt(at);
+        /* twelve, three at a time, arcing in over the top */
+        if (fired < 12 && t > .75 + salvo * .22) {
+          salvo++;
+          for (var k2 = 0; k2 < 3 && fired < 12; k2++) {
+            var src = pods[fired % pods.length].position.clone();
+            var apex = src.clone().lerp(at, .5).add(up(5 + Math.random() * 4));
+            var land = at.clone().add(new THREE.Vector3(
+              (Math.random() - .5) * 5, (Math.random() - .5) * 2, (Math.random() - .5) * 5));
+            FX.cutLine(src, apex, HOT, .5, .12);
+            FX.cutLine(apex, land, HOT, .5, .14);
+            FX.impact(land, HOT, 2.4);
+            FX.flame(land.clone(), 2.2, .35);
+            FX.blood(land.clone(), d, 5, 1.4);
+            fired++;
           }
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            if (her && her.__jaw) her.__jaw.rotation.x = 0;
-            FX.flash('#ffffff', .8, .32);
-            FX.impact(mouth.clone(), CE2, 6.5);
-            FX.cross(mouth.clone(), 0xffffff, 14, .32);
-            FX.rings(mouth.clone(), CE, 5, { maxR: 26, life: .9, ground: false, gap: 32 });
-            FX.blood(mouth.clone(), new THREE.Vector3(0, -1, 0), 26, 2.8);
-            FX.mangaLines(1, .4);
-            if (typeof hitstop === 'function') hitstop(.3);
-            addShake(5);
-            if (e) e.anchorT = 0;
-            G.erase(e, { color: CE2, dir: d, power: 2.2 });
-          }, 430);
+          if (MU && MU.sparks) MU.sparks(at.clone(), 6);
+          addShake(1.1);
         }
-
-        if (t > 3.3) {
-          if (her) {
-            var s3 = 0;
-            addFx({ t: 1e9, update: function (dd) {
-              s3 += dd;
-              her.position.y = -26 * s3;
-              if (Math.random() < dd * 26) {
-                FX.mote(her.position.clone().add(new THREE.Vector3(
-                  (Math.random() - .5) * 8, 4 + Math.random() * 8, (Math.random() - .5) * 5)), CE, 1.6, .3);
-              }
-              if (s3 > .9) {
-                scene.remove(her);
-                her.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
-                return false;
-              }
-              return true;
-            } });
+        /* and then every tube left, at once */
+        if (t > 1.95) {
+          FX.flash('#ffb070', .8, .38);
+          for (var m = 0; m < pods.length; m++) {
+            FX.cutLine(pods[m].position.clone(), at.clone(), 0xffe9a8, 1.3, .26);
+          }
+          FX.impact(at.clone(), WARN, 7);
+          FX.fire(at.clone(), 18, 1.8, 4, 1);
+          FX.flame(at.clone(), 6, .9);
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), HOT, 5, { maxR: 20, life: .8, gap: 32 });
+          FX.scorch(new THREE.Vector3(at.x, 0, at.z), 7, 34);
+          FX.cracks(floor.clone(), 22, 28, 0x3a3f46);
+          FX.mangaLines(1, .36);
+          if (typeof hitstop === 'function') hitstop(.26);
+          addShake(4.6);
+          if (e) e.anchorT = 0;
+          G.burn(e, { dir: d });
+          for (var q = 0; q < pods.length; q++) {
+            if (MU.scrap) MU.scrap(pods[q], pods[q].position.clone());
           }
           return false;
         }
         return true;
+      } });
+    } },
+
+    /* R · the whole frame, up to speed, and then it is not a frame any
+       more — it is every part of it going through one person at once */
+    kr: { name: 'SCRAPPED', color: '#d8c24a', hold: 2.8, run: function (e, d, p, G) {
+      var MU = window.JJMUTA;
+      var WARN = (MU && MU.WARN) || 0xd8c24a, HOT = (MU && MU.HOT) || 0xff8a3d;
+      var GUN = (MU && MU.GUN) || 0x4a5058;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var frame = (MU && MU.buildFrame) ? MU.buildFrame() : null;
+      if (frame) {
+        frame.position.copy(p);
+        frame.rotation.y = Math.atan2(d.x, d.z);
+        scene.add(frame);
+        if (MU.assemble) MU.assemble(frame, 1);
+      }
+      FX.tint('#1a1408', .45, 1.4);
+      FX.converge(p.clone(), WARN, 34, 15, .9);
+      FX.zoom(-9, .8);
+      FX.mangaLines(.4, .9);
+      if (typeof hitstop === 'function') hitstop(.18);
+      if (e && !e.dead) { e.anchorT = 2.4; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.8); }
+
+      var t = 0, spin = 0, tick = 0, torn = false;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.6)) : p.clone().add(up(2.6)));
+        /* it spins up, and it keeps spinning up */
+        spin += dt * Math.min(30, t * 13);
+        if (frame && !torn) {
+          frame.rotation.y = Math.atan2(d.x, d.z) + spin;
+          frame.position.copy(p).lerp(new THREE.Vector3(at.x, p.y, at.z), Math.min(1, (t - 1) * .8));
+        }
+        if (t > 1 && (tick -= dt) <= 0) {
+          tick = .09;
+          var a = Math.random() * TAU;
+          if (MU && MU.sparks) {
+            MU.sparks(p.clone().add(new THREE.Vector3(Math.cos(a) * 7, 1 + Math.random() * 6, Math.sin(a) * 7)), 3);
+          }
+          FX.mote(at.clone(), WARN, 1.6, .16);
+          addShake(.6);
+        }
+        /* and then he lets go of all of it, in one direction */
+        if (!torn && t > 2.3) {
+          torn = true;
+          FX.flash('#ffe9a8', .8, .34);
+          FX.shockwave(at.clone(), 0xffffff, 2.4);
+          for (var i = 0; i < 14; i++) {
+            var a2 = i / 14 * TAU;
+            var from = at.clone().add(new THREE.Vector3(Math.cos(a2) * 10, Math.sin(a2) * 6, Math.sin(a2) * 10));
+            FX.cutLine(from, at.clone(), i % 2 ? WARN : GUN, 1.1, .24);
+          }
+          FX.impact(at.clone(), WARN, 8);
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), HOT, 6, { maxR: 26, life: .9, gap: 30 });
+          FX.cracks(new THREE.Vector3(at.x, .1, at.z), 30, 36, 0x3a3f46);
+          FX.debris(new THREE.Vector3(at.x, .1, at.z), 26, 30, 0x6a7078);
+          FX.dust(new THREE.Vector3(at.x, 0, at.z), 22, 0x9aa0a8, 26, 8);
+          FX.blood(at.clone(), d, 30, 3.2);
+          FX.mangaLines(1.2, .4);
+          if (typeof hitstop === 'function') hitstop(.3);
+          addShake(5.4);
+          if (e) e.anchorT = 0;
+          G.dice(e, { dir: d, power: 3, cubes: 34 });
+          if (frame && MU.scrap) MU.scrap(frame, at.clone());
+        }
+        return t < 2.9;
       } });
     } },
 
@@ -4152,7 +4477,8 @@
     t1: 'gone', t2: 'gone', t3: 'sever', t4: 'gone', tr: 'sever',
     b1: 'flat', b2: 'dice', b3: 'sever', b4: 'flat', br: 'dice',
     j1: 'sever', j2: 'flat', j3: 'dice', j4: 'gone', jr: 'dice',
-    o1: 'sever', o2: 'gone', o3: 'dice', o4: 'gone'
+    o1: 'sever', o2: 'sever', o3: 'sever', o4: 'dice', or: 'gone',
+    k1: 'sever', k2: 'flat', k3: 'gone', k4: 'burn', kr: 'dice'
   };
 
   /* =====================================================================

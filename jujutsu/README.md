@@ -8,8 +8,8 @@ meter and glass frames.
 
 ## Playing
 
-Title screen → **PLAY ONLINE WITH FRIENDS**. Five fighters: Gojo, Naoya, Yuji,
-Hakari, Choso and Megumi.
+Title screen → **PLAY ONLINE WITH FRIENDS**. Eleven fighters: Gojo, Naoya,
+Yuji, Hakari, Choso, Megumi, Mahito, Todo, Higuruma, Yuta and Muta.
 
 * **Create a room** gives you a six character code.
 * Everyone else types that code and joins.
@@ -23,6 +23,14 @@ A scoreboard sits on the right and a kill feed on the left.
 wind-down and a timer appears above the ability bar; taking a hit puts you
 back in combat and starts the eight seconds again, and pressing `C` a second
 time cancels. You cannot switch at all while awakened.
+
+**The roster panel folds up.** At eleven fighters the list was taller than
+the screen, so it collapses to a single header — `▸ FIGHTERS 11` — and
+clicking it opens a scrolling body 46 % of the viewport high, with the
+fighter you are currently playing scrolled into view. The toggle is wired
+once at load rather than inside `buildCharList`, because every character
+module calls that function on the way in and a listener per call would
+have stacked eleven deep.
 
 ## Hakari Kinji
 
@@ -980,54 +988,108 @@ off to one side, facing back.
 
 ## Yuta Okkotsu
 
-**Four moves, and no R.** Everybody else on this roster has a fifth thing
-they do on their own; his fifth thing is a person, and she is already on
-`3` and `4`. His bar is the only one in the game with six entries instead
-of seven, and `R` is deliberately left alone.
+**Four ordinary sword techniques, and one that is not.** He is the plainest
+kit on the roster on purpose: `1` to `4` are four cuts of about the same
+weight, and everything he is holding back is on `R`, where a special
+belongs. There is no Rika and no Blue — those were pulled out on purpose,
+because with them in the slot the fourth move stopped being a normal skill
+and started being a second ultimate.
 
 | Key | Move | What it does |
 | --- | --- | --- |
-| `1` | **Cursed Katana** 呪具・刀 | the sword — and a cut a great deal longer than the sword is |
-| `2` | **Blue** 蒼 | the one he copied. Weaker than the man he took it from, and still the second best thing in the game at pulling a fight into one spot and then letting go of it |
-| `3` | **Rika's Arm** 里香・腕 | she puts one hand through, at about six times the size of one |
-| `4` | **True Love** 完全顕現・里香 | all of her |
+| `1` | **Cursed Katana** 呪具・刀 | the sword, stepped into — and a cut a great deal longer than the sword is |
+| `2` | **Thrust** 突き | straight in, at a longer reach than any of the others |
+| `3` | **Rising Cut** 切り上げ | up from under the guard, and the cut keeps going up past them |
+| `4` | **Cross Slash** 十字斬り | two, across each other; each one is about half a katana, and together they are one |
+| `R` | **Pure Love** 純愛 | the special. He stops holding any of it back, and the road goes with them |
 
 ### His energy is too much for the move it is in
 
 He is a boy with a sword doing considerably more damage than a sword does,
 so **every cut of his is drawn several times longer than the blade and
 several times wider than the swing**. That overspill is not decoration, it
-is the character: `JJYUTA.spill` draws the five metres of cut that got away
-past where the swing stopped, and it is on all four moves. The katana hits
-what the blade reached at full damage *and* what the overspill went through
-at 55 %, which is most of the road.
+is the character: `JJYUTA.spill` draws the metres of cut that got away past
+where the swing stopped, and it is on all five moves and all five endings.
+The katana hits what the blade reached at full damage *and* what the
+overspill went through, which is most of the road.
 
-### Rika is not a ghost
+The whole difference between the four and the fifth is scale rather than
+kind. `1` spills 26 units wide of 9; `R` spills 60 wide of 16, and is the
+only one that dims the frame first.
 
-She is pale, solid, lit, and she casts a shadow. The one thing she must
-never look like is a translucent blue overlay, which is what a cursed
-spirit in a game always is. Her body is off-white with dark bands, her
-hair is nine heavy strands hanging past the shoulders, and **the only part
-of her that glows is the inside of her mouth**.
-
-Two placement lessons, both of which cost a pass:
-
-- **She fights his fight, not hers.** The full manifestation comes up beside
-  him, so a sweep aimed straight out of her own shoulders lands eight metres
-  off whatever he pointed at. She is handed the lane *he* is facing down and
-  turns to it.
-- **She is fourteen metres tall.** Four in front and eight to the side put
-  her level with the chase camera, which sees her shins and nothing else.
-  She stands out where the fight is.
-
-### The four endings
+### The five endings
 
 | | What it does |
 | --- | --- |
 | **CUT DOWN** | three cuts, each one further past the end of the sword than the last, and the third goes through the floor |
-| **COLLAPSED** | the copied one, getting *smaller* and heavier the whole time — the frightening way round for something that is pulling |
-| **IN HER HAND** | she does not hit them with it. She picks them up, holds them there, and then closes it |
-| **TAKEN BY HER** | all of her, out and whole; she opens, and it is the only light in the shot |
+| **RUN CLEAN THROUGH** | it goes in, it is held there, and then he turns it — which is the part that ends them |
+| **STRAIGHT UP** | three rising cuts and then one from underneath, and none of them stop at the ceiling |
+| **EIGHT PIECES** | four cuts forty five degrees apart, and then a lattice through what is left |
+| **NOTHING HELD BACK** | everything goes *in* and the frame goes quiet; then sixty four metres of cut, thirty wide |
+
+## Kokichi Muta
+
+**Mechamaru — Puppet Manipulation 傀儡操術.** The body on the screen is his
+real one: small, thin, barefoot, wrapped in bandages, in a school uniform
+four sizes too big, with a plate where a face should be. **It is not what
+fights.**
+
+What fights is machinery, and the machinery is not there until he builds
+it. So every move in the file is the same three beats:
+
+* the parts fly in from nowhere and **lock**, one snap at a time
+* the thing does exactly one thing, and it is a heavy one
+* and then it **comes apart**, because he never keeps any of it
+
+`JJMUTA.assemble(group, secs)` throws every mesh in a group out to a
+scattered origin and snaps them home one at a time; `JJMUTA.scrap(group,
+at)` blows them back apart with sparks and disposes of them 1.3 seconds
+later. Between them they are the character. He barely moves in any of the
+five — the body braces, and the frame is full anyway.
+
+| Key | Move | What it does |
+| --- | --- | --- |
+| `1` | **Arm Cannon** 腕砲 | one barrel assembles at his shoulder, one shell, and it stops at the first person it reaches |
+| `2` | **Rocket Punch** 拳射出 | the fist leaves on a chain at full weight and is reeled back in at thirty per cent |
+| `3` | **Drill Arm** 削岩 | it does not hit them. It is put against them and left running, and he walks it forward |
+| `4` | **Missile Pod** 弾幕 | a shoulder rack and eight of them, each going up before it goes anywhere else |
+| `R` | **Ultra Spin** 超高速回転 | the special. The whole frame assembles *around* him, and then it turns |
+
+### Four normals of the same weight, and one that is not
+
+This is the rule the kit was built to. Against a standing target the four
+land 32, 34, 35 and 32; `R` lands 60. Getting there took three passes, and
+every one of them was a hit-detection bug rather than a number:
+
+- **The drill searched from its own tip**, which is held out to one side —
+  so anybody standing on his other shoulder was never touched. It searches
+  from in front of *him* now.
+- **The drill's exit hit searched from a point it had already walked past**,
+  with a cone pointing away from everybody it had just gone through.
+- **The first missile punted them clear of the other seven.** A barrage is
+  supposed to pin somebody down, so the per-missile knockback went from a
+  shove to almost nothing, plus a short stun.
+
+### The one hot colour
+
+Gunmetal and iron, copper at the joints, a warning yellow on anything
+about to move — and exactly **one** hot colour, the orange of an exhaust,
+which appears nowhere except where something is firing. His uniform is
+navy, and it started out dark enough to read as a black silhouette at
+fighting distance; it was lifted twice before the bandages showed against
+it at all.
+
+### The five endings
+
+Every one of them ends with the weapon in pieces on the floor beside them.
+
+| | What it does |
+| --- | --- |
+| **SHELLED** | the cannon is built behind him at twice its size and walks three ranging shells in, each landing nearer than the last. The fourth was the aimed one |
+| **ON THE CHAIN** | out and back, out and back, and the third one comes down from fifteen metres straight up |
+| **DRILLED** | in, held there turning while it throws out everything it takes, and then out the far side |
+| **ORDNANCE** | four pods in a ring overhead, twelve arcing in three at a time, and then every tube that is left at once |
+| **SCRAPPED** | the frame comes together around him and spins up, and keeps spinning up. Then he lets go of all of it, in one direction |
 
 ## Finishers
 
@@ -1035,7 +1097,7 @@ Two placement lessons, both of which cost a pass:
 
 When a *skill* is the thing that would have taken somebody out, it does not
 just take them out. It finishes them, in the way that skill finishes people,
-and differently from every other skill in the game — seventy five of them,
+and differently from every other skill in the game — eighty of them,
 one per ability per fighter.
 
 Three things a finisher deliberately is not:
@@ -1533,7 +1595,7 @@ checked against each other without standing a broker up in between. That is
 how all of this is checked: two browsers, one playing every fighter in turn
 and throwing the whole kit, the other counting what arrives.
 
-**Fifty eight skills, ten fighters and four awakened kits**, and for each
+**Sixty four skills, eleven fighters and four awakened kits**, and for each
 one: the cast announced exactly once, the body posed, and something actually
 drawn.
 
@@ -1548,7 +1610,8 @@ drawn.
 | Mahito | t1 | t2 | t3 | t4 | tr |
 | Todo | b1 | b2 | b3 | b4 | br |
 | Higuruma | j1 | j2 | j3 | j4 | jr |
-| Yuta | o1 | o2 | o3 | o4 | — |
+| Yuta | o1 | o2 | o3 | o4 | or |
+| Muta | k1 | k2 | k3 | k4 | kr |
 | Sukuna | s1 | s2 | s3 | s4 | |
 | Choso awakened | ca1 | ca2 | ca3 | ca4 | |
 | Hakari in fever | ha1 | ha2 | ha3 | ha4 | |
@@ -1809,7 +1872,8 @@ disk.
 | `mahito.js` | Mahito: the seam, the warp, and the five shapes he leaves people in |
 | `todo.js` | Todo: the clap, the swap drawn at both ends, and a very large man punching |
 | `higuruma.js` | Higuruma: the seal, the black sword, and the court that hands down the verdict |
-| `yuta.js` | Yuta: the overspill on every cut, and Rika, who is not a ghost |
+| `yuta.js` | Yuta: four ordinary cuts, one that is not, and the overspill on all of them |
+| `muta.js` | Muta: everything he fights with is built on the spot and scrapped after |
 | `void.js` | Unlimited Void: the hand sign, the barrier and everything inside it |
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |

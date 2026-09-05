@@ -1,16 +1,16 @@
 /* =======================================================================
    YUTA OKKOTSU
-   Four moves, and no R. Everybody else on this roster has a fifth thing
-   they do on their own; his fifth thing is a person, and she is already
-   on 3 and 4.
+   Four ordinary sword techniques, and one that is not.
 
-     1  CURSED KATANA     呪具・刀 — the sword, and a cut a great deal
-                          longer than the sword is
-     2  BLUE              蒼 — the one he copied. Weaker than the man he
-                          took it from, and still the second best in the
-                          game at pulling a fight into one spot
-     3  RIKA'S ARM        里香・腕 — she puts one hand through
-     4  TRUE LOVE         完全顕現・里香 — all of her
+     1  CURSED KATANA     呪具・刀 — the cut across
+     2  THRUST            突き — one point, straight through
+     3  RISING CUT        斬り上げ — up from the floor, and so are they
+     4  CROSS SLASH       十字斬り — two cuts on one beat, in an X
+     R  PURE LOVE         純愛 — the special. Everything he has, in one,
+                          and the cut is longer than the road
+
+   Rika is NOT in this file. She comes later; what is here is a boy who
+   is very good with a sword and puts far too much into it.
 
    Two rules for the look:
 
@@ -18,10 +18,9 @@
        sword doing more damage than a sword does, so every cut of his is
        drawn several times longer than the blade and several times wider
        than the swing. That overspill IS the character.
-     · RIKA IS NOT A GHOST. She is pale, solid, lit, and she casts a
-       shadow — the one thing she must never look like is a translucent
-       blue overlay, which is what a cursed spirit in a game always is.
-       The only part of her that glows is the inside of her mouth.
+     · ONE TO FOUR ARE THE SAME SIZE AS EACH OTHER. None of them is the
+       big one — the big one is on R, where a special belongs, and it is
+       the only move of his that stops the frame.
    ===================================================================== */
 (function () {
   'use strict';
@@ -34,16 +33,13 @@
 
   /* his energy, and her */
   var CE = 0x8fe6ff, CE2 = 0xeafcff, CE_D = 0x3aa8cc;
-  var COLD = 0x3a7dff, COLD2 = 0xbcd8ff;
-  var RIKA = 0xf2f1e8, RIKA_D = 0xb9b7a9, MARK = 0x2b2a26;
-  var MAW = 0x3a0f18, TOOTH = 0xfffdf2;
   /* the uniform out of the reference: a white high-collared top, dark
      grey trousers with a white drawstring, and the bag strap across him */
   var TOP = 0xecefe9, TOP_D = 0xd4d8d2, PANTS = 0x3a3d44, STRAP = 0x1b1d22;
 
   var YT = window.JJYUTA = { props: [] };
 
-  var YCD = { o1: 6, o2: 10, o3: 12, o4: 20 };
+  var YCD = { o1: 6, o2: 7, o3: 8, o4: 9, or: 18 };
 
   var YUTA_CFG = {
     yuta: true, face: false,
@@ -146,22 +142,24 @@
   };
 
   CHARS.yuta = {
-    name: 'YUTA OKKOTSU', sub: 'RIKA — QUEEN OF CURSES',
+    name: 'YUTA OKKOTSU', sub: 'CURSED SWORDSMAN',
     cfg: YUTA_CFG, glow: '#8fe6ff',
-    /* four, and no R: his fifth thing is a person and she is on 3 and 4 */
+    /* one to four are four ordinary cuts of about the same weight; the
+       special is on R, which is where a special goes */
     moves: [
       { key: 'LMB', lbl: 'Punch', cd: 'm1', max: .3 },
       { key: 'Q', lbl: 'Dash', cd: 'dash', max: 1 },
       { key: '1', lbl: 'Cursed Katana', cd: 'o1', max: YCD.o1 },
-      { key: '2', lbl: 'Blue', cd: 'o2', max: YCD.o2 },
-      { key: '3', lbl: "Rika's Arm", cd: 'o3', max: YCD.o3 },
-      { key: '4', lbl: 'True Love', cd: 'o4', max: YCD.o4 }
+      { key: '2', lbl: 'Thrust', cd: 'o2', max: YCD.o2 },
+      { key: '3', lbl: 'Rising Cut', cd: 'o3', max: YCD.o3 },
+      { key: '4', lbl: 'Cross Slash', cd: 'o4', max: YCD.o4 },
+      { key: 'R', lbl: 'Pure Love', cd: 'or', max: YCD.or }
     ]
   };
   try { CHARS.yuta.portrait = makePortrait(YUTA_CFG); } catch (e) {}
   try { buildCharList(); } catch (e) {}
 
-  cds.o1 = 0; cds.o2 = 0; cds.o3 = 0; cds.o4 = 0;
+  cds.o1 = 0; cds.o2 = 0; cds.o3 = 0; cds.o4 = 0; cds.or = 0;
 
   /* --------------------------------------------------------------- help */
   function ready(key) {
@@ -280,6 +278,29 @@
   }
   YT.buildKatana = buildKatana;
 
+  /* The blade is in his hand for the length of the move and then it is
+     not. Every one of the five wants exactly this, so it is one call. */
+  function holdKatana(a, secs) {
+    var k = buildKatana();
+    player.rig.elbowR.add(k);
+    k.position.set(0, -1.1, 0);
+    k.rotation.x = Math.PI * .5;
+    var t = 0;
+    addFx({ t: 1e9, update: function (dd) {
+      t += dd;
+      if (typeof scene === 'undefined' || !k.parent) return false;
+      if (Math.random() < dd * 24) {
+        var w = new THREE.Vector3();
+        k.getWorldPosition(w);
+        FX.mote(w.clone().add(new THREE.Vector3(
+          (Math.random() - .5) * 2, (Math.random() - .5) * 3, (Math.random() - .5) * 2)), CE, 1.2, .22);
+      }
+      if (t > secs) { k.parent.remove(k); drop(k); return false; }
+      return true;
+    } });
+    return k;
+  }
+
   function castKatana() {
     if (!ready('o1')) return;
     var a = start('o1', 1.0, 'o1', 'CURSED KATANA', '呪具・刀');
@@ -289,27 +310,7 @@
   }
   function stepKatana(a, dt) {
     var p = player, d = a.dir;
-    if (a.stage < 1) {
-      a.stage = 1;
-      var k = buildKatana();
-      p.rig.elbowR.add(k);
-      k.position.set(0, -1.1, 0);
-      k.rotation.x = Math.PI * .5;
-      a.kat = k;
-      var t = 0;
-      addFx({ t: 1e9, update: function (dd) {
-        t += dd;
-        if (typeof scene === 'undefined' || !k.parent) return false;
-        if (Math.random() < dd * 24) {
-          var w = new THREE.Vector3();
-          k.getWorldPosition(w);
-          FX.mote(w.clone().add(new THREE.Vector3(
-            (Math.random() - .5) * 2, (Math.random() - .5) * 3, (Math.random() - .5) * 2)), CE, 1.2, .22);
-        }
-        if (t > 1.0) { k.parent.remove(k); drop(k); return false; }
-        return true;
-      } });
-    }
+    if (a.stage < 1) { a.stage = 1; a.kat = holdKatana(a, 1.0); }
     if (a.t < .28) { p.vel.x *= .7; p.vel.z *= .7; return; }
     if (a.t < .44) { p.vel.x = d.x * KAT.step; p.vel.z = d.z * KAT.step; return; }
     p.vel.x *= .6; p.vel.z *= .6;
@@ -345,421 +346,239 @@
   }
 
   /* =====================================================================
-     2 · BLUE  蒼
-     The one he copied. It is not as good as the man he took it from and
-     it does not need to be: it still pulls the whole fight into one spot
-     and then lets go of it.
+     2 · THRUST  突き
+     One point, straight, and the overspill goes out of the far side of
+     whatever it went into.
      ================================================================== */
-  var BL = { dmg: 30, radius: 11, out: 14, pull: 1.05 };
+  var THR = { dmg: 32, reach: 13, spill: 24, step: 30 };
 
-  function castBlue() {
+  function castThrust() {
     if (!ready('o2')) return;
-    var a = start('o2', 1.5, 'o2', 'BLUE', '蒼');
-    var d = aim();
-    var near = nearest(28, 0);
-    a.at = (near ? new THREE.Vector3(near.pos.x, 0, near.pos.z)
-                 : player.pos.clone().addScaledVector(d, BL.out).setY(0))
-      .add(new THREE.Vector3(0, 3, 0));
-    a.dir = d;
-    player.iframes = Math.max(player.iframes, .8);
-    try { sfx.raise(); } catch (e) {}
-  }
-  function stepBlue(a, dt) {
-    var p = player, d = a.dir;
-    p.vel.x *= .85; p.vel.z *= .85;
-    if (a.stage < 1 && a.t > .34) {
-      a.stage = 1;
-      /* the orb: small, dense, and dark blue at the middle */
-      var orb = FX.billboard(FX.T.star, COLD, .95);
-      orb.scale.setScalar(1.4);
-      orb.position.copy(a.at);
-      scene.add(orb);
-      a.orb = orb;
-      keep(orb);
-      var t = 0;
-      addFx({ t: 1e9, update: function (dd) {
-        t += dd;
-        if (typeof scene === 'undefined' || !orb.parent) return false;
-        FX.faceCam(orb, t * 2);
-        orb.scale.setScalar(1.4 + Math.min(1, t / .5) * 3 + Math.sin(t * 18) * .3);
-        /* everything it can reach comes toward it */
-        if (t < BL.pull) {
-          FX.converge(a.at.clone(), COLD, 3, BL.radius, .3);
-          enemies.forEach(function (e) {
-            if (!e || e.dead) return;
-            var to = a.at.clone().sub(e.pos).setY(0);
-            var dist = to.length();
-            if (dist > BL.radius || dist < .4) return;
-            e.pos.addScaledVector(to.normalize(), Math.min(dist, 22 * dd * (1 - dist / BL.radius / 1.6)));
-            e.stunT = Math.max(e.stunT || 0, .25);
-            e.vel.set(0, 0, 0);
-          });
-        }
-        if (t > BL.pull) {
-          drop(orb);
-          return false;
-        }
-        return true;
-      } });
-      FX.rings(a.at.clone(), COLD, 3, { maxR: BL.radius, life: .6, ground: false, gap: 44 });
-      addShake(1.2);
-    }
-    if (a.stage < 2 && a.t > .34 + BL.pull) {
-      a.stage = 2;
-      /* and then it stops holding on */
-      FX.flash('#cfe0ff', .5, .26);
-      FX.impact(a.at.clone(), COLD2, 5);
-      FX.rings(a.at.clone(), COLD, 4, { maxR: BL.radius * 1.6, life: .7, ground: false, gap: 34 });
-      FX.rings(new THREE.Vector3(a.at.x, .12, a.at.z), COLD, 3, { maxR: BL.radius * 1.7, life: .7, gap: 38 });
-      FX.debris(new THREE.Vector3(a.at.x, .1, a.at.z), 14, 16, 0x6a7488);
-      FX.mangaLines(.9, .3);
-      addShake(3);
-      if (typeof hitstop === 'function') hitstop(.18);
-      try { sfx.redBoom(); } catch (e) {}
-      enemiesNear(a.at.clone(), BL.radius * .9).forEach(function (e) {
-        if (!e || e.dead) return;
-        var kb = e.pos.clone().sub(a.at).setY(0);
-        if (kb.lengthSq() < .01) kb.copy(d);
-        kb.normalize().multiplyScalar(24); kb.y = 18;
-        e.damage(BL.dmg, kb, {
-          react: 'blow', reactDur: .9, spark: COLD2, stun: .9,
-          bleed: true, death: 'implode' });
-      });
-    }
-  }
-
-  /* =====================================================================
-     3 · RIKA'S ARM  里香・腕
-     One hand, at about six times the size of one. It comes over his
-     shoulder from behind him, which is where she is.
-     ================================================================== */
-  var ARM = { dmg: 40, reach: 15, radius: 7 };
-
-  function buildArm() {
-    var g = new THREE.Group();
-    /* the forearm, tapering out to the hand */
-    part(g, 2.6, 2.6, 2.6, 0, -1.2, -5.2, RIKA_D);
-    part(g, 2.9, 2.9, 6.0, 0, -.6, -2.0, RIKA);
-    part(g, 3.4, 3.2, 3.0, 0, -.3, 1.6, RIKA);
-    /* the markings, which are the only dark thing on her */
-    for (var i = 0; i < 5; i++) {
-      part(g, 3.1, .18, .5, 0, .6 - i * .1, -3.4 + i * 1.2, MARK);
-    }
-    /* the hand: a palm and four long fingers and a thumb */
-    var palm = part(g, 3.6, 1.4, 2.6, 0, -.2, 3.6, RIKA);
-    palm.castShadow = true;
-    g.__fingers = [];
-    for (i = 0; i < 4; i++) {
-      var f = new THREE.Group();
-      f.position.set(-1.35 + i * .9, -.2, 4.8);
-      part(f, .72, .74, 2.2, 0, 0, 1.0, RIKA);
-      part(f, .6, .62, 1.8, 0, -.1, 2.8, RIKA_D);
-      part(f, .44, .44, .8, 0, -.2, 4.0, 0xe9e6d8);   // the nail
-      g.add(f);
-      g.__fingers.push(f);
-    }
-    var th = new THREE.Group();
-    th.position.set(-2.0, -.3, 3.4);
-    part(th, .9, .8, 2.0, 0, 0, .8, RIKA);
-    part(th, .6, .6, 1.2, 0, -.1, 2.2, RIKA_D);
-    th.rotation.y = -.7;
-    g.add(th);
-    g.__fingers.push(th);
-    return g;
-  }
-  YT.buildArm = buildArm;
-
-  function swingArm(from, dir, ghost) {
-    var g = buildArm();
-    g.position.copy(from).add(new THREE.Vector3(0, 9, 0));
-    g.rotation.y = Math.atan2(dir.x, dir.z);
-    g.rotation.x = -1.2;
-    scene.add(g);
-    keep(g);
-    var t = 0, hit = false;
-    var at = from.clone().addScaledVector(dir, ARM.reach);
-    var stop = shimmer(function () { return g.position.clone(); }, function () { return t < 1.4; });
-    addFx({ t: 1e9, update: function (dt) {
-      t += dt;
-      if (typeof scene === 'undefined') return false;
-      var k = Math.min(1, t / .42);
-      /* over the shoulder and down, opening as it goes */
-      g.position.copy(from).lerp(at.clone(), E.out(k));
-      g.position.y = 9 - E.out(k) * 6.6;
-      g.rotation.x = -1.2 + E.out(k) * 1.5;
-      g.__fingers.forEach(function (f, i) {
-        f.rotation.x = -.5 + E.out(k) * (1.4 + (i % 2) * .3);
-      });
-      if (!hit && k >= .92) {
-        hit = true;
-        var land = new THREE.Vector3(g.position.x, 0, g.position.z);
-        FX.flash('#eafcff', .5, .26);
-        FX.impact(land.clone().add(new THREE.Vector3(0, 2, 0)), CE2, 5);
-        FX.rings(new THREE.Vector3(land.x, .12, land.z), CE, 5,
-          { maxR: ARM.radius * 2.4, life: .8, gap: 38 });
-        FX.cracks(new THREE.Vector3(land.x, .1, land.z), 16, 20, 0x59636e);
-        FX.dust(new THREE.Vector3(land.x, 0, land.z), 14, 0xcfd8e0, 18, 5);
-        overspill(land.clone().add(new THREE.Vector3(0, 2, 0)), dir, 22, 14, CE);
-        FX.mangaLines(1, .32);
-        addShake(4);
-        if (typeof hitstop === 'function') hitstop(.2);
-        try { sfx.redBoom(); } catch (e) {}
-        if (!ghost) {
-          enemiesNear(land.clone().add(new THREE.Vector3(0, 2, 0)), ARM.radius).forEach(function (e) {
-            if (!e || e.dead) return;
-            var kb = dir.clone().multiplyScalar(16); kb.y = 16;
-            e.damage(ARM.dmg, kb, {
-              react: 'blow', reactDur: 1, spark: CE2, stun: 1,
-              bleed: true, death: 'flat' });
-          });
-        }
-      }
-      /* and she takes it back */
-      if (t > .95) {
-        var s = (t - .95) / .45;
-        g.position.y = 2.4 + s * 22;
-        g.rotation.x = .3 - s * 1.4;
-        if (s > 1) { stop.stop(); drop(g); return false; }
-      }
-      return true;
-    } });
-    return g;
-  }
-
-  function castArm() {
-    if (!ready('o3')) return;
-    var a = start('o3', 1.2, 'o3', "RIKA'S ARM", '里香・腕');
+    var a = start('o2', .95, 'o2', 'THRUST', '突き');
     a.dir = aim();
-    player.iframes = Math.max(player.iframes, .8);
+    player.iframes = Math.max(player.iframes, .45);
     try { sfx.whoosh(); } catch (e) {}
   }
-  function stepArm(a, dt) {
+  function stepThrust(a, dt) {
     var p = player, d = a.dir;
-    p.vel.x *= .8; p.vel.z *= .8;
-    if (a.stage < 1 && a.t > .34) {
-      a.stage = 1;
-      var side = new THREE.Vector3(-d.z, 0, d.x);
-      var from = p.pos.clone().addScaledVector(d, -2).addScaledVector(side, 3);
-      from.y = 0;
-      FX.mote(p.pos.clone().add(new THREE.Vector3(0, 4, 0)), CE2, 3.4, .4);
-      FX.rings(p.pos.clone().add(new THREE.Vector3(0, 3, 0)), CE, 2,
-        { maxR: 9, life: .5, ground: false, gap: 40 });
-      addShake(1.4);
-      swingArm(from, d.clone());
+    if (a.stage < 1) { a.stage = 1; a.kat = holdKatana(a, .95); }
+    if (a.t < .26) { p.vel.x *= .7; p.vel.z *= .7; return; }
+    if (a.t < .44) {
+      p.vel.x = d.x * THR.step; p.vel.z = d.z * THR.step;
+      if (Math.random() < .5 && typeof ghostAfterimage === 'function') {
+        ghostAfterimage(p.rig, CE_D, .22);
+      }
+      return;
+    }
+    p.vel.x *= .55; p.vel.z *= .55;
+    if (a.stage < 2) {
+      a.stage = 2;
+      var at = p.pos.clone().addScaledVector(d, 3.6).add(new THREE.Vector3(0, 2.6, 0));
+      /* a thrust is one line, so it is drawn as one very long one */
+      FX.cutLine(at.clone(), at.clone().addScaledVector(d, THR.spill), CE2, 1.4, .35);
+      FX.cutLine(at.clone(), at.clone().addScaledVector(d, THR.spill * .7), 0xffffff, .7, .28);
+      overspill(at.clone(), d, THR.spill, 5, CE);
+      FX.speedRing(at.clone(), CE2, 11, .26);
+      FX.mangaLines(.7, .24);
+      addShake(1.9);
+      if (typeof hitstop === 'function') hitstop(.12);
+      try { sfx.redBoom(); } catch (e) {}
+      enemiesNear(at, THR.reach, d, .55).forEach(function (e) {
+        if (!e || e.dead) return;
+        var kb = d.clone().multiplyScalar(24); kb.y = 9;
+        e.damage(THR.dmg, kb, {
+          react: 'stagger', reactDur: .7, spark: CE2, stun: .7,
+          bleed: true, death: 'sever' });
+        FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), d, 14, 2);
+        FX.cutLine(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)),
+          e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)).addScaledVector(d, 9), CE2, .8, .3);
+      });
     }
   }
 
   /* =====================================================================
-     4 · TRUE LOVE  完全顕現・里香
-     All of her. She comes out whole, she is bigger than anything else on
-     the field, and the only part of her that glows is the inside of her
-     mouth.
+     3 · RISING CUT  斬り上げ
+     Up from the floor. It takes them with it, which is what an upward
+     cut is for.
      ================================================================== */
-  var LOVE = { dmg: 52, radius: 11, dur: 3.6, sweep: 16 };
+  var RISE = { dmg: 30, reach: 8.5, spill: 22 };
 
-  function buildRika() {
-    var g = new THREE.Group();
-    /* the head, which is mostly mouth */
-    var skull = part(g, 5.2, 3.4, 4.4, 0, 11.6, 0, RIKA);
-    skull.castShadow = true;
-    part(g, 5.4, .5, 4.6, 0, 13.4, 0, RIKA_D);
-    /* two small flat eyes, high and far apart */
-    for (var s = -1; s <= 1; s += 2) {
-      part(g, .9, .5, .3, 1.5 * s, 12.4, 2.25, MARK);
-    }
-    /* THE MOUTH. A lipless split all the way across, dark inside, with
-       teeth top and bottom. The only lit thing on her. */
-    var jaw = new THREE.Group();
-    jaw.position.set(0, 10.2, .4);
-    var inner = new THREE.Mesh(new THREE.BoxGeometry(4.8, 2.0, 3.4),
-      new THREE.MeshBasicMaterial({ color: MAW, toneMapped: false }));
-    inner.position.set(0, -.6, .6);
-    jaw.add(inner);
-    part(jaw, 5.0, 1.0, 4.0, 0, -1.4, .2, RIKA_D);
-    for (var i = 0; i < 7; i++) {
-      var t1 = part(g, .5, .8, .5, -1.8 + i * .6, 10.3, 2.0, TOOTH);
-      t1.rotation.x = .1;
-      var t2 = part(jaw, .5, .8, .5, -1.8 + i * .6, -.6, 1.8, TOOTH);
-      t2.rotation.x = -.1;
-    }
-    g.add(jaw);
-    g.__jaw = jaw;
-
-    /* the hair, long and heavy, hanging past the shoulders */
-    for (i = 0; i < 9; i++) {
-      var a = (i / 9) * TAU;
-      var h = part(g, .9, 5.5 + Math.random() * 3, .9,
-        Math.cos(a) * 2.6, 8.4, Math.sin(a) * 2.2 - .6, i % 2 ? RIKA : RIKA_D);
-      h.rotation.z = Math.cos(a) * .16;
-      h.rotation.x = -Math.sin(a) * .1;
-    }
-    /* the body: narrow, and the torn dress under it */
-    part(g, 3.6, 4.2, 2.8, 0, 7.4, -.2, RIKA);
-    for (i = 0; i < 4; i++) {
-      part(g, 3.8, .2, 3.0, 0, 8.6 - i * .9, -.2, MARK);
-    }
-    var skirt = part(g, 5.2, 4.4, 4.2, 0, 3.4, -.2, RIKA);
-    skirt.castShadow = true;
-    for (i = 0; i < 7; i++) {
-      var rag = part(g, .8, 2.4 + Math.random() * 2.2, .7,
-        -2.2 + i * .74, .6, 1.6, i % 2 ? RIKA_D : RIKA);
-      rag.rotation.z = (Math.random() - .5) * .3;
-    }
-    /* two very long arms */
-    g.__arms = [];
-    for (s = -1; s <= 1; s += 2) {
-      var arm = new THREE.Group();
-      arm.position.set(2.4 * s, 9.4, 0);
-      part(arm, 1.3, 4.6, 1.3, 0, -2.2, 0, RIKA);
-      part(arm, 1.1, 4.2, 1.1, 0, -6.4, .3, RIKA_D);
-      var hand = part(arm, 1.7, 1.0, 1.5, 0, -8.8, .4, RIKA);
-      hand.castShadow = true;
-      for (i = 0; i < 4; i++) {
-        part(arm, .3, 1.6, .3, -.6 + i * .4, -9.9, .7, 0xe9e6d8);
-      }
-      arm.rotation.z = -.2 * s;
-      arm.__base = arm.rotation.clone();
-      g.add(arm);
-      g.__arms.push(arm);
-    }
-    return g;
-  }
-  YT.buildRika = buildRika;
-
-  /* `lane` is the line HE is facing down. She comes up beside him, so a
-     sweep aimed straight out of her own shoulders lands eight metres off
-     the thing he pointed at — she is helping, not fighting her own
-     fight. */
-  function manifest(at, dir, ghost, lane) {
-    var g = buildRika();
-    var aimAt = lane ? lane.clone().setY(0) : at.clone().addScaledVector(dir, LOVE.sweep);
-    var face = aimAt.clone().sub(at).setY(0);
-    if (face.lengthSq() < .01) face.copy(dir);
-    face.normalize();
-    g.position.set(at.x, -20, at.z);
-    g.rotation.y = Math.atan2(face.x, face.z);
-    scene.add(g);
-    keep(g);
-    var t = 0, roared = false, swept = false, drift = 0;
-    var stop = shimmer(function () {
-      return g.position.clone().add(new THREE.Vector3(0, 6, 0));
-    }, function () { return t < LOVE.dur; });
-
-    addFx({ t: 1e9, update: function (dt) {
-      t += dt; drift += dt * 1.6;
-      if (typeof scene === 'undefined') return false;
-      if (t < .8) {
-        g.position.y = -20 + E.out(t / .8) * 20;
-        if (Math.random() < dt * 50) {
-          FX.mote(g.position.clone().add(new THREE.Vector3(
-            (Math.random() - .5) * 9, 2 + Math.random() * 12, (Math.random() - .5) * 6)), CE2, 2, .34);
-        }
-      } else g.position.y = Math.sin(drift) * .4;
-      g.__arms.forEach(function (a2, i) {
-        a2.rotation.z = a2.__base.z + Math.sin(drift * 1.3 + i * 2) * .22;
-        a2.rotation.x = Math.sin(drift + i) * .18;
-      });
-
-      /* she opens, and everything in front of her knows about it */
-      if (!roared && t > .95) {
-        roared = true;
-        g.__jaw.rotation.x = 1.05;
-        FX.flash('#eafcff', .6, .3);
-        FX.speedRing(g.position.clone().add(new THREE.Vector3(0, 10.6, 0)), CE2, 24, .4);
-        overspill(g.position.clone().add(new THREE.Vector3(0, 10, 0)), face, 34, 20, CE);
-        FX.mangaLines(1, .36);
-        addShake(3.4);
-        try { sfx.raise(); } catch (e) {}
-      }
-      /* and then both arms come across, together */
-      if (roared && !swept && t > 1.7) {
-        swept = true;
-        var land = aimAt.clone();
-        g.__arms.forEach(function (a2, i) {
-          var s2 = 0;
-          addFx({ t: .4, update: function (dd) {
-            this.t -= dd; s2 += dd;
-            a2.rotation.x = -1.3 + E.out(s2 / .4) * 2.4;
-            a2.rotation.z = a2.__base.z * (1 - E.out(s2 / .4)) + (i ? -.5 : .5) * E.out(s2 / .4);
-            return this.t > 0;
-          } });
-        });
-        later(220, function () {
-          FX.flash('#ffffff', .7, .3);
-          FX.impact(land.clone().add(new THREE.Vector3(0, 2.4, 0)), CE2, 6);
-          FX.rings(new THREE.Vector3(land.x, .12, land.z), CE, 6,
-            { maxR: LOVE.radius * 2.6, life: 1, gap: 36 });
-          FX.cracks(new THREE.Vector3(land.x, .1, land.z), 20, 24, 0x59636e);
-          FX.dust(new THREE.Vector3(land.x, 0, land.z), 18, 0xcfd8e0, 24, 6);
-          FX.debris(new THREE.Vector3(land.x, .1, land.z), 18, 22, 0x6a7488);
-          overspill(land.clone().add(new THREE.Vector3(0, 2.4, 0)), face, 30, 22, CE);
-          FX.mangaLines(1, .4);
-          addShake(5);
-          if (typeof hitstop === 'function') hitstop(.26);
-          try { sfx.redBoom(); } catch (e) {}
-          if (!ghost) {
-            enemiesNear(land.clone().add(new THREE.Vector3(0, 2.5, 0)), LOVE.radius).forEach(function (e) {
-              if (!e || e.dead) return;
-              var kb = face.clone().multiplyScalar(30); kb.y = 22;
-              e.damage(LOVE.dmg, kb, {
-                react: 'blow', reactDur: 1.2, spark: CE2, stun: 1.2,
-                bleed: true, death: 'dice' });
-            });
-          }
-        });
-      }
-      if (t > LOVE.dur) {
-        stop.stop();
-        var s3 = 0;
-        addFx({ t: 1e9, update: function (dd) {
-          s3 += dd;
-          g.position.y = -24 * s3;
-          if (Math.random() < dd * 30) {
-            FX.mote(g.position.clone().add(new THREE.Vector3(
-              (Math.random() - .5) * 8, 4 + Math.random() * 8, (Math.random() - .5) * 5)), CE, 1.6, .3);
-          }
-          if (s3 > .9) { drop(g); return false; }
-          return true;
-        } });
-        return false;
-      }
-      return true;
-    } });
-    return g;
-  }
-
-  function castLove() {
-    if (!ready('o4')) return;
-    var a = start('o4', 1.7, 'o4', 'TRUE LOVE', '完全顕現・里香');
+  function castRise() {
+    if (!ready('o3')) return;
+    var a = start('o3', 1.0, 'o3', 'RISING CUT', '斬り上げ');
     a.dir = aim();
-    player.iframes = Math.max(player.iframes, 1.6);
+    player.iframes = Math.max(player.iframes, .45);
+    try { sfx.whoosh(); } catch (e) {}
+  }
+  function stepRise(a, dt) {
+    var p = player, d = a.dir;
+    if (a.stage < 1) { a.stage = 1; a.kat = holdKatana(a, 1.0); }
+    if (a.t < .34) { p.vel.x *= .72; p.vel.z *= .72; return; }
+    if (a.t < .46) { p.vel.x = d.x * 16; p.vel.z = d.z * 16; return; }
+    p.vel.x *= .6; p.vel.z *= .6;
+    if (a.stage < 2) {
+      a.stage = 2;
+      var at = p.pos.clone().addScaledVector(d, 3).add(new THREE.Vector3(0, 1.4, 0));
+      FX.slash(at.clone(), new THREE.Vector3(0, 1, 0), CE2, 14, .24);
+      FX.cutLine(at.clone().add(new THREE.Vector3(0, -1.4, 0)),
+        at.clone().add(new THREE.Vector3(0, RISE.spill, 0)), CE2, 1.1, .34);
+      overspill(at.clone(), new THREE.Vector3(0, 1, 0), RISE.spill, 9, CE);
+      FX.dust(new THREE.Vector3(p.pos.x + d.x * 3, 0, p.pos.z + d.z * 3), 8, 0xcfd8e0, 11, 4);
+      FX.mangaLines(.7, .24);
+      addShake(2);
+      if (typeof hitstop === 'function') hitstop(.11);
+      try { sfx.redBoom(); } catch (e) {}
+      enemiesNear(at, RISE.reach, d, -.2).forEach(function (e) {
+        if (!e || e.dead) return;
+        var kb = d.clone().multiplyScalar(7); kb.y = 34;
+        e.damage(RISE.dmg, kb, {
+          react: 'blow', reactDur: .9, spark: CE2, stun: .8,
+          bleed: true, death: 'sever' });
+        FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), new THREE.Vector3(0, 1, 0), 13, 2);
+        FX.cutLine(e.pos.clone().add(new THREE.Vector3(0, -.2, 0)),
+          e.pos.clone().add(new THREE.Vector3(0, 6.4, 0)), CE2, .8, .3);
+      });
+    }
+  }
+
+  /* =====================================================================
+     4 · CROSS SLASH  十字斬り
+     Two cuts on one beat, at right angles, both of them landing at once.
+     Still an ordinary cut — it is two of the same thing, not a bigger
+     one.
+     ================================================================== */
+  var CROSS = { dmg: 17, reach: 10, spill: 20 };
+
+  function castCross() {
+    if (!ready('o4')) return;
+    var a = start('o4', 1.05, 'o4', 'CROSS SLASH', '十字斬り');
+    a.dir = aim();
+    player.iframes = Math.max(player.iframes, .5);
+    try { sfx.whoosh(); } catch (e) {}
+  }
+  function stepCross(a, dt) {
+    var p = player, d = a.dir;
+    if (a.stage < 1) { a.stage = 1; a.kat = holdKatana(a, 1.05); }
+    if (a.t < .3) { p.vel.x *= .72; p.vel.z *= .72; return; }
+    if (a.t < .44) { p.vel.x = d.x * 18; p.vel.z = d.z * 18; return; }
+    p.vel.x *= .6; p.vel.z *= .6;
+    if (a.stage < 2) {
+      a.stage = 2;
+      var at = p.pos.clone().addScaledVector(d, 3.4).add(new THREE.Vector3(0, 2.6, 0));
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      /* both diagonals, on the same frame */
+      [1, -1].forEach(function (sg) {
+        var ax = side.clone().multiplyScalar(sg).add(new THREE.Vector3(0, 1, 0)).normalize();
+        FX.slash(at.clone(), ax, sg > 0 ? CE2 : CE, 14, .24);
+        FX.cutLine(at.clone().addScaledVector(ax, -CROSS.spill * .5),
+          at.clone().addScaledVector(ax, CROSS.spill * .5), CE2, 1, .34);
+        overspill(at.clone(), ax, CROSS.spill * .6, 8, CE);
+      });
+      FX.cross(at.clone(), 0xffffff, 8, .22);
+      FX.mangaLines(.8, .26);
+      addShake(2.2);
+      if (typeof hitstop === 'function') hitstop(.13);
+      try { sfx.redBoom(); } catch (e) {}
+      /* each arm of the X is its own hit, so a body in the middle takes
+         both — which is how it adds up to about what the others do */
+      enemiesNear(at, CROSS.reach, d, .05).forEach(function (e) {
+        if (!e || e.dead) return;
+        [0, 1].forEach(function (n) {
+          setTimeout(function () {
+            if (typeof scene === 'undefined' || !e || e.dead) return;
+            var kb = d.clone().multiplyScalar(11); kb.y = 10;
+            e.damage(CROSS.dmg, kb, {
+              react: n ? 'slash' : null, reactDur: .6, spark: CE2,
+              stun: .5, bleed: true, death: 'dice', noFrameBonus: !!n });
+            FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)),
+              side.clone().multiplyScalar(n ? 1 : -1), 9, 1.6);
+          }, n * 70);
+        });
+      });
+    }
+  }
+
+  /* =====================================================================
+     R · PURE LOVE  純愛
+     THE SPECIAL, and the only move of his that is allowed to be one. He
+     does not cut faster or from a better angle — he simply stops holding
+     any of it back, and the overspill goes the whole length of the road.
+     ================================================================== */
+  var PURE = { dmg: 62, reach: 16, spill: 60, wide: 26 };
+
+  function castPure() {
+    if (!ready('or')) return;
+    var a = start('or', 1.7, 'or', 'PURE LOVE', '純愛');
+    a.dir = aim();
+    player.iframes = Math.max(player.iframes, 1.5);
     FX.letterbox(true);
-    later(3400, function () { FX.letterbox(false); });
+    later(3000, function () { FX.letterbox(false); });
     try { sfx.raise(); } catch (e) {}
   }
-  function stepLove(a, dt) {
+  function stepPure(a, dt) {
     var p = player, d = a.dir;
     p.vel.set(0, 0, 0);
     if (a.stage < 1) {
       a.stage = 1;
+      a.kat = holdKatana(a, 1.7);
       a.shine = shimmer(function () { return player.pos.clone(); },
         function () { return player.action === a; });
-      FX.tint('#0a1620', .35, 1.6);
+      FX.tint('#08161e', .35, 1.4);
     }
-    if (a.stage < 2 && a.t > .8) {
-      a.stage = 2;
-      /* She is fourteen metres tall. Four in front and eight to the side
-         puts her level with the chase camera, which sees her shins and
-         nothing else — she has to stand out where the fight is. */
-      var side = new THREE.Vector3(-d.z, 0, d.x);
-      var at = p.pos.clone().addScaledVector(d, 15).addScaledVector(side, 10);
-      at.y = 0;
-      FX.flash('#eafcff', .5, .3);
-      FX.rings(new THREE.Vector3(at.x, .12, at.z), CE, 4, { maxR: 20, life: .8, gap: 42 });
-      FX.cracks(new THREE.Vector3(at.x, .06, at.z), 12, 15, 0x59636e);
-      addShake(2.4);
-      if (typeof hitstop === 'function') hitstop(.12);
-      manifest(at, d.clone(), false, p.pos.clone().addScaledVector(d, 18));
+    /* the wind-up: it goes IN before it goes out, which is the only time
+       anything of his does */
+    if (a.t < .95) {
+      if (Math.random() < dt * 20) {
+        FX.converge(p.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), CE, 6, 14, .4);
+      }
+      if (a.stage < 2 && a.t > .5) {
+        a.stage = 2;
+        FX.rings(p.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), CE, 3,
+          { maxR: 12, life: .6, ground: false, gap: 44 });
+        FX.mangaLines(.5, .45);
+        addShake(1);
+      }
+      return;
+    }
+    if (a.stage < 3) {
+      a.stage = 3;
+      var at = p.pos.clone().addScaledVector(d, 4).add(new THREE.Vector3(0, 2.8, 0));
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      FX.flash('#ffffff', .85, .32);
+      FX.slash(at.clone(), side, 0xffffff, 30, .34);
+      FX.slash(at.clone().add(new THREE.Vector3(0, -1, 0)), side, CE2, 24, .28);
+      /* sixty metres of it, twenty six wide */
+      overspill(at.clone(), d, PURE.spill, PURE.wide, CE);
+      overspill(at.clone(), d, PURE.spill * .7, PURE.wide * .5, CE2);
+      for (var i = 0; i < 7; i++) {
+        var k = i / 6 - .5;
+        FX.cutLine(at.clone().addScaledVector(side, k * PURE.wide),
+          at.clone().addScaledVector(side, k * PURE.wide).addScaledVector(d, PURE.spill),
+          i % 2 ? CE2 : 0xffffff, 1.4, .55);
+      }
+      FX.speedRing(at.clone(), CE2, 30, .42);
+      FX.mangaLines(1, .42);
+      FX.cracks(new THREE.Vector3(p.pos.x + d.x * 14, .1, p.pos.z + d.z * 14), 22, 30, 0x59636e);
+      FX.dust(new THREE.Vector3(p.pos.x + d.x * 10, 0, p.pos.z + d.z * 10), 16, 0xcfd8e0, 22, 6);
+      addShake(5);
+      if (typeof hitstop === 'function') hitstop(.3);
+      try { sfx.redBoom(); } catch (e) {}
+      /* everything down the whole lane, at full value the entire way */
+      var hit = [];
+      for (var q = 4; q < PURE.spill; q += 8) {
+        enemiesNear(p.pos.clone().addScaledVector(d, q).add(new THREE.Vector3(0, 2.4, 0)),
+          PURE.wide * .5).forEach(function (e) {
+          if (!e || e.dead || hit.indexOf(e) >= 0) return;
+          hit.push(e);
+          var kb = d.clone().multiplyScalar(34); kb.y = 20;
+          e.damage(PURE.dmg, kb, {
+            react: 'blow', reactDur: 1.2, spark: 0xffffff, stun: 1.2,
+            bleed: true, death: 'sever' });
+          FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), side, 22, 2.6);
+          FX.cutLine(e.pos.clone().add(new THREE.Vector3(-5, 3.6, 0)),
+            e.pos.clone().add(new THREE.Vector3(5, 1.4, 0)), 0xffffff, 1.2, .45);
+        });
+      }
     }
   }
 
@@ -791,56 +610,83 @@
         r.hips.position.y = r.hipsBaseY - .34 * dr + .16 * sw;
         return true;
       }
-      case 'o2': {                     // one hand out, fingers open, held
+      case 'o2': {                     // both hands back, and one point out
         rp(r);
-        var k = out(Math.min(1, t / .3));
-        var pop = t > 1.3 ? out(Math.min(1, (t - 1.3) / .18)) : 0;
-        r.shoulderR.rotation.x = -1.62 * k + .4 * pop;
-        r.shoulderR.rotation.z = -.26 * k - .4 * pop;
-        r.elbowR.rotation.x = -.2 * k;
-        r.shoulderL.rotation.x = -.9 * k;
-        r.shoulderL.rotation.z = .5 * k;
-        r.elbowL.rotation.x = -1.3 * k;
-        r.spine.rotation.x = -.2 * k + .4 * pop;
-        r.spine.rotation.y = .2 * k - .3 * pop;
-        r.neck.rotation.x = -.24 * k + .3 * pop;
-        r.hipL.rotation.x = -.3 * k; r.kneeL.rotation.x = .55 * k;
-        r.hipR.rotation.x = -.24 * k; r.kneeR.rotation.x = .46 * k;
-        r.hips.position.y = r.hipsBaseY - .24 * k - .16 * pop;
+        var wd = out(Math.min(1, t / .24));
+        var pu = t > .42 ? out(Math.min(1, (t - .42) / .14)) : 0;
+        r.shoulderR.rotation.x = -.4 - .8 * wd + 1.0 * pu;
+        r.shoulderR.rotation.z = -.5 * wd + .5 * pu;
+        r.shoulderR.rotation.y = -.9 * wd + 1.1 * pu;
+        r.elbowR.rotation.x = -1.7 * wd + 1.6 * pu;
+        r.shoulderL.rotation.x = -1.0 * wd + .6 * pu;
+        r.shoulderL.rotation.z = .6 * wd - .5 * pu;
+        r.elbowL.rotation.x = -1.5 * wd + 1.0 * pu;
+        r.spine.rotation.y = .7 * wd - 1.0 * pu;
+        r.spine.rotation.x = -.14 * wd + .3 * pu;
+        r.neck.rotation.y = -.3 * wd + .5 * pu;
+        r.hipL.rotation.x = -.5 * wd + .4 * pu; r.kneeL.rotation.x = .8 * wd - .3 * pu;
+        r.hipR.rotation.x = .35 * wd - .5 * pu; r.kneeR.rotation.x = .55 * wd;
+        r.hips.position.y = r.hipsBaseY - .38 * wd + .2 * pu;
         return true;
       }
-      case 'o3': {                     // he does not swing it. He points
+      case 'o3': {                     // down low, and everything goes up
         rp(r);
-        var pt = out(Math.min(1, t / .3));
-        var thr = t > .38 ? out(Math.min(1, (t - .38) / .2)) : 0;
-        r.shoulderR.rotation.x = -1.5 * pt - 1.1 * thr;
-        r.shoulderR.rotation.z = -.3 * pt + .2 * thr;
-        r.elbowR.rotation.x = -.9 * pt + .8 * thr;
-        r.shoulderL.rotation.x = -.5 * pt - .4 * thr;
-        r.shoulderL.rotation.z = .6 * pt;
-        r.elbowL.rotation.x = -1.2 * pt;
-        r.spine.rotation.x = .1 * pt - .5 * thr;
-        r.spine.rotation.y = -.3 * pt + .2 * thr;
-        r.neck.rotation.x = -.1 * pt - .3 * thr;
-        r.hipL.rotation.x = -.34 * pt; r.kneeL.rotation.x = .6 * pt;
-        r.hipR.rotation.x = -.26 * pt; r.kneeR.rotation.x = .5 * pt;
-        r.hips.position.y = r.hipsBaseY - .3 * pt + .1 * thr;
+        var lo = out(Math.min(1, t / .32));
+        var up2 = t > .44 ? out(Math.min(1, (t - .44) / .16)) : 0;
+        r.shoulderR.rotation.x = .7 * lo - 2.9 * up2;
+        r.shoulderR.rotation.z = -.6 * lo + .5 * up2;
+        r.elbowR.rotation.x = -.4 * lo - .3 * up2;
+        r.shoulderL.rotation.x = .4 * lo - 2.2 * up2;
+        r.shoulderL.rotation.z = .7 * lo - .5 * up2;
+        r.elbowL.rotation.x = -.7 * lo - .2 * up2;
+        r.spine.rotation.x = .34 * lo - .74 * up2;
+        r.spine.rotation.y = .3 * lo - .5 * up2;
+        r.neck.rotation.x = .2 * lo - .7 * up2;
+        r.hipL.rotation.x = -.6 * lo + .5 * up2; r.kneeL.rotation.x = 1.0 * lo - .8 * up2;
+        r.hipR.rotation.x = -.4 * lo + .3 * up2; r.kneeR.rotation.x = .8 * lo - .6 * up2;
+        r.hips.position.y = r.hipsBaseY - .6 * lo + .5 * up2;
         return true;
       }
-      case 'o4': {                     // both arms down and open, and held
+      case 'o4': {                     // the arm goes twice, on one beat
         rp(r);
-        var op = out(Math.min(1, t / .6));
-        var sway = Math.sin(t * 2.6) * .05;
-        r.shoulderL.rotation.x = .5 * op;
-        r.shoulderR.rotation.x = .5 * op;
-        r.shoulderL.rotation.z = .95 * op + sway;
-        r.shoulderR.rotation.z = -.95 * op - sway;
-        r.elbowL.rotation.x = -.2 * op; r.elbowR.rotation.x = -.2 * op;
-        r.spine.rotation.x = -.34 * op;
-        r.neck.rotation.x = -.6 * op;
-        r.hipL.rotation.x = -.14 * op; r.kneeL.rotation.x = .24 * op;
-        r.hipR.rotation.x = -.12 * op; r.kneeR.rotation.x = .2 * op;
-        r.hips.position.y = r.hipsBaseY - .1 * op;
+        var w2 = out(Math.min(1, t / .28));
+        var c1 = t > .42 ? out(Math.min(1, (t - .42) / .1)) : 0;
+        var c2 = t > .52 ? out(Math.min(1, (t - .52) / .1)) : 0;
+        r.shoulderR.rotation.x = -1.0 * w2 + 1.4 * c1 - .9 * c2;
+        r.shoulderR.rotation.z = -1.3 * w2 + 2.2 * c1 - 1.6 * c2;
+        r.shoulderR.rotation.y = -.8 * w2 + 1.4 * c1;
+        r.elbowR.rotation.x = -1.2 * w2 + .9 * c1 - .3 * c2;
+        r.shoulderL.rotation.x = -1.2 * w2 + .4 * c1;
+        r.shoulderL.rotation.z = .9 * w2 - .7 * c1 + .4 * c2;
+        r.elbowL.rotation.x = -1.4 * w2 + .8 * c1;
+        r.spine.rotation.y = .9 * w2 - 1.5 * c1 + .9 * c2;
+        r.spine.rotation.x = -.2 * w2 + .4 * c1 - .2 * c2;
+        r.neck.rotation.y = -.34 * w2 + .6 * c1 - .3 * c2;
+        r.hipL.rotation.x = -.5 * w2; r.kneeL.rotation.x = .8 * w2;
+        r.hipR.rotation.x = .34 * w2 - .4 * c1; r.kneeR.rotation.x = .6 * w2;
+        r.hips.position.y = r.hipsBaseY - .4 * w2 + .2 * c1;
+        return true;
+      }
+      case 'or': {                     // the only one he takes his time on
+        rp(r);
+        var gather = out(Math.min(1, t / .55));
+        var held = t > .55 ? Math.min(1, (t - .55) / .4) : 0;
+        var go = t > .95 ? out(Math.min(1, (t - .95) / .18)) : 0;
+        var tremor = Math.sin(t * 24) * .035 * held * (1 - go);
+        r.shoulderR.rotation.x = -.3 - 1.5 * gather + 2.6 * go;
+        r.shoulderR.rotation.z = -1.6 * gather + 2.6 * go + tremor;
+        r.shoulderR.rotation.y = -1.1 * gather + 1.9 * go;
+        r.elbowR.rotation.x = -1.9 * gather + 1.8 * go;
+        r.shoulderL.rotation.x = -1.5 * gather + 1.0 * go;
+        r.shoulderL.rotation.z = 1.0 * gather - .9 * go - tremor;
+        r.elbowL.rotation.x = -1.8 * gather + 1.2 * go;
+        r.spine.rotation.y = 1.1 * gather - 2.1 * go;
+        r.spine.rotation.x = -.3 * gather + .6 * go + tremor;
+        r.neck.rotation.y = -.44 * gather + .8 * go;
+        r.neck.rotation.x = -.2 * gather + .4 * go;
+        r.hipL.rotation.x = -.7 * gather + .5 * go; r.kneeL.rotation.x = 1.05 * gather - .4 * go;
+        r.hipR.rotation.x = .5 * gather - .7 * go; r.kneeR.rotation.x = .75 * gather;
+        r.hips.position.y = r.hipsBaseY - .55 * gather + .28 * go + tremor;
         return true;
       }
     }
@@ -852,9 +698,10 @@
   stepAction = function (a, dt) {
     switch (a.type) {
       case 'o1': return stepKatana(a, dt);
-      case 'o2': return stepBlue(a, dt);
-      case 'o3': return stepArm(a, dt);
-      case 'o4': return stepLove(a, dt);
+      case 'o2': return stepThrust(a, dt);
+      case 'o3': return stepRise(a, dt);
+      case 'o4': return stepCross(a, dt);
+      case 'or': return stepPure(a, dt);
     }
     return _stepAction(a, dt);
   };
@@ -865,8 +712,6 @@
     return _poseAction(r, a);
   };
 
-  /* four keys. R is deliberately not taken: he has no fifth technique,
-     so it is left to whatever the game does with it */
   window.addEventListener('keydown', function (e) {
     if (!started || player.char !== 'yuta' || e.repeat) return;
     if (player.react || (player.action && (player.action.type === 'kb' ||
@@ -876,9 +721,10 @@
     }
     var hit = true;
     if (e.code === 'Digit1') castKatana();
-    else if (e.code === 'Digit2') castBlue();
-    else if (e.code === 'Digit3') castArm();
-    else if (e.code === 'Digit4') castLove();
+    else if (e.code === 'Digit2') castThrust();
+    else if (e.code === 'Digit3') castRise();
+    else if (e.code === 'Digit4') castCross();
+    else if (e.code === 'KeyR') castPure();
     else hit = false;
     if (hit) e.stopImmediatePropagation();
   }, true);
@@ -905,48 +751,72 @@
       });
     },
     o2: function (pos, yaw) {
-      var d = dirOf(yaw), at = pos.clone().addScaledVector(d, BL.out).add(new THREE.Vector3(0, 3, 0));
-      later(350, function () {
-        var orb = FX.billboard(FX.T.star, COLD, .95);
-        orb.position.copy(at);
-        scene.add(orb);
-        var t = 0;
-        addFx({ t: 1e9, update: function (dd) {
-          t += dd;
-          FX.faceCam(orb, t * 2);
-          orb.scale.setScalar(1.4 + Math.min(1, t / .5) * 3 + Math.sin(t * 18) * .3);
-          FX.converge(at.clone(), COLD, 2, BL.radius, .3);
-          if (t > BL.pull) { scene.remove(orb); orb.material.dispose(); return false; }
-          return true;
-        } });
-        FX.rings(at.clone(), COLD, 3, { maxR: BL.radius, life: .6, ground: false, gap: 44 });
-      });
-      later(350 + BL.pull * 1000, function () {
-        FX.impact(at.clone(), COLD2, 5);
-        FX.rings(at.clone(), COLD, 4, { maxR: BL.radius * 1.6, life: .7, ground: false, gap: 34 });
-        FX.rings(new THREE.Vector3(at.x, .12, at.z), COLD, 3, { maxR: BL.radius * 1.7, life: .7, gap: 38 });
-        FX.debris(new THREE.Vector3(at.x, .1, at.z), 14, 16, 0x6a7488);
+      var d = dirOf(yaw);
+      later(460, function () {
+        var at = pos.clone().addScaledVector(d, 3.6).add(new THREE.Vector3(0, 2.6, 0));
+        FX.cutLine(at.clone(), at.clone().addScaledVector(d, THR.spill), CE2, 1.4, .35);
+        FX.cutLine(at.clone(), at.clone().addScaledVector(d, THR.spill * .7), 0xffffff, .7, .28);
+        overspill(at.clone(), d, THR.spill, 5, CE);
+        FX.speedRing(at.clone(), CE2, 11, .26);
       });
     },
     o3: function (pos, yaw) {
-      var d = dirOf(yaw), side = new THREE.Vector3(-d.z, 0, d.x);
-      var from = pos.clone().addScaledVector(d, -2).addScaledVector(side, 3).setY(0);
-      later(360, function () { swingArm(from, d.clone(), true); });
+      var d = dirOf(yaw);
+      later(470, function () {
+        var at = pos.clone().addScaledVector(d, 3).add(new THREE.Vector3(0, 1.4, 0));
+        FX.slash(at.clone(), new THREE.Vector3(0, 1, 0), CE2, 14, .24);
+        FX.cutLine(at.clone().add(new THREE.Vector3(0, -1.4, 0)),
+          at.clone().add(new THREE.Vector3(0, RISE.spill, 0)), CE2, 1.1, .34);
+        overspill(at.clone(), new THREE.Vector3(0, 1, 0), RISE.spill, 9, CE);
+        FX.dust(new THREE.Vector3(at.x, 0, at.z), 8, 0xcfd8e0, 11, 4);
+      });
     },
     o4: function (pos, yaw) {
-      var d = dirOf(yaw), side = new THREE.Vector3(-d.z, 0, d.x);
-      var at = pos.clone().addScaledVector(d, 15).addScaledVector(side, 10).setY(0);
-      FX.cracks(new THREE.Vector3(at.x, .06, at.z), 12, 15, 0x59636e);
-      later(830, function () {
-        FX.rings(new THREE.Vector3(at.x, .12, at.z), CE, 4, { maxR: 20, life: .8, gap: 42 });
-        manifest(at, d.clone(), true, pos.clone().addScaledVector(d, 18));
+      var d = dirOf(yaw), side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      later(450, function () {
+        var at = pos.clone().addScaledVector(d, 3.4).add(new THREE.Vector3(0, 2.6, 0));
+        [1, -1].forEach(function (sg) {
+          var ax = side.clone().multiplyScalar(sg).add(new THREE.Vector3(0, 1, 0)).normalize();
+          FX.slash(at.clone(), ax, sg > 0 ? CE2 : CE, 14, .24);
+          FX.cutLine(at.clone().addScaledVector(ax, -CROSS.spill * .5),
+            at.clone().addScaledVector(ax, CROSS.spill * .5), CE2, 1, .34);
+          overspill(at.clone(), ax, CROSS.spill * .6, 8, CE);
+        });
+        FX.cross(at.clone(), 0xffffff, 8, .22);
+      });
+    },
+    /* the special, which is the one worth drawing properly on somebody
+       else's screen: sixty metres of cut, twenty six wide */
+    or: function (pos, yaw) {
+      var d = dirOf(yaw), side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+      var t = 0;
+      addFx({ t: .95, update: function (dd) {
+        this.t -= dd; t += dd;
+        if (Math.random() < dd * 16) {
+          FX.converge(pos.clone().add(new THREE.Vector3(0, 2.6, 0)), CE, 5, 14, .4);
+        }
+        return this.t > 0;
+      } });
+      later(970, function () {
+        var at = pos.clone().addScaledVector(d, 4).add(new THREE.Vector3(0, 2.8, 0));
+        FX.flash('#ffffff', .7, .3);
+        FX.slash(at.clone(), side, 0xffffff, 30, .34);
+        FX.slash(at.clone().add(new THREE.Vector3(0, -1, 0)), side, CE2, 24, .28);
+        overspill(at.clone(), d, PURE.spill, PURE.wide, CE);
+        overspill(at.clone(), d, PURE.spill * .7, PURE.wide * .5, CE2);
+        for (var i = 0; i < 7; i++) {
+          var k = i / 6 - .5;
+          FX.cutLine(at.clone().addScaledVector(side, k * PURE.wide),
+            at.clone().addScaledVector(side, k * PURE.wide).addScaledVector(d, PURE.spill),
+            i % 2 ? CE2 : 0xffffff, 1.4, .55);
+        }
+        FX.speedRing(at.clone(), CE2, 30, .42);
+        FX.cracks(new THREE.Vector3(pos.x + d.x * 14, .1, pos.z + d.z * 14), 22, 30, 0x59636e);
+        FX.dust(new THREE.Vector3(pos.x + d.x * 10, 0, pos.z + d.z * 10), 16, 0xcfd8e0, 22, 6);
       });
     }
   };
 
   /* the pieces the finishers borrow */
   YT.CE = CE; YT.CE2 = CE2; YT.CE_D = CE_D;
-  YT.COLD = COLD; YT.COLD2 = COLD2;
-  YT.RIKA = RIKA; YT.RIKA_D = RIKA_D; YT.MARK = MARK;
-  YT.MAW = MAW; YT.TOOTH = TOOTH;
 })();

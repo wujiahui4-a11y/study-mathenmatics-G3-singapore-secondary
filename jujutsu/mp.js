@@ -1920,12 +1920,28 @@
          Four, because he has four. The overspill on his cuts is drawn
          here too — it is most of what a Yuta move looks like, and a copy
          without it is a boy waving a stick. */
-      case 'o1': case 'o2': case 'o3': case 'o4':
+      case 'o1': case 'o2': case 'o3': case 'o4': case 'or':
         if (window.JJYUTA && window.JJYUTA.remote &&
             window.JJYUTA.remote[kind]) {
           window.JJYUTA.remote[kind](pos.clone(), yaw);
         }
-        if (close && (kind === 'o4' || kind === 'o3')) addShake(1.5);
+        if (close && kind === 'or') addShake(1.8);
+        else if (close) addShake(1.2);
+        else if (near) addShake(.5);
+        break;
+
+      /* ---------------------------------------------------------- MUTA
+         Every one of his is a thing that gets built and then comes
+         apart, so the copy has to be the whole assembly — a puppet that
+         only half arrives reads as a bug rather than as a puppet. The
+         frame on R follows him, so it wants the packet as well. */
+      case 'k1': case 'k2': case 'k3': case 'k4': case 'kr':
+        if (window.JJMUTA && window.JJMUTA.remote &&
+            window.JJMUTA.remote[kind]) {
+          window.JJMUTA.remote[kind](pos.clone(), yaw, f);
+        }
+        if (close && kind === 'kr') addShake(1.9);
+        else if (close) addShake(1.1);
         else if (near) addShake(.5);
         break;
 
