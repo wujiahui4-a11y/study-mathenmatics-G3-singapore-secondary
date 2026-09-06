@@ -628,6 +628,9 @@
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (typeof m.t === 'string' && m.t.startsWith('td-') && window.JJTODO) {
+      JJTODO.receive(m); return;
+    }
     if (typeof m.t === 'string' && m.t.startsWith('mh-') && window.JJMAHITO) {
       JJMAHITO.receive(m); return;
     }
@@ -694,10 +697,12 @@
          than by the clock alone, so the stage travels with the action.
          A finisher that has taken its caster over travels by name. */
       if (g.action && m.sg != null) g.action.stage = m.sg;
+      if (g.action && m.tc) { g.action.counter = true; g.action.trigger = (m.tc - 1) / 100; }
       if (g.action && m.fk) g.action.fin = m.fk;
       g.e.blocking = !!m.bl;
       g.e.iframes = Number.isFinite(m.iv) ? Math.max(0, m.iv / 100) : 0;
       if (window.JJMAHITO) JJMAHITO.remoteState(g.e.rig, m.mm || 0, m.ma, m.ac, m.bl);
+      if (window.JJTODOVOX && g.char === 'todo') JJTODOVOX.awake(g.e.rig, !!m.ta);
       if (g.action && m.pf) { g.action.sprung = true; g.action.sprungAt = m.pf / 100; }
       if (g.action && m.ac === 'dash') {
         g.action.kind = m.dk || 'fwd';
@@ -1414,6 +1419,7 @@
          rather than timed, and the name of a finisher that has taken him
          over so the other screens can pose it too */
       sg: (player.action && player.action.stage != null) ? player.action.stage : null,
+      tc: player.char === 'todo' && player.action && player.action.counter ? Math.round(player.action.trigger * 100) + 1 : 0,
       fk: (player.action && player.action.fin) ? player.action.fin : 0,
       /* one spare number for a pose that needs a moment as well as a
          clock — Hakari's guard needs to know when it sprung */
@@ -1429,6 +1435,7 @@
       hf: (window.JJHAKARI && window.JJHAKARI.fever > 0 && player.char === 'hakari') ? 1 : 0,
       mm: player.char === 'mahito' ? JJMAHITO.mode : 0,
       ma: player.char === 'mahito' && JJMAHITO.active ? 1 : 0,
+      ta: player.char === 'todo' && player.rig.td && player.rig.td.awake ? 1 : 0,
       iv: Math.round(Math.max(0, player.iframes || 0) * 100),
       bl: player.blocking ? 1 : 0
     });
@@ -1442,6 +1449,9 @@
   function remoteFx(kind, pos, yaw, f) {
     var FX = window.JJFX;
     if (!FX) return;
+    if (window.JJTODO && JJTODO.remote[kind]) {
+      JJTODO.remote[kind](pos.clone(), yaw, f); return;
+    }
     if (window.JJMAHITO && JJMAHITO.remote[kind]) {
       JJMAHITO.remote[kind](pos.clone(), yaw, f); return;
     }
