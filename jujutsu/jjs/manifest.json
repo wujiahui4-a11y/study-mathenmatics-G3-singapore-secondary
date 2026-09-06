@@ -1,0 +1,31 @@
+{
+  "source": "Jujutsu Shenanigans.rbxl",
+  "sourcePartCount": 15499,
+  "importedParts": 13499,
+  "excludedPool": 2000,
+  "scale": 1,
+  "origin": [
+    0,
+    20.309,
+    0
+  ],
+  "bounds": {
+    "min": [
+      -350.8449363708496,
+      -92.8970594406128,
+      -349.4092102050781
+    ],
+    "max": [
+      351.7849998474121,
+      184.62167407886514,
+      627.8426055908203
+    ]
+  },
+  "decals": 128,
+  "surfaceGuis": 17,
+  "spawns": 9,
+  "assetCount": 100,
+  "visualExport": "jjsmap.obj",
+  "triangles": 171667,
+  "customMeshTriangles": 9999
+}

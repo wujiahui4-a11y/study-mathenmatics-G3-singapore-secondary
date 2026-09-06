@@ -1828,28 +1828,22 @@ rings where one happened.
 
 ## The stage
 
-There is one, and it is a **white baseplate with a square grid on it**.
+Choose **THE BASEPLATE** or **JJS** in the title screen's training map selector
+or the online lobby. The baseplate remains the inexpensive white grid arena.
+JJS imports the user's Roblox Studio map at one stud per game unit, including
+its buildings, roads, interiors, rooftops, underground areas, original custom
+mesh and exported textures. The online room creator chooses the map for guests.
 
-There used to be four maps — a city, a crossing, a school and a train yard —
-and between them a few hundred textured buildings with roofs, plinths, lamps,
-kerbs, rails and crates, all casting shadows across a 176-unit arena. On a
-machine that already has to draw six fighters, a domain and a few thousand
-effect billboards, that was most of the frame budget and none of the fight.
+The JJS property snapshot preserves the original transforms and collision flags;
+the actual OBJ/MTL export supplies its visible surfaces. Compatible materials
+are batched into 90 groups, and all 100 unique texture images are embedded.
+The floor, ceiling, wall and camera collision systems account for multiple
+elevations. All nine original spawn locations are retained. Switching maps
+disposes the previous stage's resources and restores the corresponding lighting.
 
-So all of it is gone. What is left is one plane with a repeating grid tile, a
-pair of heavier lines through the middle so the centre reads, a low lip round
-the edge so you can see where the plate stops, and the dummies. Nothing casts
-a shadow nobody looks at and nothing stands between you and what you are
-hitting. The shadow camera came down with it — 70 units and a 1024 map instead
-of 110 and 2048, because there is nothing tall left to cast.
-
-Measured on the same software renderer the tests run under: **5 fps on the
-city, 21 on the plate**, with zero buildings, zero crates and about three
-thousand triangles in the whole scene.
-
-`JJMAP` keeps its shape — `load`, `spawn`, `nameOf`, `list` — so the lobby and
-`mp.js` are unchanged; the list simply has one thing in it, and `load` clears
-anything an older room left behind before it builds.
+See [the JJS import notes](jjs/README.md) for the source files, build commands,
+validation and the distinction between the imported static map and Roblox's
+original scripts and renderer.
 
 ## Spawn cutscene
 
@@ -2086,7 +2080,7 @@ disk.
 | `fever.js` | what the jackpot buys: Hakari's four fever moves, the hole-punching first person, and the aura |
 | `garden.js` | Megumi awakened: Totality, the Chimera, the Toad, the two merges and the Chimera Shadow Garden |
 | `finisher.js` | one short finisher per skill, and the health lock they run under |
-| `maps.js` | the stage: one white baseplate with a grid on it |
+| `maps.js` | baseplate/JJS selection, lighting, spawning and stage lifecycle |
 | `mp.js` | the online mode, appended inside the game's module |
 | `three.module.min.js` | vendored three.js 0.160.0 |
 | `mqtt.min.js` | vendored MQTT client |

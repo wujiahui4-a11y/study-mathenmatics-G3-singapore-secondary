@@ -1003,6 +1003,7 @@ const sfx = {
 
 /* ---------------- collision ---------------- */
 function collideWorld(pos, radius) {
+  if (window.JJMAP && JJMAP.id === 'jjs') return JJMAP.collide(pos, radius);
   pos.x = Math.max(-ARENA, Math.min(ARENA, pos.x));
   pos.z = Math.max(-ARENA, Math.min(ARENA, pos.z));
   for (const b of buildingAABBs) {
@@ -1426,11 +1427,10 @@ class Enemy {
       return;
     }
 
+    const previousY = this.pos.y;
     this.vel.y -= 30 * dt;
     this.pos.addScaledVector(this.vel, dt);
-    if (this.pos.y <= 0) {
-      this.pos.y = 0;
-      this.vel.y = 0;
+    if (resolveActorWorld(this, previousY, 1)) {
       if (this.flung) {
         this.flung = false;
         this.stunT = Math.max(this.stunT, .6);
@@ -1440,7 +1440,6 @@ class Enemy {
       this.vel.x *= Math.pow(.001, dt);
       this.vel.z *= Math.pow(.001, dt);
     }
-    collideWorld(this.pos, 1);
 
     if (this.flung) {
       /* tumbling ragdoll with flailing limbs */
@@ -1656,7 +1655,10 @@ function updateCamera(dt) {
   const off = fwd.clone().multiplyScalar(-dist);
   off.y = height + Math.sin(camPitch) * 7;
   const desired = target.clone().add(off);
-  desired.y = Math.max(1, desired.y);
+  if (window.JJMAP && JJMAP.id === 'jjs') {
+    const fraction = JJJJS.ray(target, desired, .28);
+    desired.lerpVectors(target, desired.clone(), fraction);
+  } else desired.y = Math.max(1, desired.y);
   camera.position.copy(desired);
   if (shakeMag > 0) {
     camera.position.add(new THREE.Vector3(
@@ -1690,7 +1692,8 @@ function holdTargetInFront(tgt, distF) {
   const f = facingVec();
   tgt.lockT = .15;
   tgt.pos.copy(player.pos).addScaledVector(f, distF);
-  tgt.pos.y = 0;
+  const support = worldFloor(tgt.pos, player.pos.y + 1.2);
+  tgt.pos.y = Number.isFinite(support) ? support : player.pos.y;
   tgt.facing = Math.atan2(-f.x, -f.z);
   return f;
 }
@@ -2852,6 +2855,34 @@ addEventListener("mousedown", e => {
 
 /* ---------------- player update ---------------- */
 const WALK_SPEED = 7.2, RUN_SPEED = 13.5;
+function worldFloor(pos, limit) {
+  return window.JJMAP ? JJMAP.floor(pos, limit) : 0;
+}
+function resolveActorWorld(actor, previousY, radius) {
+  const jjs = window.JJMAP && JJMAP.id === 'jjs';
+  if (jjs && actor.onGround) {
+    // Sweep at torso height before resolving overlap, so a dash cannot pass
+    // through a thin wall between two animation frames.
+    const last = actor.__jjsLast;
+    if (last && Math.hypot(actor.pos.x-last.x,actor.pos.z-last.z)>radius) {
+      const from=last.clone().add(new THREE.Vector3(0,2.5,0)),to=actor.pos.clone().add(new THREE.Vector3(0,2.5,0));
+      const fraction=JJJJS.ray(from,to,radius*.8);
+      if(fraction<.999){actor.pos.x=lerp(last.x,actor.pos.x,fraction);actor.pos.z=lerp(last.z,actor.pos.z,fraction);}
+    }
+  }
+  collideWorld(actor.pos, radius);
+  const limit=Math.max(previousY,actor.pos.y)+(jjs&&actor.onGround?JJJJS.STEP:.025);
+  const floor=worldFloor(actor.pos,limit);
+  let landed=actor.vel.y<=0&&actor.pos.y<=floor+.025;
+  if(landed){actor.pos.y=floor;actor.vel.y=0;actor.onGround=true;}
+  else actor.onGround=false;
+  if(jjs){
+    if(actor.vel.y>0){const ceiling=JJMAP.ceiling(actor.pos,previousY+JJJJS.HEIGHT-.025);if(actor.pos.y+JJJJS.HEIGHT>ceiling){actor.pos.y=ceiling-JJJJS.HEIGHT;actor.vel.y=0;}}
+    if(actor.pos.y<JJMAP.killY){const sp=JJMAP.spawn();actor.pos.set(sp.x,sp.y,sp.z);actor.vel.set(0,0,0);actor.onGround=true;landed=true;}
+    actor.__jjsLast=actor.pos.clone();
+  }else actor.__jjsLast=null;
+  return landed;
+}
 function updatePlayer(dt) {
   const p = player;
   const r = p.rig;
@@ -2860,7 +2891,8 @@ function updatePlayer(dt) {
     r.body.rotation.x = Math.min(r.body.rotation.x + dt * 4, Math.PI / 2);
     if (p.deathT <= 0) {
       p.dead = false; p.hp = p.maxHp;
-      p.pos.set(0, 0, 20); p.vel.set(0, 0, 0);
+      const sp=window.JJMAP&&JJMAP.id==='jjs'?JJMAP.spawn():{x:0,y:0,z:20};
+      p.pos.set(sp.x, sp.y || 0, sp.z); p.vel.set(0, 0, 0);p.__jjsLast=null;
       r.body.rotation.x = 0;
       p.iframes = 2;
       p.proj = 0;
@@ -2925,10 +2957,10 @@ function updatePlayer(dt) {
     p.onGround = false;
     sfx.whoosh();
   }
+  const previousY = p.pos.y;
   p.vel.y -= 34 * dt;
   p.pos.addScaledVector(p.vel, dt);
-  if (p.pos.y <= 0) { p.pos.y = 0; p.vel.y = 0; p.onGround = true; }
-  collideWorld(p.pos, 1);
+  resolveActorWorld(p, previousY, 1);
 
   if (running && p.onGround && Math.hypot(p.vel.x, p.vel.z) > RUN_SPEED * .7) {
     p.ghostAcc += dt;

@@ -147,7 +147,7 @@
     active: false, code: null, id: uid(), name: '',
     relay: null, fighters: {},        // id -> { id, name, char, e (Enemy), tx, tz, tyaw, ... }
     sendAcc: 0, kills: 0, deaths: 0, joined: false,
-    map: 'plate', host: false
+    map: (window.JJMAP ? JJMAP.id : 'plate'), host: false
   };
 
   function el(id) { return document.getElementById(id); }
@@ -489,10 +489,9 @@
       if (MP.relay) MP.relay.pub(hello('map'));
       return;
     }
-    MP.map = id;
-    if (window.JJMAP) window.JJMAP.load(id);
+    MP.map = window.JJMAP ? JJMAP.load(id) : id;
     var now = el('jjMapNow');
-    if (now) now.textContent = mapName(id);
+    if (now) now.textContent = mapName(MP.map);
   }
 
   function hello(kind) {
@@ -586,7 +585,7 @@
     player.hp = player.maxHp; player.dead = false; player.proj = 0;
     applyMap(MP.map, false);
     var sp = (window.JJMAP && window.JJMAP.spawn) ? window.JJMAP.spawn() : { x: (Math.random() - .5) * 30, z: (Math.random() - .5) * 30 };
-    player.pos.set(sp.x, 0, sp.z);
+    player.pos.set(sp.x, sp.y || 0, sp.z);player.__jjsLast=null;
     collideWorld(player.pos, 1.2);
     el('jjScore').style.display = 'block';
     updateScore();
@@ -1066,7 +1065,8 @@
     var pose = gate === 0 || CS.framed >= gate;
     if (pose) CS.framed = 0;
 
-    player.pos.y = 0;
+    var support=worldFloor(player.pos,player.pos.y+1.2);
+    if(Number.isFinite(support))player.pos.y=support;
     player.vel.set(0, 0, 0);
     player.iframes = Math.max(player.iframes, 1);
 

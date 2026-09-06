@@ -358,13 +358,15 @@
     FX.slash(at.clone(),sideOf(d),LIGHT,size*2,.18);
     FX.slash(at.clone(),V(0,1,0),INK,size*1.5,.16);
     FX.cross(at.clone(),GREEN,size*2,.22);
-    FX.cracks(V(at.x,.05,at.z),5,size*2,WOOD);
+    var floor=typeof worldFloor==='function'?worldFloor(at,at.y+1.2):0;
+    FX.cracks(V(at.x,(Number.isFinite(floor)?floor:at.y)+.05,at.z),5,size*2,WOOD);
     addShake(.65); if(typeof hitstop==='function')hitstop(.055);
   }
   function rootsWave(from,d,t,owner) {
     for(var j=0;j<2;j++) {
       var at=from.clone().addScaledVector(d,4+t*4.4).addScaledVector(sideOf(d),(j?1:-1)*(1.3+t*.32));
-      at.y=0;root(at,d,4.2+t*.62,.55+t*.09,.95,owner);
+      var floor=typeof worldFloor==='function'?worldFloor(at,from.y+1.2):0;
+      at.y=Number.isFinite(floor)?floor:from.y;root(at,d,4.2+t*.62,.55+t*.09,.95,owner);
     }
   }
   function bud(from,d,life,owner) {
@@ -386,7 +388,7 @@
     var wood=material(WOOD),light=material(0x9c9671);
     curveMesh(g,[[-5,.1,2],[-4,1.2,4],[0,2,7],[5,3.8,5]],.86,.035,wood,32);
     for(var j=0;j<7;j++)curveMesh(g,[[-4+j*1.3,1.7,4],[-3.5+j*1.3,3.4,5],[-3.8+j*1.4,5.5,5.6]],.25,.01,light,12);
-    effect(g,.75,function(t){g.scale.setScalar(.3+.7*smooth(t/.16));g.rotation.y=Math.atan2(d.x,d.z)-.8+t*1.8;g.position.y=-.25+Math.sin(t/.75*Math.PI)*.7;},owner);
+    effect(g,.75,function(t){g.scale.setScalar(.3+.7*smooth(t/.16));g.rotation.y=Math.atan2(d.x,d.z)-.8+t*1.8;g.position.y=from.y-.25+Math.sin(t/.75*Math.PI)*.7;},owner);
     petals(from.clone().addScaledVector(d,5).add(V(0,2,0)),20,GREEN,5,.8,owner);
     FX.slash(from.clone().addScaledVector(d,4).add(V(0,2.6,0)),V(0,1,0),LIGHT,13,.26);
   }
