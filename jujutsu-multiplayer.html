@@ -18163,32 +18163,34 @@ window.__game = {
     );
   }
   function impact(pos, black, owner) {
-    var g = new THREE.Group();
-    g.position.copy(pos);
-    for (var i = 0; i < 12; i++) {
-      var a = (i / 12) * Math.PI * 2,
-        rad = 1.2 + (i % 3) * 0.7;
-      var s = VOX.sculpt(g, 'Angular impact shard', 0.12);
-      s.stroke(
-        [
-          [0, 0, 0],
-          [Math.cos(a) * rad, Math.sin(a) * rad, ((i % 3) - 1) * 0.25],
-          [Math.cos(a) * rad * 1.8, Math.sin(a) * rad * 1.8, ((i % 3) - 1) * 0.4]
-        ],
-        0.12,
-        black ? (i % 2 ? 0x130b16 : 0xe34359) : C.soul
+    if (black) {
+      var g = new THREE.Group();
+      g.position.copy(pos);
+      for (var i = 0; i < 12; i++) {
+        var a = (i / 12) * Math.PI * 2,
+          rad = 1.2 + (i % 3) * 0.7;
+        var s = VOX.sculpt(g, 'Angular impact shard', 0.12);
+        s.stroke(
+          [
+            [0, 0, 0],
+            [Math.cos(a) * rad, Math.sin(a) * rad, ((i % 3) - 1) * 0.25],
+            [Math.cos(a) * rad * 1.8, Math.sin(a) * rad * 1.8, ((i % 3) - 1) * 0.4]
+          ],
+          0.12,
+          i % 2 ? 0x130b16 : 0xe34359
+        );
+        s.bake();
+      }
+      effect(
+        g,
+        0.36,
+        (t) => {
+          g.scale.setScalar(0.4 + t * 4);
+          g.rotation.z = t * 0.4;
+        },
+        owner
       );
-      s.bake();
     }
-    effect(
-      g,
-      0.36,
-      (t) => {
-        g.scale.setScalar(0.4 + t * 4);
-        g.rotation.z = t * 0.4;
-      },
-      owner
-    );
     FX.slash(pos, V(0, 1, 0), black ? 0xee2948 : C.soul, black ? 10 : 5, 0.2);
     if (owner !== false) {
       addShake(black ? 0.65 : 0.18);
