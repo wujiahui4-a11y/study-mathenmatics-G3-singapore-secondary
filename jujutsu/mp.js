@@ -957,6 +957,14 @@
      Skippable with any key or click.
      ===================================================================== */
   var CUT = {
+    hanami: {
+      glow: '#91cf62', aura: 0x91cf62,
+      name: 'HANAMI', sub: 'DISASTER CURSE — NATURE',
+      lines: [
+        { t: 0.45, s: 'The roots remember.' },
+        { t: 2.60, s: 'Return to the earth.' }
+      ]
+    },
     gojo: {
       glow: '#3a7dff', aura: 0x3a7dff,
       name: 'GOJO SATORU', sub: 'THE HONORED ONE',
@@ -1958,6 +1966,14 @@
         if (close && kind === 'rr') addShake(2);
         else if (close) addShake(1.1);
         else if (near) addShake(.5);
+        break;
+
+      /* Hanami replays the same growth timeline and geometry on every
+         screen. Damage is delivered only by the separate hit packet. */
+      case 'hn1': case 'hn2': case 'hn3': case 'hn4': case 'hnr':
+        if (window.JJHANAMI && window.JJHANAMI.remote[kind]) {
+          window.JJHANAMI.remote[kind](pos.clone(), yaw, f);
+        }
         break;
 
       /* -------------------------------------------------------- NANAMI

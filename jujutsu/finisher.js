@@ -152,6 +152,21 @@
      ================================================================== */
   var CUT = {
 
+    /* Hanami's four normal techniques each end in their own execution.
+       R is a defensive field and deliberately does not arm a finisher. */
+    hn1: { name: 'FOREST COFFIN', color: '#91cf62', hold: 1.85, run: function (e, d, p, G) {
+      window.JJHANAMI.finisher('hn1', e, d, p, G, mine());
+    } },
+    hn2: { name: 'PARASITIC BLOOM', color: '#d76b89', hold: 1.65, run: function (e, d, p, G) {
+      window.JJHANAMI.finisher('hn2', e, d, p, G, mine());
+    } },
+    hn3: { name: 'RETURN TO EARTH', color: '#b6b29c', hold: 1.8, run: function (e, d, p, G) {
+      window.JJHANAMI.finisher('hn3', e, d, p, G, mine());
+    } },
+    hn4: { name: 'LAST FLOWERING', color: '#e4f5ad', hold: 2.15, run: function (e, d, p, G) {
+      window.JJHANAMI.finisher('hn4', e, d, p, G, mine());
+    } },
+
     /* ---------------------------------------------------------- GOJO */
     /* 1 · Reversal: Red — repulsion has nowhere to put them but outward */
     red: { name: 'BLOWN APART', color: '#ff3b4d', hold: .55, run: function (e, d, p, G) {
@@ -5095,7 +5110,8 @@
     o1: 'sever', o2: 'sever', o3: 'sever', o4: 'dice', or: 'gone',
     k1: 'sever', k2: 'flat', k3: 'gone', k4: 'burn', kr: 'dice',
     r1: 'gone', r2: 'burn', r3: 'dice', r4: 'flat', rr: 'gone',
-    w1: 'sever', w2: 'flat', w3: 'dice', w4: 'sever', wr: 'sever'
+    w1: 'sever', w2: 'flat', w3: 'dice', w4: 'sever', wr: 'sever',
+    hn1: 'ragdoll', hn2: 'ragdoll', hn3: 'flat', hn4: 'ragdoll'
   };
 
   /* =====================================================================
@@ -5355,7 +5371,10 @@
     return true;
   } });
 
-  function skillNow() {
+  function skillNow(opts) {
+    // Projectiles can overlap another cast. An explicit source belongs to
+    // the hit, even after the actor has moved on to a different action.
+    if (opts && opts.finSkill != null) return CUT[opts.finSkill] ? opts.finSkill : null;
     var a = player.action;
     if (a && a.type && CUT[a.type] && !NOT_A_SKILL[a.type]) return a.type;
     if (lastSkill && nowS() - lastAt < 2.2) return lastSkill;
@@ -5389,7 +5408,7 @@
     /* the hit has to be the one that finishes them, and it has to be a
        skill that threw it */
     if (e.hp - amount > 0) return false;
-    return !!skillNow();
+    return !!skillNow(opts);
   }
 
   /* patched on the first frame rather than at load, so it sits on top of
@@ -5401,7 +5420,7 @@
     var _dmg = Enemy.prototype.damage;
     Enemy.prototype.damage = function (amount, knock, opts) {
       if (!armed(this, amount, opts)) return _dmg.call(this, amount, knock, opts);
-      var e = this, skill = skillNow();
+      var e = this, skill = skillNow(opts);
       var dir = knock ? flat(knock) : flat(e.pos.clone().sub(player.pos));
       /* leave them on one health: the finisher needs somebody to play on */
       _dmg.call(this, Math.max(0, this.hp - 1), knock, opts);

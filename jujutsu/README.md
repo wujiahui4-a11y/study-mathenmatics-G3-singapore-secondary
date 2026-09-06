@@ -8,9 +8,9 @@ meter and glass frames.
 
 ## Playing
 
-Title screen → **PLAY ONLINE WITH FRIENDS**. Thirteen fighters: Gojo,
+Title screen → **PLAY ONLINE WITH FRIENDS**. Fourteen fighters: Gojo,
 Naoya, Yuji, Hakari, Choso, Megumi, Mahito, Todo, Higuruma, Yuta, Muta,
-Ryu and Nanami.
+Ryu, Nanami and Hanami.
 
 * **Create a room** gives you a six character code.
 * Everyone else types that code and joins.
@@ -26,7 +26,7 @@ back in combat and starts the eight seconds again, and pressing `C` a second
 time cancels. You cannot switch at all while awakened.
 
 **The roster panel folds up.** At a dozen fighters the list was taller than
-the screen, so it collapses to a single header — `▸ FIGHTERS 13` — and
+the screen, so it collapses to a single header — `▸ FIGHTERS 14` — and
 clicking it opens a scrolling body 46 % of the viewport high, with the
 fighter you are currently playing scrolled into view. The toggle is wired
 once at load rather than inside `buildCharList`, because every character
@@ -1235,6 +1235,63 @@ at the edges of the chest where they belong.
 | **ON ITS WAY BACK** | out through them, back through them, out again — and then he catches it and does it once more by hand |
 | **PAST SIX O'CLOCK** | it is raised, held, and it is not working hours any more |
 
+## Hanami
+
+Select **HANAMI** from the title roster or fighter panel. The existing basic
+punch, dash, hit reactions and eight-second character switch still apply.
+The four numbered techniques each have a different lethal-hit finisher.
+`R` is a separate defensive special, not an awakening or fifth finisher.
+
+- `1` **Root Uprising** — five successive pairs of branching roots break
+  through a forward lane. Each target takes 34 damage once; 8-second cooldown.
+  **Forest Coffin** is the finisher: a cage closes, then roots lift the target.
+- `2` **Cursed Buds** — three thorned seed projectiles, 10 damage each and a
+  10-second cooldown. Swept collision includes bodies overlapping the muzzle
+  and completes all three flights to maximum range. **Parasitic Bloom** grows
+  flowers around the target before the roots burst outward.
+- `3` **Branch Breaker** — a broad, thorned branch sweeps across the front and
+  launches its targets for 32 damage; 10-second cooldown. **Return to Earth**
+  raises a large root and ends with a stomp and crushing impact.
+- `4` **Solar Bloom** — the shoulder covering retracts, the flower opens and
+  fires a narrow lane of serrated energy ribbons inside a twisting vine cage.
+  Deals 38 damage; 15-second cooldown. **Last Flowering** expands a large
+  blossom around the target before the final discharge.
+- `R` **Flower Field** — a 10-unit garden blooms for 4.1 seconds. Its opening
+  pulse deals 10 damage and staggers nearby targets. Hanami takes 35% less
+  incoming damage while inside it; 21-second cooldown. The protection ends on
+  expiry, death or character change. It never starts a finisher.
+
+The move names and timings are this game's adaptation. The character design
+uses the supplied reference; the forest theme is also described in the
+[official Cursed Clash character profile](https://jj-senkasouran.bn-ent.net/character/hanami.html).
+The model is built entirely from voxels on a 0.08-unit grid: a square bone
+mask, stepped branching horns, pixel bark markings, layered block cloth,
+square trousers, individual block claws and an articulated voxel shoulder
+flower. Internal faces are removed and colored voxels are baked into one mesh
+per joint or accessory. It shares the game's skeleton so normal
+movement, punches, ragdolls and remote poses work with the new geometry.
+
+All five skills and all four finisher performances have authored joint poses
+with anticipation, contact and recovery. Each finisher uses a distinct named
+pose, which travels through the existing `hafin` network format. Remote skills
+replay the same visual timeline without applying damage. Normal hits explicitly
+name their source skill so a delayed projectile cannot select another move's
+finisher. Flower Field uses instanced geometry for its 112 blossoms, and airborne
+petals are instanced too. Every Hanami effect has a bounded lifetime and disposes
+its geometry and materials when finished.
+
+Implementation lives in `hanami.js`; the finisher entries and network dispatch
+live in `finisher.js` and `mp.js`. Both the single-file and split HTML outputs
+are rebuilt with `node tools/build-jujutsu.js`.
+
+For browser integration checks, install Playwright and Chrome, then run
+`node tools/test-hanami.cjs`. `PLAYWRIGHT_MODULE` can point to an existing
+Playwright installation, and `HANAMI_BROWSER` can select another Chromium
+executable. Tests exercise real keyboard casts, damage, cooldowns, point-blank
+and out-of-range hits, four lethal finishers, defensive behavior, interruption,
+cleanup, two-browser packet replay and both generated entry points. Test hooks
+exist only in the test server's response and are not shipped in the game.
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
@@ -2022,6 +2079,7 @@ disk.
 | `muta.js` | Muta: everything he fights with is built on the spot and scrapped after |
 | `ryu.js` | Ryu: five ways of letting an enormous amount of it out, all fired from his hair |
 | `nanami.js` | Nanami: the seven-to-three line, drawn before every swing, and a weapon with no edge |
+| `hanami.js` | Hanami: the bone and bark rig, four plant techniques, Flower Field, and shared finisher visuals |
 | `void.js` | Unlimited Void: the hand sign, the barrier and everything inside it |
 | `sukuna.js` | Sukuna: the face, the net, the arrow and the shrine |
 | `gamble.js` | Idle Death Gamble: the six-beat opening, the Richii scenes, the four rolls and the payout |
