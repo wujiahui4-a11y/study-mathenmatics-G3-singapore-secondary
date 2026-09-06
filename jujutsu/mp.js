@@ -324,82 +324,19 @@
     el('jjPopBtn').addEventListener('click', popOut);
     el('jjPopBtn2').addEventListener('click', popOut);
 
-    /* The game drops back to its title screen whenever pointer lock is lost.
-       During a match that reads as "you left the room", so it is kept shut and
-       a small card hands the mouse back instead. */
-    el('jjLook').addEventListener('mousedown', function (e) {
-      e.preventDefault();
-      e.stopPropagation();                       // do not throw a punch while re-locking
-      grabMouse();
-    });
-    document.addEventListener('pointerlockchange', lookWatch);
-    document.addEventListener('pointerlockerror', function () {
-      /* Google Apps Script frames the page with a sandbox that has no
-         allow-pointer-lock, so the lock can never be granted there. Rather
-         than leave the player unable to turn, switch to drag-look. */
-      MP.lockBlocked = true;
-      lookWatch();
-    });
-    bindDragLook();
+    // Training and online matches share one cursor controller. An intentional
+    // unlock must never put a click-to-lock overlay over a live match.
+    window.addEventListener('jjshiftchange', lookWatch);
     setInterval(lookWatch, 200);
   }
 
-  function grabMouse() {
-    var cv = renderer.domElement;
-    if (!cv || !cv.requestPointerLock) { MP.lockBlocked = true; lookWatch(); return; }
-    var pr = null;
-    try { pr = cv.requestPointerLock({ unadjustedMovement: true }); }
-    catch (e) { MP.lockBlocked = true; lookWatch(); return; }
-    if (pr && pr.catch) {
-      pr.catch(function () {
-        var p2;
-        try { p2 = cv.requestPointerLock(); } catch (e2) { MP.lockBlocked = true; lookWatch(); return; }
-        if (p2 && p2.catch) p2.catch(function () { MP.lockBlocked = true; lookWatch(); });
-      });
-    }
-  }
-
   function lookWatch() {
-    if (!MP.active) { document.body.classList.remove('jjLocked'); return; }
-    var m = el('menu');
-    if (m && m.style.display !== 'none') m.style.display = 'none';
-    var isLocked = document.pointerLockElement === renderer.domElement;
-    document.body.classList.toggle('jjLocked', isLocked || MP.dragging);
-    /* three states: locked and playing, able to lock but loose, or a page
-       that will never grant it — the last one gets drag-look */
-    el('jjLook').style.display = (isLocked || MP.lockBlocked) ? 'none' : 'flex';
-    var showDrag = !isLocked && MP.lockBlocked && !MP.dragging;
-    el('jjDragHint').style.display = showDrag ? 'block' : 'none';
-    el('jjPopBtn2').style.display = (showDrag && window.top !== window.self) ? 'block' : 'none';
-  }
-
-  /* Hold the right button and move: the same relative movement drives the
-     camera, and letting go and re-gripping works like lifting a mouse. */
-  function bindDragLook() {
-    var canLook = function () {
-      return MP.active && document.pointerLockElement !== renderer.domElement;
-    };
-    window.addEventListener('mousedown', function (e) {
-      if (!canLook() || (e.button !== 2 && e.button !== 1)) return;
-      MP.dragging = true;
-      document.body.classList.add('jjLocked');
-      el('jjDragHint').style.display = 'none';
-      e.preventDefault(); e.stopImmediatePropagation();
-    }, true);
-    window.addEventListener('mouseup', function (e) {
-      if (!MP.dragging || (e.button !== 2 && e.button !== 1)) return;
-      MP.dragging = false;
-      document.body.classList.remove('jjLocked');
-      lookWatch();
-      e.preventDefault(); e.stopImmediatePropagation();
-    }, true);
-    window.addEventListener('mousemove', function (e) {
-      if (!MP.dragging || !canLook()) return;
-      camYaw -= (e.movementX || 0) * .0032;
-      camPitch = Math.max(-.5, Math.min(1.1, camPitch + (e.movementY || 0) * .0026));
-      e.preventDefault(); e.stopImmediatePropagation();
-    }, true);
-    window.addEventListener('contextmenu', function (e) { if (MP.active) e.preventDefault(); });
+    MP.lockBlocked = JJSHIFT.blocked;
+    MP.dragging = JJSHIFT.dragging;
+    el('jjLook').style.display = 'none';
+    el('jjDragHint').style.display = 'none';
+    var showPop = gameInputActive() && JJSHIFT.blocked && !JJSHIFT.dragging && window.top !== window.self;
+    el('jjPopBtn2').style.display = showPop ? 'block' : 'none';
   }
 
   /* Google's frame URL renders nothing on its own, so the new window is
@@ -440,12 +377,13 @@
   }
   function openLobby() {
     el('jjLobby').style.display = 'flex';
+    clearMovement(); JJSHIFT.unlock();
     el('jjJoinBox').style.display = '';
     el('jjRoomBox').style.display = 'none';
     status('');
     try { el('jjName').value = localStorage.getItem('jj_name') || ''; } catch (e) {}
   }
-  function closeLobby() { el('jjLobby').style.display = 'none'; }
+  function closeLobby() { el('jjLobby').style.display = 'none'; JJSHIFT.refresh(); }
 
   function myName() {
     var v = (el('jjName').value || '').trim().toUpperCase().slice(0, 10);
@@ -591,8 +529,8 @@
     updateScore();
     feed('You entered room ' + MP.code + ' — ' + mapName(MP.map));
     if (window.__game && !window.__game.started) window.__game.start();
-    var cv = renderer.domElement;
-    if (cv && cv.requestPointerLock) { try { cv.requestPointerLock(); } catch (e) {} }
+    menu.style.display = 'none';
+    JJSHIFT.refresh();
     MP.relay.pub(hello('hi'));
     if (MP.host) MP.relay.pub(hello('map'));
     setTag(player.rig, MP.name, player.char);

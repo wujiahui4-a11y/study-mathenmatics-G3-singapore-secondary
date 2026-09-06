@@ -24,7 +24,16 @@
     margin: -3px 0 0 -3px; border-radius: 50%;
     background: rgba(255,255,255,.9); box-shadow: 0 0 6px rgba(120,200,255,.9);
     pointer-events: none; z-index: 5;
+    display: none;
   }
+  body.jjLocked, body.jjLocked * { cursor: none !important; }
+  #jjMouseControls { position: fixed; right: 18px; bottom: 110px; z-index: 25;
+    display: none; max-width: min(310px, calc(100vw - 36px)); text-align: right; color: var(--paper); }
+  #jjMouseControls button { padding: 9px 12px; border: 1px solid rgba(212,180,90,.5);
+    background: rgba(8,7,10,.88); color: var(--paper); font: 600 12px 'Barlow', sans-serif; cursor: pointer; }
+  #jjMouseControls button:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 3px; }
+  #jjShiftLock[aria-pressed="true"] { color: var(--gold-hi); border-color: var(--gold-hi); }
+  #jjMouseHint { margin-top: 6px; font-size: 12px; text-shadow: 0 1px 4px #000; pointer-events: none; }
   #shatterCv {
     position: fixed; inset: 0; width: 100%; height: 100%;
     pointer-events: none; z-index: 9;
@@ -357,6 +366,11 @@
 </head>
 <body>
 <div id="crosshair"></div>
+<div id="jjMouseControls">
+  <button id="jjShiftLock" type="button" aria-pressed="false" aria-keyshortcuts="Shift">SHIFT LOCK: OFF</button>
+  <button id="jjPause" type="button">ESC · MENU</button>
+  <div id="jjMouseHint" role="status" aria-live="polite"></div>
+</div>
 <div id="vignette"></div>
 <canvas id="shatterCv"></canvas>
 <div id="splash"><div class="big"></div><div class="small"></div></div>
@@ -400,7 +414,9 @@
     <div class="controls">
       <div class="ctrl-universal">
         <span class="kchip"><b>WASD</b> walk</span>
-        <span class="kchip"><b>SHIFT</b> run</span>
+        <span class="kchip"><b>SHIFT</b> toggle mouse lock</span>
+        <span class="kchip"><b>W W</b> sprint (hold W)</span>
+        <span class="kchip"><b>RIGHT MOUSE</b> hold to look when unlocked</span>
         <span class="kchip"><b>Q</b> dash</span>
         <span class="kchip"><b>SPACE</b> jump</span>
         <span class="kchip"><b>C</b> switch</span>
@@ -1676,6 +1692,7 @@ function unframePlayer(shattered) {
 
 /* ---------------- camera ---------------- */
 let camYaw = Math.PI, camPitch = .22;
+let camShoulder = 0;
 let mapView = null;
 function camForward() {
   return new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw)).normalize();
@@ -1689,9 +1706,11 @@ function updateCamera(dt) {
   const fwd = camForward();
   const dist = 9.5, height = 4.4;
   const target = player.pos.clone().add(new THREE.Vector3(0, 3, 0));
+  camShoulder = lerp(camShoulder, window.JJSHIFT && JJSHIFT.active ? 1.65 : 0, Math.min(1, dt * 12));
+  const shoulder = new THREE.Vector3(-fwd.z, 0, fwd.x).multiplyScalar(camShoulder);
   const off = fwd.clone().multiplyScalar(-dist);
   off.y = height + Math.sin(camPitch) * 7;
-  const desired = target.clone().add(off);
+  const desired = target.clone().add(off).add(shoulder);
   if (window.JJMAP && JJMAP.id === 'jjs') {
     const fraction = JJJJS.ray(target, desired, .28);
     desired.lerpVectors(target, desired.clone(), fraction);
@@ -1702,7 +1721,7 @@ function updateCamera(dt) {
       (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag, (Math.random() - .5) * shakeMag));
     shakeMag = Math.max(0, shakeMag - dt * 2.2);
   }
-  camera.lookAt(target.clone().add(new THREE.Vector3(0, camPitch * -4 + 1, 0)));
+  camera.lookAt(target.clone().add(shoulder).add(new THREE.Vector3(0, camPitch * -4 + 1, 0)));
 }
 
 /* ---------------- splash ---------------- */
@@ -2825,6 +2844,104 @@ let locked = false, started = false;
 const menu = document.getElementById("menu");
 const menuFight = document.getElementById("menuFight");
 const menuSub = menu.querySelector("h2");
+let sprinting = false, lastForwardTap = -Infinity;
+const shiftLock = { enabled: false, pending: false, blocked: false, dragging: false, serial: 0 };
+function gameInputActive() {
+  const lobby = document.getElementById('jjLobby');
+  return started && menu.style.display === 'none' && (!lobby || lobby.style.display !== 'flex');
+}
+function typingInUI(e) {
+  return e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]');
+}
+function clearMovement() {
+  for (const key in keys) keys[key] = false;
+  sprinting = false; lastForwardTap = -Infinity;
+}
+function refreshMouseUI() {
+  const active = gameInputActive();
+  document.getElementById('jjMouseControls').style.display = active ? 'block' : 'none';
+  const button = document.getElementById('jjShiftLock');
+  button.setAttribute('aria-pressed', String(locked && shiftLock.enabled));
+  button.textContent = shiftLock.pending ? 'SHIFT LOCK: CONNECTING…' : locked && shiftLock.enabled ? 'SHIFT LOCK: ON' : 'SHIFT LOCK: OFF';
+  const hint = shiftLock.blocked ? 'Mouse lock unavailable here. Hold right mouse to look.' :
+    locked ? 'Shift / Esc: free cursor · W W: sprint' : 'Shift: lock · Hold right mouse: look · W W: sprint';
+  const hintEl = document.getElementById('jjMouseHint');
+  if (hintEl.textContent !== hint) hintEl.textContent = hint;
+  document.getElementById('crosshair').style.display = active && locked ? 'block' : 'none';
+  document.body.classList.toggle('jjLocked', active && (locked || shiftLock.dragging));
+  window.dispatchEvent(new Event('jjshiftchange'));
+}
+function setShiftLock(on) {
+  const serial = ++shiftLock.serial;
+  shiftLock.enabled = !!on && gameInputActive();
+  shiftLock.pending = shiftLock.enabled && !locked;
+  shiftLock.dragging = false;
+  if (!shiftLock.enabled) {
+    if (document.pointerLockElement === renderer.domElement) document.exitPointerLock();
+    refreshMouseUI();
+    return;
+  }
+  shiftLock.blocked = false;
+  refreshMouseUI();
+  if (locked) return;
+  const fail = () => {
+    if (serial !== shiftLock.serial || !shiftLock.pending) return;
+    shiftLock.enabled = false; shiftLock.pending = false; shiftLock.blocked = true;
+    refreshMouseUI();
+  };
+  try {
+    if (!renderer.domElement.requestPointerLock) { fail(); return; }
+    const request = renderer.domElement.requestPointerLock();
+    if (request && request.catch) request.catch(fail);
+  } catch (_) { fail(); }
+}
+function toggleShiftLock() { setShiftLock(!shiftLock.enabled); }
+window.JJSHIFT = {
+  toggle: toggleShiftLock, unlock() { setShiftLock(false); }, refresh: refreshMouseUI,
+  get active() { return locked && shiftLock.enabled; },
+  get blocked() { return shiftLock.blocked; },
+  get dragging() { return shiftLock.dragging; }
+};
+function openGameMenu() {
+  clearMovement(); setShiftLock(false); setMenuMode(true);
+  menu.style.display = 'flex'; refreshMouseUI();
+}
+document.getElementById('jjShiftLock').addEventListener('click', e => {
+  e.stopPropagation(); toggleShiftLock(); e.currentTarget.blur();
+});
+document.getElementById('jjPause').addEventListener('click', openGameMenu);
+document.addEventListener('pointerlockchange', () => {
+  locked = document.pointerLockElement === renderer.domElement;
+  if (locked && !shiftLock.enabled) { document.exitPointerLock(); return; }
+  if (locked) { shiftLock.pending = false; shiftLock.blocked = false; }
+  else if (!shiftLock.pending) shiftLock.enabled = false;
+  shiftLock.dragging = false;
+  refreshMouseUI();
+});
+document.addEventListener('pointerlockerror', () => {
+  if (!shiftLock.pending) return;
+  shiftLock.pending = false; shiftLock.enabled = false; shiftLock.blocked = true;
+  refreshMouseUI();
+});
+addEventListener('blur', () => { clearMovement(); setShiftLock(false); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { clearMovement(); setShiftLock(false); }
+});
+addEventListener('keydown', e => {
+  if (typingInUI(e)) return;
+  if (e.code === 'Escape' && started && !e.repeat) {
+    if (shiftLock.enabled || locked) setShiftLock(false);
+    else if (gameInputActive()) openGameMenu();
+    else if (menu.style.display !== 'none') enterArenaLocal(e);
+    e.preventDefault(); e.stopImmediatePropagation();
+    return;
+  }
+  if (!gameInputActive() || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    if (!e.repeat) toggleShiftLock();
+    e.preventDefault(); e.stopImmediatePropagation();
+  }
+}, true);
 
 function setMenuMode(pause) {
   menu.classList.toggle("is-pause", !!pause);
@@ -2836,11 +2953,12 @@ function enterArenaLocal(e) {
   started = true;
   menu.style.display = "none";
   audio();
-  renderer.domElement.requestPointerLock?.();
+  clearMovement();
+  refreshMouseUI();
 }
 
 addEventListener("keydown", e => {
-  keys[e.code] = true;
+  if (typingInUI(e) || e.ctrlKey || e.metaKey || e.altKey) return;
   if (!started && (e.code === "Enter" || e.code === "Space")) {
     const lobby = document.getElementById("jjLobby");
     if (lobby && lobby.style.display === "flex") return;
@@ -2848,7 +2966,13 @@ addEventListener("keydown", e => {
     enterArenaLocal(e);
     return;
   }
-  if (!started) return;
+  if (!gameInputActive()) return;
+  keys[e.code] = true;
+  if (e.code === 'KeyW' && !e.repeat) {
+    const now = performance.now();
+    if (now - lastForwardTap < 300) sprinting = true;
+    lastForwardTap = now;
+  }
   if (player.char === "gojo") {
     if (e.code === "Digit1") castRed();
     if (e.code === "Digit2") castRapid();
@@ -2864,7 +2988,10 @@ addEventListener("keydown", e => {
   if (e.code === "KeyQ") doDash();
   if (e.code === "KeyC" && !e.repeat) switchChar(player.char === "gojo" ? "naoya" : "gojo");
 });
-addEventListener("keyup", e => keys[e.code] = false);
+addEventListener("keyup", e => {
+  keys[e.code] = false;
+  if (e.code === 'KeyW') sprinting = false;
+});
 
 if (menuFight) menuFight.addEventListener("click", enterArenaLocal);
 menu.addEventListener("click", (e) => {
@@ -2872,23 +2999,25 @@ menu.addEventListener("click", (e) => {
   if (e.target.closest("button, .roster-card, input, a, .controls")) return;
   enterArenaLocal(e);
 });
-document.addEventListener("pointerlockchange", () => {
-  locked = document.pointerLockElement === renderer.domElement;
-  if (!locked && started) {
-    setMenuMode(true);
-    menu.style.display = "flex";
-  }
-});
 addEventListener("mousemove", e => {
-  if (!locked) return;
+  if (!gameInputActive() || (!locked && !shiftLock.dragging)) return;
+  if (shiftLock.dragging && !(e.buttons & 2)) {
+    shiftLock.dragging = false; refreshMouseUI(); return;
+  }
   camYaw -= e.movementX * .0026;
   camPitch = Math.max(-.5, Math.min(1.1, camPitch + e.movementY * .0022));
 });
 addEventListener("mousedown", e => {
-  if (!started) return;
-  if (!locked) { renderer.domElement.requestPointerLock?.(); }
+  if (!gameInputActive() || (!locked && e.target !== renderer.domElement)) return;
+  if (!locked && e.button === 2) {
+    shiftLock.dragging = true; refreshMouseUI(); e.preventDefault();
+  }
   if (e.button === 0) punch();
 });
+addEventListener('mouseup', e => {
+  if (e.button === 2 && shiftLock.dragging) { shiftLock.dragging = false; refreshMouseUI(); }
+});
+renderer.domElement.addEventListener('contextmenu', e => { if (gameInputActive()) e.preventDefault(); });
 
 /* ---------------- player update ---------------- */
 const WALK_SPEED = 7.2, RUN_SPEED = 13.5;
@@ -2981,7 +3110,7 @@ function updatePlayer(dt) {
   }
   const moving = mv.lengthSq() > 0;
   if (moving) mv.normalize();
-  const running = moving && (keys["ShiftLeft"] || keys["ShiftRight"]);
+  const running = moving && sprinting;
   const speed = running ? RUN_SPEED : WALK_SPEED;
 
   const targetV = moving ? mv.multiplyScalar(speed) : new THREE.Vector3();
@@ -3006,7 +3135,7 @@ function updatePlayer(dt) {
   }
 
   let desired = p.facing;
-  if (inAction || p.attackT > 0) desired = camYaw + Math.PI;
+  if (locked || inAction || p.attackT > 0) desired = camYaw + Math.PI;
   else if (moving) desired = Math.atan2(targetV.x, targetV.z);
   let dy = desired - p.facing;
   while (dy > Math.PI) dy -= Math.PI * 2;
@@ -3309,7 +3438,7 @@ loop();
 /* test hooks */
 window.__game = {
   player, enemies, cds,
-  start() { started = true; menu.style.display = "none"; },
+  start() { started = true; menu.style.display = "none"; refreshMouseUI(); },
   punch, doDash,
   castRed, castRapid, castTwofold, castPalm, castLimitless,
   castN1, castN2, castN3, castNaoyaR,
@@ -38352,82 +38481,19 @@ var JJS_DATA = await (async function () {
     el('jjPopBtn').addEventListener('click', popOut);
     el('jjPopBtn2').addEventListener('click', popOut);
 
-    /* The game drops back to its title screen whenever pointer lock is lost.
-       During a match that reads as "you left the room", so it is kept shut and
-       a small card hands the mouse back instead. */
-    el('jjLook').addEventListener('mousedown', function (e) {
-      e.preventDefault();
-      e.stopPropagation();                       // do not throw a punch while re-locking
-      grabMouse();
-    });
-    document.addEventListener('pointerlockchange', lookWatch);
-    document.addEventListener('pointerlockerror', function () {
-      /* Google Apps Script frames the page with a sandbox that has no
-         allow-pointer-lock, so the lock can never be granted there. Rather
-         than leave the player unable to turn, switch to drag-look. */
-      MP.lockBlocked = true;
-      lookWatch();
-    });
-    bindDragLook();
+    // Training and online matches share one cursor controller. An intentional
+    // unlock must never put a click-to-lock overlay over a live match.
+    window.addEventListener('jjshiftchange', lookWatch);
     setInterval(lookWatch, 200);
   }
 
-  function grabMouse() {
-    var cv = renderer.domElement;
-    if (!cv || !cv.requestPointerLock) { MP.lockBlocked = true; lookWatch(); return; }
-    var pr = null;
-    try { pr = cv.requestPointerLock({ unadjustedMovement: true }); }
-    catch (e) { MP.lockBlocked = true; lookWatch(); return; }
-    if (pr && pr.catch) {
-      pr.catch(function () {
-        var p2;
-        try { p2 = cv.requestPointerLock(); } catch (e2) { MP.lockBlocked = true; lookWatch(); return; }
-        if (p2 && p2.catch) p2.catch(function () { MP.lockBlocked = true; lookWatch(); });
-      });
-    }
-  }
-
   function lookWatch() {
-    if (!MP.active) { document.body.classList.remove('jjLocked'); return; }
-    var m = el('menu');
-    if (m && m.style.display !== 'none') m.style.display = 'none';
-    var isLocked = document.pointerLockElement === renderer.domElement;
-    document.body.classList.toggle('jjLocked', isLocked || MP.dragging);
-    /* three states: locked and playing, able to lock but loose, or a page
-       that will never grant it — the last one gets drag-look */
-    el('jjLook').style.display = (isLocked || MP.lockBlocked) ? 'none' : 'flex';
-    var showDrag = !isLocked && MP.lockBlocked && !MP.dragging;
-    el('jjDragHint').style.display = showDrag ? 'block' : 'none';
-    el('jjPopBtn2').style.display = (showDrag && window.top !== window.self) ? 'block' : 'none';
-  }
-
-  /* Hold the right button and move: the same relative movement drives the
-     camera, and letting go and re-gripping works like lifting a mouse. */
-  function bindDragLook() {
-    var canLook = function () {
-      return MP.active && document.pointerLockElement !== renderer.domElement;
-    };
-    window.addEventListener('mousedown', function (e) {
-      if (!canLook() || (e.button !== 2 && e.button !== 1)) return;
-      MP.dragging = true;
-      document.body.classList.add('jjLocked');
-      el('jjDragHint').style.display = 'none';
-      e.preventDefault(); e.stopImmediatePropagation();
-    }, true);
-    window.addEventListener('mouseup', function (e) {
-      if (!MP.dragging || (e.button !== 2 && e.button !== 1)) return;
-      MP.dragging = false;
-      document.body.classList.remove('jjLocked');
-      lookWatch();
-      e.preventDefault(); e.stopImmediatePropagation();
-    }, true);
-    window.addEventListener('mousemove', function (e) {
-      if (!MP.dragging || !canLook()) return;
-      camYaw -= (e.movementX || 0) * .0032;
-      camPitch = Math.max(-.5, Math.min(1.1, camPitch + (e.movementY || 0) * .0026));
-      e.preventDefault(); e.stopImmediatePropagation();
-    }, true);
-    window.addEventListener('contextmenu', function (e) { if (MP.active) e.preventDefault(); });
+    MP.lockBlocked = JJSHIFT.blocked;
+    MP.dragging = JJSHIFT.dragging;
+    el('jjLook').style.display = 'none';
+    el('jjDragHint').style.display = 'none';
+    var showPop = gameInputActive() && JJSHIFT.blocked && !JJSHIFT.dragging && window.top !== window.self;
+    el('jjPopBtn2').style.display = showPop ? 'block' : 'none';
   }
 
   /* Google's frame URL renders nothing on its own, so the new window is
@@ -38468,12 +38534,13 @@ var JJS_DATA = await (async function () {
   }
   function openLobby() {
     el('jjLobby').style.display = 'flex';
+    clearMovement(); JJSHIFT.unlock();
     el('jjJoinBox').style.display = '';
     el('jjRoomBox').style.display = 'none';
     status('');
     try { el('jjName').value = localStorage.getItem('jj_name') || ''; } catch (e) {}
   }
-  function closeLobby() { el('jjLobby').style.display = 'none'; }
+  function closeLobby() { el('jjLobby').style.display = 'none'; JJSHIFT.refresh(); }
 
   function myName() {
     var v = (el('jjName').value || '').trim().toUpperCase().slice(0, 10);
@@ -38619,8 +38686,8 @@ var JJS_DATA = await (async function () {
     updateScore();
     feed('You entered room ' + MP.code + ' — ' + mapName(MP.map));
     if (window.__game && !window.__game.started) window.__game.start();
-    var cv = renderer.domElement;
-    if (cv && cv.requestPointerLock) { try { cv.requestPointerLock(); } catch (e) {} }
+    menu.style.display = 'none';
+    JJSHIFT.refresh();
     MP.relay.pub(hello('hi'));
     if (MP.host) MP.relay.pub(hello('map'));
     setTag(player.rig, MP.name, player.char);
