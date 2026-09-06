@@ -489,15 +489,18 @@
         H.field=prop;
         enemies.slice().forEach(function(e){if(e&&!e.dead&&e.pos.distanceTo(from)<10.5)hit(e,key,10,d,0,0);});
       } else if(key==='hn1') {
+        if(window.JJDESTRUCT)JJDESTRUCT.hit(from.clone().addScaledVector(d,5+index*4.4).add(V(0,.5,0)),4);
         targets(from,d,7+index*4.4,4+index*.3,-1,4.7).forEach(function(e){
           if(a.hits.indexOf(e)<0){a.hits.push(e);hit(e,key,34,d,14,17);}
         });
       } else if(key==='hn2') {
         a.projectiles.push({index:index,t:0,start:from.clone().addScaledVector(d,1.4).add(V(0,2.7+index*.18,0)),hit:[]});
       } else if(key==='hn3') {
+        if(window.JJDESTRUCT)JJDESTRUCT.hit(from.clone().addScaledVector(d,5).add(V(0,2,0)),6);
         targets(from,d,10,6,-1,6).forEach(function(e){hit(e,key,32,d,25,20);});
       } else if(key==='hn4'&&index===1) {
         var muzzle=from.clone().addScaledVector(sideOf(d),-1.15);
+        if(window.JJDESTRUCT)JJDESTRUCT.sweep(muzzle.clone().add(V(0,3.6,0)),muzzle.clone().add(V(0,3.6,0)).addScaledVector(d,30),7);
         targets(muzzle,d,30,2.5,2.8,5.1).forEach(function(e){hit(e,key,38,d,34,10);});
       }
       if(player.action!==a)return; // A lethal hit handed control to its finisher.
@@ -506,6 +509,7 @@
     a.projectiles.forEach(function(p){
       var prev=p.t;p.t=Math.min(1,p.t+dt);if(prev>=1)return;
       var start=p.start.clone().addScaledVector(d,prev*30),len=(p.t-prev)*30;
+      if(window.JJDESTRUCT)JJDESTRUCT.sweep(start,start.clone().addScaledVector(d,len+1),2.5);
       targets(start,d,len+1,1.5,-1.6,1.6).forEach(function(e){if(p.hit.indexOf(e)<0){p.hit.push(e);hit(e,key,10,d,2,0);blossom(e.pos.clone().add(V(0,3,0)),.6,.65,true);}});
     });
   }

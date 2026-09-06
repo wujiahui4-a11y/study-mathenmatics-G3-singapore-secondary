@@ -433,7 +433,7 @@
   }
 
   function hello(kind) {
-    return { t: kind || 'hi', id: MP.id, n: MP.name, c: player.char, map: MP.map };
+    return { t: kind || 'hi', id: MP.id, n: MP.name, c: player.char, map: MP.map, host: MP.host };
   }
 
   function createRoom() {
@@ -456,6 +456,7 @@
   function connect(code) {
     status('Connecting…');
     el('jjCreate').disabled = el('jjJoin').disabled = true;
+    if(window.JJDESTRUCT)JJDESTRUCT.newRoom();
     MP.code = code;
     MP.relay = new Relay();
     MP.relay.start({
@@ -628,6 +629,7 @@
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (window.JJDESTRUCT && JJDESTRUCT.receive(m)) return;
     if (typeof m.t === 'string' && m.t.startsWith('td-') && window.JJTODO) {
       JJTODO.receive(m); return;
     }
@@ -644,10 +646,12 @@
       feed('<b>' + esc(m.n || '???') + '</b> joined');
       if (m.map) applyMap(m.map, true);
       if (MP.relay) MP.relay.pub(hello('hi2'));
+      if (window.JJDESTRUCT) JJDESTRUCT.syncTo(m.id);
       return;
     }
     if (m.t === 'hi2') {
       fighterFor(m.id, m.n, m.c).seen = nowS();
+      if (window.JJDESTRUCT) JJDESTRUCT.syncTo(m.id);
       if (m.map) applyMap(m.map, true);
       return;
     }

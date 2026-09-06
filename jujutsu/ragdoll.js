@@ -87,6 +87,7 @@
     rag.t += dt;
 
     /* --- the body itself --- */
+    if(window.JJDESTRUCT&&!ent.net&&rag.vel.length()>20)JJDESTRUCT.sweep(rag.hips,rag.hips.clone().addScaledVector(rag.vel,dt+.04),Math.min(7,rag.vel.length()/9));
     rag.vel.y -= G * dt;
     rag.hips.addScaledVector(rag.vel, dt);
 

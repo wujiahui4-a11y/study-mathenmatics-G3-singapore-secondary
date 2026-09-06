@@ -957,6 +957,7 @@
     if (a.done) return;
     a.done = 1;
     var at = a.pos.clone();
+    if(window.JJDESTRUCT)JJDESTRUCT.hit(at,11);
     if (a.orb) { a.orb.dispose(); a.orb = null; }
     if (a.rocks) { a.rocks.release(18); a.rocks = null; }
     /* everything falls in, then the point lets go */
@@ -1003,6 +1004,7 @@
       a.fired = 1;
       a.dir = aimDir();
       a.from = handPos(-1).add(a.dir.clone().multiplyScalar(1.4));
+      if(window.JJDESTRUCT)JJDESTRUCT.sweep(a.from,a.from.clone().addScaledVector(a.dir,30),12);
       if (a.orb) { a.orb.dispose(); a.orb = null; }
 
       /* a wall of repulsion thrown forward: a front that keeps going,
@@ -1105,6 +1107,7 @@
       var dir = aimDir();
       var from = a.mid.clone();
       var LEN = 120;
+      if(window.JJDESTRUCT)JJDESTRUCT.sweep(from,from.clone().addScaledVector(dir,LEN),16);
       a.core.dispose(); a.core = null;
 
       FX.beam(from, dir, LEN, 0x9b4dff, { radius: 3.6, life: 1.05 });

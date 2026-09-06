@@ -5,6 +5,7 @@
   if (typeof JJS_DATA === 'undefined') return;
   var D=JJS_DATA, CELL=24, HEIGHT=5.1, STEP=1.15, EPS=.015;
   var root=null, boxes=[], buckets=new Map(), resources=[], textures=new Map();
+  var originals=new Map(), fragments=new Map();
   var pending=[], matrix=new THREE.Matrix4(), color=new THREE.Color();
   var J=window.JJJJS={data:D,build:build,clear:clear,floor:floor,ceiling:ceiling,collide:collide,spawn:spawn,ray:ray,HEIGHT:HEIGHT,STEP:STEP};
   function own(o){resources.push(o);return o;}
@@ -12,9 +13,10 @@
   function linear(a){return new THREE.Color().setRGB(a[0],a[1],a[2],THREE.SRGBColorSpace);}
   function transform(p){return new THREE.Matrix4().set(p[3],p[4],p[5],p[0]-D.origin[0],p[6],p[7],p[8],p[1]-D.origin[1],p[9],p[10],p[11],p[2]-D.origin[2],0,0,0,1);}
   function clear(){
+    if(window.JJDESTRUCT)JJDESTRUCT.clear();
     if(root)scene.remove(root);
     resources.forEach(function(o){o.dispose();});resources=[];textures.clear();
-    root=null;J.root=null;boxes=[];buckets.clear();pending=[];
+    root=null;J.root=null;J.visualMeshes=[];boxes=[];buckets.clear();pending=[];originals.clear();fragments.clear();
   }
   function texture(uri){
     var source=D.assets[uri]||(D.visual&&D.visual.textures[uri]);if(!source)return null;
@@ -60,6 +62,7 @@
     return integer?new Uint32Array(bytes.buffer):new Float32Array(bytes.buffer);
   }
   function buildVisual(){
+    J.visualMeshes=[];
     D.visual.groups.forEach(function(g,i){
       var geo=own(new THREE.BufferGeometry());
       geo.setAttribute('position',new THREE.BufferAttribute(unpack(g.position),3));geo.setAttribute('normal',new THREE.BufferAttribute(unpack(g.normal),3));geo.setAttribute('uv',new THREE.BufferAttribute(unpack(g.uv),2));geo.setAttribute('color',new THREE.BufferAttribute(unpack(g.color),3));geo.setIndex(new THREE.BufferAttribute(unpack(g.index,true),1));geo.computeBoundingSphere();
@@ -72,7 +75,7 @@
       if(normal)normal.colorSpace=THREE.NoColorSpace;if(specular)specular.colorSpace=THREE.NoColorSpace;
       var mat=own(new THREE.MeshPhongMaterial({color:0xffffff,vertexColors:true,map:map,normalMap:normal,specularMap:specular,normalScale:new THREE.Vector2(1,-1),specular:0x222222,shininess:Math.max(1,p.ns),transparent:p.alpha<1,opacity:p.alpha,alphaTest:map?.025:0,depthWrite:p.alpha>=.99}));
       if(atlas){mat.onBeforeCompile=function(shader){shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',THREE.ShaderChunk.map_fragment.replace('diffuseColor *= sampledDiffuseColor;','sampledDiffuseColor.rgb *= 2.0; diffuseColor *= sampledDiffuseColor;'));};mat.customProgramCacheKey=function(){return 'jjs-plastic-atlas';};}
-      var mesh=new THREE.Mesh(geo,mat);mesh.name='JJS exported surfaces '+i;mesh.position.set(-D.origin[0],-D.origin[1],-D.origin[2]);mesh.castShadow=true;mesh.receiveShadow=true;root.add(mesh);
+      var mesh=new THREE.Mesh(geo,mat);mesh.name='JJS exported surfaces '+i;mesh.userData.originalIndex=geo.index.array.slice();mesh.userData.owners=g.owner?unpack(g.owner,true):null;J.visualMeshes.push(mesh);mesh.position.set(-D.origin[0],-D.origin[1],-D.origin[2]);mesh.castShadow=true;mesh.receiveShadow=true;root.add(mesh);
     });
   }
   // Roblox NormalId to an outward-facing plane: local right, up and normal.
@@ -81,7 +84,7 @@
     var p=D.parts[part],f=FACES[side];if(!p||!f)return;
     var size=p.slice(12,15),r=f[0],u=f[1],n=f[2],offset=size[f[3]]/2+.012;
     var basis=new THREE.Matrix4().set(r[0],u[0],n[0],n[0]*offset,r[1],u[1],n[1],n[1]*offset,r[2],u[2],n[2],n[2]*offset,0,0,0,1);
-    var m=new THREE.Mesh(own(new THREE.PlaneGeometry(size[f[4]],size[f[5]])),mat);m.matrixAutoUpdate=false;m.matrix.multiplyMatrices(transform(p),basis);root.add(m);return m;
+    var m=new THREE.Mesh(own(new THREE.PlaneGeometry(size[f[4]],size[f[5]])),mat);m.matrixAutoUpdate=false;m.matrix.multiplyMatrices(transform(p),basis);m.userData.jjsPart=part;root.add(m);return m;
   }
   function addDecal(d){
     if(d.transparency>=1)return;var tex=texture(d.texture);if(!tex)return;
@@ -118,16 +121,16 @@
   function addBox(p,id){
     var b={id:id,x:p[0]-D.origin[0],y:p[1]-D.origin[1],z:p[2]-D.origin[2],r:p.slice(3,12),h:[p[12]/2,p[13]/2,p[14]/2]};
     var e=[0,0,0];for(var a=0;a<3;a++)for(var j=0;j<3;j++)e[a]+=Math.abs(b.r[a*3+j])*b.h[j];
-    b.minX=b.x-e[0];b.maxX=b.x+e[0];b.minY=b.y-e[1];b.maxY=b.y+e[1];b.minZ=b.z-e[2];b.maxZ=b.z+e[2];boxes.push(b);
+    b.minX=b.x-e[0];b.maxX=b.x+e[0];b.minY=b.y-e[1];b.maxY=b.y+e[1];b.minZ=b.z-e[2];b.maxZ=b.z+e[2];if(typeof id==='number'){boxes.push(b);originals.set(id,b);}b.cells=[];
     for(var x=Math.floor(b.minX/CELL);x<=Math.floor(b.maxX/CELL);x++)for(var z=Math.floor(b.minZ/CELL);z<=Math.floor(b.maxZ/CELL);z++){
-      var k=x+','+z;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(b);
-    }
+      var k=x+','+z;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(b);b.cells.push(k);
+    }return b;
   }
   function nearby(x,z,r){
-    if(!r)return buckets.get(Math.floor(x/CELL)+','+Math.floor(z/CELL))||[];
+    if(!r)return (buckets.get(Math.floor(x/CELL)+','+Math.floor(z/CELL))||[]).filter(function(b){return !b.disabled;});
     var seen=new Set(),out=[];
     for(var a=Math.floor((x-r)/CELL);a<=Math.floor((x+r)/CELL);a++)for(var c=Math.floor((z-r)/CELL);c<=Math.floor((z+r)/CELL);c++){
-      var list=buckets.get(a+','+c)||[];for(var i=0;i<list.length;i++)if(!seen.has(list[i].id)){seen.add(list[i].id);out.push(list[i]);}
+      var list=buckets.get(a+','+c)||[];for(var i=0;i<list.length;i++)if(!list[i].disabled&&!seen.has(list[i].id)){seen.add(list[i].id);out.push(list[i]);}
     }return out;
   }
   function surfaceY(b,x,z,upper,limit){
@@ -192,5 +195,18 @@
       }
     }return Math.max(0,hit-(length>0?.1/length:0));
   }
+  J.transform=transform;
+  J.originals=originals;
+  J.setFragments=function(id,list){
+    var old=fragments.get(id)||[];
+    old.forEach(function(b){b.cells.forEach(function(k){var a=buckets.get(k),i=a.indexOf(b);if(i>=0)a.splice(i,1);});});fragments.delete(id);
+    var original=originals.get(id);if(!original)return;original.disabled=!!list;
+    if(!list)return;
+    var source=D.parts[id],out=[];
+    list.forEach(function(f,i){var p=source.slice(),c=[(f[0]+f[3])/2,(f[1]+f[4])/2,(f[2]+f[5])/2];
+      for(var a=0;a<3;a++){p[a]+=source[3+a*3]*c[0]+source[4+a*3]*c[1]+source[5+a*3]*c[2];p[12+a]=f[a+3]-f[a];}
+      out.push(addBox(p,id+':'+i));
+    });fragments.set(id,out);
+  };
   J.audit=function(){return {parts:D.parts.length,colliders:boxes.length,drawGroups:J.drawGroups,spawns:D.spawns.length,scale:D.scale,origin:D.origin,visualExport:D.visual?D.visual.source:null,exportedTextures:D.visual?Object.keys(D.visual.textures).length:0,customMeshTriangles:D.visual?D.visual.meshTriangles:0,customMeshes:D.meshes.length};};
 })();

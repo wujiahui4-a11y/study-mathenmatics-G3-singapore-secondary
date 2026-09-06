@@ -392,6 +392,9 @@ const server = http.createServer((req, res) => {
       s.dispatchEvent(new Event('change'));
     });
     await page.evaluate(() => JJJJS.ready);
+    // Keep the roof intact while checking teleport height; destruction and
+    // falling through damaged floors have their own integration suite.
+    await page.evaluate(() => JJDESTRUCT.configure({enabled:false}));
     report.rooftop = await page.evaluate(() => {
       const attempts = [];
       const D = JJJJS.data,

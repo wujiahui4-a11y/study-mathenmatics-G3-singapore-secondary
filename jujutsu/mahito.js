@@ -598,6 +598,7 @@
           next = prev.clone().addScaledVector(d, step);
         g.position.copy(next);
         if (!clearLine(prev, next)) {
+          if(owner!==false&&window.JJDESTRUCT)JJDESTRUCT.hit(next,index>=2?3.5:2);
           o.life = t;
           return;
         }
@@ -620,6 +621,7 @@
     );
   }
   function shatterProps(at, radius, owner) {
+    if(owner!==false&&window.JJDESTRUCT)JJDESTRUCT.hit(at.clone().add(V(0,1,0)),radius);
     crates.forEach((c) => {
       if (!c.mesh.parent || !c.mesh.visible || c.mesh.position.distanceTo(at) > radius + 1.2) return;
       c.mesh.visible = false;
@@ -675,6 +677,7 @@
         var step = Math.min(dt * 32, 70 - travel),
           next = prev.clone().addScaledVector(d, step);
         if (!clearLine(prev.clone().add(V(0, 2, 0)), next.clone().add(V(0, 2, 0)))) {
+          if(owner!==false&&window.JJDESTRUCT)JJDESTRUCT.hit(next.clone().add(V(0,2,0)),5);
           o.life = t;
           return;
         }
