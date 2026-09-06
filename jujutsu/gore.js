@@ -259,6 +259,11 @@
   /* everything that came off one body, taken away again */
   function clearPieces(ent) {
     for (var i = 0; i < pieces.length; i++) if (pieces[i].ent === ent) pieces[i].gone = true;
+    if (ent.__flatBody) {
+      scene.remove(ent.__flatBody.g);
+      ent.__flatBody.mats.forEach(function (m) { m.dispose(); });
+      ent.__flatBody = null;
+    }
     if (ent.__husk) { ent.__husk.gone = true; }
     ent.__goreHide = false;
     ent.__gored = false;
@@ -466,8 +471,10 @@
     if (!ent || !ent.rig || ent.__gored) return;
     ent.__gored = true;
     var body = cloneBody(ent);
+    ent.__flatBody = body;
     hideBody(ent);
-    var at = new THREE.Vector3(ent.pos.x, 0, ent.pos.z);
+    var floor = typeof worldFloor === 'function' ? worldFloor(ent.pos) : 0;
+    var at = new THREE.Vector3(ent.pos.x, floor, ent.pos.z);
     FX.blood(ent.pos.clone().add(new THREE.Vector3(0, 1.6, 0)), new THREE.Vector3(0, 1, 0), 18, 1.6);
     FX.decal(FX.T.blood, at.clone(), 4.4, 0x54040f, .95, 40);
     FX.cracks(at.clone(), 9, opts.crater || 13, 0x1a1014);
@@ -477,11 +484,12 @@
     if (typeof hitstop === 'function') hitstop(.12);
     var t = 0;
     addFx({ t: 1e9, update: function (dt) {
+      if (ent.__flatBody !== body) return false;
       t += dt;
       var k = Math.min(1, t / .18);
       var f = 1 - k * .88;                            // down to a tenth of itself
       body.g.scale.set(1 + k * .55, Math.max(.09, f), 1 + k * .55);
-      body.g.position.y = Math.max(0, body.g.position.y - dt * 9);
+      body.g.position.y = Math.max(floor, body.g.position.y - dt * 9);
       return t < 1;
     } });
   }
@@ -650,6 +658,10 @@
      ================================================================== */
   function goreDeath(ent, style, dir) {
     if (style === 'burn') burn(ent, { dir: dir });
+    else if (style === 'halve') halve(ent, { dir: dir });
+    else if (style === 'flatten') flatten(ent, { dir: dir });
+    else if (style === 'implode') implode(ent, { dir: dir });
+    else if (style === 'gone' || style === 'erase') erase(ent, { dir: dir });
     else sever(ent, { dir: dir, power: style === 'dice' ? 1.3 : 1, cubes: style === 'dice' });
     /* a body that comes apart on one screen and flops on every other one
        is two different deaths. Ours goes out; theirs comes in. */

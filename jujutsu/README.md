@@ -826,63 +826,10 @@ screen of whoever threw it.
 
 ## Mahito
 
-Idle Transfiguration 無為転変. He does not hit souls, he **reshapes** them,
-and the shape a thing ends up in is the whole point of him — so every move
-in his file changes the form of something that already existed rather than
-throwing a new thing at it.
-
-| Key | Move | What it does |
-| --- | --- | --- |
-| `1` | **Idle Transfiguration** 無為転変 | he reaches out and the palm only has to LAND; what it does arrives a beat afterwards, from the inside |
-| `2` | **Transfigured Human** 改造人間 | one he already got to, sent at them on five legs that are out of time with each other |
-| `3` | **Body Repel** 身体潰変 | his own arm, opened out into a blade of flesh with a bone edge, and swung in one wide arc |
-| `4` | **Polymorphic Soul Isomer** 多重魂 | not one of them — all of them, run together into a mass that is mostly hands, rolled forward |
-| `R` | **Reshape** 蠢動 | he stops holding his own shape, pours out of the way, and the shell he left behind bursts |
-
-### Two rules hold the look together
-
-**The seam.** Every single thing here is stitched — he is, the transfigured
-are, the blade is stitched down its spine, and the mass is nothing but
-seams. It is drawn as **real bars on a line** rather than a texture, because
-a painted stitch disappears at six metres and a modelled one does not. His
-own runs over his scalp, past his left eye and across the cheek in three
-runs of five.
-
-**Soul light is cold and flesh is not.** The cursed energy is a pale sick
-teal on additive blending. Flesh — his, theirs, the mass — is muted red on
-**normal** blending and never glows, the same rule the blood kit is under. A
-glowing lump of meat reads as a spark, not as meat.
-
-### Reshaping a body that is still standing in it
-
-His technique is the only one in the game that leaves somebody **the wrong
-shape** rather than merely hurt, and doing that turned out to have one right
-answer and one wrong one:
-
-- The wrong one is **rotation**. The game re-poses every rig every frame, so
-  a rotation put on a bone here is gone by the next one.
-- The right one is **scale**. Nothing touches it, so a body left the wrong
-  shape *stays* the wrong shape until `JJMAHITO.unwarp` puts it back. It
-  goes on quickly and comes off slowly, so a body springs back into a shape
-  it is no longer sure of.
-
-Every one of his moves warps what it hits, the warp comes off on a timer,
-and a character swap takes it off everything at once — a body still the
-wrong shape after he has left is standing in somebody else's fight.
-
-The touch also **seeks**. A technique that has to be aimed to the centimetre
-is a technique nobody lands, so `1` picks the nearest body in a forward cone
-within sixteen units and goes to that, and the lunge keeps tracking it.
-
-### The five endings
-
-| | What it does |
-| --- | --- |
-| **UNMADE** | the hand stays on. The body keeps being told what to be, getting worse every tenth of a second, until it folds in on itself |
-| **ONE OF THEM NOW** | three of them come in and hold them, it is done to them where they stand, and one more transfigured human walks away from where somebody was |
-| **OPENED FROM THE SHOULDER** | the blade comes down on a diagonal and does not stop, and that diagonal is the line they come apart on |
-| **PART OF IT** | it does not hit them. It rolls up, the hands get a hold, they are pulled into the middle of it, and it closes and rolls on one bigger than it was |
-| **WRONG SHAPE** | four seams, from four sides, all through the same body — and then all four at once |
+Mahito now uses the voxel Perfection model, the complete base kit and its
+variants, five lethal-hit finishers, and the first awakening, Essence of the
+Soul. See [Mahito controls and implementation](MAHITO.md) for the full input
+guide and source reference.
 
 ## Aoi Todo
 
@@ -1808,7 +1755,7 @@ drawn.
 | Hakari | h1 | h2 | h3 | h4 | hr |
 | Choso | c1 | c2 | c3 | c4 | cr |
 | Megumi | mg1 | mg2 | mg3 | mg4 | mgr |
-| Mahito | t1 | t2 | t3 | t4 | tr |
+| Mahito | mh_stock / mh_air | mh_fire | mh_focus / mh_black / mh_chain / mh_home | mh_repel / mh_ride | arm mode / soul reserve |
 | Todo | b1 | b2 | b3 | b4 | br |
 | Higuruma | j1 | j2 | j3 | j4 | jr |
 | Yuta | o1 | o2 | o3 | o4 | or |
@@ -2066,7 +2013,9 @@ disk.
 | `hakari.js` | Hakari: his rig, his four moves and the machine in his domain |
 | `choso.js` | Choso: his rig, his five moves and the first-person blood stream |
 | `megumi.js` | Megumi: the shadow the shikigami come out of, and the five that do |
-| `mahito.js` | Mahito: the seam, the warp, and the five shapes he leaves people in |
+| `mahito.js` | Mahito: Perfection base kit, variants, soul reserves and first awakening |
+| `mahito-voxel.js` | Mahito: articulated voxel model and transfigured shapes |
+| `mahito-poses.js` | Mahito: shared local and remote animation keyframes |
 | `todo.js` | Todo: the clap, the swap drawn at both ends, and a very large man punching |
 | `higuruma.js` | Higuruma: the seal, the black sword, and the court that hands down the verdict |
 | `yuta.js` | Yuta: four ordinary cuts, one that is not, and the overspill on all of them |

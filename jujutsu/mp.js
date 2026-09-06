@@ -628,6 +628,9 @@
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (typeof m.t === 'string' && m.t.startsWith('mh-') && window.JJMAHITO) {
+      JJMAHITO.receive(m); return;
+    }
     if (m.t === 'map' && m.map) {
       applyMap(m.map, true);
       return;
@@ -692,6 +695,9 @@
          A finisher that has taken its caster over travels by name. */
       if (g.action && m.sg != null) g.action.stage = m.sg;
       if (g.action && m.fk) g.action.fin = m.fk;
+      g.e.blocking = !!m.bl;
+      g.e.iframes = Number.isFinite(m.iv) ? Math.max(0, m.iv / 100) : 0;
+      if (window.JJMAHITO) JJMAHITO.remoteState(g.e.rig, m.mm || 0, m.ma, m.ac, m.bl);
       if (g.action && m.pf) { g.action.sprung = true; g.action.sprungAt = m.pf / 100; }
       if (g.action && m.ac === 'dash') {
         g.action.kind = m.dk || 'fwd';
@@ -804,8 +810,9 @@
       if (who && window.JJFIN) {
         window.JJFIN.remote(who,
           m.k,
-          new THREE.Vector3(m.x || who.pos.x, 0, m.z || who.pos.z),
-          new THREE.Vector3(m.dx || 0, 0, m.dz || 1),
+          new THREE.Vector3(Number.isFinite(m.x) ? m.x : who.pos.x,
+            Number.isFinite(m.h) ? m.h : who.pos.y, Number.isFinite(m.z) ? m.z : who.pos.z),
+          new THREE.Vector3(Number.isFinite(m.dx) ? m.dx : 0, 0, Number.isFinite(m.dz) ? m.dz : 1),
           m.to === MP.id);
       }
       feed('<b>' + esc(fa ? fa.name : '???') + '</b> finished <b>' +
@@ -1419,7 +1426,11 @@
       aw: (window.JJAW && window.JJAW.active) ? 1 : 0,
       /* Hakari's fever is his awakening: the bar, the boost and the aura
          all hang off it, so it travels the same way Gojo's does */
-      hf: (window.JJHAKARI && window.JJHAKARI.fever > 0 && player.char === 'hakari') ? 1 : 0
+      hf: (window.JJHAKARI && window.JJHAKARI.fever > 0 && player.char === 'hakari') ? 1 : 0,
+      mm: player.char === 'mahito' ? JJMAHITO.mode : 0,
+      ma: player.char === 'mahito' && JJMAHITO.active ? 1 : 0,
+      iv: Math.round(Math.max(0, player.iframes || 0) * 100),
+      bl: player.blocking ? 1 : 0
     });
   }
 
@@ -1431,6 +1442,9 @@
   function remoteFx(kind, pos, yaw, f) {
     var FX = window.JJFX;
     if (!FX) return;
+    if (window.JJMAHITO && JJMAHITO.remote[kind]) {
+      JJMAHITO.remote[kind](pos.clone(), yaw, f); return;
+    }
     /* their rig, for the effects that are made out of copies of the
        body rather than out of billboards */
     var rig = (f && f.e && f.e.rig) ? f.e.rig : null;
@@ -1819,20 +1833,6 @@
         }
         if (close && (kind === 'gv1' || kind === 'gv2' || kind === 'gaw' || kind === 'gdom')) addShake(1.6);
         else if (near) addShake(.6);
-        break;
-
-      /* ------------------------------------------------------- MAHITO
-         Every one of his changes the SHAPE of something, and a shape is
-         not damage — a body left the wrong shape on one screen and the
-         right shape on another is two different fights. So the warp
-         travels with the cast rather than with the hit. */
-      case 't1': case 't2': case 't3': case 't4': case 'tr':
-        if (window.JJMAHITO && window.JJMAHITO.remote &&
-            window.JJMAHITO.remote[kind]) {
-          window.JJMAHITO.remote[kind](pos.clone(), yaw);
-        }
-        if (close && (kind === 't4' || kind === 't3')) addShake(1.3);
-        else if (near) addShake(.5);
         break;
 
       /* ---------------------------------------------------------- TODO
