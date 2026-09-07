@@ -22,6 +22,8 @@ const server=http.createServer((req,res)=>{
  const browser=await chromium.launch({channel:'chrome',headless:true,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});const errors=[],report={};
  try {
   const page=await browser.newPage({viewport:{width:1440,height:1000}});page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/__test');await page.waitForFunction(()=>!!window.__jt);
+  await page.click('#jjTab-settings');
+  await page.click('#jjSettings-general');
   await page.selectOption('#jjTrainingMap','jjs');
   assert.equal(await page.locator('#jjMaps button.on').getAttribute('data-map'),'jjs','training and lobby selections agree');
   await page.evaluate(()=>JJJJS.ready);

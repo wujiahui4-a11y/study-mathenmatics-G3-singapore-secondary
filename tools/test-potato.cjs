@@ -71,6 +71,8 @@ const server = http.createServer((req, res) => {
     });
     await page.screenshot({ path: path.join(out, 'potato-off.png') });
     await page.evaluate(() => (document.getElementById('menu').style.display = ''));
+    await page.locator('#jjTab-settings').click();
+    await page.locator('#jjSettings-performance').click();
     await page.locator('#jjPotatoMode').check();
     await page.evaluate(() => (document.getElementById('menu').style.display = 'none'));
     report.nearby = await page.evaluate(() => {

@@ -1,7 +1,7 @@
 # Potato Mode (Fast Mode)
 
-Open the character/map menu and enable **Potato Mode (Fast Mode)** below the
-training map selector. It is a personal setting, saved in this browser. Turn it
+Open **Settings → Performance** and enable **Potato Mode (Fast Mode)**.
+It is a personal setting, saved in this browser. Turn it
 off to restore the full city view. Multiplayer guests can use it independently
 of the room host. The empty baseplate has no city scenery to stream.
 
