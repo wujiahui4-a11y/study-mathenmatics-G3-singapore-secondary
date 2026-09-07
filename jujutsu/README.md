@@ -1502,61 +1502,23 @@ fist, driven by one message; the finisher's damage is applied by the victim at
 the end of their own copy, because a hit arriving while a cut is running would
 be thrown away.
 
-## The dash
+## Shared M1, blocking and dash
 
-`Q`, and it is built on the one from **The Strongest Battlegrounds** — for
-Gojo, Yuji and Hakari. **Naoya keeps his** (two charges, any direction, no
-commitment) because that is his whole gimmick and this is not it.
+All 14 fighters use the shared combat system described in [COMBAT.md](COMBAT.md),
+adapted from the connected Roblox Studio project with original voxel animations.
 
-What that game does, and what this now does:
+* **Left mouse:** four-hit combo with timed hitboxes; hold to continue.
+* **Space during a combo:** fourth-hit uppercut. Start hit four in the air for
+  a downslam that breaks frontal guard.
+* **B:** hold frontal guard. Attacks from behind bypass it.
+* **Q / W + Q:** forward dash strike, with a 4.5-second cooldown.
+* **A/D + Q / S + Q:** side/back dash, sharing a separate two-second cooldown.
+* **Naoya:** retains his original two-charge dash, movement, recharge and effects.
 
-* **The direction comes from what you are holding.** Nothing or `W` is a
-  forward dash, `S` is a back dash, `A` or `D` is a side dash.
-* **Forward and back share one cooldown; the side dash has its own, much
-  shorter one.** That split is the entire design. The forward dash is a
-  commitment you spend to close or escape; the side dash is the tool you
-  actually fight with, and neither eats the other's cooldown. Four seconds
-  against one point seven here, which is that game's five against two brought
-  down to the size of this arena.
-* **Forward and back cover half as much ground again** — fourteen metres
-  against nine and a half, which is its four and a half tiles against three.
-* **A side dash gets shorter as your health does.** At full health it is the
-  full nine and a half; on your last few points it is about six. You do not
-  get to run a fight out on the thing you were winning it with.
-* **It is a commitment.** For its quarter of a second you are going where you
-  pointed and nowhere else, and it has its own animation — three of them, one
-  per direction, rather than a run cycle sliding sideways. Forward is a body
-  thrown ahead of its own feet, back is a skid with the weight behind it, and
-  a side dash keeps the shoulders pointed where they were looking and takes
-  the legs across underneath.
-* **It cancels recovery, not startup.** Throw something, and once it is past
-  the point where it could still miss you can leave early. Try to cancel the
-  first half of a move and it refuses. Domains and awakenings refuse outright.
-* **And you can leave a dash into a move**, so a dash that closes the distance
-  can be spent the moment it lands you — which is where that game's combos
-  come from.
-
-Each of the three does it their own way, which is the last thing that game
-does — same system, different animation and different colour coming off it.
-Gojo does not run through the space so much as stop being subject to it: a
-blue shimmer and the longest invulnerable window. Yuji has no technique, so it
-is a man sprinting and the floor finds out — dust off the push, and hairline
-cracks where he pushed. Hakari is on a polished floor and stays on it, so his
-keeps sliding after the dash itself has finished.
-
-Two implementation notes worth keeping:
-
-**The dash is an `action`.** That is what puts the pose on everybody else's
-screen — mp.js already broadcasts the current action every tick and replays it
-through `poseAction` — so remote fighters dash properly instead of sliding
-along in a run cycle. The direction rides along with it, because otherwise
-every remote dash would be posed as a side one.
-
-**`busy` is a `const` arrow in the original and cannot be wrapped**, so being
-in a dash blocks casting by definition. Leaving a dash early is done by taking
-the action out from under the cast instead: a `keydown` listener in the
-capture phase runs before the game's own bubble handler, so by the time that
-handler asks whether you are busy, there is nothing left to be busy with.
+New M1 and dash actions share their timing and poses with other players. Hits
+resolve on the victim's client, including guard angle, hitstun, duplicate-hit
+protection and knockdown. Dash paths stop at walls; knockdown checks floors and
+ceilings. Fourth-hit impact connects to the map destruction system.
 
 ### The run trail is Naoya's alone
 
@@ -1570,9 +1532,9 @@ have not earned them.
 
 ## Getting hit
 
-**No techniques while you are being hit.** Every cast is refused for as long
-as the flinch or the throw lasts; the punch and the dash stay available, so
-there is still a way out.
+**Hitstun prevents new actions.** M1, guard, dash and new skill casts wait until
+recovery. A landed hit interrupts a shared M1 or dash. The fourth M1 knocks the
+target down, then plays a grounded recovery and grants brief protection.
 
 A hit hard enough to move you — anything over an impulse of seventeen —
 throws you rather than making you flinch. The throw is an *action*, not a
@@ -2005,7 +1967,8 @@ disk.
 | `ragdoll.js` | limp bodies, and the heaps they settle into |
 | `gore.js` | the other two ways of dying, and the health lock a finisher runs under |
 | `combat.js` | the longer dash, the throw, and the eight second fighter swap |
-| `dash.js` | Q, rebuilt on The Strongest Battlegrounds — for everybody but Naoya; and the run trail kept to Naoya alone |
+| `dash.js` | Legacy dash adapter and Naoya-only run trail |
+| `battleground-combat.js` | Current shared M1, frontal guard, directional dash, original poses and knockdown; preserves Naoya Q |
 | `hits.js` | eight more reactions, the ring-out over all of them, and the player finally playing them |
 | `gojo.js` | the awakening meter, Gojo's entrance and his four techniques |
 | `naoya.js` | Naoya's run, and the cut it ends in |

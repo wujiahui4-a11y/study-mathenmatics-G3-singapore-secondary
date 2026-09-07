@@ -30,10 +30,11 @@ const mqtt = fs.readFileSync(path.join(src, 'mqtt.min.js'), 'utf8');
    reactions over all of them, dash replaces Q for everybody but Naoya,
    gojo builds the awakening on top, finisher
    sits after every fighter so it can send them all somewhere, and mp
-   shares the lot — last, so it still broadcasts through a cutscene. */
+   shares the lot. The final battleground-combat layer supplies shared M1,
+   guard and directional dash, while delegating Naoya Q to the old binding. */
 const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'gore.js', 'punch-sfx.js', 'red-sfx.js', 'combat.js', 'hits.js',
   'dash.js', 'gojo.js', 'naoya.js', 'yuji.js', 'hakari.js', 'choso.js', 'megumi.js', 'mahito-voxel.js', 'mahito.js', 'mahito-poses.js', 'todo-voxel.js', 'todo-vfx.js', 'todo.js', 'todo-poses.js', 'higuruma.js', 'yuta.js', 'muta.js', 'ryu.js', 'nanami.js', 'hanami.js',
-  'void.js', 'sukuna.js', 'gamble.js', 'fever.js', 'garden.js', 'finisher.js', 'jjs-data.js', 'jjs.js', 'maps.js', 'mp.js', 'todo-cinematic.js', 'destruction.js', 'potato.js', 'studio-ui.js', 'movement.js']
+  'void.js', 'sukuna.js', 'gamble.js', 'fever.js', 'garden.js', 'finisher.js', 'jjs-data.js', 'jjs.js', 'maps.js', 'mp.js', 'todo-cinematic.js', 'destruction.js', 'potato.js', 'studio-ui.js', 'movement.js', 'battleground-combat.js']
   .map(function (f) {
     return { name: f, code: fs.readFileSync(path.join(src, f), 'utf8') };
   });

@@ -699,6 +699,8 @@
       g.attack = m.at || 0;
       g.action = m.ac ? { type: m.ac, t: (m.ap || 0) / 100, dur: (m.ad || 1) / 100 } : null;
       if(g.action && /^pk_/.test(g.action.type))g.action.side=m.pside===-1?-1:m.pside===1?1:0;
+      if(window.JJFIGHT)JJFIGHT.unpack(g.action,m.bcPose);
+      g.e.bcFall=g.action && g.action.type==='bc_fall' ? g.action : null;
       /* Some poses are driven by which beat of the move they are on rather
          than by the clock alone, so the stage travels with the action.
          A finisher that has taken its caster over travels by name. */
@@ -766,6 +768,10 @@
       return;
     }
     if (m.t === 'hit' && m.to === MP.id) {              // somebody landed one on us
+      var hpBeforeHit=player.hp;
+      if(window.JJFIGHT) {
+        if(!JJFIGHT.networkHit(m))return;
+      } else {
       var k = null;
       if (m.kx || m.ky || m.kz) k = new THREE.Vector3(m.kx || 0, m.ky || 0, m.kz || 0);
       /* how the body is meant to go if this is the one that does it —
@@ -783,6 +789,8 @@
       if (m.rk && !player.dead && player.iframes <= 0 && !thrown) {
         player.react = { type: m.rk, t: 0, dur: m.rd || .5, side: m.rs || 1 };
       }
+      }
+      if(player.hp>=hpBeforeHit)return;
       MP.lastHitBy = m.id;
       if (player.dead) {
         MP.deaths++;
@@ -1288,7 +1296,9 @@
     if (opts.pin) msg.pin = Math.round(opts.pin * 100);
     /* Death Painting blood keeps working after it lands */
     if (opts.psn) msg.psn = Math.round((opts.psn === true ? 6 : opts.psn) * 10);
+    if(window.JJFIGHT && opts.combat)msg.bc=JJFIGHT.hitData(opts.combat);
     if (MP.relay) MP.relay.pub(msg);
+    if(opts.predictBlocked){if(window.JJFIGHT)JJFIGHT.blockFX(this);return;}
     /* show it on them straight away; their own broadcast confirms it */
     if (opts.react) {
       this.react = { type: opts.react, t: 0, dur: msg.rd, side: msg.rs };
@@ -1390,7 +1400,8 @@
       player.visYaw = savedVis;
     }
 
-    if (e.react) { try { e.applyReact(dt); } catch (err) { e.react = null; } }
+    if (e.react && !e.bcFall) { try { e.applyReact(dt); } catch (err) { e.react = null; } }
+    if (e.blocking && !f.action && window.JJFIGHT) JJFIGHT.guardPose(r,e.animT,e.bcGuardHit||0);
 
     r.root.rotation.y = e.facing + (f.visYaw || 0);
     r.root.position.copy(e.pos);
@@ -1414,6 +1425,7 @@
       sp: Math.round(sp * 10), og: player.onGround ? 1 : 0, vv: Math.round(player.vel.y * 10),
       mvx:Math.round(player.vel.x*100),mvz:Math.round(player.vel.z*100),
       pside:player.action && /^pk_/.test(player.action.type) ? player.action.side||0 : 0,
+      bcPose:window.JJFIGHT && player.action && /^bc_/.test(player.action.type)?JJFIGHT.pack(player.action):null,
       at: player.attackT > 0 ? (player.attackArm + 1) : 0,
       /* the awakening is not an action, but the other screens still have to
          play the poses, so it travels as one */
@@ -1456,6 +1468,7 @@
      effect is played at that fighter's feet — visual only, never damaging,
      because the hit itself already travels as its own message. */
   function remoteFx(kind, pos, yaw, f) {
+    if(window.JJFIGHT && JJFIGHT.remoteFX(kind,pos,yaw))return;
     var FX = window.JJFX;
     if (!FX) return;
     if (window.JJTODO && JJTODO.remote[kind]) {

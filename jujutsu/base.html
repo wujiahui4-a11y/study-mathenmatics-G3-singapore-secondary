@@ -1704,7 +1704,7 @@ function showSplash(big, small, glow) {
    ============================================================ */
 const cds = { m1: 0, red: 0, rapid: 0, twofold: 0, palm: 0, limitless: 0, n1: 0, n2: 0, n3: 0, nr: 0 };
 const CD = { red: 6, rapid: 9, twofold: 7, palm: 10, limitless: 6, n1: 8, n2: 9, n3: 10, nr: 7 };
-const busy = () => !!player.action || player.frameT > 0;
+const busy = () => !!player.action || player.frameT > 0 || !!(window.JJFIGHT && JJFIGHT.locked());
 function leftOf(dirV) { return new THREE.Vector3(dirV.z, 0, -dirV.x); }
 function facingVec() { return new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing)); }
 
@@ -2820,6 +2820,7 @@ function typingInUI(e) {
 function clearMovement() {
   for (const key in keys) keys[key] = false;
   sprinting = false; lastForwardTap = -Infinity;
+  if (window.JJFIGHT) JJFIGHT.clearInput();
 }
 function refreshMouseUI() {
   const active = gameInputActive();
@@ -2901,6 +2902,7 @@ addEventListener('keydown', e => {
     return;
   }
   if (!gameInputActive() || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (window.JJFIGHT && JJFIGHT.input(e)) return;
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
     if (!e.repeat) toggleShiftLock();
     e.preventDefault(); e.stopImmediatePropagation();
@@ -3051,6 +3053,7 @@ function updatePlayer(dt) {
   /* projection meter passive drain */
   if (p.proj > 0) p.proj = Math.max(0, p.proj - dt * 2);
 
+  if (window.JJFIGHT) JJFIGHT.beforeStep(dt);
   if (window.JJMOVE) JJMOVE.beforeStep(dt);
 
   if (p.action) {
@@ -3067,11 +3070,12 @@ function updatePlayer(dt) {
 
   // Traversal advances a swept path against the same world collision. The
   // combat timers and pose layers above/below continue to run normally.
-  if (!window.JJMOVE || !JJMOVE.driving()) {
+  if ((!window.JJMOVE || !JJMOVE.driving()) && (!window.JJFIGHT || !JJFIGHT.driving())) {
   const fwd = camForward();
   const rightv = new THREE.Vector3(-fwd.z, 0, fwd.x);
   const mv = new THREE.Vector3();
-  if (!inAction) {
+  const combatMotion = window.JJFIGHT ? JJFIGHT.motion() : null;
+  if ((!inAction || combatMotion?.attackWalk) && !combatMotion?.stunned) {
     if (keys["KeyW"]) mv.add(fwd);
     if (keys["KeyS"]) mv.sub(fwd);
     if (keys["KeyD"]) mv.add(rightv);
@@ -3080,14 +3084,14 @@ function updatePlayer(dt) {
   const moving = mv.lengthSq() > 0;
   if (moving) mv.normalize();
   const running = moving && sprinting;
-  const speed = running ? RUN_SPEED : WALK_SPEED;
+  const speed = combatMotion?.speed ?? (running ? RUN_SPEED : WALK_SPEED);
 
   const targetV = moving ? mv.multiplyScalar(speed) : new THREE.Vector3();
   const drag = inAction ? 3 : 10;
   p.vel.x += (targetV.x - p.vel.x) * Math.min(1, dt * drag);
   p.vel.z += (targetV.z - p.vel.z) * Math.min(1, dt * drag);
 
-  if (keys["Space"] && p.onGround && !inAction) {
+  if (keys["Space"] && p.onGround && !inAction && !combatMotion?.noJump) {
     p.vel.y = 15;
     p.onGround = false;
     sfx.whoosh();

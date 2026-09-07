@@ -11,7 +11,7 @@ const hook = `
 window.__mv={THREE,player,keys,cds,scene,camera,renderer,poseAction,CHARS,
  select(id){JJMOVE.cancel('select');started=false;switchChar(id,true);started=true;menu.style.display='none';},
  tick(n=1,dt=.02){for(let i=0;i<n;i++){updatePlayer(dt);updateHUD(dt);for(let j=fx.length-1;j>=0;j--)if(!fx[j].update(dt))fx.splice(j,1);}},
- reset(x=0,y=0,z=0,ground=true){JJMOVE.cancel('reset');JJTODO.cleanup();JJMAHITO.cleanup();JJAW.cine=false;JJAW.active=false;JJFIN.stop?.();
+ reset(x=0,y=0,z=0,ground=true){window.JJFIGHT?.reset();JJMOVE.cancel('reset');JJTODO.cleanup();JJMAHITO.cleanup();JJAW.cine=false;JJAW.active=false;JJFIN.stop?.();
  started=false;switchChar('gojo',true);started=true;menu.style.display='none';player.dead=false;player.react=null;player.action=null;player.frameT=player.stunT=player.attackT=player.dashT=0;player.blocking=false;player.iframes=0;player.hp=player.maxHp=100;
  player.pos.set(x,y,z);player.vel.set(0,0,0);player.facing=0;player.onGround=ground;player.__jjsLast=null;camYaw=Math.PI;clearMovement();for(const k in cds)cds[k]=0;JJDASH.line=JJDASH.side=0;
  for(const e of enemies){e.pos.set(60,0,60);e.rig.root.visible=false;}for(let i=0;i<60;i++)JJMOVE.beforeStep(.02);player.rig.root.position.copy(player.pos);},
@@ -136,7 +136,7 @@ const server = http.createServer((req, res) => {
     await page.keyboard.up('KeyD');
     assert.equal(
       (await page.evaluate(() => __mv.state())).action,
-      'dash',
+      'bc_dash',
       'No nearby wall falls back to existing dash'
     );
     await page.evaluate(() => __mv.reset(0, 3, 9.8, false));

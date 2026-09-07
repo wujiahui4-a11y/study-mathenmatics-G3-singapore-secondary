@@ -11,7 +11,7 @@ fs.mkdirSync(out, { recursive: true });
 const hooks = `window.__tt={THREE,scene,camera,renderer,player,enemies,cds,keys,CHARS,worldFloor,
  tick(dt=.025){updatePlayer(dt);for(const e of enemies){e.iframes=Math.max(0,(e.iframes||0)-dt);e.rig.root.position.copy(e.pos);e.rig.root.rotation.y=e.facing;}
  for(let i=fx.length-1;i>=0;i--)if(!fx[i].update(dt))fx.splice(i,1);updateCamera(dt);updateHUD(dt);},
- reset(){JJTODO.cleanup();JJTODOFX.clear();JJMAHITO.cleanup();started=false;switchChar('todo',true);started=true;menu.style.display='none';
+ reset(){window.JJFIGHT?.reset();JJTODO.cleanup();JJTODOFX.clear();JJMAHITO.cleanup();started=false;switchChar('todo',true);started=true;menu.style.display='none';
  player.dead=false;player.hp=player.maxHp=100;player.iframes=0;player.action=null;player.react=null;player.frameT=0;player.attackT=0;player.comboN=0;player.blocking=false;
  player.pos.set(0,0,0);player.vel.set(0,0,0);player.onGround=true;player.facing=0;camYaw=Math.PI;camPitch=.22;player.__jjsLast=null;clearMovement();
  for(const k in cds)cds[k]=0;for(const e of enemies){JJGORE.clear(e);if(window.JJRAG)JJRAG.stop(e);e.dead=false;e.hp=e.maxHp=1000;e.pos.set(85,0,85);e.vel.set(0,0,0);e.react=null;e.cineHold=false;e.stunT=0;e.iframes=0;e.blocking=false;e.rig.body.position.set(0,0,0);e.rig.body.scale.set(1,1,1);}
