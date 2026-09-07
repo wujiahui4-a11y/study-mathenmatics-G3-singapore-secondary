@@ -84,6 +84,16 @@
   function locked() {
     return taken() || player.stunT > 0 || player.blocking;
   }
+  // A side or back dash is an evade, not a commitment. After a tenth of a
+  // second — by which point the eased travel curve has already carried you
+  // about 45% of the distance — it can be cancelled straight into M1 or into
+  // a skill, so dodging is a way into an attack rather than a pause before
+  // one. The front dash is left alone: it IS an attack, and cancelling it
+  // would throw away the strike it exists for.
+  const EVADE_COMMIT = 0.1;
+  const isEvade = (a) => core(a) && a.type === 'bc_dash' && a.kind !== 'front';
+  const evadeOpen = (a) => isEvade(a) && a.t >= EVADE_COMMIT;
+  C.evadeOpen = () => evadeOpen(player.action);
   function clearInput() {
     held = false;
     queued = 0;
@@ -139,7 +149,8 @@
       return;
     }
     if (guardHeld && !player.blocking) guard(true);
-    if (!player.blocking && !player.action && (held || queued > 0) && cds.m1 <= 0) startM1();
+    if (!player.blocking && (!player.action || evadeOpen(player.action)) && (held || queued > 0) && cds.m1 <= 0)
+      startM1();
   }
   function profile(id = player.char, mode = window.JJMAHITO?.mode || 0) {
     const p = { ...(styles[id] || styles.gojo), damage: styles[id]?.damage || 3, reach: 5.1 };
@@ -164,8 +175,15 @@
       return false;
     }
     if (player.action) {
-      if (player.action.type === 'bc_m1' && player.action.t > player.action.dur - 0.16) queued = 0.2;
-      return false;
+      if (evadeOpen(player.action)) cancel();
+      else {
+        // held over from a dash that has not opened yet, or from the tail of
+        // a swing, so the input is not simply dropped on the floor
+        if (isEvade(player.action) ||
+          (player.action.type === 'bc_m1' && player.action.t > player.action.dur - 0.16))
+          queued = 0.2;
+        return false;
+      }
     }
     if (cds.m1 > 0) return false;
     const n = player.comboReset > 0 ? player.comboN : 0,
@@ -734,6 +752,7 @@
     }
   };
   C.input = function (e) {
+    if (/^(Digit[1-4]|Key[RFGEX])$/.test(e.code) && evadeOpen(player.action) && !locked()) cancel();
     if (e.code === 'KeyB') {
       guard(true);
       e.preventDefault();
@@ -931,7 +950,7 @@
   help.className = 'kit-row';
   help.id = 'jjCombatHelp';
   help.innerHTML =
-    '<strong>Combat · all fighters</strong><br><b>Left mouse</b>: four-hit combo; hold to continue. Hold <b>Space</b> during the combo for a fourth-hit uppercut; jump before hit four for a downslam. <b>B</b>: hold frontal guard. Downslams and attacks from behind bypass guard. <b>Q</b>: forward dash strike; <b>A/D + Q</b>: side dash; <b>S + Q</b>: back dash. Naoya keeps his two-charge dash.';
+    '<strong>Combat · all fighters</strong><br><b>Left mouse</b>: four-hit combo; hold to continue. Hold <b>Space</b> during the combo for a fourth-hit uppercut; jump before hit four for a downslam. <b>B</b>: hold frontal guard. Downslams and attacks from behind bypass guard. <b>Q</b>: forward dash strike; <b>A/D + Q</b>: side dash; <b>S + Q</b>: back dash. Side and back dashes cancel straight into an attack or a skill; the forward dash stays committed. Naoya keeps his two-charge dash.';
   document.querySelector('#menu .ctrl-kits')?.prepend(help);
   const status = document.createElement('div');
   status.id = 'jjCombatStatus';

@@ -293,6 +293,65 @@ async function naoya(page) {
     assert.equal(report.dash.blocked, 0);
     assert.ok(report.dash.independent);
     assert.equal(report.dash.side.iframe, 0);
+    // A side or back dash is an evade, so it can be cancelled into an attack
+    // once past its commit window. The front dash is itself a strike and has
+    // to stay committed. Skills go through each character's own key handler,
+    // which runs after JJFIGHT.input, so this checks the real key path rather
+    // than calling the cast function directly.
+    report.evadeCancel = await page.evaluate(() => {
+      const result = {};
+      const press = (code) =>
+        window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, cancelable: true }));
+      for (const kind of ['side', 'back', 'front']) {
+        __fight.reset();
+        if (kind === 'side') __fight.keys.KeyA = true;
+        if (kind === 'back') __fight.keys.KeyS = true;
+        __fight.doDash();
+        __fight.keys.KeyA = __fight.keys.KeyS = false;
+        __fight.tick(8);
+        __fight.punch();
+        const punched = __fight.player.action?.type;
+        // the swing has to land, not merely relabel the action
+        const f = new __fight.THREE.Vector3(
+          Math.sin(__fight.player.facing), 0, Math.cos(__fight.player.facing));
+        const e = __fight.enemies.find((e) => !e.net);
+        e.pos.copy(__fight.player.pos).addScaledVector(f, 3);
+        // its spawn has to come with it, or the AI walks it home mid-swing
+        e.spawn.copy(e.pos);
+        e.vel.set(0, 0, 0);
+        const before = e.hp;
+        for (let i = 0; i < 60; i++) { __fight.tick(1, 0.02, true); if (!__fight.player.action) break; }
+        const damage = before - e.hp;   // read it before the next reset heals him
+        __fight.reset();
+        if (kind === 'side') __fight.keys.KeyA = true;
+        if (kind === 'back') __fight.keys.KeyS = true;
+        __fight.doDash();
+        __fight.keys.KeyA = __fight.keys.KeyS = false;
+        __fight.tick(8);
+        press('Digit1');
+        const skill = __fight.player.action?.type;
+        // and a tap inside the commit window is queued rather than eaten
+        __fight.reset();
+        if (kind === 'side') __fight.keys.KeyA = true;
+        if (kind === 'back') __fight.keys.KeyS = true;
+        __fight.doDash();
+        __fight.keys.KeyA = __fight.keys.KeyS = false;
+        __fight.tick(1);
+        __fight.punch();
+        __fight.tick(20);
+        result[kind] = { punched, damage, skill, queued: __fight.player.action?.type };
+      }
+      __fight.reset();
+      return result;
+    });
+    for (const kind of ['side', 'back']) {
+      assert.equal(report.evadeCancel[kind].punched, 'bc_m1', kind + ' dash cancels into M1');
+      assert.ok(report.evadeCancel[kind].damage > 0, kind + ' dash cancelled into a real swing');
+      assert.equal(report.evadeCancel[kind].skill, 'red', kind + ' dash cancels into a skill');
+      assert.equal(report.evadeCancel[kind].queued, 'bc_m1', kind + ' dash queues an early M1 tap');
+    }
+    assert.equal(report.evadeCancel.front.punched, 'bc_dash', 'The front dash stays committed');
+    assert.equal(report.evadeCancel.front.skill, 'bc_dash', 'The front dash is not skill-cancellable');
     await page.evaluate(() => __fight.reset());
     await page.mouse.move(635, 400);
     await page.mouse.down();
