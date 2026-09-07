@@ -1598,4 +1598,6 @@
     else if (M.active) hint += ' · X: switch kit · F/G: Black Flash';
     hud.querySelector('.mhHint').textContent = hint;
   };
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).mahito = { cast: [1,2,3,4].map(slot=>()=>M.cast(slot)).concat(()=>M.special()), state: M, idle(dt){M.modeCD=Math.max(0,M.modeCD-dt);cds.mhMode=Math.max(cds.mhMode||0,M.modeCD);VOX.mode(player.rig,M.mode,player.action?.type);}, release(a){release(a);if(a?.visual)discard(a.visual);} };
 })();

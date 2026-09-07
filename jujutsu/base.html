@@ -1070,7 +1070,7 @@ function makeGlassPane() {
 }
 
 /* ---------------- player ---------------- */
-const player = {
+let player = {
   char: "gojo",
   rig: makeAnimeRig(GOJO_CFG),
   pos: new THREE.Vector3(0, 0, 20),
@@ -1136,7 +1136,7 @@ function poseDummySwing(r, n, st) {
   }
 }
 
-const enemies = [];
+let enemies = [];
 const debris = [];
 class Enemy {
   constructor(x, z, kind) {
@@ -1702,7 +1702,7 @@ function showSplash(big, small, glow) {
 /* ============================================================
    SKILLS — shared infrastructure
    ============================================================ */
-const cds = { m1: 0, red: 0, rapid: 0, twofold: 0, palm: 0, limitless: 0, n1: 0, n2: 0, n3: 0, nr: 0 };
+let cds = { m1: 0, red: 0, rapid: 0, twofold: 0, palm: 0, limitless: 0, n1: 0, n2: 0, n3: 0, nr: 0 };
 const CD = { red: 6, rapid: 9, twofold: 7, palm: 10, limitless: 6, n1: 8, n2: 9, n3: 10, nr: 7 };
 const busy = () => !!player.action || player.frameT > 0 || !!(window.JJFIGHT && JJFIGHT.locked());
 function leftOf(dirV) { return new THREE.Vector3(dirV.z, 0, -dirV.x); }
@@ -2803,7 +2803,7 @@ function poseAction(r, a) {
 }
 
 /* ---------------- input ---------------- */
-const keys = {};
+let keys = {};
 let locked = false, started = false;
 const menu = document.getElementById("menu");
 const menuFight = document.getElementById("menuFight");

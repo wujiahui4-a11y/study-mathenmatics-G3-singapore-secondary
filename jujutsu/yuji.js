@@ -773,4 +773,6 @@
   } });
 
   window.JJYUJI = { cfg: YUJI_CFG, blackFlash: blackFlash, castDivergent: castDivergent };
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).yuji = { cast: [castDivergent, castBlackFlash, castManji, castCrush, castSurge] };
 })();

@@ -76,6 +76,9 @@ const server = http.createServer((req, res) => {
       const initial = JJAISERVER.bots.map((e) => e.pos.clone());
       for (let i = 0; i < 2400; i++) __fight.tick(1, 0.025, true);
       return {
+        frontDashes: JJAISERVER.bots.reduce((n, e) => n + (e.ai.frontDashes || 0), 0),
+        frontCombos: JJAISERVER.bots.reduce((n, e) => n + (e.ai.frontCombos || 0), 0),
+        skillCombos: JJAISERVER.bots.reduce((n, e) => n + (e.ai.skillCombos || 0), 0),
         moved: JJAISERVER.bots.filter((e, i) => e.pos.distanceTo(initial[i]) > 5).length,
         injured: JJAISERVER.bots.filter((e) => e.hp < 98).length,
         kills: JJAISERVER.bots.reduce((s, e) => s + e.ai.kills, 0),
@@ -90,6 +93,7 @@ const server = http.createServer((req, res) => {
     assert.ok(report.brawl.moved >= 8);
     assert.ok(report.brawl.injured > 0 || report.brawl.kills > 0, 'Bots must actually fight each other');
     assert.ok(report.brawl.kills > 0);
+    assert.ok(report.brawl.frontDashes > 0 && report.brawl.frontCombos > 0 && report.brawl.skillCombos > 0);
     assert.ok(report.brawl.histories.includes('side dash + rotation + M1'));
     assert.ok(report.brawl.histories.includes('hit-confirm technique'));
     await page.evaluate(() => __ai.draw());
@@ -309,48 +313,6 @@ const server = http.createServer((req, res) => {
       };
     });
     assert.ok(report.spin.responses > 0 && report.spin.ignored > 0);
-    report.techniques = await page.evaluate(() => {
-      __ai.start(14, 831);
-      __ai.isolate();
-      const all = [];
-      for (const e of JJAISERVER.bots) {
-        __ai.place(e, 0, 0, 0);
-        const t = JJAISERVER.bots.find((o) => o !== e);
-        __ai.place(t, 0, 0, 3.5);
-        e.ai.target = t;
-        for (let slot = 0; slot < 2; slot++) {
-          e.action = null;
-          e.blocking = false;
-          e.stunT = 0;
-          e.ai.techCD = [0, 0];
-          e.ai.target = t;
-          t.hp = 100;
-          t.dead = false;
-          t.stunT = 0;
-          t.bcFall = null;
-          const used = JJAICOMBAT.skill(e, t, slot);
-          let finite = true;
-          for (let i = 0; i < 44; i++) {
-            JJAICOMBAT.tick(e, 0.02);
-            JJAICOMBAT.pose(e);
-            e.rig.root.traverse((o) => {
-              if (
-                ![...o.position.toArray(), ...o.rotation.toArray().slice(0, 3), ...o.scale.toArray()].every(
-                  Number.isFinite
-                )
-              )
-                finite = false;
-            });
-          }
-          all.push({ char: e.char, slot, used, finite });
-        }
-        __ai.place(e, 90, 0, 90);
-        __ai.place(t, 85, 0, 85);
-      }
-      return all;
-    });
-    assert.equal(new Set(report.techniques.map((x) => x.char)).size, 14);
-    assert.ok(report.techniques.every((x) => x.used && x.finite));
     // Use the real selector and imported city, not just synthetic obstacles.
     await page.evaluate(() => {
       JJAISERVER.stop();

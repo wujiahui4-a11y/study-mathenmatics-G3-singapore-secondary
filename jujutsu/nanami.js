@@ -917,4 +917,6 @@
   /* the pieces the finishers borrow */
   NA.RAT = RAT; NA.RAT2 = RAT2; NA.STEEL = STEEL;
   NA.WRAP = WRAP; NA.SPOT = SPOT; NA.BLADE = BLADE;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).nanami = { cast: [castRatio, castCleave, castCollapse, castThrow, castOvertime], state: NA };
 })();

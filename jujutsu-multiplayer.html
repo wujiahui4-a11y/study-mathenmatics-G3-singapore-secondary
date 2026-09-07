@@ -1107,7 +1107,7 @@ function makeGlassPane() {
 }
 
 /* ---------------- player ---------------- */
-const player = {
+let player = {
   char: "gojo",
   rig: makeAnimeRig(GOJO_CFG),
   pos: new THREE.Vector3(0, 0, 20),
@@ -1173,7 +1173,7 @@ function poseDummySwing(r, n, st) {
   }
 }
 
-const enemies = [];
+let enemies = [];
 const debris = [];
 class Enemy {
   constructor(x, z, kind) {
@@ -1739,7 +1739,7 @@ function showSplash(big, small, glow) {
 /* ============================================================
    SKILLS — shared infrastructure
    ============================================================ */
-const cds = { m1: 0, red: 0, rapid: 0, twofold: 0, palm: 0, limitless: 0, n1: 0, n2: 0, n3: 0, nr: 0 };
+let cds = { m1: 0, red: 0, rapid: 0, twofold: 0, palm: 0, limitless: 0, n1: 0, n2: 0, n3: 0, nr: 0 };
 const CD = { red: 6, rapid: 9, twofold: 7, palm: 10, limitless: 6, n1: 8, n2: 9, n3: 10, nr: 7 };
 const busy = () => !!player.action || player.frameT > 0 || !!(window.JJFIGHT && JJFIGHT.locked());
 function leftOf(dirV) { return new THREE.Vector3(dirV.z, 0, -dirV.x); }
@@ -2840,7 +2840,7 @@ function poseAction(r, a) {
 }
 
 /* ---------------- input ---------------- */
-const keys = {};
+let keys = {};
 let locked = false, started = false;
 const menu = document.getElementById("menu");
 const menuFight = document.getElementById("menuFight");
@@ -5726,6 +5726,7 @@ window.__game = {
   }
 
   function step(ent, dt) {
+    if (ent.ai && !window.MPJJ?.active && !gameInputActive()) return;
     var rag = ent.rag, rig = ent.rig;
     if (!rag || !rig) return;
     rag.t += dt;
@@ -11876,6 +11877,8 @@ window.__game = {
     window.__game.castN4 = castN4;
   }
 
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).naoya = { cast: [castN1,castN2,castN3,castN4,castNaoyaR], isolate(){const r=RUSH.on,c=CINE.on;RUSH.on=CINE.on=false;return()=>{RUSH.on=r;CINE.on=c;};} };
 })();
 
 
@@ -12655,6 +12658,8 @@ window.__game = {
   } });
 
   window.JJYUJI = { cfg: YUJI_CFG, blackFlash: blackFlash, castDivergent: castDivergent };
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).yuji = { cast: [castDivergent, castBlackFlash, castManji, castCrush, castSurge] };
 })();
 
 
@@ -14212,6 +14217,8 @@ window.__game = {
   } });
 
   HK.jackpotFx = rainbowShutters;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).hakari = { cast: [castShutter, castBalls, castGachinko, castFever, castGuard], state: HK };
 })();
 
 
@@ -16104,6 +16111,8 @@ window.__game = {
       FX.bloodThreads(at, 6, 15, 1.1);
     }
   };
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).choso = { cast: [castPierce, castMeteorite, castSupernova, castScale, castEdge], state: CH, idle(dt) { CH.scale=Math.max(0,CH.scale-dt); if(CH.scale<=0&&CH.aura){CH.aura.stop();CH.aura=null;} if(CH.stream)stepStream(dt); }, release(a){if(a?.type==='c1s')shutStream();} };
 })();
 
 
@@ -17375,6 +17384,8 @@ window.__game = {
   MG.buildRabbit = buildRabbit;
   MG.INK = INK; MG.DEEP = DEEP; MG.EDGE = EDGE; MG.LIT = LIT;
   MG.COLD = COLD; MG.WHITE = WHITE;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).megumi = { cast: [castDogs, castNue, castSerpent, castElephant, castRabbits], state: MG };
 })();
 
 
@@ -19604,6 +19615,8 @@ window.__game = {
     else if (M.active) hint += ' · X: switch kit · F/G: Black Flash';
     hud.querySelector('.mhHint').textContent = hint;
   };
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).mahito = { cast: [1,2,3,4].map(slot=>()=>M.cast(slot)).concat(()=>M.special()), state: M, idle(dt){M.modeCD=Math.max(0,M.modeCD-dt);cds.mhMode=Math.max(cds.mhMode||0,M.modeCD);VOX.mode(player.rig,M.mode,player.action?.type);}, release(a){release(a);if(a?.visual)discard(a.visual);} };
 })();
 
 
@@ -21345,8 +21358,7 @@ window.__game = {
     FX.arc(player.pos.clone().add(V(0, 3.4, 0)), player.facing, 2.2, 0xf7e8d2, 0.14);
     sfx.whoosh();
   };
-  var beforeHurt = hurtPlayer;
-  hurtPlayer = function (amount, knock) {
+  function counter() {
     var a = player.action;
     if (
       mine() &&
@@ -21366,8 +21378,14 @@ window.__game = {
       if (a.target) approach(a, a.target, -2.5, 0);
       else move(player, player.pos.clone().addScaledVector(V(a.dir.z, 0, -a.dir.x), 4), true);
       visual('clap', player.pos.clone().add(V(0, 3.6, 0)), null, false, 1.2);
-      return;
+      return true;
     }
+    return false;
+  }
+  var beforeHurt = hurtPlayer;
+  hurtPlayer = function (amount, knock) {
+    if (counter()) return;
+    var a = player.action;
     var hp = player.hp,
       result = beforeHurt(amount, knock);
     if (mine() && player.hp < hp) {
@@ -21637,6 +21655,8 @@ window.__game = {
             ? '1–4: awakened skills · 4: cinematic ultimate · R: counter'
             : 'Air 1: heel drop · 2 → 2: stone swap · 3 → 3: Black Flash · R: counter';
   };
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).todo = { cast: [1,2,3,4].map(slot=>()=>T.cast(slot)).concat(()=>T.special()), state: T, release, defend: counter };
 })();
 
 
@@ -23082,6 +23102,8 @@ window.__game = {
   HG.INK = INK; HG.EDGE = EDGE; HG.BRASS = BRASS; HG.BRASS_D = BRASS_D;
   HG.OAK = OAK; HG.OAK_D = OAK_D; HG.PAPER = PAPER;
   HG.LAW = LAW; HG.LAW2 = LAW2;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).higuruma = { cast: [castSword, castGavel, castEvidence, castJudge, castRecess], state: HG };
 })();
 
 
@@ -23907,6 +23929,8 @@ window.__game = {
 
   /* the pieces the finishers borrow */
   YT.CE = CE; YT.CE2 = CE2; YT.CE_D = CE_D;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).yuta = { cast: [castKatana, castThrust, castRise, castCross, castPure], state: YT };
 })();
 
 
@@ -25068,6 +25092,8 @@ window.__game = {
   MU.chain = chainTo;
   MU.IRON = IRON; MU.GUN = GUN; MU.STEEL = STEEL; MU.PALE = PALE;
   MU.COP = COP; MU.WARN = WARN; MU.HOT = HOT; MU.FLASH = FLASH; MU.LENS = LENS;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).muta = { cast: [castCannon, castFist, castDrill, castPod, castSpin], state: MU };
 })();
 
 
@@ -26057,6 +26083,8 @@ window.__game = {
   RY.CE = CE; RY.CE2 = CE2; RY.CE_D = CE_D;
   RY.COAT = COAT; RY.FUR = FUR;
   RY.GBLEN = GB.len; RY.GBWIDE = GB.wide;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).ryu = { cast: [castDischarge, castFlare, castTrack, castPoint, castGranite], state: RY };
 })();
 
 
@@ -26980,6 +27008,8 @@ window.__game = {
   /* the pieces the finishers borrow */
   NA.RAT = RAT; NA.RAT2 = RAT2; NA.STEEL = STEEL;
   NA.WRAP = WRAP; NA.SPOT = SPOT; NA.BLADE = BLADE;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).nanami = { cast: [castRatio, castCleave, castCollapse, castThrow, castOvertime], state: NA };
 })();
 
 
@@ -27628,6 +27658,8 @@ window.__game = {
       applyPose(r,'fin_'+key,a.t);
     };});return false;
   }});
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).hanami = { cast: ['hn1','hn2','hn3','hn4','hnr'].map(key=>()=>cast(key)), state: H };
 })();
 
 
@@ -41566,6 +41598,7 @@ var JJS_DATA = await (async function () {
      screens would show nothing at all. Each cast is announced and a matching
      effect is played at that fighter's feet — visual only, never damaging,
      because the hit itself already travels as its own message. */
+  MP.actorFX = remoteFx;
   function remoteFx(kind, pos, yaw, f) {
     if(window.JJFIGHT && JJFIGHT.remoteFX(kind,pos,yaw))return;
     var FX = window.JJFX;
@@ -46131,6 +46164,575 @@ var JJS_DATA = await (async function () {
 })();
 
 
+/* ===== ai-character-kits.js ===== */
+/* Execute the existing player skills for another actor. Every callback keeps its
+   caster, targets and character state; the local player's bindings are restored
+   before returning, including when a skill throws or deals damage. */
+(function () {
+  'use strict';
+  const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+  const registry = window.JJCHARCAST;
+  registry.gojo = { cast: [castRed, castRapid, castTwofold, castPalm, castLimitless] };
+  const states = Object.values(registry)
+    .map((r) => r.state)
+    .filter(Boolean);
+  if (window.JJAW) states.push(JJAW);
+  const snapshot = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => typeof v !== 'function'));
+  function clone(v) {
+    if (!v || typeof v !== 'object') return v;
+    if (v.isVector3) return v.clone();
+    if (v instanceof Map) return new Map([...v].map(([k, x]) => [k, clone(x)]));
+    if (v instanceof Set) return new Set([...v].map(clone));
+    if (Array.isArray(v)) return v.map(clone);
+    if (Object.getPrototypeOf(v) === Object.prototype)
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clone(x)]));
+    return v;
+  }
+  const templates = states.map((s) => clone(snapshot(s)));
+  const baseCD = { ...cds };
+  const menus = Object.fromEntries(
+    Object.entries(CHARS).map(([id, c]) => [
+      id,
+      ['1', '2', '3', '4', 'R'].map((key) => ({ ...c.moves.find((m) => m.key === key) }))
+    ])
+  );
+  // Maximum useful distances, in menu order (1–4, R). Buffs/counters are
+  // selected before a combo or in response to an incoming attack.
+  const ranges = {
+    gojo: [32, 6, 3.5, 5, 24],
+    naoya: [5, 5, 6, 22, 25],
+    yuji: [7, 9, 8, 7, 10],
+    hakari: [14, 26, 7, 10, 8],
+    choso: [32, 26, 16, 22, 8],
+    megumi: [28, 26, 25, 24, 10],
+    higuruma: [8, 12, 24, 18, 10],
+    yuta: [18, 24, 12, 13, 24],
+    muta: [34, 28, 16, 30, 9],
+    ryu: [34, 25, 30, 8, 32],
+    nanami: [8, 10, 17, 25, 15],
+    hanami: [16, 23, 10, 22, 10],
+    mahito: [8, 25, 8, 20, 18],
+    todo: [12, 28, 7, 8, 8]
+  };
+  const minimum = {
+    yuta: [7.5, 9, 5, 5, 0],
+    muta: [7, 0, 7, 0, 0],
+    higuruma: [6, 0, 7, 0, 0],
+    megumi: [0, 9, 0, 0, 0],
+    nanami: [6, 0, 0, 0, 0],
+    ryu: [0, 0, 7, 0, 0]
+  };
+  let current = null;
+  const K = (window.JJAIKITS = {
+    init,
+    reset,
+    cancel,
+    cast,
+    tick,
+    pose,
+    run,
+    outside,
+    select,
+    variant,
+    isSkill,
+    menu: (e) => menus[e.char],
+    cooldown: (e, slot) => init(e).cd[menus[e.char][slot]?.cd] || 0,
+    defend,
+    remotePose,
+    pack,
+    unpack,
+    damageScale
+  });
+  function init(e) {
+    if (e.ai.kit?.char === e.char) return e.ai.kit;
+    if (e.ai.kit) reset(e);
+    const k = (e.ai.kit = {
+      char: e.char,
+      cd: Object.fromEntries(Object.keys(baseCD).map((key) => [key, 0])),
+      states: templates.map(clone),
+      keys: {},
+      proxies: new WeakMap(),
+      timers: new Set(),
+      roots: new Set(),
+      active: true,
+      last: null,
+      target: null,
+      hits: 0,
+      casts: [],
+      floor: 0
+    });
+    for (const [key, value] of Object.entries({
+      visYaw: e.facing,
+      gait: 0,
+      attackT: 0,
+      attackArm: 0,
+      comboN: 0,
+      comboReset: 0,
+      ghostAcc: 0,
+      dashCh: 2,
+      rWindow: 0,
+      vis24: 0,
+      proj: 0
+    }))
+      if (e[key] === undefined) e[key] = value;
+    return k;
+  }
+  function reset(e) {
+    const k = e.ai.kit;
+    if (!k) return;
+    const char = e.char;
+    e.char = k.char;
+    cancel(e);
+    e.char = char;
+    k.active = false;
+    k.timers.clear();
+    // Spell roots are owned by this incarnation, never by another fighter.
+    for (const root of k.roots) if (root !== e.rig.root) root.removeFromParent();
+    k.roots.clear();
+    e.ai.kit = null;
+  }
+  function loadState(o, data) {
+    for (const key of Object.keys(o)) if (typeof o[key] !== 'function' && !(key in data)) delete o[key];
+    Object.assign(o, data);
+  }
+  function enter(e) {
+    const k = init(e),
+      parent = current;
+    const indexes = [states.indexOf(registry[e.char].state), states.indexOf(window.JJAW)].filter(
+      (i, n, all) => i >= 0 && all.indexOf(i) === n
+    );
+    const saved = {
+      player,
+      enemies,
+      cds,
+      keys,
+      camYaw,
+      camPitch,
+      cursorTarget,
+      aimPoint,
+      addFx,
+      addShake,
+      hitstop,
+      showSplash,
+      startShatter,
+      buildMovesBar,
+      notice: window.JJNOTICE,
+      timeout: window.setTimeout,
+      clearTimeout: window.clearTimeout,
+      add: scene.add,
+      active: MPJJ.active,
+      states: indexes.map((i) => snapshot(states[i])),
+      ui: [],
+      moves: CHARS[e.char].moves,
+      locked: JJFIGHT.locked
+    };
+    const undoNaoya = registry.naoya.isolate();
+    const candidates = JJAISERVER.actors().filter((t) => t !== e);
+    player = e;
+    enemies = candidates.map((t) => targetProxy(e, t));
+    cds = k.cd;
+    keys = k.keys;
+    camYaw = e.facing + Math.PI;
+    camPitch = 0;
+    indexes.forEach((i) => loadState(states[i], k.states[i]));
+    JJFIGHT.locked = () =>
+      e.dead || e.rag || e.frameT > 0 || e.stunT > 0 || e.blocking || e.cineHold || e.tdHold;
+    cursorTarget = (cone = 0.94, distance = 60) => {
+      const t = k.target;
+      if (!t || t.dead || t.pos.distanceTo(e.pos) > distance) return null;
+      return targetProxy(e, t);
+    };
+    aimPoint = (distance = 50) => {
+      const delta = (k.target?.pos || e.pos).clone().sub(e.pos).clampLength(0, distance);
+      return e.pos.clone().add(delta);
+    };
+    addShake = hitstop = showSplash = startShatter = buildMovesBar = window.JJNOTICE = () => {};
+    for (const [o, names] of [
+      [window.JJFX, ['flash', 'tint', 'zoom', 'mangaLines', 'letterbox']],
+      [window.JJANIM, ['camKick', 'camRelease']]
+    ]) {
+      if (!o) continue;
+      for (const name of names)
+        if (typeof o[name] === 'function') {
+          saved.ui.push([o, name, o[name]]);
+          o[name] = () => {};
+        }
+    }
+    MPJJ.active = false;
+    scene.add = function (...objects) {
+      for (const obj of objects) k.roots.add(obj);
+      return saved.add.apply(this, objects);
+    };
+    addFx = function (effect) {
+      const update = effect.update;
+      effect.update = function (dt) {
+        if (!k.active) return false;
+        if (!MPJJ.active && !gameInputActive()) return true;
+        return run(e, () => update.call(effect, dt));
+      };
+      return saved.addFx(effect);
+    };
+    window.setTimeout = function (fn, ms = 0, ...args) {
+      if (typeof fn !== 'function') return 0;
+      const job = { t: Math.max(0, ms / 1000), fn: () => fn(...args) };
+      k.timers.add(job);
+      return job;
+    };
+    window.clearTimeout = function (job) {
+      if (!k.timers.delete(job)) saved.clearTimeout(job);
+    };
+    const frame = {
+      e,
+      leave() {
+        indexes.forEach((i, n) => {
+          k.states[i] = snapshot(states[i]);
+          loadState(states[i], saved.states[n]);
+        });
+        player = saved.player;
+        enemies = saved.enemies;
+        cds = saved.cds;
+        keys = saved.keys;
+        camYaw = saved.camYaw;
+        camPitch = saved.camPitch;
+        cursorTarget = saved.cursorTarget;
+        aimPoint = saved.aimPoint;
+        addFx = saved.addFx;
+        CHARS[e.char].moves = saved.moves;
+        JJFIGHT.locked = saved.locked;
+        addShake = saved.addShake;
+        hitstop = saved.hitstop;
+        showSplash = saved.showSplash;
+        startShatter = saved.startShatter;
+        buildMovesBar = saved.buildMovesBar;
+        window.JJNOTICE = saved.notice;
+        window.setTimeout = saved.timeout;
+        window.clearTimeout = saved.clearTimeout;
+        scene.add = saved.add;
+        MPJJ.active = saved.active;
+        for (const [o, name, fn] of saved.ui) o[name] = fn;
+        undoNaoya();
+        current = parent;
+      }
+    };
+    current = frame;
+    return frame;
+  }
+  function run(e, fn) {
+    if (current?.e === e) return fn();
+    if (current) return outside(() => run(e, fn));
+    enter(e);
+    try {
+      return fn();
+    } finally {
+      current.leave();
+    }
+  }
+  function outside(fn) {
+    if (!current) return fn();
+    const e = current.e;
+    current.leave();
+    try {
+      return fn();
+    } finally {
+      enter(e);
+    }
+  }
+  function targetProxy(source, target) {
+    const k = init(source);
+    if (k.proxies.has(target)) return k.proxies.get(target);
+    const human = !target.ai && !target.net;
+    if (human) {
+      target.anchorPos ||= target.pos.clone();
+      target.lockPos ||= target.pos.clone();
+      for (const key of ['anchorT', 'lockT', 'stunT', 'frameT', 'proj']) target[key] ||= 0;
+    }
+    function damage(amount, knock, opts = {}, direct = false) {
+      return outside(() => {
+        if (!k.active || target.dead || source.dead) return false;
+        const meta = {
+          source: source.pos.clone(),
+          guardable: !direct && opts.guardable !== false,
+          breakGuard: !!opts.breakGuard,
+          stun: opts.stun ?? 0.35,
+          down: 0,
+          variant: 'normal',
+          kind: 'skill',
+          id: ++source.ai.serial,
+          skill: true,
+          opts
+        };
+        const hit = JJAISERVER.hit(source, target, amount, knock || V(), meta);
+        if (hit) {
+          source.ai.confirm = true;
+          source.ai.lastHit = JJAISERVER.time;
+          k.hits++;
+        }
+        return hit;
+      });
+    }
+    const proxy = new Proxy(target, {
+      get(t, key) {
+        if (key === 'damage') return damage;
+        if (key === 'directDamage')
+          return (n, color, kill = false) =>
+            damage(kill ? n : Math.min(n, Math.max(0, t.hp - 1)), V(), { color }, true);
+        if (key === 'drawBars' && human) return () => {};
+        if (key === 'die' && human) return () => damage(t.hp, V(), {}, true);
+        if (key === 'enterFrame' && human) return () => outside(() => framePlayer());
+        if (key === 'unframe' && human) return () => outside(() => unframePlayer());
+        if (key === 'applyProj' && human)
+          return (amount) =>
+            outside(() => {
+              player.proj = Math.min(100, (player.proj || 0) + amount);
+              if (player.proj >= 100) framePlayer();
+            });
+        if (key === 'net') return null; // control/damage use the AI authority channel
+        const value = Reflect.get(t, key);
+        return typeof value === 'function' ? value.bind(t) : value;
+      },
+      set(t, key, value) {
+        Reflect.set(t, key, value);
+        if (['anchorT', 'lockT', 'cineHold', 'tdHold', 'mhConsumed'].includes(key)) {
+          t.__aiHeldBy = value ? source : t.__aiHeldBy;
+        }
+        return true;
+      }
+    });
+    k.proxies.set(target, proxy);
+    return proxy;
+  }
+  function isSkill(a) {
+    return !!a?.aiCharacterSkill;
+  }
+  function announce(e, slot, before) {
+    const k = init(e),
+      a = e.action;
+    if (a && a !== before) {
+      a.aiCharacterSkill = true;
+      a.aiSlot = slot;
+      a.id = ++e.ai.serial;
+      k.last = a;
+      e.ai.history.push('skill ' + (menus[e.char][slot]?.lbl || a.type) + ' [' + a.type + ']');
+      if (e.ai.history.length > 64) e.ai.history.shift();
+      k.casts.push(a.type);
+      if (k.casts.length > 64) k.casts.shift();
+      JJAISERVER.castEvent?.(e, a);
+    }
+    const state = k.states[states.indexOf(registry[e.char].state)];
+    e.ai.mode = state?.mode || 0;
+  }
+  function cast(e, target, slot) {
+    const k = init(e),
+      reg = registry[e.char];
+    if (!reg?.cast[slot] || K.cooldown(e, slot) > 0 || e.dead) return false;
+    const before = e.action;
+    const cancelM1 =
+      before?.type === 'bc_m1' && before.n < 3 && e.ai.confirm && before.t >= before.start + 0.16;
+    const cancelDash = before?.type === 'bc_dash' && before.kind !== 'front' && before.t >= 0.1;
+    if (before && !cancelM1 && !cancelDash) return false;
+    k.target = target;
+    k.floor = worldFloor(e.pos, e.pos.y + 0.2);
+    e.facing = Math.atan2(target.pos.x - e.pos.x, target.pos.z - e.pos.z);
+    e.rig.root.position.copy(e.pos);
+    e.rig.root.rotation.y = e.facing;
+    e.rig.root.updateMatrixWorld(true);
+    e.action = null;
+    const priorCD = K.cooldown(e, slot),
+      priorMode = e.ai.mode;
+    run(e, () => reg.cast[slot]());
+    // Bots commit to an arm stance before changing it again.
+    if (e.char === 'mahito' && slot === 4) k.cd.mhMode = 3;
+    announce(e, slot, before);
+    const success = !!e.action || K.cooldown(e, slot) > priorCD || e.ai.mode !== priorMode;
+    if (!success) e.action = before;
+    else {
+      e.blocking = false;
+      e.ai.guardT = 0;
+      e.ai.comboReset = 1.2;
+      e.ai.goal = null;
+    }
+    return success;
+  }
+  function variant(e) {
+    const a = e.action,
+      k = init(e),
+      type = a?.type;
+    if (!isSkill(a) || a.aiVariant) return false;
+    let fn;
+    if (e.char === 'todo' && a.type === 'b3' && a.t >= 0.26 && a.t <= 0.4) fn = () => JJTODO.cast(3);
+    if (e.char === 'todo' && a.type === 'b2' && a.t > 0.3 && a.t < 0.6) fn = () => JJTODO.cast(2);
+    if (e.char === 'mahito' && a.type === 'mh_focus' && a.t >= 0.23 && a.t <= 0.36)
+      fn = () => JJMAHITO.cast(3);
+    if (
+      e.char === 'mahito' &&
+      a.type === 'mh_repel' &&
+      a.t >= 0.34 &&
+      a.t <= 0.56 &&
+      k.target?.pos.distanceTo(e.pos) > 9
+    )
+      fn = () => JJMAHITO.cast(3);
+    if (!fn) return false;
+    a.aiVariant = true;
+    run(e, fn);
+    if (e.action !== a || e.action?.type !== type) {
+      announce(e, a.aiSlot, null);
+      return true;
+    }
+    return false;
+  }
+  function cancel(e) {
+    const k = e.ai.kit;
+    if (!k) return;
+    const a = k.last;
+    if (a)
+      run(e, () => {
+        registry[e.char].release?.(a);
+        if (a.aura?.stop) a.aura.stop();
+        if (a.doors) for (const door of a.doors) door.removeFromParent();
+      });
+    outside(() => {
+      for (const t of JJAISERVER.actors())
+        if (t.__aiHeldBy === e) {
+          t.anchorT = t.lockT = 0;
+          t.cineHold = t.tdHold = t.mhConsumed = false;
+          t.__aiHeldBy = null;
+          JJAISERVER.skillControl?.(e, t, false);
+        }
+    });
+    k.last = null;
+    if (e.rig.tanto) e.rig.tanto.visible = false;
+    e.visYaw = 0;
+  }
+  function tick(e, dt) {
+    const k = init(e);
+    if (k.last && k.last !== e.action) cancel(e);
+    for (const key of Object.keys(k.cd)) k.cd[key] = Math.max(0, k.cd[key] - dt);
+    if (e.rWindow > 0) {
+      e.rWindow = Math.max(0, e.rWindow - dt);
+      if (!e.rWindow && k.cd.nr <= 0) k.cd.nr = CD.nr;
+    }
+    for (const job of [...k.timers]) {
+      job.t -= dt;
+      if (job.t <= 0) {
+        k.timers.delete(job);
+        run(e, job.fn);
+      }
+    }
+    if (e.dead) return;
+    run(e, () => registry[e.char].idle?.(dt));
+    const a = e.action;
+    if (!isSkill(a)) return;
+    const before = e.pos.clone(),
+      targets = JJAISERVER.actors()
+        .filter((t) => t !== e)
+        .map((t) => [t, t.pos.clone()]);
+    a.t += dt;
+    run(e, () => stepAction(a, dt));
+    if (e.action && e.action !== a) announce(e, a.aiSlot, a);
+    // Older skills directly change position. Sweep their horizontal movement
+    // through the same colliders used by dash and parkour.
+    const desired = e.pos.clone();
+    e.pos.x = before.x;
+    e.pos.z = before.z;
+    JJFIGHT.actors.sweepMove(e, desired.clone().sub(before).setY(0));
+    e.pos.y = desired.y;
+    for (const [t, pos] of targets) {
+      const held = t.__aiHeldBy === e && (t.anchorT > 0 || t.lockT > 0 || t.cineHold || t.tdHold);
+      if (held || t.pos.distanceToSquared(pos) > 0.01) JJAISERVER.skillControl?.(e, t, !!held);
+    }
+    variant(e);
+    if (e.action === a && a.t >= a.dur) {
+      e.action = null;
+      cancel(e);
+    }
+    e.rig.root.updateMatrixWorld(true);
+    for (const root of k.roots) if (!root.parent) k.roots.delete(root);
+  }
+  function pose(e) {
+    run(e, () => poseAction(e.rig, e.action));
+  }
+  function remotePose(e) {
+    if (e.char === 'mahito') JJMAHITO.remoteState(e.rig, e.ai.mode, false, e.action?.type, e.blocking);
+    pose(e);
+  }
+  function select(e, target, combo = false, random = Math.random) {
+    const distance = e.pos.distanceTo(target.pos),
+      k = init(e);
+    const options = [];
+    for (let slot = 0; slot < 5; slot++) {
+      if (
+        K.cooldown(e, slot) > 0 ||
+        distance > ranges[e.char][slot] ||
+        distance < (minimum[e.char]?.[slot] || 0)
+      )
+        continue;
+      if (e.char === 'choso' && slot === 3 && k.states[states.indexOf(registry.choso.state)].scale > 2)
+        continue;
+      if ((e.char === 'hakari' || e.char === 'todo') && slot === 4 && !target.action) continue;
+      if (e.char === 'mahito' && slot === 4 && (combo || random() > 0.25)) continue;
+      const melee = ranges[e.char][slot] <= 12;
+      options.push({
+        slot,
+        score: random() + (combo && melee ? 1 : 0) + (!combo && distance > 10 && !melee ? 0.6 : 0)
+      });
+    }
+    options.sort((a, b) => b.score - a.score);
+    return options[0]?.slot ?? -1;
+  }
+  function defend(e, source) {
+    if (!e.ai || e.dead) return false;
+    return run(e, () => {
+      if (e.char === 'hakari' && JJHAKARI.guardUp()) return JJHAKARI.springGuard(source.pos);
+      return registry[e.char].defend?.(source) || false;
+    });
+  }
+  function damageScale(e) {
+    if (e.char !== 'hanami') return 1;
+    const field = init(e).states[states.indexOf(registry.hanami.state)].field;
+    return field && !field.dead && e.pos.distanceTo(field.group.position) < 10.5 ? 0.65 : 1;
+  }
+  const fields = [
+    'stage',
+    'n',
+    'counter',
+    'trigger',
+    'sprung',
+    'sprungAt',
+    'variant',
+    'aiSlot',
+    'facing',
+    'fin',
+    'finN',
+    'locked',
+    'miss',
+    'k1',
+    'k2',
+    'hop',
+    'second',
+    'thrust',
+    'stabbed',
+    'hit',
+    'grabbed',
+    'dashed',
+    'lunged',
+    'mode',
+    'toss',
+    'black',
+    'riding',
+    'confirm'
+  ];
+  function pack(a) {
+    return isSkill(a) ? Object.fromEntries(fields.map((k) => [k, a[k]])) : null;
+  }
+  function unpack(a, data) {
+    if (!a || !data) return;
+    a.aiCharacterSkill = true;
+    for (const k of fields) if (['number', 'boolean', 'string'].includes(typeof data[k])) a[k] = data[k];
+    a.dir = V(Math.sin(a.facing || 0), 0, Math.cos(a.facing || 0));
+  }
+})();
+
+
 /* ===== ai-combat.js ===== */
 /* Bot actions use the player's hit windows, guard angles, poses and collision.
    Actor state is independent: bot attacks never borrow the player's cooldowns. */
@@ -46141,22 +46743,6 @@ var JJS_DATA = await (async function () {
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n)),
     C = JJFIGHT,
     world = C.actors;
-  const traits = {
-    gojo: ['beam', 'launch'],
-    naoya: ['rush', 'blade'],
-    yuji: ['rush', 'launch'],
-    hakari: ['rush', 'launch'],
-    choso: ['beam', 'snare'],
-    megumi: ['snare', 'rush'],
-    mahito: ['launch', 'rush'],
-    todo: ['swap', 'launch'],
-    higuruma: ['launch', 'rush'],
-    yuta: ['blade', 'beam'],
-    muta: ['beam', 'rush'],
-    ryu: ['beam', 'launch'],
-    nanami: ['blade', 'rush'],
-    hanami: ['snare', 'beam']
-  };
   const colors = {
     gojo: 0xff635f,
     naoya: 0xc7e6ff,
@@ -46180,12 +46766,10 @@ var JJS_DATA = await (async function () {
     tick,
     pose,
     turn,
-    traits,
     free,
     readyGuard,
     guard,
-    hitTargets,
-    techFX
+    hitTargets
   });
   function free(e) {
     return (
@@ -46300,32 +46884,8 @@ var JJS_DATA = await (async function () {
     });
   }
   function skill(e, target, slot = 0) {
-    const b = e.ai;
-    if (!free(e) || e.blocking || b.techCD[slot] > 0) return false;
-    if (e.action && !(e.action.type === 'bc_m1' && e.action.t >= e.action.start + 0.16 && e.action.n < 3))
-      return false;
-    const kind = traits[e.char][slot],
-      beam = kind === 'beam' || kind === 'snare';
-    const aim = target.pos.clone().addScaledVector(target.vel || V(), beam ? 0.18 : 0.08);
-    aim.y = e.pos.y;
-    const d = aim.sub(e.pos).normalize();
-    turn(e, Math.atan2(d.x, d.z), 1);
-    b.techCD[slot] = slot ? 9 : 7;
-    b.comboReset = 1.2;
-    return set(e, {
-      type: 'ai_skill',
-      t: 0,
-      dur: beam ? 0.82 : 0.68,
-      start: beam ? 0.34 : 0.24,
-      kind,
-      slot,
-      dir: d,
-      hits: new Set(),
-      mode: b.mode,
-      id: ++b.serial,
-      variant: kind === 'launch' ? 'up' : 'normal',
-      n: 3
-    });
+    if (!free(e) || e.blocking) return false;
+    return JJAIKITS.cast(e, target, slot);
   }
   function hitTargets(e, a, range = 5.1, width = 2.2) {
     const right = V(a.dir.z, 0, -a.dir.x),
@@ -46359,38 +46919,27 @@ var JJS_DATA = await (async function () {
   }
   function impact(e, a, isDash = false) {
     const last = a.type === 'bc_m1' && a.n === 3,
-      tech = a.type === 'ai_skill',
       p = world.profile(e.char, a.mode);
-    const range = tech ? (a.kind === 'beam' ? 28 : a.kind === 'snare' ? 15 : 5.8) : isDash ? 5.8 : p.reach;
-    const list = hitTargets(e, a, range, tech && ['beam', 'snare'].includes(a.kind) ? 1.45 : 2.35);
+    const range = isDash ? 5.8 : p.reach;
+    const list = hitTargets(e, a, range, 2.35);
     for (const t of list) {
       if (a.hits.has(t)) continue;
       a.hits.add(t);
       const knock = a.dir
         .clone()
-        .multiplyScalar(last ? (a.variant === 'up' ? 3 : 27) : tech ? 8 : 2.6)
-        .setY(
-          last
-            ? a.variant === 'up'
-              ? 24
-              : a.variant === 'down'
-                ? -17
-                : 9
-            : tech && a.kind === 'launch'
-              ? 14
-              : 0.35
-        );
+        .multiplyScalar(last ? (a.variant === 'up' ? 3 : 27) : 2.6)
+        .setY(last ? (a.variant === 'up' ? 24 : a.variant === 'down' ? -17 : 9) : 0.35);
       const meta = {
         source: e.pos.clone(),
         guardable: true,
         breakGuard: a.variant === 'down' || (e.char === 'mahito' && a.mode === 2 && a.n >= 2),
-        stun: tech ? 0.7 : 0.6,
+        stun: 0.6,
         down: last ? 1.35 : 0,
         variant: a.variant || 'normal',
         id: a.id,
-        kind: isDash ? 'dash' : tech ? 'tech' : 'm1'
+        kind: isDash ? 'dash' : 'm1'
       };
-      const damage = isDash ? 3.25 : tech ? (a.slot ? 12 : 9) : p.damage;
+      const damage = isDash ? 3.25 : p.damage;
       const hit = JJAISERVER.hit(e, t, damage, knock, meta);
       if (hit) {
         e.ai.confirm = true;
@@ -46416,44 +46965,18 @@ var JJS_DATA = await (async function () {
       );
     }
   }
-  function techFX(e, a) {
-    if (e.pos.distanceTo(player.pos) > 125) return;
-    const color = colors[e.char],
-      range = a.kind === 'beam' ? 22 : a.kind === 'snare' ? 12 : 4;
-    if (a.kind === 'beam' || a.kind === 'blade')
-      JJFX.slash(e.pos.clone().add(V(0, 2.8, 0)), a.dir, color, range, 0.24);
-    if (a.kind === 'snare') {
-      const g = new THREE.Group(),
-        mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
-      for (let i = 0; i < 6; i++) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.5 + i * 0.13, 0.4), mat);
-        m.position.copy(e.pos).addScaledVector(a.dir, 3 + i * 1.6);
-        m.position.y += 0.6;
-        m.rotation.z = i % 2 ? 0.4 : -0.4;
-        g.add(m);
-      }
-      scene.add(g);
-      let t = 0;
-      addFx({
-        update(dt) {
-          t += dt;
-          g.scale.y = Math.min(1, t * 12);
-          if (t < 0.6) return true;
-          scene.remove(g);
-          g.children.forEach((m) => m.geometry.dispose());
-          mat.dispose();
-          return false;
-        }
-      });
-    }
-  }
   function tick(e, dt) {
     const b = e.ai,
       a = e.action;
     for (const k of ['m1CD', 'frontCD', 'evadeCD', 'comboReset', 'guardT']) b[k] = Math.max(0, b[k] - dt);
-    b.techCD = b.techCD.map((n) => Math.max(0, n - dt));
     b.charges = Math.min(2, b.charges + dt / 2.2);
     if (b.guardT <= 0) e.blocking = false;
+    if (!free(e) && JJAIKITS.isSkill(a)) {
+      JJAIKITS.cancel(e);
+      e.action = null;
+    }
+    JJAIKITS.tick(e, dt);
+    if (JJAIKITS.isSkill(a)) return;
     if (!a) return;
     if (!free(e)) {
       e.action = null;
@@ -46496,25 +47019,6 @@ var JJS_DATA = await (async function () {
         }
       }
       if (a.kind === 'front' && a.strikeAt !== null && a.t >= a.strikeAt) impact(e, a, true);
-    } else if (a.type === 'ai_skill') {
-      if (a.kind === 'rush' && a.t < 0.24) world.sweepMove(e, a.dir.clone().multiplyScalar(25 * dt));
-      if (a.t >= a.start && !a.fired) {
-        a.fired = true;
-        techFX(e, a);
-        if (
-          a.kind === 'swap' &&
-          b.target &&
-          e.pos.distanceTo(b.target.pos) < 14 &&
-          world.visible(e.pos, b.target.pos) &&
-          !JJAINAV.occupied(b.target.pos) &&
-          !JJAINAV.occupied(e.pos)
-        ) {
-          JJAISERVER.swap(e, b.target);
-          if (b.target) turn(e, b.target.pos, 1);
-          a.dir.copy(F(e.facing));
-        }
-        impact(e, a);
-      }
     }
     if (e.action === a && a.t >= a.dur) e.action = null;
   }
@@ -46541,15 +47045,9 @@ var JJS_DATA = await (async function () {
       e.vel.y
     );
     if (a) {
-      if (a.type === 'ai_skill') {
-        C.pose(r, {
-          ...a,
-          type: 'bc_m1',
-          start: a.start,
-          active: 0.16,
-          n: 3,
-          variant: a.kind === 'launch' ? 'up' : 'normal'
-        });
+      if (JJAIKITS.isSkill(a)) {
+        if (e.ai.remote) JJAIKITS.remotePose(e);
+        else JJAIKITS.pose(e);
       } else if (a.type === 'ai_naoya_dash') C.pose(r, { ...a, type: 'bc_dash', strikeAt: null });
       else if (/^pk_/.test(a.type)) JJMOVE.pose(r, a);
       else if (/^bc_/.test(a.type)) C.pose(r, a);
@@ -46557,7 +47055,7 @@ var JJS_DATA = await (async function () {
     if (e.blocking && !a) C.guardPose(r, e.animT, e.bcGuardHit || 0);
     if (e.react && !a && !e.blocking) e.applyReact(0);
     r.root.position.copy(e.pos);
-    r.root.rotation.y = e.facing;
+    r.root.rotation.y = e.facing + (JJAIKITS.isSkill(a) ? e.visYaw || 0 : 0);
   }
 })();
 
@@ -46614,6 +47112,8 @@ var JJS_DATA = await (async function () {
     actors,
     hit,
     swap,
+    castEvent,
+    skillControl,
     receive,
     onArena,
     onMap,
@@ -46745,7 +47245,7 @@ var JJS_DATA = await (async function () {
       m1CD: 0,
       frontCD: 0,
       evadeCD: 0,
-      techCD: [1 + random * 3, 3 + random * 3],
+      nextSkill: 0,
       charges: 2,
       mode: 0,
       guardT: 0,
@@ -46786,6 +47286,7 @@ var JJS_DATA = await (async function () {
     e.blocking = false;
     e.action = null;
     rig(e, char);
+    JJAIKITS.init(e);
     bots.push(e);
     enemies.push(e);
     return e;
@@ -46838,6 +47339,7 @@ var JJS_DATA = await (async function () {
   function stop(announce = true) {
     if (announce && S.active && S.authority) pub({ t: 'ai-stop' });
     for (const e of bots) {
+      JJAIKITS.reset(e);
       JJRAG.stop(e);
       JJGORE.clear(e);
       e.unframe(false);
@@ -46875,6 +47377,7 @@ var JJS_DATA = await (async function () {
     N.clear();
     lastRoot = JJJJS.root;
     for (const [i, e] of bots.entries()) {
+      JJAIKITS.reset(e);
       e.ai.path = [];
       e.ai.goal = null;
       e.ai.pathT = 0;
@@ -46947,6 +47450,7 @@ var JJS_DATA = await (async function () {
     }
   }
   function eNoAction(e) {
+    JJAIKITS.cancel(e);
     e.action = null;
     e.blocking = false;
     e.ai.guardT = 0;
@@ -46955,7 +47459,7 @@ var JJS_DATA = await (async function () {
     if (!S.active || !S.authority || !source.ai || !Number.isFinite(amount) || amount <= 0) return false;
     if (target === player) {
       const before = player.hp;
-      hurtPlayer(amount, knock, { combat: meta, aiSource: source.ai.id });
+      hurtPlayer(amount, knock, { ...meta.opts, combat: meta, aiSource: source.ai.id });
       return player.hp < before;
     }
     if (target.net) {
@@ -46967,7 +47471,8 @@ var JJS_DATA = await (async function () {
         bot: source.ai.id,
         d: amount,
         k: knock.toArray(),
-        bc: F.hitData(meta)
+        bc: F.hitData(meta),
+        sk: !!meta.skill
       });
       return false; // The owning peer confirms damage before a hit-confirm combo.
     }
@@ -46977,19 +47482,19 @@ var JJS_DATA = await (async function () {
     if (
       !target.ai ||
       target.dead ||
-      target.rag ||
-      target.bcFall ||
+      (!meta?.skill && (target.rag || target.bcFall)) ||
       target.iframes > 0 ||
-      target.cineHold ||
-      target.tdHold ||
-      target.mhConsumed
+      ((!meta?.skill || target.__aiHeldBy !== source) &&
+        (target.cineHold || target.tdHold || target.mhConsumed))
     )
       return false;
+    if (JJAIKITS.defend(target, source)) return false;
     if (F.blocked(target, meta)) {
       if (nearPlayer(target)) F.blockFX(target);
       return false;
     }
     const hp = target.hp;
+    amount *= JJAIKITS.damageScale(target);
     target.hp = Math.max(JJGORE.isHeld(target) ? 1 : 0, hp - amount);
     damaged(target, source);
     target.stunT = Math.max(target.stunT, meta?.stun || 0.35);
@@ -46997,7 +47502,17 @@ var JJS_DATA = await (async function () {
       target.vel.add(knock);
       if (meta?.down) F.actors.startFall(target, knock, meta);
     }
-    target.react = { type: 'stagger', t: 0, dur: 0.32, side: 1 };
+    if (knock?.lengthSq() > 300) {
+      target.flung = true;
+      target.onGround = false;
+      target.anchorT = target.lockT = 0;
+    }
+    target.react = {
+      type: meta?.opts?.react || 'stagger',
+      t: 0,
+      dur: meta?.opts?.reactDur || 0.32,
+      side: meta?.opts?.side || 1
+    };
     target.drawBars();
     if (nearPlayer(target, 90))
       damageNumber(target.pos.clone().add(V(0, 5.4, 0)), Math.round(amount), '#ffddb0');
@@ -47182,7 +47697,7 @@ var JJS_DATA = await (async function () {
     const toward = m.pos.clone().sub(e.pos).setY(0).normalize(),
       angle = Math.atan2(toward.x, toward.z);
     C.turn(e, angle, 0.1, 12);
-    if (!visible || distance > 25 || Math.abs(target.pos.y - e.pos.y) > 3) {
+    if (!visible || distance > 35 || Math.abs(target.pos.y - e.pos.y) > 3) {
       goal(e, m.pos);
       return;
     }
@@ -47196,7 +47711,7 @@ var JJS_DATA = await (async function () {
       distance < 7 &&
       ta &&
       S.time >= b.reactAt &&
-      ['bc_m1', 'bc_dash', 'ai_skill'].includes(ta.type) &&
+      (['bc_m1', 'bc_dash'].includes(ta.type) || JJAIKITS.isSkill(ta) || !/^(pk_|bc_fall)/.test(ta.type)) &&
       rng() < 0.83
     ) {
       if (target.blocking || m.guard > 0.65) {
@@ -47219,12 +47734,24 @@ var JJS_DATA = await (async function () {
       if (
         b.confirm &&
         e.action.type === 'bc_m1' &&
-        e.action.n === 1 &&
-        e.action.t >= e.action.start + 0.16 &&
-        rng() < 0.7
+        e.action.n >= 1 &&
+        e.action.n < 3 &&
+        e.action.t >= e.action.start + 0.16
       ) {
-        if (C.skill(e, target, b.skillBias > 0.5 ? 1 : 0)) {
+        const slot = JJAIKITS.select(e, target, true, rng);
+        if (slot >= 0 && C.skill(e, target, slot)) {
           b.history.push('hit-confirm technique');
+          b.skillCombos = (b.skillCombos || 0) + 1;
+          if (S.time < b.frontChainUntil) {
+            b.history.push('front dash + M1 + character skill');
+            b.frontCombos = (b.frontCombos || 0) + 1;
+          }
+          b.plan = 'skill chase';
+          return;
+        }
+        if (slot < 0 && C.dash(e, target, 'back')) {
+          b.plan = 'spacing skill';
+          b.history.push('M1 + back dash + skill spacing');
           return;
         }
       }
@@ -47243,6 +47770,20 @@ var JJS_DATA = await (async function () {
         b.plan = 'downslam';
       }
     }
+    const slot = JJAIKITS.select(e, target, false, rng);
+    if (
+      slot >= 0 &&
+      S.time >= b.nextSkill &&
+      (distance > 18 ||
+        b.plan === 'spacing skill' ||
+        (b.plan === 'skill chase' && distance < 8) ||
+        rng() < (distance < 5.2 ? 0.28 : 0.42)) &&
+      C.skill(e, target, slot)
+    ) {
+      b.nextSkill = S.time + 0.45;
+      b.plan = 'skill chase';
+      return;
+    }
     if (distance <= 5.2) {
       b.goal = distance > 3.2 ? m.pos.clone() : null;
       if (b.combo === 3 && b.plan === 'downslam' && !e.onGround) {
@@ -47254,17 +47795,21 @@ var JJS_DATA = await (async function () {
         return;
       }
       if (C.m1(e, target, b.combo === 3 && rng() < 0.45 ? 'up' : 'normal')) {
+        if (b.plan === 'front combo') {
+          b.history.push('front dash + M1');
+          b.plan = null;
+        }
         if (b.plan === 'flank combo') {
           b.history.push('side dash + rotation + M1');
           b.plan = null;
         }
         return;
       }
-    } else if (distance < 20 && C.dash(e, target, 'front')) {
-      b.goal = null;
-      return;
-    }
-    if (distance > 7 && distance < 27 && b.techCD[0] <= 0 && rng() < 0.45 && C.skill(e, target, 0)) {
+    } else if (distance < 23 && !target.rag && !target.bcFall && C.dash(e, target, 'front')) {
+      b.plan = 'front combo';
+      b.frontChainUntil = S.time + 4;
+      b.frontDashes = (b.frontDashes || 0) + 1;
+      b.history.push('front dash approach');
       b.goal = null;
       return;
     }
@@ -47444,6 +47989,7 @@ var JJS_DATA = await (async function () {
       e.tdHold ||
       e.mhConsumed
     ) {
+      JJAIKITS.cancel(e);
       e.action = null;
       e.blocking = false;
       C.tick(e, dt);
@@ -47472,10 +48018,15 @@ var JJS_DATA = await (async function () {
           : b.state === 'fighting' || b.revenge
             ? 12.5
             : 7.2;
-      e.vel.x += (d.x * speed - e.vel.x) * Math.min(1, dt * 12);
-      e.vel.z += (d.z * speed - e.vel.z) * Math.min(1, dt * 12);
+      if (!JJAIKITS.isSkill(e.action)) {
+        e.vel.x += (d.x * speed - e.vel.x) * Math.min(1, dt * 12);
+        e.vel.z += (d.z * speed - e.vel.z) * Math.min(1, dt * 12);
+      } else {
+        e.vel.x *= Math.max(0, 1 - dt * 3);
+        e.vel.z *= Math.max(0, 1 - dt * 3);
+      }
       const y = e.pos.y;
-      e.vel.y -= 30 * dt;
+      e.vel.y -= (JJAIKITS.isSkill(e.action) ? 34 : 30) * dt;
       F.actors.sweepMove(e, V(e.vel.x * dt, 0, e.vel.z * dt));
       e.pos.y += e.vel.y * dt;
       resolveActorWorld(e, y, 1);
@@ -47506,7 +48057,8 @@ var JJS_DATA = await (async function () {
     }
     e.hp = Math.min(e.maxHp, e.hp + dt * 0.65);
     C.pose(e);
-    e.rig.root.visible = nearPlayer(e, 180);
+    e.rig.root.visible =
+      nearPlayer(e, 180) && !(e.action?.type === 'n4' && e.action.t > 0.12 && e.action.t < 1.1);
   };
   const beforeDamage = Enemy.prototype.damage;
   Enemy.prototype.damage = function (amount, knock, opts = {}) {
@@ -47557,7 +48109,7 @@ var JJS_DATA = await (async function () {
       this.ai.pathT = 0;
       this.ai.combo = 0;
       this.ai.comboReset = 0;
-      this.ai.techCD = [1, 2];
+      JJAIKITS.reset(this);
       this.ai.target = null;
       this.ai.state = this.ai.revenge ? 'seeking revenge' : 'roaming';
       this.action = null;
@@ -47575,6 +48127,17 @@ var JJS_DATA = await (async function () {
     if (S.active && source && player.hp < hp && !was && player.dead) killed(player, source);
     return result;
   };
+  function castEvent(e, a) {
+    pub({ t: 'ai-cast', bot: e.ai.id, cast: a.id, k: a.type });
+  }
+  function skillControl(e, t, held) {
+    if (held && t.anchorT > 0 && t.anchorPos) t.pos.copy(t.anchorPos);
+    if (t.net) pub({ t: 'ai-control', to: t.net.id, bot: e.ai.id, p: t.pos.toArray(), h: held });
+    if (t === player) {
+      player.__aiLocalHold = held ? { bot: e, pos: player.pos.clone(), ttl: 0.4 } : null;
+      player.__jjsLast = player.pos.clone();
+    }
+  }
   function snapshot(to) {
     if (!S.active || !S.authority || !MPJJ.active) return;
     pub({
@@ -47609,7 +48172,8 @@ var JJS_DATA = await (async function () {
                 pose: F.pack(a),
                 kind: a.kind,
                 slot: a.slot,
-                side: a.side
+                side: a.side,
+                kit: JJAIKITS.pack(a)
               }
             : null
         };
@@ -47627,13 +48191,10 @@ var JJS_DATA = await (async function () {
     b.gait += dt * (4.2 + e.vel.length() * 0.92);
     if (e.action) {
       e.action.t = Math.min(e.action.dur, e.action.t + dt);
-      if (e.action.type === 'ai_skill' && e.action.t >= e.action.start && b.visualId !== e.action.id) {
-        b.visualId = e.action.id;
-        C.techFX(e, { ...e.action, dir: V(Math.sin(e.facing), 0, Math.cos(e.facing)) });
-      }
     }
     C.pose(e);
-    e.rig.root.visible = nearPlayer(e, 180);
+    e.rig.root.visible =
+      nearPlayer(e, 180) && !(e.action?.type === 'n4' && e.action.t > 0.12 && e.action.t < 1.1);
   }
   function acceptHit(m) {
     const tag = m.id + ':' + m.bot + ':' + (m.bc ? 'swing:' + m.bc.id : 'hit:' + m.seq);
@@ -47719,6 +48280,7 @@ var JJS_DATA = await (async function () {
               }
             : null;
         F.unpack(e.action, s.a?.pose);
+        JJAIKITS.unpack(e.action, s.a?.kit);
         e.bcFall = e.action?.type === 'bc_fall' ? e.action : null;
         e.drawBars();
       }
@@ -47726,6 +48288,34 @@ var JJS_DATA = await (async function () {
       return true;
     }
     if (!S.active || m.epoch !== epoch) return true;
+    if (m.t === 'ai-cast' && m.id === hostId) {
+      const e = bots.find((b) => b.ai.id === m.bot);
+      if (e && typeof m.k === 'string' && m.k.length < 30 && Number.isSafeInteger(m.cast)) {
+        const tag = m.bot + ':' + m.cast;
+        if (!seenHits.has(tag)) {
+          seenHits.set(tag, S.time);
+          MPJJ.actorFX?.(m.k, e.pos.clone(), e.facing, { e });
+        }
+      }
+      return true;
+    }
+    if (m.t === 'ai-control' && m.id === hostId && m.to === MPJJ.id) {
+      const e = bots.find((b) => b.ai.id === m.bot);
+      if (
+        e &&
+        Array.isArray(m.p) &&
+        m.p.length === 3 &&
+        m.p.every(Number.isFinite) &&
+        player.pos.distanceTo(e.pos) < 80 &&
+        !player.dead
+      ) {
+        player.pos.fromArray(m.p);
+        player.vel.set(0, 0, 0);
+        player.__aiNetHold = m.h ? { bot: e, pos: player.pos.clone(), ttl: 0.4 } : null;
+        player.__jjsLast = player.pos.clone();
+      }
+      return true;
+    }
     if (m.t === 'ai-stop' && m.id === hostId) {
       stop(false);
       return true;
@@ -47807,7 +48397,23 @@ var JJS_DATA = await (async function () {
   }
   const beforeUpdate = updatePlayer;
   updatePlayer = function (dt) {
+    const held = player.__aiLocalHold || player.__aiNetHold;
+    if (held) {
+      held.ttl -= dt;
+      if (held.ttl <= 0 || held.bot.dead || player.dead || !S.active) {
+        player.__aiLocalHold = player.__aiNetHold = null;
+      } else {
+        player.action = null;
+        player.vel.set(0, 0, 0);
+        player.pos.copy(held.pos);
+      }
+    }
     beforeUpdate(dt);
+    if (held?.ttl > 0 && !held.bot.dead && !player.dead && S.active) {
+      player.pos.copy(held.pos);
+      player.vel.set(0, 0, 0);
+      player.rig.root.position.copy(player.pos);
+    }
     if (!S.active) return;
     if (S.authority && !MPJJ.active && !gameInputActive()) return;
     S.time += dt;

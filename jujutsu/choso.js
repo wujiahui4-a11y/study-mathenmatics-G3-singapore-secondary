@@ -1886,4 +1886,6 @@
       FX.bloodThreads(at, 6, 15, 1.1);
     }
   };
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).choso = { cast: [castPierce, castMeteorite, castSupernova, castScale, castEdge], state: CH, idle(dt) { CH.scale=Math.max(0,CH.scale-dt); if(CH.scale<=0&&CH.aura){CH.aura.stop();CH.aura=null;} if(CH.stream)stepStream(dt); }, release(a){if(a?.type==='c1s')shutStream();} };
 })();

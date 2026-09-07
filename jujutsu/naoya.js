@@ -2344,4 +2344,6 @@
     window.__game.castN4 = castN4;
   }
 
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).naoya = { cast: [castN1,castN2,castN3,castN4,castNaoyaR], isolate(){const r=RUSH.on,c=CINE.on;RUSH.on=CINE.on=false;return()=>{RUSH.on=r;CINE.on=c;};} };
 })();

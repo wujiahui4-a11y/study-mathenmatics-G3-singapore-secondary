@@ -19,9 +19,14 @@ friends still requires the game's existing relay connection.
   turning to face them. After flanking a guard, bots follow with M1.
 - Bots react to visible attacks after a short delay, remember frequent blocking,
   lead moving opponents, and can cancel a confirmed second punch into a technique.
-- Each fighter has two AI techniques selected from beam, blade, rush, launch,
-  snare and swap behaviors. These are bot implementations; this release does
-  not automate the entire player skill/awakening menu.
+- Each fighter uses their actual four normal skills and R, with the existing
+  damage, animation and world effects. Cooldowns, summons and stance state are
+  independent for each bot. Awakening selection is not automated.
+- Bots choose moves by range and cooldown, chain confirmed M1s into skills,
+  approach with forward dash → M1 → skill, and back dash to create space for
+  long lunges. Todo uses stone swaps and timed Black Flash; Mahito changes arm
+  stance and uses Focus Strike's Black Flash and Body Repel's ride follow-up.
+  Hakari's Door Guard and Todo's False Clap respond to incoming attacks.
 - Different aggression, reaction, sociability and grudge traits. Bots fight one
   another, can target humans, and spread their attention across opponents.
 - 100 HP, damage windows, cooldowns, line-of-sight checks and knockdown recovery.
@@ -65,7 +70,11 @@ and the separation of steering from path planning described by
 time/node budget and invalidate their cache when live collision changes.
 
 `ai-combat.js` owns independent action state for each bot and shares the existing
-guard angles, combat poses and world sweeps. `ai-server.js` owns decisions,
+guard angles, combat poses and world sweeps. `ai-character-kits.js` invokes the
+original casts registered by each character module and the existing action/pose
+dispatchers. Scoped bindings and delayed callbacks retain the casting actor;
+the human player's state and camera are restored before returning. Actor
+movement uses the shared collision sweeps. `ai-server.js` owns decisions,
 memory, respawns, lobby controls and room synchronization. Remote players own
 their damage/blocking decisions and acknowledge bot hits to the host. Snapshot
 sequence numbers, per-swing duplicate checks and session epochs prevent stale
@@ -76,13 +85,18 @@ Chrome; set `PLAYWRIGHT_MODULE` if Playwright is installed outside the project.
 
 - `node tools/test-ai-server.cjs`: live free-for-all kills and advanced combo
   choices, damage/blocking, signals, revenge and walk-away, wall detours, ledge
-  climbing, vaulting, all 28 bot technique animations, 16 bots in the real JJS
+  climbing, vaulting, forward dash/skill combos, 16 bots in the real JJS
   map, pause behavior, mobile layout and repeated start/stop cleanup.
 - `node tools/test-ai-network.cjs`: separate browser clients, guest attacks,
   guard decisions, duplicate swings, revenge kill acknowledgement, death and
   knockdown poses, ordered snapshots, late joining, host loss, new sessions
   and joining a different host. These tests use captured relay packets between
-  browsers; they do not depend on an external relay being reachable.
+  browsers; they do not depend on an external relay being reachable. They also
+  check real character skill poses, stance synchronization and multiple hits
+  from a skill against the owning player's damage/deduplication logic.
+- `node tools/test-ai-character-kits.cjs`: all 70 normal/R entries, every
+  damaging move at its useful range, real timed variants and counters, separate
+  cooldowns for matching characters, local-player isolation and summon cleanup.
 - Existing shared combat tests include the saved Naoya dash trajectory and
   two-charge/recharge baseline.
 

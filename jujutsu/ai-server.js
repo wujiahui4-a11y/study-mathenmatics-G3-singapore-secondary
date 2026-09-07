@@ -49,6 +49,8 @@
     actors,
     hit,
     swap,
+    castEvent,
+    skillControl,
     receive,
     onArena,
     onMap,
@@ -180,7 +182,7 @@
       m1CD: 0,
       frontCD: 0,
       evadeCD: 0,
-      techCD: [1 + random * 3, 3 + random * 3],
+      nextSkill: 0,
       charges: 2,
       mode: 0,
       guardT: 0,
@@ -221,6 +223,7 @@
     e.blocking = false;
     e.action = null;
     rig(e, char);
+    JJAIKITS.init(e);
     bots.push(e);
     enemies.push(e);
     return e;
@@ -273,6 +276,7 @@
   function stop(announce = true) {
     if (announce && S.active && S.authority) pub({ t: 'ai-stop' });
     for (const e of bots) {
+      JJAIKITS.reset(e);
       JJRAG.stop(e);
       JJGORE.clear(e);
       e.unframe(false);
@@ -310,6 +314,7 @@
     N.clear();
     lastRoot = JJJJS.root;
     for (const [i, e] of bots.entries()) {
+      JJAIKITS.reset(e);
       e.ai.path = [];
       e.ai.goal = null;
       e.ai.pathT = 0;
@@ -382,6 +387,7 @@
     }
   }
   function eNoAction(e) {
+    JJAIKITS.cancel(e);
     e.action = null;
     e.blocking = false;
     e.ai.guardT = 0;
@@ -390,7 +396,7 @@
     if (!S.active || !S.authority || !source.ai || !Number.isFinite(amount) || amount <= 0) return false;
     if (target === player) {
       const before = player.hp;
-      hurtPlayer(amount, knock, { combat: meta, aiSource: source.ai.id });
+      hurtPlayer(amount, knock, { ...meta.opts, combat: meta, aiSource: source.ai.id });
       return player.hp < before;
     }
     if (target.net) {
@@ -402,7 +408,8 @@
         bot: source.ai.id,
         d: amount,
         k: knock.toArray(),
-        bc: F.hitData(meta)
+        bc: F.hitData(meta),
+        sk: !!meta.skill
       });
       return false; // The owning peer confirms damage before a hit-confirm combo.
     }
@@ -412,19 +419,19 @@
     if (
       !target.ai ||
       target.dead ||
-      target.rag ||
-      target.bcFall ||
+      (!meta?.skill && (target.rag || target.bcFall)) ||
       target.iframes > 0 ||
-      target.cineHold ||
-      target.tdHold ||
-      target.mhConsumed
+      ((!meta?.skill || target.__aiHeldBy !== source) &&
+        (target.cineHold || target.tdHold || target.mhConsumed))
     )
       return false;
+    if (JJAIKITS.defend(target, source)) return false;
     if (F.blocked(target, meta)) {
       if (nearPlayer(target)) F.blockFX(target);
       return false;
     }
     const hp = target.hp;
+    amount *= JJAIKITS.damageScale(target);
     target.hp = Math.max(JJGORE.isHeld(target) ? 1 : 0, hp - amount);
     damaged(target, source);
     target.stunT = Math.max(target.stunT, meta?.stun || 0.35);
@@ -432,7 +439,17 @@
       target.vel.add(knock);
       if (meta?.down) F.actors.startFall(target, knock, meta);
     }
-    target.react = { type: 'stagger', t: 0, dur: 0.32, side: 1 };
+    if (knock?.lengthSq() > 300) {
+      target.flung = true;
+      target.onGround = false;
+      target.anchorT = target.lockT = 0;
+    }
+    target.react = {
+      type: meta?.opts?.react || 'stagger',
+      t: 0,
+      dur: meta?.opts?.reactDur || 0.32,
+      side: meta?.opts?.side || 1
+    };
     target.drawBars();
     if (nearPlayer(target, 90))
       damageNumber(target.pos.clone().add(V(0, 5.4, 0)), Math.round(amount), '#ffddb0');
@@ -617,7 +634,7 @@
     const toward = m.pos.clone().sub(e.pos).setY(0).normalize(),
       angle = Math.atan2(toward.x, toward.z);
     C.turn(e, angle, 0.1, 12);
-    if (!visible || distance > 25 || Math.abs(target.pos.y - e.pos.y) > 3) {
+    if (!visible || distance > 35 || Math.abs(target.pos.y - e.pos.y) > 3) {
       goal(e, m.pos);
       return;
     }
@@ -631,7 +648,7 @@
       distance < 7 &&
       ta &&
       S.time >= b.reactAt &&
-      ['bc_m1', 'bc_dash', 'ai_skill'].includes(ta.type) &&
+      (['bc_m1', 'bc_dash'].includes(ta.type) || JJAIKITS.isSkill(ta) || !/^(pk_|bc_fall)/.test(ta.type)) &&
       rng() < 0.83
     ) {
       if (target.blocking || m.guard > 0.65) {
@@ -654,12 +671,24 @@
       if (
         b.confirm &&
         e.action.type === 'bc_m1' &&
-        e.action.n === 1 &&
-        e.action.t >= e.action.start + 0.16 &&
-        rng() < 0.7
+        e.action.n >= 1 &&
+        e.action.n < 3 &&
+        e.action.t >= e.action.start + 0.16
       ) {
-        if (C.skill(e, target, b.skillBias > 0.5 ? 1 : 0)) {
+        const slot = JJAIKITS.select(e, target, true, rng);
+        if (slot >= 0 && C.skill(e, target, slot)) {
           b.history.push('hit-confirm technique');
+          b.skillCombos = (b.skillCombos || 0) + 1;
+          if (S.time < b.frontChainUntil) {
+            b.history.push('front dash + M1 + character skill');
+            b.frontCombos = (b.frontCombos || 0) + 1;
+          }
+          b.plan = 'skill chase';
+          return;
+        }
+        if (slot < 0 && C.dash(e, target, 'back')) {
+          b.plan = 'spacing skill';
+          b.history.push('M1 + back dash + skill spacing');
           return;
         }
       }
@@ -678,6 +707,20 @@
         b.plan = 'downslam';
       }
     }
+    const slot = JJAIKITS.select(e, target, false, rng);
+    if (
+      slot >= 0 &&
+      S.time >= b.nextSkill &&
+      (distance > 18 ||
+        b.plan === 'spacing skill' ||
+        (b.plan === 'skill chase' && distance < 8) ||
+        rng() < (distance < 5.2 ? 0.28 : 0.42)) &&
+      C.skill(e, target, slot)
+    ) {
+      b.nextSkill = S.time + 0.45;
+      b.plan = 'skill chase';
+      return;
+    }
     if (distance <= 5.2) {
       b.goal = distance > 3.2 ? m.pos.clone() : null;
       if (b.combo === 3 && b.plan === 'downslam' && !e.onGround) {
@@ -689,17 +732,21 @@
         return;
       }
       if (C.m1(e, target, b.combo === 3 && rng() < 0.45 ? 'up' : 'normal')) {
+        if (b.plan === 'front combo') {
+          b.history.push('front dash + M1');
+          b.plan = null;
+        }
         if (b.plan === 'flank combo') {
           b.history.push('side dash + rotation + M1');
           b.plan = null;
         }
         return;
       }
-    } else if (distance < 20 && C.dash(e, target, 'front')) {
-      b.goal = null;
-      return;
-    }
-    if (distance > 7 && distance < 27 && b.techCD[0] <= 0 && rng() < 0.45 && C.skill(e, target, 0)) {
+    } else if (distance < 23 && !target.rag && !target.bcFall && C.dash(e, target, 'front')) {
+      b.plan = 'front combo';
+      b.frontChainUntil = S.time + 4;
+      b.frontDashes = (b.frontDashes || 0) + 1;
+      b.history.push('front dash approach');
       b.goal = null;
       return;
     }
@@ -879,6 +926,7 @@
       e.tdHold ||
       e.mhConsumed
     ) {
+      JJAIKITS.cancel(e);
       e.action = null;
       e.blocking = false;
       C.tick(e, dt);
@@ -907,10 +955,15 @@
           : b.state === 'fighting' || b.revenge
             ? 12.5
             : 7.2;
-      e.vel.x += (d.x * speed - e.vel.x) * Math.min(1, dt * 12);
-      e.vel.z += (d.z * speed - e.vel.z) * Math.min(1, dt * 12);
+      if (!JJAIKITS.isSkill(e.action)) {
+        e.vel.x += (d.x * speed - e.vel.x) * Math.min(1, dt * 12);
+        e.vel.z += (d.z * speed - e.vel.z) * Math.min(1, dt * 12);
+      } else {
+        e.vel.x *= Math.max(0, 1 - dt * 3);
+        e.vel.z *= Math.max(0, 1 - dt * 3);
+      }
       const y = e.pos.y;
-      e.vel.y -= 30 * dt;
+      e.vel.y -= (JJAIKITS.isSkill(e.action) ? 34 : 30) * dt;
       F.actors.sweepMove(e, V(e.vel.x * dt, 0, e.vel.z * dt));
       e.pos.y += e.vel.y * dt;
       resolveActorWorld(e, y, 1);
@@ -941,7 +994,8 @@
     }
     e.hp = Math.min(e.maxHp, e.hp + dt * 0.65);
     C.pose(e);
-    e.rig.root.visible = nearPlayer(e, 180);
+    e.rig.root.visible =
+      nearPlayer(e, 180) && !(e.action?.type === 'n4' && e.action.t > 0.12 && e.action.t < 1.1);
   };
   const beforeDamage = Enemy.prototype.damage;
   Enemy.prototype.damage = function (amount, knock, opts = {}) {
@@ -992,7 +1046,7 @@
       this.ai.pathT = 0;
       this.ai.combo = 0;
       this.ai.comboReset = 0;
-      this.ai.techCD = [1, 2];
+      JJAIKITS.reset(this);
       this.ai.target = null;
       this.ai.state = this.ai.revenge ? 'seeking revenge' : 'roaming';
       this.action = null;
@@ -1010,6 +1064,17 @@
     if (S.active && source && player.hp < hp && !was && player.dead) killed(player, source);
     return result;
   };
+  function castEvent(e, a) {
+    pub({ t: 'ai-cast', bot: e.ai.id, cast: a.id, k: a.type });
+  }
+  function skillControl(e, t, held) {
+    if (held && t.anchorT > 0 && t.anchorPos) t.pos.copy(t.anchorPos);
+    if (t.net) pub({ t: 'ai-control', to: t.net.id, bot: e.ai.id, p: t.pos.toArray(), h: held });
+    if (t === player) {
+      player.__aiLocalHold = held ? { bot: e, pos: player.pos.clone(), ttl: 0.4 } : null;
+      player.__jjsLast = player.pos.clone();
+    }
+  }
   function snapshot(to) {
     if (!S.active || !S.authority || !MPJJ.active) return;
     pub({
@@ -1044,7 +1109,8 @@
                 pose: F.pack(a),
                 kind: a.kind,
                 slot: a.slot,
-                side: a.side
+                side: a.side,
+                kit: JJAIKITS.pack(a)
               }
             : null
         };
@@ -1062,13 +1128,10 @@
     b.gait += dt * (4.2 + e.vel.length() * 0.92);
     if (e.action) {
       e.action.t = Math.min(e.action.dur, e.action.t + dt);
-      if (e.action.type === 'ai_skill' && e.action.t >= e.action.start && b.visualId !== e.action.id) {
-        b.visualId = e.action.id;
-        C.techFX(e, { ...e.action, dir: V(Math.sin(e.facing), 0, Math.cos(e.facing)) });
-      }
     }
     C.pose(e);
-    e.rig.root.visible = nearPlayer(e, 180);
+    e.rig.root.visible =
+      nearPlayer(e, 180) && !(e.action?.type === 'n4' && e.action.t > 0.12 && e.action.t < 1.1);
   }
   function acceptHit(m) {
     const tag = m.id + ':' + m.bot + ':' + (m.bc ? 'swing:' + m.bc.id : 'hit:' + m.seq);
@@ -1154,6 +1217,7 @@
               }
             : null;
         F.unpack(e.action, s.a?.pose);
+        JJAIKITS.unpack(e.action, s.a?.kit);
         e.bcFall = e.action?.type === 'bc_fall' ? e.action : null;
         e.drawBars();
       }
@@ -1161,6 +1225,34 @@
       return true;
     }
     if (!S.active || m.epoch !== epoch) return true;
+    if (m.t === 'ai-cast' && m.id === hostId) {
+      const e = bots.find((b) => b.ai.id === m.bot);
+      if (e && typeof m.k === 'string' && m.k.length < 30 && Number.isSafeInteger(m.cast)) {
+        const tag = m.bot + ':' + m.cast;
+        if (!seenHits.has(tag)) {
+          seenHits.set(tag, S.time);
+          MPJJ.actorFX?.(m.k, e.pos.clone(), e.facing, { e });
+        }
+      }
+      return true;
+    }
+    if (m.t === 'ai-control' && m.id === hostId && m.to === MPJJ.id) {
+      const e = bots.find((b) => b.ai.id === m.bot);
+      if (
+        e &&
+        Array.isArray(m.p) &&
+        m.p.length === 3 &&
+        m.p.every(Number.isFinite) &&
+        player.pos.distanceTo(e.pos) < 80 &&
+        !player.dead
+      ) {
+        player.pos.fromArray(m.p);
+        player.vel.set(0, 0, 0);
+        player.__aiNetHold = m.h ? { bot: e, pos: player.pos.clone(), ttl: 0.4 } : null;
+        player.__jjsLast = player.pos.clone();
+      }
+      return true;
+    }
     if (m.t === 'ai-stop' && m.id === hostId) {
       stop(false);
       return true;
@@ -1242,7 +1334,23 @@
   }
   const beforeUpdate = updatePlayer;
   updatePlayer = function (dt) {
+    const held = player.__aiLocalHold || player.__aiNetHold;
+    if (held) {
+      held.ttl -= dt;
+      if (held.ttl <= 0 || held.bot.dead || player.dead || !S.active) {
+        player.__aiLocalHold = player.__aiNetHold = null;
+      } else {
+        player.action = null;
+        player.vel.set(0, 0, 0);
+        player.pos.copy(held.pos);
+      }
+    }
     beforeUpdate(dt);
+    if (held?.ttl > 0 && !held.bot.dead && !player.dead && S.active) {
+      player.pos.copy(held.pos);
+      player.vel.set(0, 0, 0);
+      player.rig.root.position.copy(player.pos);
+    }
     if (!S.active) return;
     if (S.authority && !MPJJ.active && !gameInputActive()) return;
     S.time += dt;

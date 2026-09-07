@@ -642,4 +642,6 @@
       applyPose(r,'fin_'+key,a.t);
     };});return false;
   }});
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).hanami = { cast: ['hn1','hn2','hn3','hn4','hnr'].map(key=>()=>cast(key)), state: H };
 })();

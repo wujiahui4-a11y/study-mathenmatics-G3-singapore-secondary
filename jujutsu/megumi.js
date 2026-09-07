@@ -1265,4 +1265,6 @@
   MG.buildRabbit = buildRabbit;
   MG.INK = INK; MG.DEEP = DEEP; MG.EDGE = EDGE; MG.LIT = LIT;
   MG.COLD = COLD; MG.WHITE = WHITE;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).megumi = { cast: [castDogs, castNue, castSerpent, castElephant, castRabbits], state: MG };
 })();

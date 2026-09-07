@@ -1471,6 +1471,7 @@
      screens would show nothing at all. Each cast is announced and a matching
      effect is played at that fighter's feet — visual only, never damaging,
      because the hit itself already travels as its own message. */
+  MP.actorFX = remoteFx;
   function remoteFx(kind, pos, yaw, f) {
     if(window.JJFIGHT && JJFIGHT.remoteFX(kind,pos,yaw))return;
     var FX = window.JJFX;

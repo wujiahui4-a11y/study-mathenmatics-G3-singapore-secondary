@@ -579,8 +579,7 @@
     FX.arc(player.pos.clone().add(V(0, 3.4, 0)), player.facing, 2.2, 0xf7e8d2, 0.14);
     sfx.whoosh();
   };
-  var beforeHurt = hurtPlayer;
-  hurtPlayer = function (amount, knock) {
+  function counter() {
     var a = player.action;
     if (
       mine() &&
@@ -600,8 +599,14 @@
       if (a.target) approach(a, a.target, -2.5, 0);
       else move(player, player.pos.clone().addScaledVector(V(a.dir.z, 0, -a.dir.x), 4), true);
       visual('clap', player.pos.clone().add(V(0, 3.6, 0)), null, false, 1.2);
-      return;
+      return true;
     }
+    return false;
+  }
+  var beforeHurt = hurtPlayer;
+  hurtPlayer = function (amount, knock) {
+    if (counter()) return;
+    var a = player.action;
     var hp = player.hp,
       result = beforeHurt(amount, knock);
     if (mine() && player.hp < hp) {
@@ -871,4 +876,6 @@
             ? '1–4: awakened skills · 4: cinematic ultimate · R: counter'
             : 'Air 1: heel drop · 2 → 2: stone swap · 3 → 3: Black Flash · R: counter';
   };
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).todo = { cast: [1,2,3,4].map(slot=>()=>T.cast(slot)).concat(()=>T.special()), state: T, release, defend: counter };
 })();

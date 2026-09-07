@@ -254,6 +254,91 @@ async function deliver(page, packets) {
       'Joining a different room clears the previous host identity'
     );
     report.lifecycle = { newEpoch: 8, lateJoin: 8, timeout: true, hostStop: true, rejoin: true };
+    // The bot cast channel sends the real move type and pose. World effects
+    // on the guest are visual only; damage still requires the owning peer.
+    await guest.evaluate(() => {
+      JJAISERVER.newRoom();
+      __fight.reset();
+      MPJJ.host = false;
+      __fight.online();
+    });
+    await deliver(guest, [hello]);
+    await host.evaluate(() => {
+      JJAISERVER.start(14, { seed: 812 });
+      __ai.isolate();
+    });
+    await deliver(guest, await drain(host));
+    const characters = await host.evaluate(() => JJAISERVER.bots.map((e) => e.char));
+    report.characterSkills = [];
+    for (const char of characters)
+      for (let slot = 0; slot < 5; slot++) {
+        const cast = await host.evaluate(
+          ({ char, slot }) => {
+            __ai.isolate();
+            const e = JJAISERVER.bots.find((e) => e.char === char),
+              t = JJAISERVER.bots.find((t) => t !== e);
+            JJAIKITS.reset(e);
+            __ai.place(e, 0, 0, 0);
+            __ai.place(t, 0, 0, 3);
+            e.ai.target = t;
+            t.hp = t.maxHp = 10000;
+            __fight.player.pos.set(120, 0, 120);
+            const ok = JJAICOMBAT.skill(e, t, slot);
+            __fight.tick(18, 0.02, true);
+            return { ok, id: e.ai.id, type: e.action?.type, mode: e.ai.mode };
+          },
+          { char, slot }
+        );
+        assert.ok(cast.ok, char + ' network cast');
+        const packets = await drain(host);
+        await deliver(guest, packets);
+        await deliver(guest, packets);
+        const mirror = await guest.evaluate(({ id }) => {
+          __fight.tick(4, 0.02, true);
+          const e = JJAISERVER.bots.find((e) => e.ai.id === id);
+          let finite = true;
+          e.rig.root.traverse((o) => {
+            if (![...o.rotation.toArray().slice(0, 3), ...o.position.toArray()].every(Number.isFinite))
+              finite = false;
+          });
+          return { type: e.action?.type, mode: e.ai.mode, finite };
+        }, cast);
+        assert.equal(mirror.type, cast.type);
+        assert.equal(mirror.mode, cast.mode);
+        assert.ok(mirror.finite, char + ' remote pose');
+        report.characterSkills.push({ char, slot, ...mirror });
+      }
+    const targetState = await guest.evaluate(() => {
+      __fight.reset();
+      __fight.player.iframes = 0;
+      __fight.tick(8, 0.02);
+      return __packets.filter((m) => m.t === 's').at(-1);
+    });
+    await deliver(host, [targetState]);
+    await host.evaluate((id) => {
+      __ai.isolate();
+      const e = JJAISERVER.bots.find((e) => e.char === 'yuji'),
+        t = MPJJ.fighters[id].e;
+      JJAIKITS.reset(e);
+      __ai.place(e, 0, 0, -4);
+      t.pos.set(0, 0, 0);
+      t.dead = false;
+      t.hp = 100;
+      t.iframes = 0;
+      e.ai.target = t;
+      JJAICOMBAT.skill(e, t, 0);
+      __fight.tick(50, 0.02, true);
+    }, targetState.id);
+    const realSkillPackets = await drain(host);
+    await deliver(guest, realSkillPackets);
+    report.characterDamage = await guest.evaluate(() => __fight.player.hp);
+    assert.ok(report.characterDamage <= 60.1, 'Both actual Divergent Fist hits reach the remote player');
+    await deliver(guest, realSkillPackets);
+    assert.equal(
+      await guest.evaluate(() => __fight.player.hp),
+      report.characterDamage,
+      'Duplicate skill packets cannot damage twice'
+    );
     report.errors = errors;
     assert.deepEqual(errors, []);
     fs.writeFileSync(path.join(out, 'ai-network-tests.json'), JSON.stringify(report, null, 2));

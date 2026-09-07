@@ -7,22 +7,6 @@
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n)),
     C = JJFIGHT,
     world = C.actors;
-  const traits = {
-    gojo: ['beam', 'launch'],
-    naoya: ['rush', 'blade'],
-    yuji: ['rush', 'launch'],
-    hakari: ['rush', 'launch'],
-    choso: ['beam', 'snare'],
-    megumi: ['snare', 'rush'],
-    mahito: ['launch', 'rush'],
-    todo: ['swap', 'launch'],
-    higuruma: ['launch', 'rush'],
-    yuta: ['blade', 'beam'],
-    muta: ['beam', 'rush'],
-    ryu: ['beam', 'launch'],
-    nanami: ['blade', 'rush'],
-    hanami: ['snare', 'beam']
-  };
   const colors = {
     gojo: 0xff635f,
     naoya: 0xc7e6ff,
@@ -46,12 +30,10 @@
     tick,
     pose,
     turn,
-    traits,
     free,
     readyGuard,
     guard,
-    hitTargets,
-    techFX
+    hitTargets
   });
   function free(e) {
     return (
@@ -166,32 +148,8 @@
     });
   }
   function skill(e, target, slot = 0) {
-    const b = e.ai;
-    if (!free(e) || e.blocking || b.techCD[slot] > 0) return false;
-    if (e.action && !(e.action.type === 'bc_m1' && e.action.t >= e.action.start + 0.16 && e.action.n < 3))
-      return false;
-    const kind = traits[e.char][slot],
-      beam = kind === 'beam' || kind === 'snare';
-    const aim = target.pos.clone().addScaledVector(target.vel || V(), beam ? 0.18 : 0.08);
-    aim.y = e.pos.y;
-    const d = aim.sub(e.pos).normalize();
-    turn(e, Math.atan2(d.x, d.z), 1);
-    b.techCD[slot] = slot ? 9 : 7;
-    b.comboReset = 1.2;
-    return set(e, {
-      type: 'ai_skill',
-      t: 0,
-      dur: beam ? 0.82 : 0.68,
-      start: beam ? 0.34 : 0.24,
-      kind,
-      slot,
-      dir: d,
-      hits: new Set(),
-      mode: b.mode,
-      id: ++b.serial,
-      variant: kind === 'launch' ? 'up' : 'normal',
-      n: 3
-    });
+    if (!free(e) || e.blocking) return false;
+    return JJAIKITS.cast(e, target, slot);
   }
   function hitTargets(e, a, range = 5.1, width = 2.2) {
     const right = V(a.dir.z, 0, -a.dir.x),
@@ -225,38 +183,27 @@
   }
   function impact(e, a, isDash = false) {
     const last = a.type === 'bc_m1' && a.n === 3,
-      tech = a.type === 'ai_skill',
       p = world.profile(e.char, a.mode);
-    const range = tech ? (a.kind === 'beam' ? 28 : a.kind === 'snare' ? 15 : 5.8) : isDash ? 5.8 : p.reach;
-    const list = hitTargets(e, a, range, tech && ['beam', 'snare'].includes(a.kind) ? 1.45 : 2.35);
+    const range = isDash ? 5.8 : p.reach;
+    const list = hitTargets(e, a, range, 2.35);
     for (const t of list) {
       if (a.hits.has(t)) continue;
       a.hits.add(t);
       const knock = a.dir
         .clone()
-        .multiplyScalar(last ? (a.variant === 'up' ? 3 : 27) : tech ? 8 : 2.6)
-        .setY(
-          last
-            ? a.variant === 'up'
-              ? 24
-              : a.variant === 'down'
-                ? -17
-                : 9
-            : tech && a.kind === 'launch'
-              ? 14
-              : 0.35
-        );
+        .multiplyScalar(last ? (a.variant === 'up' ? 3 : 27) : 2.6)
+        .setY(last ? (a.variant === 'up' ? 24 : a.variant === 'down' ? -17 : 9) : 0.35);
       const meta = {
         source: e.pos.clone(),
         guardable: true,
         breakGuard: a.variant === 'down' || (e.char === 'mahito' && a.mode === 2 && a.n >= 2),
-        stun: tech ? 0.7 : 0.6,
+        stun: 0.6,
         down: last ? 1.35 : 0,
         variant: a.variant || 'normal',
         id: a.id,
-        kind: isDash ? 'dash' : tech ? 'tech' : 'm1'
+        kind: isDash ? 'dash' : 'm1'
       };
-      const damage = isDash ? 3.25 : tech ? (a.slot ? 12 : 9) : p.damage;
+      const damage = isDash ? 3.25 : p.damage;
       const hit = JJAISERVER.hit(e, t, damage, knock, meta);
       if (hit) {
         e.ai.confirm = true;
@@ -282,44 +229,18 @@
       );
     }
   }
-  function techFX(e, a) {
-    if (e.pos.distanceTo(player.pos) > 125) return;
-    const color = colors[e.char],
-      range = a.kind === 'beam' ? 22 : a.kind === 'snare' ? 12 : 4;
-    if (a.kind === 'beam' || a.kind === 'blade')
-      JJFX.slash(e.pos.clone().add(V(0, 2.8, 0)), a.dir, color, range, 0.24);
-    if (a.kind === 'snare') {
-      const g = new THREE.Group(),
-        mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
-      for (let i = 0; i < 6; i++) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.5 + i * 0.13, 0.4), mat);
-        m.position.copy(e.pos).addScaledVector(a.dir, 3 + i * 1.6);
-        m.position.y += 0.6;
-        m.rotation.z = i % 2 ? 0.4 : -0.4;
-        g.add(m);
-      }
-      scene.add(g);
-      let t = 0;
-      addFx({
-        update(dt) {
-          t += dt;
-          g.scale.y = Math.min(1, t * 12);
-          if (t < 0.6) return true;
-          scene.remove(g);
-          g.children.forEach((m) => m.geometry.dispose());
-          mat.dispose();
-          return false;
-        }
-      });
-    }
-  }
   function tick(e, dt) {
     const b = e.ai,
       a = e.action;
     for (const k of ['m1CD', 'frontCD', 'evadeCD', 'comboReset', 'guardT']) b[k] = Math.max(0, b[k] - dt);
-    b.techCD = b.techCD.map((n) => Math.max(0, n - dt));
     b.charges = Math.min(2, b.charges + dt / 2.2);
     if (b.guardT <= 0) e.blocking = false;
+    if (!free(e) && JJAIKITS.isSkill(a)) {
+      JJAIKITS.cancel(e);
+      e.action = null;
+    }
+    JJAIKITS.tick(e, dt);
+    if (JJAIKITS.isSkill(a)) return;
     if (!a) return;
     if (!free(e)) {
       e.action = null;
@@ -362,25 +283,6 @@
         }
       }
       if (a.kind === 'front' && a.strikeAt !== null && a.t >= a.strikeAt) impact(e, a, true);
-    } else if (a.type === 'ai_skill') {
-      if (a.kind === 'rush' && a.t < 0.24) world.sweepMove(e, a.dir.clone().multiplyScalar(25 * dt));
-      if (a.t >= a.start && !a.fired) {
-        a.fired = true;
-        techFX(e, a);
-        if (
-          a.kind === 'swap' &&
-          b.target &&
-          e.pos.distanceTo(b.target.pos) < 14 &&
-          world.visible(e.pos, b.target.pos) &&
-          !JJAINAV.occupied(b.target.pos) &&
-          !JJAINAV.occupied(e.pos)
-        ) {
-          JJAISERVER.swap(e, b.target);
-          if (b.target) turn(e, b.target.pos, 1);
-          a.dir.copy(F(e.facing));
-        }
-        impact(e, a);
-      }
     }
     if (e.action === a && a.t >= a.dur) e.action = null;
   }
@@ -407,15 +309,9 @@
       e.vel.y
     );
     if (a) {
-      if (a.type === 'ai_skill') {
-        C.pose(r, {
-          ...a,
-          type: 'bc_m1',
-          start: a.start,
-          active: 0.16,
-          n: 3,
-          variant: a.kind === 'launch' ? 'up' : 'normal'
-        });
+      if (JJAIKITS.isSkill(a)) {
+        if (e.ai.remote) JJAIKITS.remotePose(e);
+        else JJAIKITS.pose(e);
       } else if (a.type === 'ai_naoya_dash') C.pose(r, { ...a, type: 'bc_dash', strikeAt: null });
       else if (/^pk_/.test(a.type)) JJMOVE.pose(r, a);
       else if (/^bc_/.test(a.type)) C.pose(r, a);
@@ -423,6 +319,6 @@
     if (e.blocking && !a) C.guardPose(r, e.animT, e.bcGuardHit || 0);
     if (e.react && !a && !e.blocking) e.applyReact(0);
     r.root.position.copy(e.pos);
-    r.root.rotation.y = e.facing;
+    r.root.rotation.y = e.facing + (JJAIKITS.isSkill(a) ? e.visYaw || 0 : 0);
   }
 })();

@@ -1155,4 +1155,6 @@
   MU.chain = chainTo;
   MU.IRON = IRON; MU.GUN = GUN; MU.STEEL = STEEL; MU.PALE = PALE;
   MU.COP = COP; MU.WARN = WARN; MU.HOT = HOT; MU.FLASH = FLASH; MU.LENS = LENS;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).muta = { cast: [castCannon, castFist, castDrill, castPod, castSpin], state: MU };
 })();

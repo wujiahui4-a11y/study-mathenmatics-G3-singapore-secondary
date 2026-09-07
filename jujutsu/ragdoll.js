@@ -82,6 +82,7 @@
   }
 
   function step(ent, dt) {
+    if (ent.ai && !window.MPJJ?.active && !gameInputActive()) return;
     var rag = ent.rag, rig = ent.rig;
     if (!rag || !rig) return;
     rag.t += dt;

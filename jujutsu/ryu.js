@@ -983,4 +983,6 @@
   RY.CE = CE; RY.CE2 = CE2; RY.CE_D = CE_D;
   RY.COAT = COAT; RY.FUR = FUR;
   RY.GBLEN = GB.len; RY.GBWIDE = GB.wide;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).ryu = { cast: [castDischarge, castFlare, castTrack, castPoint, castGranite], state: RY };
 })();

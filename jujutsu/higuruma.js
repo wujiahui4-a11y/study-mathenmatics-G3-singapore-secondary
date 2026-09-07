@@ -1090,4 +1090,6 @@
   HG.INK = INK; HG.EDGE = EDGE; HG.BRASS = BRASS; HG.BRASS_D = BRASS_D;
   HG.OAK = OAK; HG.OAK_D = OAK_D; HG.PAPER = PAPER;
   HG.LAW = LAW; HG.LAW2 = LAW2;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).higuruma = { cast: [castSword, castGavel, castEvidence, castJudge, castRecess], state: HG };
 })();

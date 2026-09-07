@@ -819,4 +819,6 @@
 
   /* the pieces the finishers borrow */
   YT.CE = CE; YT.CE2 = CE2; YT.CE_D = CE_D;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).yuta = { cast: [castKatana, castThrust, castRise, castCross, castPure], state: YT };
 })();

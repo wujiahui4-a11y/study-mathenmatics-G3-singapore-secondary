@@ -1551,4 +1551,6 @@
   } });
 
   HK.jackpotFx = rainbowShutters;
+  // The AI invokes these same casts and the shared action/pose dispatchers.
+  (window.JJCHARCAST ||= {}).hakari = { cast: [castShutter, castBalls, castGachinko, castFever, castGuard], state: HK };
 })();
