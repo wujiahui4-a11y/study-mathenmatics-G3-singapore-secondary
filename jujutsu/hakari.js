@@ -101,7 +101,7 @@
       { key: '3', lbl: 'Gachinko', cd: 'h3', max: HCD.h3 },
       { key: '4', lbl: 'Fever Breaker', cd: 'h4', max: HCD.h4 },
       { key: 'R', lbl: 'Door Guard', cd: 'hr', max: HCD.hr },
-      { key: 'F', lbl: 'Idle Death Gamble', cd: 'hdom', max: HCD.hdom }
+      { key: 'G', lbl: 'Idle Death Gamble', cd: 'hdom', max: HCD.hdom }
     ]
   };
   try { CHARS.hakari.portrait = makePortrait(HAKARI_CFG); } catch (e) {}
@@ -1450,7 +1450,7 @@
 
   /* F: the domain, on the awakening key the rest of the roster uses */
   window.addEventListener('keydown', function (e) {
-    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (e.code !== 'KeyG' || e.repeat || !started) return;
     if (player.char !== 'hakari' || player.dead) return;
     if (player.react || (player.action && (player.action.type === 'kb' ||
         player.action.type === 'void'))) return;

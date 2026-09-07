@@ -113,6 +113,7 @@
     return rig;
   }
   T.cinematic = function (kind, origin, dir, victim, local, participant, caster) {
+    if(player.ai){caster=caster||player;local=false;participant=false;}
     var own = !!local || !!participant;
     if (own && T.cine) T.cine.stop();
     var g = new THREE.Group(),

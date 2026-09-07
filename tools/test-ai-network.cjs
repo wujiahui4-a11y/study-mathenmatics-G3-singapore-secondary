@@ -174,7 +174,9 @@ async function deliver(page, packets) {
     });
     assert.deepEqual(report.revenge, { kills: 1, taunt: true, victimDead: true });
     await host.evaluate(() => __fight.tick(190, 0.02, true));
-    assert.ok(await host.evaluate(() => JJAISERVER.bots[0].ai.history.includes('walk away after revenge')));
+    assert.ok(
+      await host.evaluate(() => JJAISERVER.bots[0].ai.history.includes('walk away after revenge'))
+    );
     // Snapshot ordering, death poses, knockdown protection, and every technique pose.
     await host.evaluate(() => {
       const e = JJAISERVER.bots[1];
@@ -195,7 +197,10 @@ async function deliver(page, packets) {
     });
     assert.ok(report.death.dead && report.death.finite && Math.abs(report.death.hips) > 0.1);
     await deliver(guest, poses);
-    assert.ok(await guest.evaluate(() => JJAISERVER.bots[1].dead), 'Old snapshots cannot resurrect actors');
+    assert.ok(
+      await guest.evaluate(() => JJAISERVER.bots[1].dead),
+      'Old snapshots cannot resurrect actors'
+    );
     await host.evaluate(() => {
       const e = JJAISERVER.bots[2];
       JJFIGHT.actors.startFall(e, new __fight.THREE.Vector3(1, 10, 0), { down: 1.3, variant: 'up' });
@@ -339,6 +344,60 @@ async function deliver(page, packets) {
       report.characterDamage,
       'Duplicate skill packets cannot damage twice'
     );
+    // The expanded population, difficulty, awakening and evasive state must
+    // survive the same host/guest protocol as the existing character attacks.
+    const expanded = await host.evaluate(() => {
+      JJAISERVER.start(100, { seed: 822, difficulty: 'pro' });
+      __ai.isolate();
+      const e = JJAISERVER.bots.find((e) => e.char === 'gojo'),
+        t = JJAISERVER.bots.find((t) => t !== e);
+      __ai.place(e, 0, 0, 0);
+      __ai.place(t, 0, 0, 10);
+      e.ai.target = t;
+      JJAIKITS.init(e).charge = 100;
+      const awake = JJAIKITS.awaken(e, t);
+      const V = __fight.THREE.Vector3;
+      JJFIGHT.actors.startFall(e, new V(0, 4, 3), { down: 1.35 });
+      e.bcFall.t = 0.2;
+      const evade = JJFIGHT.evasive(e, new V(1, 0, 0));
+      __fight.tick(8, 0.02, true);
+      return { id: e.ai.id, awake, evade };
+    });
+    await deliver(guest, await drain(host));
+    report.expanded = await guest.evaluate(({ id }) => {
+      const e = JJAISERVER.bots.find((e) => e.ai.id === id);
+      return {
+        count: JJAISERVER.bots.length,
+        pro: JJAISERVER.bots.every((b) => b.ai.level === 'pro'),
+        awake: JJAIKITS.awakened(e),
+        action: e.action?.type,
+        cooldown: e.evasiveCD
+      };
+    }, expanded);
+    assert.ok(expanded.awake && expanded.evade);
+    assert.equal(report.expanded.count, 100);
+    assert.ok(report.expanded.pro && report.expanded.awake);
+    assert.equal(report.expanded.action, 'bc_evasive');
+    assert.ok(report.expanded.cooldown > 24);
+    const playerEvade = await guest.evaluate(() => {
+      __fight.reset();
+      const p = __fight.player,
+        V = __fight.THREE.Vector3;
+      JJFIGHT.actors.startFall(p, new V(0, 3, 4), { down: 1.35 });
+      p.action.t = 0.2;
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyQ', key: 'q', bubbles: true }));
+      __fight.tick(6, 0.02);
+      return __packets.filter((m) => m.t === 's').at(-1);
+    });
+    await deliver(host, [playerEvade]);
+    report.playerEvasive = await host.evaluate(
+      (id) => ({ type: MPJJ.fighters[id].action?.type, iv: MPJJ.fighters[id].e.iframes }),
+      playerEvade.id
+    );
+    assert.equal(playerEvade.ac, 'bc_evasive');
+    assert.ok(playerEvade.ev > 24);
+    assert.equal(report.playerEvasive.type, 'bc_evasive');
+    assert.ok(report.playerEvasive.iv > 0);
     report.errors = errors;
     assert.deepEqual(errors, []);
     fs.writeFileSync(path.join(out, 'ai-network-tests.json'), JSON.stringify(report, null, 2));

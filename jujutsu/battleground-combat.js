@@ -55,6 +55,9 @@
     driving: () => player.action?.type === 'bc_fall',
     punch: startM1,
     dash: startDash,
+    evasive,
+    canEvasive,
+    evasiveCooldown: 25,
     pose: poseCore,
     guardPose,
     blocked,
@@ -63,7 +66,15 @@
     pack,
     unpack,
     actors: { profile, sweepMove, startFall, stepFall, visible },
-    audit: () => ({ frontCD, evadeCD, held, guardHeld, combo: player.comboN, history: history.slice(-24) })
+    audit: () => ({
+      frontCD,
+      evadeCD,
+      ragdollCD: player.evasiveCD || 0,
+      held,
+      guardHeld,
+      combo: player.comboN,
+      history: history.slice(-24)
+    })
   });
   function log(event) {
     history.push(event);
@@ -115,6 +126,7 @@
     player.comboN = 0;
     player.comboReset = 0;
     player.bcGuardHit = 0;
+    player.evasiveCD = 0;
   }
   function guard(on) {
     guardHeld = !!on;
@@ -150,7 +162,12 @@
       return;
     }
     if (guardHeld && !player.blocking) guard(true);
-    if (!player.blocking && (!player.action || evadeOpen(player.action)) && (held || queued > 0) && cds.m1 <= 0)
+    if (
+      !player.blocking &&
+      (!player.action || evadeOpen(player.action)) &&
+      (held || queued > 0) &&
+      cds.m1 <= 0
+    )
       startM1();
   }
   function profile(id = player.char, mode = window.JJMAHITO?.mode || 0) {
@@ -180,8 +197,10 @@
       else {
         // held over from a dash that has not opened yet, or from the tail of
         // a swing, so the input is not simply dropped on the floor
-        if (isEvade(player.action) ||
-          (player.action.type === 'bc_m1' && player.action.t > player.action.dur - 0.16))
+        if (
+          isEvade(player.action) ||
+          (player.action.type === 'bc_m1' && player.action.t > player.action.dur - 0.16)
+        )
           queued = 0.2;
         return false;
       }
@@ -240,6 +259,7 @@
     };
   }
   function startDash() {
+    if (player.rag || player.action?.type === 'bc_fall') return evasive(player, direction().dir);
     if (!gameInputActive() || locked()) return false;
     const a = player.action,
       w = direction(),
@@ -284,6 +304,7 @@
   // All other characters use the new shared directional dash implementation.
   const previousDash = doDash;
   doDash = function () {
+    if (player.rag || player.action?.type === 'bc_fall') return evasive(player, direction().dir);
     if (player.char === 'naoya') return previousDash.apply(this, arguments);
     if (window.JJMOVE?.driving()) return false;
     if (window.JJMOVE?.tryKick()) return true;
@@ -301,14 +322,24 @@
       p = profile(player.char, a.mode),
       result = [];
     for (const e of enemies) {
-      if (e.dead || e.hp <= 0 || e.iframes > 0 || e.rag || e.bcFall || e.mhConsumed || e.cineHold || e.tdHold)
+      if (
+        e.dead ||
+        e.hp <= 0 ||
+        e.iframes > 0 ||
+        e.rag ||
+        e.bcFall ||
+        e.mhConsumed ||
+        e.cineHold ||
+        e.tdHold
+      )
         continue;
       const offset = e.pos.clone().sub(player.pos),
         along = offset.dot(d),
         side = Math.abs(offset.dot(right));
       const height = offset.y;
       if (along < 0.25 || along > (wide ? 5.8 : p.reach) || side > (wide ? 2.65 : 2.2)) continue;
-      if (a.variant === 'down' ? height > 2 || height < -5 : Math.abs(height) > (wide ? 3.2 : 2.7)) continue;
+      if (a.variant === 'down' ? height > 2 || height < -5 : Math.abs(height) > (wide ? 3.2 : 2.7))
+        continue;
       if (!visible(player.pos.clone().add(V(0, 2.7, 0)), e.pos.clone().add(V(0, 2.6, 0)))) continue;
       result.push(e);
     }
@@ -380,7 +411,6 @@
     for (const e of candidates(a, dash || last)) {
       if (a.hits.has(e)) continue;
       a.hits.add(e);
-      a.contact = true;
       const power = last ? (a.variant === 'up' ? 3 : a.variant === 'down' ? 1 : 27) : dash ? 6 : 2.6;
       const y = last ? (a.variant === 'up' ? 24 : a.variant === 'down' ? -17 : 9) : 0.35;
       const knock = a.dir.clone().multiplyScalar(power).setY(y);
@@ -388,13 +418,14 @@
         guardable: true,
         breakGuard: a.variant === 'down' || (player.char === 'mahito' && a.mode === 2 && a.n >= 2),
         source: player.pos.clone(),
-        stun: last ? 0.65 : 0.6,
+        stun: last ? 0.65 : 0.5,
         down: last ? 1.35 : 0,
         variant: a.variant || 'normal',
         id: a.id,
         kind: dash ? 'dash' : 'm1'
       };
       const amount = dash ? 3.25 : p.damage;
+      const hp = e.hp;
       e.damage(amount, knock, {
         combat: meta,
         stun: meta.stun,
@@ -405,6 +436,7 @@
         fin: false,
         spark: p.color
       });
+      if (e.hp < hp || (e.net && !blocked(e, meta))) a.contact = true;
       if (!blocked(e, meta)) impact(e.pos.clone().add(V(0, 2.8, 0)), a.dir, p.color, last);
     }
   }
@@ -449,6 +481,68 @@
       actor.lockT = actor.anchorT = 0;
     }
   }
+  // One eligibility rule and cooldown for local players and authoritative bots.
+  // Grabs, death finishers and cutscene holds are not ragdoll escapes.
+  function canEvasive(actor) {
+    const fall = actor.bcFall || (actor.action?.type === 'bc_fall' && actor.action) || actor.rag;
+    return (
+      !!fall &&
+      !actor.dead &&
+      actor.hp > 0 &&
+      (actor.evasiveCD || 0) <= 0 &&
+      (fall.t || 0) >= 0.12 &&
+      !actor.cineHold &&
+      !actor.tdHold &&
+      !actor.mhConsumed &&
+      !(actor.anchorT > 0) &&
+      !(actor.lockT > 0) &&
+      !(actor.frameT > 0) &&
+      !actor.__aiLocalHold &&
+      !actor.__aiNetHold &&
+      !window.JJGORE?.isHeld(actor) &&
+      (actor !== player ||
+        (!window.MPJJ?.cs?.active &&
+          !window.JJAW?.cine &&
+          !window.JJNAOYA?.busy() &&
+          !window.JJTODO?.grabbed &&
+          !window.JJMAHITO?.grabbed))
+    );
+  }
+  function evasive(actor, travel) {
+    if (!canEvasive(actor) || (actor === player && !gameInputActive())) return false;
+    const d = (travel || dir(actor.facing).negate()).clone().setY(0);
+    if (d.lengthSq() < 0.001) d.copy(dir(actor.facing).negate());
+    d.normalize();
+    if (actor.ai) window.JJAIKITS?.cancel(actor);
+    window.JJRAG?.stop(actor);
+    actor.bcFall = null;
+    actor.react = null;
+    actor.flung = false;
+    actor.stunT = actor.attackT = actor.frameT = 0;
+    actor.evasiveCD = C.evasiveCooldown;
+    actor.iframes = Math.max(actor.iframes || 0, 0.38);
+    actor.blocking = false;
+    actor.comboN = actor.comboReset = 0;
+    actor.vel.set(0, Math.max(0, Math.min(6, actor.vel.y)), 0);
+    actor.action = { type: 'bc_evasive', t: 0, dur: 0.36, dir: d, side: 1, id: ++sequence };
+    resetPose(actor.rig);
+    actor.rig.body.rotation.set(0, 0, 0);
+    if (actor === player) {
+      clearInput();
+      player.dashT = 0;
+    }
+    if (actor.ai) {
+      actor.ai.combo = actor.ai.comboReset = 0;
+      actor.ai.history.push('ragdoll evasive');
+    }
+    dashFX(actor.pos, d);
+    return true;
+  }
+  C.stepEvasive = function (actor, a, dt) {
+    const old = clamp((a.t - dt) / a.dur, 0, 1),
+      now = clamp(a.t / a.dur, 0, 1);
+    sweepMove(actor, a.dir.clone().multiplyScalar(9 * ((1 - old) ** 2 - (1 - now) ** 2)));
+  };
   function stepFall(actor, a, dt) {
     if (a.stage === 0) {
       const previous = actor.pos.y;
@@ -511,6 +605,10 @@
       stepFall(player, a, dt);
       return;
     }
+    if (a.type === 'bc_evasive') {
+      C.stepEvasive(player, a, dt);
+      return;
+    }
     if (player.stunT > 0 || taken()) {
       cancel();
       return;
@@ -534,7 +632,8 @@
       const target = camForward();
       if (a.kind === 'back') target.negate();
       if (a.kind === 'side') target.set(-target.z * a.side, 0, target.x * a.side);
-      a.dir.lerp(target, Math.min(1, dt * 7)).normalize();
+      a.dir.copy(target); // mouse/camera steering is immediate throughout travel
+      player.facing = Math.atan2(camForward().x, camForward().z);
       const distance = conf.distance * (Math.pow(1 - old, 2) - Math.pow(1 - now, 2));
       const moved = sweepMove(player, a.dir.clone().multiplyScalar(distance));
       a.distance += moved;
@@ -564,8 +663,14 @@
     }
     if (meta?.breakGuard) this.blocking = false;
     const hp = this.hp;
-    const result = previousDamage.call(this, amount, knock, block ? { ...opts, predictBlocked: true } : opts);
+    const result = previousDamage.call(
+      this,
+      amount,
+      knock,
+      block ? { ...opts, predictBlocked: true } : opts
+    );
     if (this.hp < hp && meta) {
+      this.stunT = Math.max(this.stunT || 0, meta.stun || 0);
       this.blocking = false;
       if (!this.net && meta.down && !this.dead) startFall(this, knock, meta);
       if (player.char === 'mahito' && !JJMAHITO.active)
@@ -721,6 +826,7 @@
     this.bcFall = null;
     this.blocking = false;
     this.bcGuardHit = 0;
+    this.evasiveCD = 0;
     return previousRespawn.apply(this, arguments);
   };
   const previousUpdate = updatePlayer;
@@ -732,6 +838,7 @@
     }
     frontCD = Math.max(0, frontCD - dt);
     evadeCD = Math.max(0, evadeCD - dt);
+    player.evasiveCD = Math.max(0, (player.evasiveCD || 0) - dt);
     queued = Math.max(0, queued - dt);
     noJump = Math.max(0, noJump - dt);
     player.stunT = Math.max(0, (player.stunT || 0) - dt);
@@ -744,8 +851,11 @@
       clearInput();
       if (core(player.action) && player.action.type !== 'bc_fall') cancel();
     }
+    const wasDead = player.dead;
     previousUpdate(dt);
-    if (player.blocking && !player.action && !taken()) guardPose(player.rig, player.animT, player.bcGuardHit);
+    if (wasDead && !player.dead) player.evasiveCD = 0;
+    if (player.blocking && !player.action && !taken())
+      guardPose(player.rig, player.animT, player.bcGuardHit);
     if (player.char !== 'naoya') {
       const w = direction().kind,
         cd = w === 'front' ? frontCD : evadeCD;
@@ -753,8 +863,24 @@
     }
   };
   C.input = function (e) {
+    const a = player.action;
+    if (
+      /^(Digit[1-4]|KeyR)$/.test(e.code) &&
+      a?.type === 'bc_m1' &&
+      a.n < 3 &&
+      a.contact &&
+      a.t >= a.start &&
+      !locked()
+    )
+      cancel();
     if (/^(Digit[1-4]|Key[RFGEX])$/.test(e.code) && evadeOpen(player.action) && !locked()) cancel();
-    if (e.code === 'KeyB') {
+    if (e.code === 'KeyQ' && (player.rag || player.action?.type === 'bc_fall')) {
+      evasive(player, direction().dir);
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return true;
+    }
+    if (e.code === 'KeyF') {
       guard(true);
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -786,7 +912,7 @@
   window.addEventListener(
     'keyup',
     (e) => {
-      if (e.code === 'KeyB') guard(false);
+      if (e.code === 'KeyF') guard(false);
     },
     true
   );
@@ -807,7 +933,7 @@
   };
   C.remoteFX = function (type, pos, yaw) {
     if (!/^bc_/.test(type)) return false;
-    if (type === 'bc_dash') dashFX(pos, dir(yaw));
+    if (type === 'bc_dash' || type === 'bc_evasive') dashFX(pos, dir(yaw));
     return true;
   };
 
@@ -830,6 +956,19 @@
     if (r.body) r.body.rotation.set(0, 0, 0);
     const p = profile(r.__char || player.char, a.mode),
       t = a.t;
+    if (a.type === 'bc_evasive') {
+      const k = ease(t / a.dur),
+        roll = Math.sin(k * Math.PI);
+      r.hips.position.y = r.hipsBaseY - roll * 1.15;
+      r.spine.rotation.x = -roll * 0.75;
+      r.shoulderL.rotation.z = roll * 1.1;
+      r.shoulderR.rotation.z = -roll * 1.1;
+      r.hipL.rotation.x = -roll * 1.1;
+      r.kneeL.rotation.x = roll * 1.9;
+      r.hipR.rotation.x = roll * 0.6;
+      r.kneeR.rotation.x = roll * 1.2;
+      return;
+    }
     if (a.type === 'bc_fall') {
       const rise = a.stage === 2 ? ease(t / 0.38) : 0,
         tip = a.stage === 0 ? ease(t / 0.24) : 1;
@@ -951,7 +1090,7 @@
   help.className = 'kit-row';
   help.id = 'jjCombatHelp';
   help.innerHTML =
-    '<strong>Combat · all fighters</strong><br><b>Left mouse</b>: four-hit combo; hold to continue. Hold <b>Space</b> during the combo for a fourth-hit uppercut; jump before hit four for a downslam. <b>B</b>: hold frontal guard. Downslams and attacks from behind bypass guard. <b>Q</b>: forward dash strike; <b>A/D + Q</b>: side dash; <b>S + Q</b>: back dash. Side and back dashes cancel straight into an attack or a skill; the forward dash stays committed. Naoya keeps his two-charge dash.';
+    '<strong>Combat · all fighters</strong><br><b>Left mouse</b>: four-hit combo; hold to continue. Hold <b>Space</b> during the combo for a fourth-hit uppercut; jump before hit four for a downslam. <b>F</b>: hold frontal guard. Downslams and attacks from behind bypass guard. <b>Q</b>: forward dash strike; <b>A/D + Q</b>: side dash; <b>S + Q</b>: back dash. Side and back dashes cancel straight into an attack or a skill; the forward dash stays committed. <b>Q while ragdolled</b>: evasive recovery (25s cooldown). <b>G</b>: awaken. Turn the camera to steer dashes. Naoya keeps his two-charge dash.';
   document.querySelector('#menu .ctrl-kits')?.prepend(help);
   const status = document.createElement('div');
   status.id = 'jjCombatStatus';
@@ -972,10 +1111,14 @@
             ? ' · ' + (a.variant === 'up' ? 'UPPERCUT' : a.variant === 'down' ? 'DOWNSLAM' : 'FINISHER')
             : '')
         : a?.type === 'bc_fall'
-          ? 'KNOCKED DOWN'
+          ? (player.evasiveCD || 0) > 0
+            ? 'KNOCKED DOWN · EVASIVE ' + Math.ceil(player.evasiveCD) + 's'
+            : 'Q · RAGDOLL EVASIVE READY'
           : player.stunT > 0
             ? 'STUNNED'
-            : '';
+            : player.evasiveCD > 0
+              ? 'EVASIVE · ' + Math.ceil(player.evasiveCD) + 's'
+              : '';
     status.style.display = text && gameInputActive() ? 'block' : 'none';
     status.textContent = text;
   };

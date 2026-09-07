@@ -1304,7 +1304,7 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
 
   /* the garden's own tick: it runs on its own, not on an action, so he
      can move and fight inside it the way Hakari can inside his */
-  addFx({ t: 1e9, update: function (dt) {
+  function tickGarden(dt) {
     if (!GD.on) return true;
     GD.t += dt;
     var c = GD.center;
@@ -1380,7 +1380,8 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
 
     if (GD.t > DOM.dur) shutGarden();
     return true;
-  } });
+  }
+  addFx({t:1e9,update:tickGarden});
 
   function castGarden() {
     if (!ready('gdom')) return;
@@ -1699,7 +1700,7 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
 
   /* F: the shared meter, spent on opening the shadow properly */
   window.addEventListener('keydown', function (e) {
-    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (e.code !== 'KeyG' || e.repeat || !started) return;
     if (player.char !== 'megumi') return;
     var AW = A();
     if (!AW || !AW.ready || AW.active || AW.cine || AW.megumi) return;
@@ -1807,4 +1808,5 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
   GD.buildChimera = buildChimera;
   GD.buildMahoraga = buildMahoraga;
   GD.ARC = ARC; GD.ARC2 = ARC2; GD.GRID = GRID;
+  Object.assign(JJCHARCAST.megumi,{awakeCast:[castTotality,()=> (merged('ga1')?castDivineChimera:castChimera)(),()=> (merged('ga2')?castMaw:castToad)(),castGarden],scope:[GD],awakeIdle:tickGarden,awakeEnd:shutGarden});
 })();

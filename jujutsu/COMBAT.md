@@ -10,21 +10,23 @@ dash implementation, movement curve, recharge, invulnerability and effects.
   swings. Hits have startup, an active hitbox and recovery.
 - **Space during the combo:** the fourth hit becomes an uppercut. Start hit four
   while airborne for a downslam. Downslam breaks frontal guard.
-- **B:** hold frontal guard. Release B to lower it. Guard slows movement and
+- **F:** hold frontal guard. Release F to lower it. Guard slows movement and
   prevents jumping, attacking and dashing. Rear attacks bypass it.
 - **Q / W + Q:** forward dash ending in a strike. Its cooldown is 4.5 seconds.
 - **A/D + Q:** side dash. **S + Q:** back dash. These share a separate two-second
   cooldown. Side and back dashes do not deal damage.
+- **G:** awaken when the character’s meter is ready.
+- **Q while ragdolled:** evasive recovery; 25-second cooldown for humans and bots. Holds, death and cinematic grabs cannot be escaped.
 - **Naoya Q:** his original two-charge directional dash.
 
 Shift lock and free cursor controls continue to work. Airborne side Q near a
 wall retains the existing parkour wall kick. Skill and awakening bindings remain
 on each fighter's move bar. Mahito's arm modes affect his M1, club swings break
-guard on hits three and four, and B + a click still withdraws one reserve.
+guard on hits three and four, and F + a click still withdraws one reserve.
 
 ## Behavior and animation
 
-The combo resets after 1.2 seconds without another swing. An active swing can
+Normal M1 hits stun for 0.5 seconds. Confirmed hits one to three can cancel into a skill. The combo resets after 1.2 seconds without another swing. An active swing can
 hit each target once, checks forward reach and height, and cannot hit through
 JJS walls. Default M1 damage is 3; Naoya retains 2, and Mahito's blade/club modes
 use 2/4. The fourth hit adds knockdown and a 1.5-second M1 cooldown. Missing that
@@ -36,7 +38,7 @@ frontal guard recoil, directional dash lean and skid, and a three-stage knockdow
 and stand-up. Character profiles vary stance, twist, timing and weapon swing.
 Contact effects keep the glowing hit ring without the removed blue spokes.
 
-Dash paths sweep the existing world collision. Knockdowns use the actual floor
+Turn the camera to steer front, side and back dashes during travel. Dash paths sweep the existing world collision. Knockdowns use the actual floor
 and ceiling, including elevated platforms and destructible surfaces. Fourth-hit
 impact calls the existing destruction system. Taking damage interrupts an M1 or
 dash and prevents new actions during hitstun. Core hits cannot hit someone already
@@ -82,8 +84,7 @@ dash cooldowns, owner/spectator packet handling, walls, ceilings and platforms.
 `tools/fixtures/naoya-dash.json` records the pre-remake behavior from commit
 `2611bbfb37e6f242b769f92675ef70f2bd03534c`: six directions, trajectory samples,
 charges, recharge and invincibility, plus immediate double-Q. The combat suite
-compares every value. The original `combat.js`, `dash.js` and `naoya.js` remain
-unchanged.
+compares every value. Naoya’s dash behavior remains unchanged.
 
 Related regression suites: `test-mahito.cjs`, `test-todo.cjs`,
 `test-movement.cjs`, `test-destruction.cjs`, `test-shift-lock.cjs`,

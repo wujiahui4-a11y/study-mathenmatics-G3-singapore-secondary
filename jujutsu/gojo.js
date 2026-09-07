@@ -484,7 +484,7 @@
     bar.querySelector('.lbl').textContent = AW.active ? 'AWAKENED' : 'AWAKENING';
     bar.querySelector('.hint').textContent = AW.active
       ? Math.ceil(AW.dur - AW.t) + 's'
-      : (AW.ready ? 'PRESS F' : Math.floor(AW.charge) + '%');
+      : (AW.ready ? 'PRESS G' : Math.floor(AW.charge) + '%');
   }
 
   function gain(n) {
@@ -495,7 +495,7 @@
     AW.charge = Math.min(AW.max, AW.charge + n);
     AW.ready = AW.charge >= AW.max;
     if (AW.ready && !was) {
-      if (window.JJNOTICE) window.JJNOTICE('AWAKENING READY \u2014 PRESS F', '#9fd8ff');
+      if (window.JJNOTICE) window.JJNOTICE('AWAKENING READY \u2014 PRESS G', '#9fd8ff');
       FX.ring(new THREE.Vector3(player.pos.x, .1, player.pos.z), 0x3a7dff, { maxR: 7, life: .6 });
       try { sfx.raise(); } catch (e) {}
     }
@@ -1384,7 +1384,7 @@
   AW.castRedMax = castRedMax;
 
   window.addEventListener('keydown', function (e) {
-    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (e.code !== 'KeyG' || e.repeat || !started) return;
     awaken();
   });
 
@@ -1397,7 +1397,7 @@
     add.className = 'kit-row aw-row';
     add.innerHTML =
       '<span class="cn aw">AWAKENED</span>' +
-      '<span><b>F</b> awaken &nbsp;&middot;&nbsp; <b>1</b> Blue &nbsp;&middot;&nbsp; <b>2</b> Red &nbsp;&middot;&nbsp; <b>3</b> Purple &nbsp;&middot;&nbsp; <b>4</b> Void' +
+      '<span><b>G</b> awaken &nbsp;&middot;&nbsp; <b>1</b> Blue &nbsp;&middot;&nbsp; <b>2</b> Red &nbsp;&middot;&nbsp; <b>3</b> Purple &nbsp;&middot;&nbsp; <b>4</b> Void' +
       '<span class="kit-note">C takes 8s out of combat</span></span>';
     box.appendChild(add);
   }
@@ -1541,4 +1541,5 @@
   }
 
   renderBar();
+  (window.JJCHARCAST ||= {}).gojo = {scope:[SHOT]};
 })();

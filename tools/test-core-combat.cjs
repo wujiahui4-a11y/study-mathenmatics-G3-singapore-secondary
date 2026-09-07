@@ -143,12 +143,12 @@ async function naoya(page) {
       __fight.reset('mahito');
       JJMAHITO.reserves = ['human', 'flesh'];
     });
-    await page.keyboard.down('KeyB');
+    await page.keyboard.down('KeyF');
     await page.mouse.move(635, 400);
     await page.mouse.down();
     await page.evaluate(() => __fight.tick(30));
     await page.mouse.up();
-    await page.keyboard.up('KeyB');
+    await page.keyboard.up('KeyF');
     assert.equal(
       await page.evaluate(() => JJMAHITO.reserves.length),
       1,
@@ -223,7 +223,7 @@ async function naoya(page) {
     });
     assert.ok(report.miss.dur >= 1 && report.miss.cd > 1, 'Fourth-hit whiff leaves punishable recovery');
     await page.evaluate(() => __fight.reset());
-    await page.keyboard.down('KeyB');
+    await page.keyboard.down('KeyF');
     assert.equal((await page.evaluate(() => __fight.state())).block, true);
     report.selfGuard = await page.evaluate(() => {
       const p = __fight.player;
@@ -235,7 +235,7 @@ async function naoya(page) {
     assert.equal(report.selfGuard.front, 100);
     assert.equal(report.selfGuard.rear, 97);
     assert.ok(!report.selfGuard.block && report.selfGuard.stun > 0);
-    await page.keyboard.up('KeyB');
+    await page.keyboard.up('KeyF');
     report.interrupt = await page.evaluate(() => {
       __fight.reset();
       const e = __fight.target();
@@ -422,7 +422,7 @@ async function naoya(page) {
       'M1 still lands on somebody who has got back up from a knockdown'
     );
     await page.evaluate(() => __fight.reset());
-    await page.keyboard.down('KeyB');
+    await page.keyboard.down('KeyF');
     await page.evaluate(() => {
       __fight.tick(5);
       __fight.draw();
@@ -435,7 +435,7 @@ async function naoya(page) {
       false,
       'Opening settings releases guard'
     );
-    await page.keyboard.up('KeyB');
+    await page.keyboard.up('KeyF');
     await page.locator('#jjMenuClose').click();
     report.poses = await page.evaluate(() =>
       Object.keys(__fight.CHARS).map((id) => {

@@ -1790,4 +1790,5 @@
       f.fvAura = null;
     }
   };
+  Object.assign(JJCHARCAST.hakari,{awakeCast:[castContainer,castBarrage,castRun,castStomp],scope:[FV]});
 })();

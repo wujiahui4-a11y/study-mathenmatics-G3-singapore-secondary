@@ -421,7 +421,7 @@
         <span class="kchip"><b>SPACE</b> jump</span>
         <span class="kchip"><b>C</b> switch</span>
         <span class="kchip"><b>LMB</b> punch</span>
-        <span class="kchip"><b>F</b> awaken</span>
+        <span class="kchip"><b>G</b> awaken</span>
       </div>
       <div class="ctrl-kits">
         <div class="kit-row" id="menuKit"></div>
@@ -8470,7 +8470,7 @@ window.__game = {
     bar.querySelector('.lbl').textContent = AW.active ? 'AWAKENED' : 'AWAKENING';
     bar.querySelector('.hint').textContent = AW.active
       ? Math.ceil(AW.dur - AW.t) + 's'
-      : (AW.ready ? 'PRESS F' : Math.floor(AW.charge) + '%');
+      : (AW.ready ? 'PRESS G' : Math.floor(AW.charge) + '%');
   }
 
   function gain(n) {
@@ -8481,7 +8481,7 @@ window.__game = {
     AW.charge = Math.min(AW.max, AW.charge + n);
     AW.ready = AW.charge >= AW.max;
     if (AW.ready && !was) {
-      if (window.JJNOTICE) window.JJNOTICE('AWAKENING READY \u2014 PRESS F', '#9fd8ff');
+      if (window.JJNOTICE) window.JJNOTICE('AWAKENING READY \u2014 PRESS G', '#9fd8ff');
       FX.ring(new THREE.Vector3(player.pos.x, .1, player.pos.z), 0x3a7dff, { maxR: 7, life: .6 });
       try { sfx.raise(); } catch (e) {}
     }
@@ -9370,7 +9370,7 @@ window.__game = {
   AW.castRedMax = castRedMax;
 
   window.addEventListener('keydown', function (e) {
-    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (e.code !== 'KeyG' || e.repeat || !started) return;
     awaken();
   });
 
@@ -9383,7 +9383,7 @@ window.__game = {
     add.className = 'kit-row aw-row';
     add.innerHTML =
       '<span class="cn aw">AWAKENED</span>' +
-      '<span><b>F</b> awaken &nbsp;&middot;&nbsp; <b>1</b> Blue &nbsp;&middot;&nbsp; <b>2</b> Red &nbsp;&middot;&nbsp; <b>3</b> Purple &nbsp;&middot;&nbsp; <b>4</b> Void' +
+      '<span><b>G</b> awaken &nbsp;&middot;&nbsp; <b>1</b> Blue &nbsp;&middot;&nbsp; <b>2</b> Red &nbsp;&middot;&nbsp; <b>3</b> Purple &nbsp;&middot;&nbsp; <b>4</b> Void' +
       '<span class="kit-note">C takes 8s out of combat</span></span>';
     box.appendChild(add);
   }
@@ -9527,6 +9527,7 @@ window.__game = {
   }
 
   renderBar();
+  (window.JJCHARCAST ||= {}).gojo = {scope:[SHOT]};
 })();
 
 
@@ -12560,7 +12561,7 @@ window.__game = {
 
   /* F: the meter is shared, and this is what he spends it on */
   window.addEventListener('keydown', function (e) {
-    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (e.code !== 'KeyG' || e.repeat || !started) return;
     if (player.char !== 'yuji') return;
     var A = window.JJAW;
     if (!A || !A.ready || A.active || A.cine || A.yuji) return;
@@ -12767,7 +12768,7 @@ window.__game = {
       { key: '3', lbl: 'Gachinko', cd: 'h3', max: HCD.h3 },
       { key: '4', lbl: 'Fever Breaker', cd: 'h4', max: HCD.h4 },
       { key: 'R', lbl: 'Door Guard', cd: 'hr', max: HCD.hr },
-      { key: 'F', lbl: 'Idle Death Gamble', cd: 'hdom', max: HCD.hdom }
+      { key: 'G', lbl: 'Idle Death Gamble', cd: 'hdom', max: HCD.hdom }
     ]
   };
   try { CHARS.hakari.portrait = makePortrait(HAKARI_CFG); } catch (e) {}
@@ -14116,7 +14117,7 @@ window.__game = {
 
   /* F: the domain, on the awakening key the rest of the roster uses */
   window.addEventListener('keydown', function (e) {
-    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (e.code !== 'KeyG' || e.repeat || !started) return;
     if (player.char !== 'hakari' || player.dead) return;
     if (player.react || (player.action && (player.action.type === 'kb' ||
         player.action.type === 'void'))) return;
@@ -14415,7 +14416,7 @@ window.__game = {
       { key: '3', lbl: 'Supernova', cd: 'c3', max: CCD.c3 },
       { key: '4', lbl: 'Flowing Red Scale', cd: 'c4', max: CCD.c4 },
       { key: 'R', lbl: 'Blood Edge', cd: 'cr', max: CCD.cr },
-      { key: 'F', lbl: 'Death Painting', cd: 'caw', max: 1 }
+      { key: 'G', lbl: 'Death Painting', cd: 'caw', max: 1 }
     ]
   };
   try { CHARS.choso.portrait = makePortrait(CHOSO_CFG); } catch (e) {}
@@ -15907,7 +15908,7 @@ window.__game = {
 
   /* F: the shared meter, spent on the half of him that is a curse */
   window.addEventListener('keydown', function (e) {
-    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (e.code !== 'KeyG' || e.repeat || !started) return;
     if (player.char !== 'choso') return;
     var A = window.JJAW;
     if (!A || !A.ready || A.active || A.cine || A.choso) return;
@@ -16113,6 +16114,7 @@ window.__game = {
   };
   // The AI invokes these same casts and the shared action/pose dispatchers.
   (window.JJCHARCAST ||= {}).choso = { cast: [castPierce, castMeteorite, castSupernova, castScale, castEdge], state: CH, idle(dt) { CH.scale=Math.max(0,CH.scale-dt); if(CH.scale<=0&&CH.aura){CH.aura.stop();CH.aura=null;} if(CH.stream)stepStream(dt); }, release(a){if(a?.type==='c1s')shutStream();} };
+  JJCHARCAST.choso.awakeCast=[castConverge,castBarrage,castSaw,castPillar];
 })();
 
 
@@ -19510,7 +19512,7 @@ window.__game = {
       e.stopImmediatePropagation();
       return;
     }
-    if (e.code === 'KeyB') {
+    if (e.code === 'KeyF') {
       if (!busy() && !player.react && !player.dead) player.blocking = true;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -19521,7 +19523,7 @@ window.__game = {
     if (e.code === 'Digit2') keys.Digit2 = true;
     if (
       e.repeat &&
-      ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyR', 'KeyF', 'KeyG', 'KeyX', 'KeyE'].includes(e.code)
+      ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyR', 'KeyG', 'KeyX', 'KeyE'].includes(e.code)
     ) {
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -19529,7 +19531,7 @@ window.__game = {
     }
     if (/^Digit[1-4]$/.test(e.code)) cast(Number(e.code.slice(-1)));
     else if (e.code === 'KeyR') special();
-    else if (e.code === 'KeyF' || e.code === 'KeyG') awaken();
+    else if (e.code === 'KeyG') awaken();
     else if (e.code === 'KeyX') {
       if (M.active && !busy()) {
         M.basePage = !M.basePage;
@@ -19557,7 +19559,7 @@ window.__game = {
     'keyup',
     (e) => {
       if (e.code === 'Digit2') keys.Digit2 = false;
-      if (e.code === 'KeyB') player.blocking = false;
+      if (e.code === 'KeyF') player.blocking = false;
     },
     true
   );
@@ -19575,7 +19577,7 @@ window.__game = {
   var help = document.createElement('div');
   help.className = 'kit-row';
   help.innerHTML =
-    '<span class="cn">MAHITO</span><span><b>R</b> arms · <b>3 → 3</b> timed Black Flash · <b>4 → 3</b> ride · <b>F / G</b> awaken · <b>X</b> switch kit<br><b>B</b> block · <b>E</b> pick up / throw soul · <b>R</b> store held soul · <b>B + LMB</b> retrieve · Hold <b>2</b> extra Soul Fire shots</span>';
+    '<span class="cn">MAHITO</span><span><b>R</b> arms · <b>3 → 3</b> timed Black Flash · <b>4 → 3</b> ride · <b>G</b> awaken · <b>X</b> switch kit<br><b>F</b> block · <b>E</b> pick up / throw soul · <b>R</b> store held soul · <b>B + LMB</b> retrieve · Hold <b>2</b> extra Soul Fire shots</span>';
   var control = document.querySelector('#menu .ctrl-kits');
   if (control) control.appendChild(help);
   var prevHUD = updateHUD;
@@ -19595,7 +19597,7 @@ window.__game = {
         Math.ceil(M.remaining) +
         's · ' +
         (M.basePage ? 'BASE KIT' : 'AWAKENING KIT')
-      : 'ESSENCE OF THE SOUL · ' + Math.floor(M.charge) + '%' + (M.charge >= 100 ? ' · F / G READY' : '');
+      : 'ESSENCE OF THE SOUL · ' + Math.floor(M.charge) + '%' + (M.charge >= 100 ? ' · G READY' : '');
     if (M.grabbed)
       title =
         'FORCE GRAB · ' + (M.grabbed.escape ? 'PRESS SPACE TO ESCAPE ' + M.grabbed.jumps + '/5' : 'HELD');
@@ -19612,11 +19614,13 @@ window.__game = {
         ' · B: block';
     if (a && a.type === 'mh_focus' && a.t >= 0.2 && a.t <= 0.38) hint = 'PRESS 3 NOW · BLACK FLASH';
     else if (a && a.type === 'mh_grab') hint = '2: slam · R: throw';
-    else if (M.active) hint += ' · X: switch kit · F/G: Black Flash';
+    else if (M.active) hint += ' · X: switch kit · G: Black Flash';
     hud.querySelector('.mhHint').textContent = hint;
   };
   // The AI invokes these same casts and the shared action/pose dispatchers.
   (window.JJCHARCAST ||= {}).mahito = { cast: [1,2,3,4].map(slot=>()=>M.cast(slot)).concat(()=>M.special()), state: M, idle(dt){M.modeCD=Math.max(0,M.modeCD-dt);cds.mhMode=Math.max(cds.mhMode||0,M.modeCD);VOX.mode(player.rig,M.mode,player.action?.type);}, release(a){release(a);if(a?.visual)discard(a.visual);} };
+  JJCHARCAST.mahito.awakeIdle=stepDomain;
+  JJCHARCAST.mahito.awakeEnd=closeDomain;
 })();
 
 
@@ -21599,7 +21603,7 @@ window.__game = {
         return;
       }
       if (!mine()) return;
-      var yes = /^Digit[1-4]$/.test(e.code) || ['KeyR', 'KeyF', 'KeyG'].includes(e.code);
+      var yes = /^Digit[1-4]$/.test(e.code) || ['KeyR', 'KeyG'].includes(e.code);
       if (!yes) return;
       if (!e.repeat) {
         if (e.code.startsWith('Digit')) T.cast(Number(e.code.slice(-1)));
@@ -21631,7 +21635,7 @@ window.__game = {
   var help = document.createElement('div');
   help.className = 'kit-row';
   help.innerHTML =
-    '<span class="cn">AOI TODO</span><span><b>1–4</b> skills · <b>R</b> counter · <b>F / G</b> awaken<br>Air <b>1</b>: heel drop · <b>2 → 2</b>: stone swap · <b>3 → 3</b>: timed Black Flash · <b>B</b>: block</span>';
+    '<span class="cn">AOI TODO</span><span><b>1–4</b> skills · <b>R</b> counter · <b>G</b> awaken<br>Air <b>1</b>: heel drop · <b>2 → 2</b>: stone swap · <b>3 → 3</b>: timed Black Flash · <b>F</b>: block</span>';
   var panel = document.querySelector('#menu .ctrl-kits');
   if (panel) panel.appendChild(help);
   var beforeHUD = updateHUD;
@@ -21643,7 +21647,7 @@ window.__game = {
     if (old) old.style.display = 'none';
     hud.querySelector('.td-title').textContent = T.active
       ? '120% POTENTIAL · ' + Math.ceil(T.remaining) + 's'
-      : 'MY BEST FRIEND · ' + Math.floor(T.charge) + '%' + (T.charge >= 100 ? ' · F / G TO AWAKEN' : '');
+      : 'MY BEST FRIEND · ' + Math.floor(T.charge) + '%' + (T.charge >= 100 ? ' · G TO AWAKEN' : '');
     hud.querySelector('.td-fill').style.width = (T.active ? T.remaining * 2 : T.charge) + '%';
     var a = player.action;
     hud.querySelector('.td-hint').textContent =
@@ -27815,12 +27819,12 @@ window.__game = {
     w.id = 'jjVoidWhite';
     document.body.appendChild(w);
   }
-  function card(on, slam) {
+  function card(on, slam) { if(player.ai)return;
     buildUI();
     ui.classList.toggle('on', !!on);
     ui.classList.toggle('slam', !!slam);
   }
-  function whiteOut(v) {
+  function whiteOut(v) { if(player.ai)return;
     buildUI();
     document.getElementById('jjVoidWhite').style.opacity = String(v);
   }
@@ -27831,7 +27835,7 @@ window.__game = {
   /* a cutscene wants the frame to itself — as a class, so the pieces the
      HUD builds late are covered too */
   var hudCss = null;
-  function hud(show) {
+  function hud(show) { if(player.ai)return;
     if (!hudCss) {
       hudCss = document.createElement('style');
       hudCss.textContent = 'body.jjCine #hud,body.jjCine #crosshair,body.jjCine #jjScore,' +
@@ -27845,7 +27849,7 @@ window.__game = {
 
   /* the city does not come with him */
   var world = null;
-  function hideWorld(extra) {
+  function hideWorld(extra) { if(player.ai)return;
     if (world) return;
     var keeps = new Set();
     keeps.add(player.rig.root);
@@ -27863,7 +27867,7 @@ window.__game = {
     scene.fog = new THREE.Fog(world.sky || 0x01020a, 60, 340);
     enemies.forEach(function (e) { if (e && e.hpSpr) e.hpSpr.visible = false; });
   }
-  function showWorld() {
+  function showWorld() { if(player.ai)return;
     if (!world) return;
     world.hidden.forEach(function (o) { o.visible = true; });
     scene.fog = world.fog;
@@ -28044,7 +28048,7 @@ window.__game = {
     V.outside = [];
     enemies.forEach(function (e) {
       if (!e || !e.rig || lifted.indexOf(e) >= 0 || !e.rig.root.visible) return;
-      e.rig.root.visible = false;
+      if(!player.ai)e.rig.root.visible = false;
       V.outside.push(e);
     });
 
@@ -28407,6 +28411,7 @@ window.__game = {
     if (V.on && (!a || a.type !== 'aw_domain')) closeVoid();
     return true;
   } });
+  V.close=closeVoid;
 })();
 
 
@@ -30102,6 +30107,7 @@ window.__game = {
     if (SK.shrine && (player.dead || player.char !== 'yuji' || !awake())) closeShrine();
     return true;
   } });
+  Object.assign(JJCHARCAST.yuji,{awakeCast:[castDismantle,castCleave,castFlame,castShrine],scope:[SK]});
 })();
 
 
@@ -32988,6 +32994,7 @@ window.__game = {
       f.fvAura = null;
     }
   };
+  Object.assign(JJCHARCAST.hakari,{awakeCast:[castContainer,castBarrage,castRun,castStomp],scope:[FV]});
 })();
 
 
@@ -34298,7 +34305,7 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
 
   /* the garden's own tick: it runs on its own, not on an action, so he
      can move and fight inside it the way Hakari can inside his */
-  addFx({ t: 1e9, update: function (dt) {
+  function tickGarden(dt) {
     if (!GD.on) return true;
     GD.t += dt;
     var c = GD.center;
@@ -34374,7 +34381,8 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
 
     if (GD.t > DOM.dur) shutGarden();
     return true;
-  } });
+  }
+  addFx({t:1e9,update:tickGarden});
 
   function castGarden() {
     if (!ready('gdom')) return;
@@ -34693,7 +34701,7 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
 
   /* F: the shared meter, spent on opening the shadow properly */
   window.addEventListener('keydown', function (e) {
-    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (e.code !== 'KeyG' || e.repeat || !started) return;
     if (player.char !== 'megumi') return;
     var AW = A();
     if (!AW || !AW.ready || AW.active || AW.cine || AW.megumi) return;
@@ -34801,6 +34809,7 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
   GD.buildChimera = buildChimera;
   GD.buildMahoraga = buildMahoraga;
   GD.ARC = ARC; GD.ARC2 = ARC2; GD.GRID = GRID;
+  Object.assign(JJCHARCAST.megumi,{awakeCast:[castTotality,()=> (merged('ga1')?castDivineChimera:castChimera)(),()=> (merged('ga2')?castMaw:castToad)(),castGarden],scope:[GD],awakeIdle:tickGarden,awakeEnd:shutGarden});
 })();
 
 
@@ -40841,6 +40850,7 @@ var JJS_DATA = await (async function () {
       g.e.blocking = !!m.bl;
       g.e.iframes = Number.isFinite(m.iv) ? Math.max(0, m.iv / 100) : 0;
       if (window.JJMAHITO) JJMAHITO.remoteState(g.e.rig, m.mm || 0, m.ma, m.ac, m.bl);
+      g.awakened=!!(m.aw||m.hf||m.ma||m.ta||m.ya||m.ca||m.ga||m.nr);
       if (window.JJTODOVOX && g.char === 'todo') JJTODOVOX.awake(g.e.rig, !!m.ta);
       if (g.action && m.pf) { g.action.sprung = true; g.action.sprungAt = m.pf / 100; }
       if (g.action && m.ac === 'dash') {
@@ -41582,6 +41592,11 @@ var JJS_DATA = await (async function () {
       rd: player.react ? Math.round(player.react.dur * 100) : 0,
       rs: player.react ? player.react.side : 0,
       aw: (window.JJAW && window.JJAW.active) ? 1 : 0,
+      ya:player.char==='yuji'&&JJAW.yuji?1:0,
+      ca:player.char==='choso'&&JJAW.choso?1:0,
+      ga:player.char==='megumi'&&JJAW.megumi?1:0,
+      nr:player.char==='naoya'&&JJNAOYA.rushing()?1:0,
+      ev:Math.ceil(player.evasiveCD||0),
       /* Hakari's fever is his awakening: the bar, the boost and the aura
          all hang off it, so it travels the same way Gojo's does */
       hf: (window.JJHAKARI && window.JJHAKARI.fever > 0 && player.char === 'hakari') ? 1 : 0,
@@ -42311,6 +42326,7 @@ var JJS_DATA = await (async function () {
     return rig;
   }
   T.cinematic = function (kind, origin, dir, victim, local, participant, caster) {
+    if(player.ai){caster=caster||player;local=false;participant=false;}
     var own = !!local || !!participant;
     if (own && T.cine) T.cine.stop();
     var g = new THREE.Group(),
@@ -42625,6 +42641,11 @@ var JJS_DATA = await (async function () {
   const settings = { enabled: true, rebuild: 30, debris: 192 };
   const X = (window.JJDESTRUCT = {
     hit,
+    canBreak(id) {
+      if (!enabled()) return false;
+      prepare();
+      return refs.has(Number(String(id).split(':')[0]));
+    },
     sweep,
     clear,
     update,
@@ -44076,7 +44097,7 @@ var JJS_DATA = await (async function () {
       c.box.dataset.key = key;
       c.box.classList.toggle('jjUtility', key === 'LMB' || key === 'Q');
       c.box.classList.toggle('jjSpecial', key === 'R');
-      c.box.classList.toggle('jjAuxiliary', key === 'F');
+      c.box.classList.toggle('jjAuxiliary', key === 'G');
       c.box.setAttribute('role', 'button');
       c.box.tabIndex = key === 'LMB' || key === 'Q' ? -1 : 0;
       c.box.setAttribute('aria-label', key + ': ' + c.def.lbl);
@@ -44946,6 +44967,9 @@ var JJS_DATA = await (async function () {
     driving: () => player.action?.type === 'bc_fall',
     punch: startM1,
     dash: startDash,
+    evasive,
+    canEvasive,
+    evasiveCooldown: 25,
     pose: poseCore,
     guardPose,
     blocked,
@@ -44954,7 +44978,15 @@ var JJS_DATA = await (async function () {
     pack,
     unpack,
     actors: { profile, sweepMove, startFall, stepFall, visible },
-    audit: () => ({ frontCD, evadeCD, held, guardHeld, combo: player.comboN, history: history.slice(-24) })
+    audit: () => ({
+      frontCD,
+      evadeCD,
+      ragdollCD: player.evasiveCD || 0,
+      held,
+      guardHeld,
+      combo: player.comboN,
+      history: history.slice(-24)
+    })
   });
   function log(event) {
     history.push(event);
@@ -45006,6 +45038,7 @@ var JJS_DATA = await (async function () {
     player.comboN = 0;
     player.comboReset = 0;
     player.bcGuardHit = 0;
+    player.evasiveCD = 0;
   }
   function guard(on) {
     guardHeld = !!on;
@@ -45041,7 +45074,12 @@ var JJS_DATA = await (async function () {
       return;
     }
     if (guardHeld && !player.blocking) guard(true);
-    if (!player.blocking && (!player.action || evadeOpen(player.action)) && (held || queued > 0) && cds.m1 <= 0)
+    if (
+      !player.blocking &&
+      (!player.action || evadeOpen(player.action)) &&
+      (held || queued > 0) &&
+      cds.m1 <= 0
+    )
       startM1();
   }
   function profile(id = player.char, mode = window.JJMAHITO?.mode || 0) {
@@ -45071,8 +45109,10 @@ var JJS_DATA = await (async function () {
       else {
         // held over from a dash that has not opened yet, or from the tail of
         // a swing, so the input is not simply dropped on the floor
-        if (isEvade(player.action) ||
-          (player.action.type === 'bc_m1' && player.action.t > player.action.dur - 0.16))
+        if (
+          isEvade(player.action) ||
+          (player.action.type === 'bc_m1' && player.action.t > player.action.dur - 0.16)
+        )
           queued = 0.2;
         return false;
       }
@@ -45131,6 +45171,7 @@ var JJS_DATA = await (async function () {
     };
   }
   function startDash() {
+    if (player.rag || player.action?.type === 'bc_fall') return evasive(player, direction().dir);
     if (!gameInputActive() || locked()) return false;
     const a = player.action,
       w = direction(),
@@ -45175,6 +45216,7 @@ var JJS_DATA = await (async function () {
   // All other characters use the new shared directional dash implementation.
   const previousDash = doDash;
   doDash = function () {
+    if (player.rag || player.action?.type === 'bc_fall') return evasive(player, direction().dir);
     if (player.char === 'naoya') return previousDash.apply(this, arguments);
     if (window.JJMOVE?.driving()) return false;
     if (window.JJMOVE?.tryKick()) return true;
@@ -45192,14 +45234,24 @@ var JJS_DATA = await (async function () {
       p = profile(player.char, a.mode),
       result = [];
     for (const e of enemies) {
-      if (e.dead || e.hp <= 0 || e.iframes > 0 || e.rag || e.bcFall || e.mhConsumed || e.cineHold || e.tdHold)
+      if (
+        e.dead ||
+        e.hp <= 0 ||
+        e.iframes > 0 ||
+        e.rag ||
+        e.bcFall ||
+        e.mhConsumed ||
+        e.cineHold ||
+        e.tdHold
+      )
         continue;
       const offset = e.pos.clone().sub(player.pos),
         along = offset.dot(d),
         side = Math.abs(offset.dot(right));
       const height = offset.y;
       if (along < 0.25 || along > (wide ? 5.8 : p.reach) || side > (wide ? 2.65 : 2.2)) continue;
-      if (a.variant === 'down' ? height > 2 || height < -5 : Math.abs(height) > (wide ? 3.2 : 2.7)) continue;
+      if (a.variant === 'down' ? height > 2 || height < -5 : Math.abs(height) > (wide ? 3.2 : 2.7))
+        continue;
       if (!visible(player.pos.clone().add(V(0, 2.7, 0)), e.pos.clone().add(V(0, 2.6, 0)))) continue;
       result.push(e);
     }
@@ -45271,7 +45323,6 @@ var JJS_DATA = await (async function () {
     for (const e of candidates(a, dash || last)) {
       if (a.hits.has(e)) continue;
       a.hits.add(e);
-      a.contact = true;
       const power = last ? (a.variant === 'up' ? 3 : a.variant === 'down' ? 1 : 27) : dash ? 6 : 2.6;
       const y = last ? (a.variant === 'up' ? 24 : a.variant === 'down' ? -17 : 9) : 0.35;
       const knock = a.dir.clone().multiplyScalar(power).setY(y);
@@ -45279,13 +45330,14 @@ var JJS_DATA = await (async function () {
         guardable: true,
         breakGuard: a.variant === 'down' || (player.char === 'mahito' && a.mode === 2 && a.n >= 2),
         source: player.pos.clone(),
-        stun: last ? 0.65 : 0.6,
+        stun: last ? 0.65 : 0.5,
         down: last ? 1.35 : 0,
         variant: a.variant || 'normal',
         id: a.id,
         kind: dash ? 'dash' : 'm1'
       };
       const amount = dash ? 3.25 : p.damage;
+      const hp = e.hp;
       e.damage(amount, knock, {
         combat: meta,
         stun: meta.stun,
@@ -45296,6 +45348,7 @@ var JJS_DATA = await (async function () {
         fin: false,
         spark: p.color
       });
+      if (e.hp < hp || (e.net && !blocked(e, meta))) a.contact = true;
       if (!blocked(e, meta)) impact(e.pos.clone().add(V(0, 2.8, 0)), a.dir, p.color, last);
     }
   }
@@ -45340,6 +45393,68 @@ var JJS_DATA = await (async function () {
       actor.lockT = actor.anchorT = 0;
     }
   }
+  // One eligibility rule and cooldown for local players and authoritative bots.
+  // Grabs, death finishers and cutscene holds are not ragdoll escapes.
+  function canEvasive(actor) {
+    const fall = actor.bcFall || (actor.action?.type === 'bc_fall' && actor.action) || actor.rag;
+    return (
+      !!fall &&
+      !actor.dead &&
+      actor.hp > 0 &&
+      (actor.evasiveCD || 0) <= 0 &&
+      (fall.t || 0) >= 0.12 &&
+      !actor.cineHold &&
+      !actor.tdHold &&
+      !actor.mhConsumed &&
+      !(actor.anchorT > 0) &&
+      !(actor.lockT > 0) &&
+      !(actor.frameT > 0) &&
+      !actor.__aiLocalHold &&
+      !actor.__aiNetHold &&
+      !window.JJGORE?.isHeld(actor) &&
+      (actor !== player ||
+        (!window.MPJJ?.cs?.active &&
+          !window.JJAW?.cine &&
+          !window.JJNAOYA?.busy() &&
+          !window.JJTODO?.grabbed &&
+          !window.JJMAHITO?.grabbed))
+    );
+  }
+  function evasive(actor, travel) {
+    if (!canEvasive(actor) || (actor === player && !gameInputActive())) return false;
+    const d = (travel || dir(actor.facing).negate()).clone().setY(0);
+    if (d.lengthSq() < 0.001) d.copy(dir(actor.facing).negate());
+    d.normalize();
+    if (actor.ai) window.JJAIKITS?.cancel(actor);
+    window.JJRAG?.stop(actor);
+    actor.bcFall = null;
+    actor.react = null;
+    actor.flung = false;
+    actor.stunT = actor.attackT = actor.frameT = 0;
+    actor.evasiveCD = C.evasiveCooldown;
+    actor.iframes = Math.max(actor.iframes || 0, 0.38);
+    actor.blocking = false;
+    actor.comboN = actor.comboReset = 0;
+    actor.vel.set(0, Math.max(0, Math.min(6, actor.vel.y)), 0);
+    actor.action = { type: 'bc_evasive', t: 0, dur: 0.36, dir: d, side: 1, id: ++sequence };
+    resetPose(actor.rig);
+    actor.rig.body.rotation.set(0, 0, 0);
+    if (actor === player) {
+      clearInput();
+      player.dashT = 0;
+    }
+    if (actor.ai) {
+      actor.ai.combo = actor.ai.comboReset = 0;
+      actor.ai.history.push('ragdoll evasive');
+    }
+    dashFX(actor.pos, d);
+    return true;
+  }
+  C.stepEvasive = function (actor, a, dt) {
+    const old = clamp((a.t - dt) / a.dur, 0, 1),
+      now = clamp(a.t / a.dur, 0, 1);
+    sweepMove(actor, a.dir.clone().multiplyScalar(9 * ((1 - old) ** 2 - (1 - now) ** 2)));
+  };
   function stepFall(actor, a, dt) {
     if (a.stage === 0) {
       const previous = actor.pos.y;
@@ -45402,6 +45517,10 @@ var JJS_DATA = await (async function () {
       stepFall(player, a, dt);
       return;
     }
+    if (a.type === 'bc_evasive') {
+      C.stepEvasive(player, a, dt);
+      return;
+    }
     if (player.stunT > 0 || taken()) {
       cancel();
       return;
@@ -45425,7 +45544,8 @@ var JJS_DATA = await (async function () {
       const target = camForward();
       if (a.kind === 'back') target.negate();
       if (a.kind === 'side') target.set(-target.z * a.side, 0, target.x * a.side);
-      a.dir.lerp(target, Math.min(1, dt * 7)).normalize();
+      a.dir.copy(target); // mouse/camera steering is immediate throughout travel
+      player.facing = Math.atan2(camForward().x, camForward().z);
       const distance = conf.distance * (Math.pow(1 - old, 2) - Math.pow(1 - now, 2));
       const moved = sweepMove(player, a.dir.clone().multiplyScalar(distance));
       a.distance += moved;
@@ -45455,8 +45575,14 @@ var JJS_DATA = await (async function () {
     }
     if (meta?.breakGuard) this.blocking = false;
     const hp = this.hp;
-    const result = previousDamage.call(this, amount, knock, block ? { ...opts, predictBlocked: true } : opts);
+    const result = previousDamage.call(
+      this,
+      amount,
+      knock,
+      block ? { ...opts, predictBlocked: true } : opts
+    );
     if (this.hp < hp && meta) {
+      this.stunT = Math.max(this.stunT || 0, meta.stun || 0);
       this.blocking = false;
       if (!this.net && meta.down && !this.dead) startFall(this, knock, meta);
       if (player.char === 'mahito' && !JJMAHITO.active)
@@ -45612,6 +45738,7 @@ var JJS_DATA = await (async function () {
     this.bcFall = null;
     this.blocking = false;
     this.bcGuardHit = 0;
+    this.evasiveCD = 0;
     return previousRespawn.apply(this, arguments);
   };
   const previousUpdate = updatePlayer;
@@ -45623,6 +45750,7 @@ var JJS_DATA = await (async function () {
     }
     frontCD = Math.max(0, frontCD - dt);
     evadeCD = Math.max(0, evadeCD - dt);
+    player.evasiveCD = Math.max(0, (player.evasiveCD || 0) - dt);
     queued = Math.max(0, queued - dt);
     noJump = Math.max(0, noJump - dt);
     player.stunT = Math.max(0, (player.stunT || 0) - dt);
@@ -45635,8 +45763,11 @@ var JJS_DATA = await (async function () {
       clearInput();
       if (core(player.action) && player.action.type !== 'bc_fall') cancel();
     }
+    const wasDead = player.dead;
     previousUpdate(dt);
-    if (player.blocking && !player.action && !taken()) guardPose(player.rig, player.animT, player.bcGuardHit);
+    if (wasDead && !player.dead) player.evasiveCD = 0;
+    if (player.blocking && !player.action && !taken())
+      guardPose(player.rig, player.animT, player.bcGuardHit);
     if (player.char !== 'naoya') {
       const w = direction().kind,
         cd = w === 'front' ? frontCD : evadeCD;
@@ -45644,8 +45775,24 @@ var JJS_DATA = await (async function () {
     }
   };
   C.input = function (e) {
+    const a = player.action;
+    if (
+      /^(Digit[1-4]|KeyR)$/.test(e.code) &&
+      a?.type === 'bc_m1' &&
+      a.n < 3 &&
+      a.contact &&
+      a.t >= a.start &&
+      !locked()
+    )
+      cancel();
     if (/^(Digit[1-4]|Key[RFGEX])$/.test(e.code) && evadeOpen(player.action) && !locked()) cancel();
-    if (e.code === 'KeyB') {
+    if (e.code === 'KeyQ' && (player.rag || player.action?.type === 'bc_fall')) {
+      evasive(player, direction().dir);
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return true;
+    }
+    if (e.code === 'KeyF') {
       guard(true);
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -45677,7 +45824,7 @@ var JJS_DATA = await (async function () {
   window.addEventListener(
     'keyup',
     (e) => {
-      if (e.code === 'KeyB') guard(false);
+      if (e.code === 'KeyF') guard(false);
     },
     true
   );
@@ -45698,7 +45845,7 @@ var JJS_DATA = await (async function () {
   };
   C.remoteFX = function (type, pos, yaw) {
     if (!/^bc_/.test(type)) return false;
-    if (type === 'bc_dash') dashFX(pos, dir(yaw));
+    if (type === 'bc_dash' || type === 'bc_evasive') dashFX(pos, dir(yaw));
     return true;
   };
 
@@ -45721,6 +45868,19 @@ var JJS_DATA = await (async function () {
     if (r.body) r.body.rotation.set(0, 0, 0);
     const p = profile(r.__char || player.char, a.mode),
       t = a.t;
+    if (a.type === 'bc_evasive') {
+      const k = ease(t / a.dur),
+        roll = Math.sin(k * Math.PI);
+      r.hips.position.y = r.hipsBaseY - roll * 1.15;
+      r.spine.rotation.x = -roll * 0.75;
+      r.shoulderL.rotation.z = roll * 1.1;
+      r.shoulderR.rotation.z = -roll * 1.1;
+      r.hipL.rotation.x = -roll * 1.1;
+      r.kneeL.rotation.x = roll * 1.9;
+      r.hipR.rotation.x = roll * 0.6;
+      r.kneeR.rotation.x = roll * 1.2;
+      return;
+    }
     if (a.type === 'bc_fall') {
       const rise = a.stage === 2 ? ease(t / 0.38) : 0,
         tip = a.stage === 0 ? ease(t / 0.24) : 1;
@@ -45842,7 +46002,7 @@ var JJS_DATA = await (async function () {
   help.className = 'kit-row';
   help.id = 'jjCombatHelp';
   help.innerHTML =
-    '<strong>Combat · all fighters</strong><br><b>Left mouse</b>: four-hit combo; hold to continue. Hold <b>Space</b> during the combo for a fourth-hit uppercut; jump before hit four for a downslam. <b>B</b>: hold frontal guard. Downslams and attacks from behind bypass guard. <b>Q</b>: forward dash strike; <b>A/D + Q</b>: side dash; <b>S + Q</b>: back dash. Side and back dashes cancel straight into an attack or a skill; the forward dash stays committed. Naoya keeps his two-charge dash.';
+    '<strong>Combat · all fighters</strong><br><b>Left mouse</b>: four-hit combo; hold to continue. Hold <b>Space</b> during the combo for a fourth-hit uppercut; jump before hit four for a downslam. <b>F</b>: hold frontal guard. Downslams and attacks from behind bypass guard. <b>Q</b>: forward dash strike; <b>A/D + Q</b>: side dash; <b>S + Q</b>: back dash. Side and back dashes cancel straight into an attack or a skill; the forward dash stays committed. <b>Q while ragdolled</b>: evasive recovery (25s cooldown). <b>G</b>: awaken. Turn the camera to steer dashes. Naoya keeps his two-charge dash.';
   document.querySelector('#menu .ctrl-kits')?.prepend(help);
   const status = document.createElement('div');
   status.id = 'jjCombatStatus';
@@ -45863,10 +46023,14 @@ var JJS_DATA = await (async function () {
             ? ' · ' + (a.variant === 'up' ? 'UPPERCUT' : a.variant === 'down' ? 'DOWNSLAM' : 'FINISHER')
             : '')
         : a?.type === 'bc_fall'
-          ? 'KNOCKED DOWN'
+          ? (player.evasiveCD || 0) > 0
+            ? 'KNOCKED DOWN · EVASIVE ' + Math.ceil(player.evasiveCD) + 's'
+            : 'Q · RAGDOLL EVASIVE READY'
           : player.stunT > 0
             ? 'STUNNED'
-            : '';
+            : player.evasiveCD > 0
+              ? 'EVASIVE · ' + Math.ceil(player.evasiveCD) + 's'
+              : '';
     status.style.display = text && gameInputActive() ? 'block' : 'none';
     status.textContent = text;
   };
@@ -45879,7 +46043,7 @@ var JJS_DATA = await (async function () {
 (function () {
   'use strict';
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z),
-    STEP = 4,
+    STEP = 2,
     R = 0.9,
     H = 5.1;
   const jobs = [],
@@ -45894,8 +46058,10 @@ var JJS_DATA = await (async function () {
     clear,
     walk,
     link,
+    hop,
     segment,
     occupied,
+    walkOccupied,
     steer,
     audit: () => ({ jobs: jobs.length, cached: cache.size, expanded, revision })
   });
@@ -45909,13 +46075,12 @@ var JJS_DATA = await (async function () {
     return true;
   }
   function walk(a, b) {
-    if (Math.abs(a.y - b.y) > 1.2) return false;
-    const n = Math.max(1, Math.ceil(a.distanceTo(b) / 1.1));
+    const n = Math.max(1, Math.ceil(Math.hypot(a.x - b.x, a.z - b.z) / 0.55));
     let y = a.y;
     for (let i = 1; i <= n; i++) {
       const p = a.clone().lerp(b, i / n);
-      p.y = worldFloor(p, y + 1.15);
-      if (!Number.isFinite(p.y) || Math.abs(p.y - y) > 1.2 || occupied(p)) return false;
+      p.y = worldFloor(p, y + 1.05);
+      if (!Number.isFinite(p.y) || Math.abs(p.y - y) > 1.2 || walkOccupied(p)) return false;
       y = p.y;
     }
     return Math.abs(y - b.y) < 1.2;
@@ -45923,6 +46088,31 @@ var JJS_DATA = await (async function () {
   function support(p) {
     const y = worldFloor(p, p.y + 0.15);
     return Number.isFinite(y) && Math.abs(y - p.y) < 0.2 && !occupied(p);
+  }
+  function walkOccupied(p) {
+    // The grounded controller steps over low risers. A full capsule overlap
+    // incorrectly treats the next stair tread as an impassable wall.
+    return city() ? JJJJS.occupied(p.clone().add(V(0, 1.05, 0)), R, H - 1.05) : occupied(p);
+  }
+  function hop(from, direction) {
+    if (!city()) return null;
+    const d = direction.clone().setY(0).normalize();
+    for (const distance of [2.4, 3.6, 5.2, 6.5]) {
+      const end = from.clone().addScaledVector(d, distance);
+      end.y = worldFloor(end, from.y + 3.3);
+      if (!Number.isFinite(end.y) || end.y < from.y - 7 || occupied(end) || walk(from, end)) continue;
+      const path = [from.clone()];
+      for (let i = 1; i <= 16; i++) {
+        const t = i / 16,
+          p = from.clone().lerp(end, t);
+        // Fast initial lift clears crater lips instead of pushing into them.
+        p.y += Math.sin(Math.PI * t) * (2.6 + Math.max(0, end.y - from.y) * 0.4);
+        path.push(p);
+      }
+      if (path.slice(1).every((p, i) => segment(path[i], p)))
+        return { type: 'pk_hop', from: from.clone(), path, end, dur: 0.7 + distance * 0.025 };
+    }
+    return null;
   }
   function link(from, direction) {
     if (!city()) return null;
@@ -45936,6 +46126,8 @@ var JJS_DATA = await (async function () {
         end: vault.path.at(-1).clone(),
         dur: 0.68
       };
+    const small = hop(from, d);
+    if (small) return small;
     const a = from.clone().add(V(0, 2.6, 0)),
       hit = JJJJS.trace(a, a.clone().addScaledVector(d, 4.5));
     if (!hit || Math.abs(hit.normal.y) > 0.18 || hit.normal.dot(d) > -0.65) return null;
@@ -45954,15 +46146,24 @@ var JJS_DATA = await (async function () {
     lift.y = stand.y + 0.04;
     const path = [from.clone(), hang, lift, stand];
     if (!support(stand) || !path.slice(1).every((p, i) => segment(path[i], p))) return null;
-    return { type: 'pk_climb', from: from.clone(), path, end: stand.clone(), dur: 1.05, normal, id: hit.id };
+    return {
+      type: 'pk_climb',
+      from: from.clone(),
+      path,
+      end: stand.clone(),
+      dur: 1.05,
+      normal,
+      id: hit.id
+    };
   }
   function clear() {
+    for (const j of jobs) j.done([], false);
     jobs.length = 0;
     cache.clear();
     root = window.JJJJS?.root;
     revision = window.JJDESTRUCT?.audit().revision || 0;
   }
-  const key = (p) => Math.round(p.x / STEP) + ',' + Math.round(p.z / STEP) + ',' + Math.round(p.y * 4);
+  const key = (p) => Math.round(p.x * 2) + ',' + Math.round(p.z * 2) + ',' + Math.round(p.y * 4);
   const h = (a, b) => Math.hypot(a.x - b.x, a.z - b.z) + Math.abs(a.y - b.y) * 1.4;
   class Heap {
     constructor() {
@@ -46013,8 +46214,15 @@ var JJS_DATA = await (async function () {
       [-1, -1]
     ]) {
       const q = p.clone().add(V(x * STEP, 0, z * STEP));
-      q.y = worldFloor(q, p.y + 1.15);
-      if (Number.isFinite(q.y) && Math.abs(q.x) < 1000 && Math.abs(q.z) < 1000 && !occupied(q)) {
+      // Walk the floor samples, allowing several stair treads in one edge.
+      let height = p.y;
+      for (let t = 0.25; t <= 1; t += 0.25) {
+        const sample = p.clone().lerp(q, t);
+        height = worldFloor(sample, height + 1.05);
+        if (!Number.isFinite(height)) break;
+      }
+      q.y = height;
+      if (Number.isFinite(q.y) && Math.abs(q.x) < 1000 && Math.abs(q.z) < 1000 && !walkOccupied(q)) {
         if (walk(p, q)) {
           list.push({ p: q, cost: p.distanceTo(q) });
           continue;
@@ -46043,7 +46251,7 @@ var JJS_DATA = await (async function () {
         if (l) list.push({ p: l.end, cost: p.distanceTo(l.end) + 5, link: l });
       }
     }
-    if (cache.size > 3500) cache.delete(cache.keys().next().value);
+    if (cache.size > 12000) cache.delete(cache.keys().next().value);
     cache.set(tag, list);
     return list;
   }
@@ -46058,7 +46266,7 @@ var JJS_DATA = await (async function () {
       done([{ p: direct.end, link: direct }, { p: goal.clone() }], true);
       return;
     }
-    if (jobs.length >= 20) {
+    if (jobs.length >= 100) {
       done([], false);
       return;
     }
@@ -46093,8 +46301,8 @@ var JJS_DATA = await (async function () {
       const rev = window.JJDESTRUCT?.audit().revision || 0;
       if (root !== window.JJJJS?.root || revision !== rev) clear();
     }
-    const deadline = performance.now() + 2.5;
-    let budget = 55;
+    const deadline = performance.now() + 3.5;
+    let budget = 140;
     while (jobs.length && budget-- && performance.now() < deadline) {
       const j = jobs.shift();
       let n = j.heap.pop();
@@ -46116,12 +46324,11 @@ var JJS_DATA = await (async function () {
         finish(j, true);
         continue;
       }
-      if (j.count >= 1500) {
+      if (j.count >= 2400) {
         finish(j, false);
         continue;
       }
       for (const e of neighbors(n.p)) {
-        if (n.p.distanceTo(j.nodes.values().next().value.p) > 130) continue;
         const k = key(e.p),
           g = n.g + e.cost,
           old = j.nodes.get(k);
@@ -46144,14 +46351,18 @@ var JJS_DATA = await (async function () {
       if (n > 0.05 && n < 2.8) desired.addScaledVector(away, (2.8 - n) / (n * 3));
     }
     desired.normalize();
-    const ahead = actor.pos.clone().addScaledVector(desired, 2);
-    if (!occupied(ahead)) return desired;
+    const ahead = actor.pos.clone().addScaledVector(desired, 1.1);
+    const top = worldFloor(ahead, actor.pos.y + 1.05);
+    if (actor.onGround && Number.isFinite(top) && Math.abs(top - actor.pos.y) < 1.1) ahead.y = top;
+    if (!(actor.onGround ? walkOccupied(ahead) : occupied(ahead))) return desired;
     let best = null,
       score = -Infinity;
     for (const angle of [0.55, -0.55, 1, -1, 1.5, -1.5]) {
       const d = desired.clone().applyAxisAngle(V(0, 1, 0), angle),
-        p = actor.pos.clone().addScaledVector(d, 2);
-      if (!occupied(p)) {
+        p = actor.pos.clone().addScaledVector(d, 1.1);
+      const floor = worldFloor(p, actor.pos.y + 1.05);
+      if (actor.onGround && Number.isFinite(floor) && Math.abs(floor - actor.pos.y) < 1.1) p.y = floor;
+      if (!(actor.onGround ? walkOccupied(p) : occupied(p))) {
         const n = d.dot(goal.clone().sub(actor.pos).setY(0).normalize());
         if (n > score) {
           score = n;
@@ -46172,12 +46383,17 @@ var JJS_DATA = await (async function () {
   'use strict';
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
   const registry = window.JJCHARCAST;
-  registry.gojo = { cast: [castRed, castRapid, castTwofold, castPalm, castLimitless] };
+  registry.gojo = {
+    cast: [castRed, castRapid, castTwofold, castPalm, castLimitless],
+    scope: [...(registry.gojo?.scope || []), JJVOID],
+    awakeEnd: () => JJVOID.close()
+  };
   const states = Object.values(registry)
-    .map((r) => r.state)
+    .flatMap((r) => [r.state, ...(r.scope || [])])
     .filter(Boolean);
   if (window.JJAW) states.push(JJAW);
-  const snapshot = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => typeof v !== 'function'));
+  const snapshot = (o) =>
+    Object.fromEntries(Object.entries(o).filter(([, v]) => typeof v !== 'function'));
   function clone(v) {
     if (!v || typeof v !== 'object') return v;
     if (v.isVector3) return v.clone();
@@ -46222,6 +46438,225 @@ var JJS_DATA = await (async function () {
     nanami: [6, 0, 0, 0, 0],
     ryu: [0, 0, 7, 0, 0]
   };
+  const awakeCDs = {
+    gojo: ['awBlue', 'awRed', 'awPurple', 'awDomain'],
+    yuji: ['s1', 's2', 's3', 's4'],
+    hakari: ['ha1', 'ha2', 'ha3', 'ha4'],
+    choso: ['ca1', 'ca2', 'ca3', 'ca4'],
+    megumi: ['ga1', 'ga2', 'ga3', 'gdom'],
+    mahito: ['mha1', 'mha2', 'mha3', 'mha4'],
+    todo: ['tda1', 'tda2', 'tda3', 'tda4'],
+    naoya: ['n1', 'n2', 'n3', 'n4']
+  };
+  const awakeRanges = {
+    gojo: [30, 40, 50, 28, 24],
+    yuji: [34, 9, 45, 30, 10],
+    hakari: [28, 9, 28, 14, 8],
+    choso: [36, 28, 24, 28, 8],
+    megumi: [30, 28, 24, 28, 10],
+    mahito: [8, 12, 15, 25, 10],
+    todo: [12, 14, 10, 11, 8]
+  };
+  const awakeDur = {
+    gojo: 34,
+    yuji: 30,
+    hakari: 30,
+    choso: 26,
+    megumi: 30,
+    mahito: 60,
+    todo: 50,
+    naoya: 20
+  };
+  function menu(e) {
+    const base = menus[e.char],
+      k = init(e);
+    if (!k.awake || !awakeCDs[e.char]) return base;
+    return base.map((m, i) => (i < 4 ? { ...m, cd: awakeCDs[e.char][i], lbl: awakeCDs[e.char][i] } : m));
+  }
+  function charge(e) {
+    if (!e?.ai) return 0;
+    const k = init(e);
+    if (k.awake) return 0;
+    const own = k.states[states.indexOf(registry[e.char].state)],
+      aw = k.states[states.indexOf(JJAW)];
+    return Math.min(100, Math.max(k.charge, own?.charge || 0, aw?.charge || 0));
+  }
+  function gain(e, n) {
+    if (!e?.ai || e.dead || !awakeDur[e.char]) return;
+    const k = init(e);
+    if (!k.awake) k.charge = Math.min(100, k.charge + Math.max(0, n));
+  }
+  function awakened(e) {
+    if (!e || e.dead) return false;
+    if (e.ai) return e.ai.remote ? !!e.ai.awakeRemote : !!e.ai.kit?.awake;
+    if (e.net) {
+      const f = MPJJ.fighters[e.net.id];
+      return !!(f?.awakened || f?.aw || f?.fever);
+    }
+    return !!(
+      JJAW.active ||
+      JJAW.cine ||
+      JJAW.yuji ||
+      JJAW.choso ||
+      JJAW.megumi ||
+      JJHAKARI.fever > 0 ||
+      (e.char === 'mahito' && JJMAHITO.active) ||
+      (e.char === 'todo' && JJTODO.active) ||
+      JJNAOYA.rushing()
+    );
+  }
+  function canAwaken(e) {
+    return (
+      !!awakeDur[e.char] &&
+      charge(e) >= 100 &&
+      !init(e).awake &&
+      JJAICOMBAT.free(e) &&
+      !e.action &&
+      !e.blocking &&
+      !e.react
+    );
+  }
+  function syncAwake(e, remaining) {
+    const on = remaining > 0;
+    if (e.char === 'gojo') {
+      JJAW.active = on;
+      JJAW.cine = false;
+      JJAW.t = awakeDur.gojo - remaining;
+    }
+    if (e.char === 'yuji') {
+      JJAW.yuji = JJAW.sukuna = on;
+      JJAW.yujiT = remaining;
+    }
+    if (e.char === 'choso') {
+      JJAW.choso = on;
+      JJAW.chosoT = remaining;
+    }
+    if (e.char === 'megumi') {
+      JJAW.megumi = on;
+      JJAW.megumiT = remaining;
+    }
+    if (e.char === 'hakari') JJHAKARI.fever = remaining;
+    if (e.char === 'mahito') {
+      JJMAHITO.active = on;
+      JJMAHITO.remaining = remaining;
+      JJMAHITO.basePage = false;
+    }
+    if (e.char === 'todo') {
+      JJTODO.active = on;
+      JJTODO.remaining = remaining;
+      JJTODOVOX.awake(e.rig, on && !(e.action?.type === 'td_awaken' && e.action.t < 2.55));
+    }
+  }
+  function awaken(e, t) {
+    if (!canAwaken(e)) return false;
+    const k = init(e);
+    k.target = t;
+    k.charge = 0;
+    k.awake = true;
+    k.remaining = awakeDur[e.char];
+    run(e, () => {
+      JJAW.charge = 0;
+      JJAW.ready = false;
+      if (e.char === 'mahito') {
+        JJMAHITO.charge = 100;
+        JJMAHITO.awaken();
+      } else if (e.char === 'todo') {
+        JJTODO.charge = 100;
+        JJTODO.awaken();
+      } else {
+        e.action = {
+          type: e.char === 'naoya' ? 'ai_nrush' : 'ai_awaken',
+          t: 0,
+          dur: e.char === 'naoya' ? 20 : 1.4,
+          dir: V(Math.sin(e.facing), 0, Math.cos(e.facing)),
+          hits: new Map()
+        };
+        const color = new THREE.Color(CHARS[e.char].glow).getHex();
+        JJFX.ring(e.pos.clone().add(V(0, 0.15, 0)), color, { maxR: 9, life: 1.1 });
+        JJFX.dust(e.pos.clone(), 8, 0xdacfc0, 7, 3);
+        k.aura = JJFX.aura(() => e.pos, color);
+      }
+      syncAwake(e, k.remaining);
+      e.iframes = Math.max(e.iframes || 0, e.action?.type === 'td_awaken' ? 3.7 : 1.4);
+      e.hp = Math.min(e.maxHp, e.hp + (e.char === 'todo' || e.char === 'mahito' ? 0 : 25));
+      for (const key of awakeCDs[e.char]) k.cd[key] = 0;
+      if (e.char === 'gojo') JJAW.setLook(e.rig, true);
+    });
+    announce(e, 5, null);
+    e.ai.goal = null;
+    e.ai.guardT = 0;
+    e.blocking = false;
+    JJAISERVER.castEvent(e, { type: 'ai_awaken', id: ++e.ai.serial });
+    return true;
+  }
+  function endAwake(e) {
+    const k = init(e);
+    run(e, () => {
+      syncAwake(e, 0);
+      registry[e.char].awakeEnd?.();
+      if (e.char === 'gojo') JJAW.setLook(e.rig, false);
+    });
+    k.aura?.stop();
+    k.aura = null;
+    k.awake = false;
+    k.remaining = 0;
+    k.charge = 0;
+    const own = k.states[states.indexOf(registry[e.char].state)],
+      aw = k.states[states.indexOf(JJAW)];
+    if (own && 'charge' in own) own.charge = 0;
+    aw.charge = 0;
+    aw.ready = false;
+  }
+  function remoteAwake(e, on) {
+    const k = init(e);
+    if (k.remoteSetup && k.awake === on) return;
+    k.remoteSetup = true;
+    k.awake = on;
+    k.remaining = on ? 30 : 0;
+    run(e, () => syncAwake(e, k.remaining));
+    if (e.char === 'gojo') JJAW.setLook(e.rig, on);
+    if (e.char === 'todo') JJTODOVOX.awake(e.rig, on);
+    if (on && !k.aura) k.aura = JJFX.aura(() => e.pos, new THREE.Color(CHARS[e.char].glow).getHex());
+    else if (!on && k.aura) {
+      k.aura.stop();
+      k.aura = null;
+    }
+  }
+  function rush(e, a, dt) {
+    const k = init(e),
+      t = k.target;
+    if (!t || t.dead) {
+      e.action = null;
+      return;
+    }
+    const want = t.pos
+      .clone()
+      .addScaledVector(t.vel || V(), 0.12)
+      .sub(e.pos)
+      .setY(0)
+      .normalize();
+    a.dir.lerp(want, Math.min(1, dt * 4.5)).normalize();
+    JJFIGHT.actors.sweepMove(e, a.dir.clone().multiplyScalar(54 * dt));
+    e.facing = Math.atan2(a.dir.x, a.dir.z);
+    e.vel.x = e.vel.z = 0;
+    if (
+      e.pos.distanceTo(t.pos) < 5 &&
+      (a.hits.get(t) || -10) < a.t - 0.8 &&
+      JJFIGHT.actors.visible(e.pos.clone().add(V(0, 3, 0)), t.pos.clone().add(V(0, 3, 0)))
+    ) {
+      a.hits.set(t, a.t);
+      JJAISERVER.hit(e, t, 8, a.dir.clone().multiplyScalar(12).setY(3), {
+        source: e.pos.clone(),
+        guardable: true,
+        stun: 0.5,
+        kind: 'skill',
+        skill: true,
+        id: ++e.ai.serial
+      });
+    }
+    if (Math.floor(a.t * 12) !== Math.floor((a.t - dt) * 12) && e.pos.distanceTo(player.pos) < 120)
+      ghostAfterimage(e.rig, 0xcde9ff, 0.2);
+  }
   let current = null;
   const K = (window.JJAIKITS = {
     init,
@@ -46235,24 +46670,35 @@ var JJS_DATA = await (async function () {
     select,
     variant,
     isSkill,
-    menu: (e) => menus[e.char],
-    cooldown: (e, slot) => init(e).cd[menus[e.char][slot]?.cd] || 0,
+    menu: menu,
+    cooldown: (e, slot) => init(e).cd[menu(e)[slot]?.cd] || 0,
     defend,
     remotePose,
     pack,
     unpack,
-    damageScale
+    damageScale,
+    awaken,
+    awakened,
+    canAwaken,
+    gain,
+    charge,
+    remoteAwake
   });
   function init(e) {
     if (e.ai.kit?.char === e.char) return e.ai.kit;
     if (e.ai.kit) reset(e);
     const k = (e.ai.kit = {
       char: e.char,
+      charge: 0,
+      awake: false,
+      remaining: 0,
+      aura: null,
       cd: Object.fromEntries(Object.keys(baseCD).map((key) => [key, 0])),
       states: templates.map(clone),
       keys: {},
       proxies: new WeakMap(),
       timers: new Set(),
+      effects: [],
       roots: new Set(),
       active: true,
       last: null,
@@ -46284,8 +46730,11 @@ var JJS_DATA = await (async function () {
     e.char = k.char;
     cancel(e);
     e.char = char;
+    if (k.awake) endAwake(e);
+    k.aura?.stop();
     k.active = false;
     k.timers.clear();
+    k.effects.length = 0;
     // Spell roots are owned by this incarnation, never by another fighter.
     for (const root of k.roots) if (root !== e.rig.root) root.removeFromParent();
     k.roots.clear();
@@ -46298,9 +46747,11 @@ var JJS_DATA = await (async function () {
   function enter(e) {
     const k = init(e),
       parent = current;
-    const indexes = [states.indexOf(registry[e.char].state), states.indexOf(window.JJAW)].filter(
-      (i, n, all) => i >= 0 && all.indexOf(i) === n
-    );
+    const indexes = [
+      states.indexOf(registry[e.char].state),
+      ...(registry[e.char].scope || []).map((o) => states.indexOf(o)),
+      states.indexOf(window.JJAW)
+    ].filter((i, n, all) => i >= 0 && all.indexOf(i) === n);
     const saved = {
       player,
       enemies,
@@ -46324,10 +46775,15 @@ var JJS_DATA = await (async function () {
       states: indexes.map((i) => snapshot(states[i])),
       ui: [],
       moves: CHARS[e.char].moves,
-      locked: JJFIGHT.locked
+      locked: JJFIGHT.locked,
+      cameraPos: camera.position.clone(),
+      cameraQuat: camera.quaternion.clone(),
+      cameraFov: camera.fov,
+      background: scene.background,
+      fog: scene.fog
     };
     const undoNaoya = registry.naoya.isolate();
-    const candidates = JJAISERVER.actors().filter((t) => t !== e);
+    const candidates = JJAISERVER.actors().filter((t) => t !== e && !JJAISERVER.friendly(e, t));
     player = e;
     enemies = candidates.map((t) => targetProxy(e, t));
     cds = k.cd;
@@ -46349,7 +46805,9 @@ var JJS_DATA = await (async function () {
     addShake = hitstop = showSplash = startShatter = buildMovesBar = window.JJNOTICE = () => {};
     for (const [o, names] of [
       [window.JJFX, ['flash', 'tint', 'zoom', 'mangaLines', 'letterbox']],
-      [window.JJANIM, ['camKick', 'camRelease']]
+      [window.JJANIM, ['camKick', 'camRelease', 'camTo']],
+      [window.JJSTAGE, ['hide', 'show', 'hud']],
+      [window.JJAW, ['theme']]
     ]) {
       if (!o) continue;
       for (const name of names)
@@ -46364,13 +46822,10 @@ var JJS_DATA = await (async function () {
       return saved.add.apply(this, objects);
     };
     addFx = function (effect) {
-      const update = effect.update;
-      effect.update = function (dt) {
-        if (!k.active) return false;
-        if (!MPJJ.active && !gameInputActive()) return true;
-        return run(e, () => update.call(effect, dt));
-      };
-      return saved.addFx(effect);
+      // A character's effects share one actor context per simulation frame.
+      // This keeps 100 fighters from rebuilding target proxies for every mote.
+      k.effects.push(effect);
+      return effect;
     };
     window.setTimeout = function (fn, ms = 0, ...args) {
       if (typeof fn !== 'function') return 0;
@@ -46410,6 +46865,14 @@ var JJS_DATA = await (async function () {
         scene.add = saved.add;
         MPJJ.active = saved.active;
         for (const [o, name, fn] of saved.ui) o[name] = fn;
+        camera.position.copy(saved.cameraPos);
+        camera.quaternion.copy(saved.cameraQuat);
+        if (camera.fov !== saved.cameraFov) {
+          camera.fov = saved.cameraFov;
+          camera.updateProjectionMatrix();
+        }
+        scene.background = saved.background;
+        scene.fog = saved.fog;
         undoNaoya();
         current = parent;
       }
@@ -46512,7 +46975,7 @@ var JJS_DATA = await (async function () {
       a.aiSlot = slot;
       a.id = ++e.ai.serial;
       k.last = a;
-      e.ai.history.push('skill ' + (menus[e.char][slot]?.lbl || a.type) + ' [' + a.type + ']');
+      e.ai.history.push('skill ' + (menu(e)[slot]?.lbl || a.type) + ' [' + a.type + ']');
       if (e.ai.history.length > 64) e.ai.history.shift();
       k.casts.push(a.type);
       if (k.casts.length > 64) k.casts.shift();
@@ -46539,7 +47002,7 @@ var JJS_DATA = await (async function () {
     e.action = null;
     const priorCD = K.cooldown(e, slot),
       priorMode = e.ai.mode;
-    run(e, () => reg.cast[slot]());
+    run(e, () => (k.awake && slot < 4 && reg.awakeCast ? reg.awakeCast[slot] : reg.cast[slot])());
     // Bots commit to an arm stance before changing it again.
     if (e.char === 'mahito' && slot === 4) k.cd.mhMode = 3;
     announce(e, slot, before);
@@ -46586,6 +47049,7 @@ var JJS_DATA = await (async function () {
     const a = k.last;
     if (a)
       run(e, () => {
+        if (a.type === 'aw_domain') JJVOID.close();
         registry[e.char].release?.(a);
         if (a.aura?.stop) a.aura.stop();
         if (a.doors) for (const door of a.doors) door.removeFromParent();
@@ -46604,6 +47068,15 @@ var JJS_DATA = await (async function () {
     e.visYaw = 0;
   }
   function tick(e, dt) {
+    tickAction(e, dt);
+    const k = init(e);
+    if (k.effects.length)
+      run(e, () => {
+        for (let i = k.effects.length - 1; i >= 0; i--)
+          if (!k.effects[i].update(dt)) k.effects.splice(i, 1);
+      });
+  }
+  function tickAction(e, dt) {
     const k = init(e);
     if (k.last && k.last !== e.action) cancel(e);
     for (const key of Object.keys(k.cd)) k.cd[key] = Math.max(0, k.cd[key] - dt);
@@ -46618,8 +47091,21 @@ var JJS_DATA = await (async function () {
         run(e, job.fn);
       }
     }
-    if (e.dead) return;
-    run(e, () => registry[e.char].idle?.(dt));
+    if (e.dead) {
+      if (k.awake) endAwake(e);
+      return;
+    }
+    if (k.awake) {
+      if (e.char === 'hakari' || e.char === 'gojo')
+        e.hp = Math.min(e.maxHp, e.hp + dt * (e.char === 'hakari' ? 11 : 2.6));
+      k.remaining = Math.max(0, k.remaining - dt);
+      run(e, () => {
+        syncAwake(e, k.remaining);
+        registry[e.char].awakeIdle?.(dt);
+      });
+      if (!k.remaining) endAwake(e);
+    } else gain(e, dt * 1.15);
+    if (registry[e.char].idle) run(e, () => registry[e.char].idle(dt));
     const a = e.action;
     if (!isSkill(a)) return;
     const before = e.pos.clone(),
@@ -46627,7 +47113,11 @@ var JJS_DATA = await (async function () {
         .filter((t) => t !== e)
         .map((t) => [t, t.pos.clone()]);
     a.t += dt;
-    run(e, () => stepAction(a, dt));
+    if (a.type === 'ai_awaken') {
+      if (a.t >= a.dur) e.action = null;
+    } else if (a.type === 'ai_nrush') {
+      rush(e, a, dt);
+    } else run(e, () => stepAction(a, dt));
     if (e.action && e.action !== a) announce(e, a.aiSlot, a);
     // Older skills directly change position. Sweep their horizontal movement
     // through the same colliders used by dash and parkour.
@@ -46649,28 +47139,49 @@ var JJS_DATA = await (async function () {
     for (const root of k.roots) if (!root.parent) k.roots.delete(root);
   }
   function pose(e) {
+    if (e.action?.type === 'ai_awaken') {
+      const r = e.rig,
+        t = e.action.t / e.action.dur,
+        k = Math.sin(Math.min(1, t) * Math.PI);
+      r.spine.rotation.x = -0.16 * k;
+      r.neck.rotation.x = -0.28 * k;
+      r.shoulderL.rotation.set(-1.6 * k, 0, 0.3 * k);
+      r.shoulderR.rotation.set(-1.6 * k, 0, -0.3 * k);
+      r.elbowL.rotation.x = r.elbowR.rotation.x = -1.8 * k;
+      r.hips.position.y = r.hipsBaseY - 0.2 * k;
+      return;
+    }
+    if (e.action?.type === 'ai_nrush')
+      return JJFIGHT.pose(e.rig, { type: 'bc_dash', kind: 'front', t: 0.1, dur: 0.4, strikeAt: null });
     run(e, () => poseAction(e.rig, e.action));
   }
   function remotePose(e) {
-    if (e.char === 'mahito') JJMAHITO.remoteState(e.rig, e.ai.mode, false, e.action?.type, e.blocking);
+    if (e.char === 'mahito')
+      JJMAHITO.remoteState(e.rig, e.ai.mode, !!e.ai.awakeRemote, e.action?.type, e.blocking);
     pose(e);
   }
   function select(e, target, combo = false, random = Math.random) {
     const distance = e.pos.distanceTo(target.pos),
       k = init(e);
-    const options = [];
+    const options = [],
+      reach = k.awake ? awakeRanges[e.char] || ranges[e.char] : ranges[e.char];
     for (let slot = 0; slot < 5; slot++) {
       if (
         K.cooldown(e, slot) > 0 ||
-        distance > ranges[e.char][slot] ||
-        distance < (minimum[e.char]?.[slot] || 0)
+        distance > reach[slot] ||
+        distance < (k.awake ? 0 : minimum[e.char]?.[slot] || 0)
       )
         continue;
-      if (e.char === 'choso' && slot === 3 && k.states[states.indexOf(registry.choso.state)].scale > 2)
+      if (
+        !k.awake &&
+        e.char === 'choso' &&
+        slot === 3 &&
+        k.states[states.indexOf(registry.choso.state)].scale > 2
+      )
         continue;
       if ((e.char === 'hakari' || e.char === 'todo') && slot === 4 && !target.action) continue;
       if (e.char === 'mahito' && slot === 4 && (combo || random() > 0.25)) continue;
-      const melee = ranges[e.char][slot] <= 12;
+      const melee = reach[slot] <= 12;
       options.push({
         slot,
         score: random() + (combo && melee ? 1 : 0) + (!combo && distance > 10 && !melee ? 0.6 : 0)
@@ -46874,6 +47385,8 @@ var JJS_DATA = await (async function () {
       side,
       dir: d,
       center,
+      target,
+      travel: !!target.travel,
       rad,
       angle: Math.atan2(e.pos.x - center.x, e.pos.z - center.z),
       origin: e.pos.clone(),
@@ -46890,9 +47403,10 @@ var JJS_DATA = await (async function () {
   function hitTargets(e, a, range = 5.1, width = 2.2) {
     const right = V(a.dir.z, 0, -a.dir.x),
       result = [];
-    for (const t of JJAISERVER.actors()) {
+    for (const t of JJAISERVER.near(e.pos, range + 5)) {
       if (
         t === e ||
+        JJAISERVER.friendly(e, t) ||
         t.dead ||
         t.iframes > 0 ||
         t.rag ||
@@ -46933,7 +47447,7 @@ var JJS_DATA = await (async function () {
         source: e.pos.clone(),
         guardable: true,
         breakGuard: a.variant === 'down' || (e.char === 'mahito' && a.mode === 2 && a.n >= 2),
-        stun: 0.6,
+        stun: last ? 0.65 : 0.5,
         down: last ? 1.35 : 0,
         variant: a.variant || 'normal',
         id: a.id,
@@ -46968,7 +47482,8 @@ var JJS_DATA = await (async function () {
   function tick(e, dt) {
     const b = e.ai,
       a = e.action;
-    for (const k of ['m1CD', 'frontCD', 'evadeCD', 'comboReset', 'guardT']) b[k] = Math.max(0, b[k] - dt);
+    for (const k of ['m1CD', 'frontCD', 'evadeCD', 'comboReset', 'guardT'])
+      b[k] = Math.max(0, b[k] - dt);
     b.charges = Math.min(2, b.charges + dt / 2.2);
     if (b.guardT <= 0) e.blocking = false;
     if (!free(e) && JJAIKITS.isSkill(a)) {
@@ -46991,6 +47506,8 @@ var JJS_DATA = await (async function () {
       }
       if (a.t >= a.start && a.t - dt <= a.start + 0.16) impact(e, a);
       if (a.n === 3 && a.t >= a.start + 0.16 && !a.hits.size) a.dur = Math.max(a.dur, 1.1);
+    } else if (a.type === 'bc_evasive') {
+      C.stepEvasive(e, a, dt);
     } else if (a.type === 'ai_naoya_dash') {
       world.sweepMove(e, a.dir.clone().multiplyScalar(41 * Math.min(dt, Math.max(0, 0.3 - (a.t - dt)))));
       if (b.target) turn(e, b.target.pos, dt);
@@ -47001,7 +47518,12 @@ var JJS_DATA = await (async function () {
       if (a.strikeAt === null && a.t <= c.travel + dt) {
         const distance = c.distance * ((1 - old) ** 2 - (1 - now) ** 2);
         let offset;
-        if (a.kind === 'side') {
+        if (a.kind !== 'side' && a.target && !a.target.dead) {
+          const d = a.target.pos.clone().sub(e.pos).setY(0).normalize();
+          if (a.kind === 'back') d.negate();
+          a.dir.lerp(d, Math.min(1, dt * 20)).normalize();
+        }
+        if (a.kind === 'side' && !a.travel) {
           const angle = a.angle + ((a.side * c.distance) / a.rad) * (1 - (1 - now) ** 2),
             goal = a.center.clone().add(V(Math.sin(angle) * a.rad, 0, Math.cos(angle) * a.rad));
           goal.y = e.pos.y;
@@ -47009,7 +47531,7 @@ var JJS_DATA = await (async function () {
           if (offset.length() > distance * 1.3) offset.setLength(distance * 1.3);
         } else offset = a.dir.clone().multiplyScalar(distance);
         const moved = world.sweepMove(e, offset);
-        if (b.target) turn(e, b.target.pos, dt, 15);
+        if (a.target) turn(e, a.target.pos, dt, e.ai.profile?.turn || 15);
         if (
           a.kind === 'front' &&
           ((a.t > 0.08 && hitTargets(e, a, 5.8).length) || moved < distance * 0.3 || a.t >= c.travel)
@@ -47060,6 +47582,517 @@ var JJS_DATA = await (async function () {
 })();
 
 
+/* ===== ai-behavior.js ===== */
+/* Decisions operate on perceived actions and remembered rivals. Movement uses
+   the live navigation graph; revenge never relocates an actor to its victim. */
+(function () {
+  'use strict';
+  const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z),
+    C = JJAICOMBAT,
+    N = JJAINAV;
+  const profiles = {
+    noob: {
+      reaction: 0.38,
+      variance: 0.22,
+      revenge: 0.18,
+      redirect: 0.35,
+      dodge: 0.2,
+      guard: 0.28,
+      retreat: 0.35,
+      combo: 0.25,
+      team: 0.25,
+      turn: 6,
+      speed: 11.5
+    },
+    middle: {
+      reaction: 0.21,
+      variance: 0.12,
+      revenge: 0.52,
+      redirect: 0.65,
+      dodge: 0.55,
+      guard: 0.65,
+      retreat: 0.6,
+      combo: 0.68,
+      team: 0.55,
+      turn: 13,
+      speed: 12.5
+    },
+    pro: {
+      reaction: 0.1,
+      variance: 0.06,
+      revenge: 0.88,
+      redirect: 0.88,
+      dodge: 0.86,
+      guard: 0.93,
+      retreat: 0.83,
+      combo: 0.95,
+      team: 0.85,
+      turn: 26,
+      speed: 13.5
+    }
+  };
+  let S;
+  const B = (window.JJAIBEHAVIOR = {
+    profiles,
+    configure(s) {
+      S = s;
+    },
+    init,
+    choose,
+    plan,
+    defense,
+    damaged,
+    killed,
+    step,
+    escape,
+    friendly
+  });
+  const now = () => S.time,
+    rnd = () => S.random(),
+    id = (e) => S.actorId(e);
+  function init(e, level = 'middle') {
+    const b = e.ai,
+      p = profiles[level] || profiles.middle;
+    Object.assign(b, {
+      level: profiles[level] ? level : 'middle',
+      profile: p,
+      react: p.reaction + rnd() * p.variance,
+      grudge: p.revenge,
+      allies: new Map(),
+      grudges: new Map(),
+      pursuitUntil: 0,
+      retreatUntil: 0,
+      retreatCheck: 0,
+      dodgeAt: 0,
+      breachAt: 0,
+      escapeUntil: 0,
+      scanAt: 0,
+      awakeCheck: 0,
+      teamAt: 0,
+      fearUntil: 0
+    });
+  }
+  function friendly(e, t) {
+    return !!(e?.ai && t?.ai && e !== t && (e.ai.allies?.get(id(t)) || 0) > now());
+  }
+  function choose(e) {
+    const b = e.ai;
+    if (b.revenge && b.revengeUntil < now()) b.revenge = null;
+    let best = null,
+      bestScore = -Infinity;
+    const candidates = S.actors(),
+      crowds = new Map();
+    for (const o of S.bots)
+      if (o.ai.target && !o.dead) crowds.set(o.ai.target, (crowds.get(o.ai.target) || 0) + 1);
+    for (const t of candidates) {
+      if (
+        t === e ||
+        t.dead ||
+        t.hp <= 0 ||
+        t.mhConsumed ||
+        friendly(e, t) ||
+        (t === player && !gameInputActive())
+      )
+        continue;
+      if (t === player && now() < b.peace && b.revenge !== id(t)) continue;
+      const distance = e.pos.distanceTo(t.pos),
+        memory = b.memory.get(id(t)),
+        revenge = b.revenge === id(t);
+      const recent = memory && now() - memory.attackedAt < 7;
+      // A current chase survives occlusion and distance. An idle fighter uses
+      // the arena roster to travel toward a fight, then requires sight to attack.
+      let score = 100 - Math.min(distance, t === b.target ? 150 : 1000) * 0.25 + (100 - t.hp) * 0.07;
+      score += (revenge ? 110 : 0) + (recent ? 100 : 0) + (memory?.anger || 0) * 2;
+      score += t === b.target && now() < b.pursuitUntil ? 65 : 0;
+      score -= (crowds.get(t) || 0) * (revenge ? 2 : 16);
+      if (t === player) score -= 12;
+      if (t.iframes > 1) score -= 25;
+      if (score > bestScore) {
+        bestScore = score;
+        best = t;
+      }
+    }
+    if (best && best !== b.target) b.pursuitUntil = now() + 35 + rnd() * 30;
+    return best;
+  }
+  function damaged(e, source) {
+    const b = e.ai,
+      m = S.remember(e, source),
+      sourceId = id(source);
+    m.anger = Math.min(30, m.anger + 3);
+    m.attackedAt = m.seen = now();
+    m.pos.copy(source.pos);
+    b.lastHurt = now();
+    b.lastAttacker = sourceId;
+    b.target = source;
+    b.pursuitUntil = now() + 60;
+    b.pickAt = now() + 0.7;
+    b.think = 0;
+    b.peace = 0;
+    b.socialAction = b.taunt = null;
+    b.walkAwayUntil = 0;
+    b.pathT = 0;
+    b.path = [];
+    b.escapeUntil = 0;
+    b.goal = source.pos.clone();
+    b.state = 'fighting';
+    b.allies.delete(sourceId);
+    if (b.revenge && b.revenge !== sourceId && rnd() < b.profile.redirect) {
+      b.grudges.set(b.revenge, now() + 180);
+      b.revenge = sourceId;
+      b.revengeUntil = now() + 180;
+      b.history.push('revenge redirected to attacker');
+    }
+    JJAIKITS.cancel(e);
+    e.action = null;
+    e.blocking = false;
+    b.guardT = 0;
+  }
+  function killed(victim, killer) {
+    const victimId = id(victim);
+    if (victim.ai) {
+      const b = victim.ai;
+      b.deaths++;
+      b.target = null;
+      b.path = [];
+      b.goal = null;
+      b.socialAction = b.taunt = null;
+      b.retreatUntil = 0;
+      b.escapeUntil = 0;
+      if (killer && rnd() < b.grudge) {
+        b.revenge = id(killer);
+        b.grudges.set(b.revenge, now() + 240);
+        b.revengeUntil = now() + 240;
+        S.note(b.name + ' will return for revenge');
+      } else b.revenge = null;
+    }
+    if (killer?.ai) {
+      killer.ai.kills++;
+      S.note(killer.ai.name + ' won a fight');
+    }
+    // Every member sharing the grudge completes it on the victim's death,
+    // including assists, rather than only the bot delivering the last hit.
+    const celebrating = S.bots.filter((e) => !e.dead && e !== victim && e.ai.revenge === victimId);
+    for (const e of S.bots) {
+      const b = e.ai;
+      b.grudges?.delete(victimId);
+      if (b.revenge === victimId && e !== victim) {
+        b.revenge = null;
+        b.target = null;
+        b.goal = null;
+        b.path = [];
+        if (e.pos.distanceTo(victim.pos) < 90) {
+          b.taunt = { pos: victim.pos.clone(), victim: victimId, t: 0, still: rnd() < 0.3 };
+          b.state = 'revenge celebration';
+          b.history.push('revenge complete with allies');
+          JJAIKITS.cancel(e);
+          e.action = null;
+          for (const friend of celebrating)
+            if (friend !== e) b.allies.set(id(friend), now() + 65 + rnd() * 30);
+        }
+        S.note(b.name + ' completed revenge');
+      } else if (b.target === victim) {
+        b.target = null;
+        b.pickAt = 0;
+        b.think = 0;
+        b.goal = null;
+      }
+      if (b.memory.has(victimId)) b.memory.get(victimId).anger *= 0.25;
+    }
+    if (victim === player && killer?.ai) S.humanRival = id(killer);
+  }
+  function alliance(e) {
+    const b = e.ai;
+    if (now() < b.teamAt) return;
+    b.teamAt = now() + 1.4 + rnd();
+    for (const [who, until] of b.allies) if (until < now()) b.allies.delete(who);
+    if (!b.revenge) return;
+    for (const other of S.near(e.pos, 65)) {
+      if (other === e || !other.ai || other.dead || other.ai.revenge !== b.revenge || friendly(e, other))
+        continue;
+      if (rnd() > b.profile.team) continue;
+      b.allies.set(id(other), now() + 90);
+      other.ai.allies.set(id(e), now() + 90);
+      b.history.push('team up for shared revenge');
+      other.ai.history.push('team up for shared revenge');
+      b.socialAction = null;
+      other.ai.socialAction = null;
+    }
+  }
+  function threat(e) {
+    let best = null,
+      score = 0;
+    for (const t of S.near(e.pos, 42)) {
+      if (t === e || t.dead || friendly(e, t)) continue;
+      const a = t.action || (t.net && MPJJ.fighters[t.net.id]?.action);
+      if (!a || /^(pk_|bc_fall|bc_evasive|ai_awaken|.*awaken)/.test(a.type)) continue;
+      const d = e.pos.clone().sub(t.pos),
+        distance = d.length();
+      if (
+        Math.abs(d.y) > 7 ||
+        !JJFIGHT.actors.visible(t.pos.clone().add(V(0, 3, 0)), e.pos.clone().add(V(0, 3, 0)))
+      )
+        continue;
+      const direction =
+        a.dir?.clone().setY(0).normalize() || V(Math.sin(t.facing), 0, Math.cos(t.facing));
+      const along = d.dot(direction),
+        side = Math.abs(d.x * direction.z - d.z * direction.x);
+      const melee = a.type === 'bc_m1',
+        dash = a.type === 'bc_dash';
+      const area = /domain|void|shrine|gdom|mh_spike|ha4|ca4|hn4|elephant|aw_purple/.test(a.type);
+      if (melee && (distance > 7 || along < -0.5)) continue;
+      if (!melee && !area && (along < 0 || side > 4.5)) continue;
+      if (dash && distance > 22) continue;
+      if (!area && a.t > (a.start || 0.5) + 0.65) continue;
+      const n = (area ? 3 : melee ? 1 : 2) / (1 + distance * 0.05);
+      if (n > score) {
+        score = n;
+        best = { actor: t, action: a, area, melee, distance };
+      }
+    }
+    return best;
+  }
+  function defense(e) {
+    const b = e.ai,
+      p = b.profile;
+    if (!C.free(e)) return false;
+    const danger = threat(e);
+    if (!danger) {
+      b.detected = null;
+      return false;
+    }
+    const { actor: t, action: a, distance, area, melee } = danger;
+    if (
+      b.detected?.actor !== t ||
+      b.detected?.type !== a.type ||
+      b.detected?.id !== a.id ||
+      a.t < (b.detected?.t || 0) - 0.05
+    ) {
+      b.detected = { actor: t, type: a.type, id: a.id, t: a.t, at: now() + b.react, responded: false };
+      return false;
+    }
+    b.detected.t = a.t;
+    if (now() < b.detected.at) return false;
+    // A skilled defender tracks a visible flank, without an instant 180° guard.
+    if (e.blocking) {
+      C.turn(e, t.pos, b.react, p.turn);
+      return true;
+    }
+    if (b.detected.responded || now() < b.dodgeAt || e.action) return false;
+    b.detected.responded = true;
+    if (!melee && rnd() < p.dodge) {
+      if (C.dash(e, t, area ? 'back' : 'side', b.strafe)) {
+        b.dodgeAt = now() + 0.55;
+        b.goal = null;
+        b.history.push('detected skill and dodged');
+        return true;
+      }
+    }
+    if (distance < 7 && !area && rnd() < p.guard) {
+      C.turn(e, t.pos, b.react, p.turn);
+      if (C.guard(e, 0.22 + rnd() * 0.28)) {
+        b.goal = null;
+        b.history.push('read and guard attack');
+        return true;
+      }
+    }
+    return false;
+  }
+  function fleeGoal(e, t) {
+    const b = e.ai,
+      away = e.pos.clone().sub(t.pos).setY(0).normalize();
+    let best = null,
+      bestScore = -Infinity;
+    for (const angle of [0, 0.65, -0.65, 1.25, -1.25, 2.1, -2.1]) {
+      const d = away.clone().applyAxisAngle(V(0, 1, 0), angle),
+        p = e.pos.clone().addScaledVector(d, 22);
+      p.y = worldFloor(p, e.pos.y + 7.6);
+      if (!Number.isFinite(p.y) || N.occupied(p)) continue;
+      const score = p.distanceTo(t.pos) + (p.y - e.pos.y) * 2 + (N.walk(e.pos, p) ? 6 : 0);
+      if (score > bestScore) {
+        bestScore = score;
+        best = p;
+      }
+    }
+    if (!best) best = e.pos.clone().addScaledVector(away, 15);
+    b.fleeGoal = best;
+    b.fleePlan = now() + 1.2 + rnd();
+    return best;
+  }
+  function plan(e, t, visible, distance) {
+    const b = e.ai,
+      p = b.profile;
+    alliance(e);
+    if (b.escapeUntil > now()) {
+      b.goal = b.escapeGoal?.clone();
+      b.state = 'escaping obstacle';
+      return true;
+    }
+    const enemyAwake = JJAIKITS.awakened(t);
+    if (now() > b.awakeCheck) {
+      b.awakeCheck = now() + 0.8 + rnd();
+      if (
+        JJAIKITS.canAwaken(e) &&
+        visible &&
+        distance < 45 &&
+        (enemyAwake || e.hp < 55 || rnd() < 0.45)
+      ) {
+        if (JJAIKITS.awaken(e, t)) {
+          b.state = 'awakening';
+          b.history.push('uses awakening');
+          return true;
+        }
+      }
+      if (enemyAwake && !JJAIKITS.awakened(e) && now() > b.fearUntil && rnd() < p.retreat) {
+        b.fearTarget = id(t);
+        b.fearUntil = now() + 45;
+        b.retreatUntil = now() + 8;
+      }
+    }
+    if (e.hp < 30 && now() > b.retreatCheck) {
+      b.retreatCheck = now() + 8 + rnd() * 5;
+      if (rnd() < p.retreat) {
+        b.retreatUntil = now() + 7 + rnd() * 11;
+        b.history.push('low health retreat');
+      }
+    }
+    const fleeing =
+      now() < b.retreatUntil || (enemyAwake && b.fearTarget === id(t) && now() < b.fearUntil);
+    if (fleeing) {
+      b.state = enemyAwake ? 'escaping awakening' : 'retreating';
+      if (e.action) return true;
+      e.blocking = false;
+      b.guardT = 0;
+      // Occasionally turn on a pursuer with the actual character's ranged kit.
+      if (visible && distance < 30 && distance > 5 && now() > b.nextSkill && rnd() < p.combo * 0.24) {
+        const slot = JJAIKITS.select(e, t, false, rnd);
+        if (slot >= 0 && C.skill(e, t, slot)) {
+          b.nextSkill = now() + 2;
+          b.history.push('retreat ambush skill');
+          return true;
+        }
+      }
+      if (!b.fleeGoal || now() > b.fleePlan || e.pos.distanceTo(b.fleeGoal) < 3) fleeGoal(e, t);
+      b.goal = b.fleeGoal.clone();
+      if (e.onGround && N.walk(e.pos, b.goal) && distance < 50) {
+        const moving = { pos: b.goal };
+        if (b.frontCD <= 0 && C.dash(e, moving, 'front')) {
+          b.history.push('retreat front dash');
+          return true;
+        }
+        if (b.evadeCD <= 0 && rnd() < 0.55) {
+          // A lateral dash aligned toward escape, rather than orbiting the pursuer.
+          const d = b.goal.clone().sub(e.pos).setY(0).normalize();
+          const aim = { pos: e.pos.clone().add(V(-d.z, 0, d.x).multiplyScalar(6)), travel: true };
+          if (C.dash(e, aim, 'side', 1)) {
+            e.action.travel = true;
+            e.action.dir.copy(d);
+            b.history.push('retreat side dash');
+            return true;
+          }
+        }
+      }
+      C.turn(e, b.goal, 0.1, p.turn);
+      return true;
+    }
+    if (b.fearTarget && !enemyAwake) b.fearTarget = null;
+    if (defense(e)) return true;
+    if (visible && t.blocking && distance < 8 && !e.action && !e.blocking && rnd() < p.dodge * 0.2) {
+      if (C.dash(e, t, 'back')) {
+        b.history.push('backstep against guard');
+        b.plan = 'spacing skill';
+        return true;
+      }
+    }
+    return false;
+  }
+  function escape(e) {
+    const b = e.ai;
+    if (!b.goal || !C.free(e) || e.action || e.blocking) return false;
+    const forward = b.goal.clone().sub(e.pos).setY(0).normalize();
+    for (const angle of [0, 0.7, -0.7, 1.4, -1.4, Math.PI]) {
+      const d = forward.clone().applyAxisAngle(V(0, 1, 0), angle),
+        l = N.link(e.pos, d);
+      if (l) {
+        S.beginTraversal(e, l);
+        b.stuck = 0;
+        b.history.push('climbed out of obstacle');
+        return true;
+      }
+    }
+    if (now() > b.breachAt && window.JJMAP?.id === 'jjs') {
+      const origin = e.pos.clone().add(V(0, 2.5, 0)),
+        hit = JJJJS.trace(origin, origin.clone().addScaledVector(forward, 5));
+      if (hit && JJDESTRUCT.canBreak(hit.id)) {
+        b.breachAt = now() + 0.45;
+        const mark = { pos: hit.point.clone().setY(e.pos.y), dead: false, hp: 100 };
+        // Work through the normal four-hit chain to reach its wall-breaking
+        // strike, with the player's ordinary windups and recovery windows.
+        if (C.m1(e, mark)) {
+          b.history.push('M1 attacks route obstacle');
+          b.pathT = 0;
+          return true;
+        }
+      }
+    }
+    // A short collision-tested detour keeps the target memory intact.
+    let best = null;
+    for (const angle of [1.3, -1.3, 2.3, -2.3, Math.PI]) {
+      const p = e.pos.clone().addScaledVector(forward.clone().applyAxisAngle(V(0, 1, 0), angle), 4);
+      p.y = worldFloor(p, e.pos.y + 1.05);
+      if (Number.isFinite(p.y) && N.walk(e.pos, p)) {
+        best = p;
+        break;
+      }
+    }
+    if (best) {
+      b.escapeGoal = best;
+      b.escapeUntil = now() + 0.75;
+      b.goal = best;
+      b.path = [];
+      b.pathT = 0;
+    }
+    return !!best;
+  }
+  function step(e, dt) {
+    const b = e.ai;
+    e.evasiveCD = Math.max(0, (e.evasiveCD || 0) - dt);
+    if ((e.rag || e.bcFall) && !e.dead) {
+      const fall = e.rag || e.bcFall;
+      if (fall !== b.observedFall) {
+        b.observedFall = fall;
+        b.evadeDecision = now() + b.react + 0.12;
+        b.evadeAttempted = false;
+      }
+      if (!b.evadeAttempted && now() >= b.evadeDecision && JJFIGHT.canEvasive(e)) {
+        b.evadeAttempted = true;
+        const t = S.actor(b.lastAttacker) || b.target;
+        if (t && e.pos.distanceTo(t.pos) < 20 && rnd() < b.profile.dodge) {
+          const d = e.pos
+            .clone()
+            .sub(t.pos)
+            .setY(0)
+            .normalize()
+            .applyAxisAngle(V(0, 1, 0), b.strafe * 0.7);
+          if (JJFIGHT.evasive(e, d)) {
+            b.think = 0;
+            b.target = t;
+            b.goal = t.pos.clone();
+          }
+        }
+      }
+    }
+    if (
+      e.blocking &&
+      b.level === 'pro' &&
+      b.target &&
+      JJFIGHT.actors.visible(e.pos.clone().add(V(0, 3, 0)), b.target.pos.clone().add(V(0, 3, 0)))
+    )
+      C.turn(e, b.target.pos, dt, b.profile.turn);
+  }
+})();
+
+
 /* ===== ai-server.js ===== */
 /* AI Server: free-for-all actors, tactical decisions, social memory and room sync. */
 (function () {
@@ -47067,7 +48100,12 @@ var JJS_DATA = await (async function () {
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z),
     C = JJAICOMBAT,
     N = JJAINAV,
-    F = JJFIGHT;
+    F = JJFIGHT,
+    B = JJAIBEHAVIOR,
+    human = player;
+  let actorCache = null,
+    cacheAt = -1,
+    spatial = new Map();
   const names = [
     'Kuro',
     'Lotus',
@@ -47110,6 +48148,15 @@ var JJS_DATA = await (async function () {
     start,
     stop,
     actors,
+    actor,
+    actorId,
+    random: rng,
+    remember,
+    note,
+    near,
+    friendly: B.friendly,
+    beginTraversal,
+    humanRival: null,
     hit,
     swap,
     castEvent,
@@ -47133,6 +48180,11 @@ var JJS_DATA = await (async function () {
         id: e.ai.id,
         name: e.ai.name,
         char: e.char,
+        level: e.ai.level,
+        charge: JJAIKITS.charge(e),
+        awakened: JJAIKITS.awakened(e),
+        evasive: e.evasiveCD || 0,
+        allies: [...e.ai.allies.keys()],
         hp: e.hp,
         kills: e.ai.kills,
         deaths: e.ai.deaths,
@@ -47145,6 +48197,7 @@ var JJS_DATA = await (async function () {
       }))
     })
   });
+  B.configure(S);
   function rng() {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 4294967296;
@@ -47154,10 +48207,31 @@ var JJS_DATA = await (async function () {
     if (events.length > 80) events.shift();
   }
   function actorId(e) {
-    return e === player ? 'human:' + MPJJ.id : e.ai?.id || 'human:' + e.net?.id;
+    return e === human ? 'human:' + MPJJ.id : e.ai?.id || 'human:' + e.net?.id;
   }
   function actors() {
-    return [player, ...bots, ...Object.values(MPJJ.fighters).map((f) => f.e)].filter((e) => e && e.pos);
+    if (!actorCache || cacheAt !== S.time) {
+      actorCache = [human, ...bots, ...Object.values(MPJJ.fighters).map((f) => f.e)].filter(
+        (e) => e && e.pos
+      );
+      cacheAt = S.time;
+      spatial.clear();
+      for (const e of actorCache) {
+        const k = Math.floor(e.pos.x / 16) + ',' + Math.floor(e.pos.z / 16);
+        if (!spatial.has(k)) spatial.set(k, []);
+        spatial.get(k).push(e);
+      }
+    }
+    return actorCache;
+  }
+  function near(pos, radius = 20) {
+    actors();
+    const found = [];
+    for (let x = Math.floor((pos.x - radius) / 16); x <= Math.floor((pos.x + radius) / 16); x++)
+      for (let z = Math.floor((pos.z - radius) / 16); z <= Math.floor((pos.z + radius) / 16); z++)
+        for (const e of spatial.get(x + ',' + z) || [])
+          if (e.pos.distanceToSquared(pos) < radius * radius) found.push(e);
+    return found;
   }
   function actor(id) {
     return actors().find((e) => actorId(e) === id);
@@ -47193,7 +48267,9 @@ var JJS_DATA = await (async function () {
     g.fillStyle = '#eadbc4';
     g.fillText('[AI] ' + e.ai.name, 128, 31);
     const tex = new THREE.CanvasTexture(canvas),
-      spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+      spr = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })
+      );
     spr.scale.set(5.2, 1, 1);
     spr.position.y = 7.4;
     e.rig.root.add(spr);
@@ -47212,25 +48288,32 @@ var JJS_DATA = await (async function () {
     e.rig.root.position.copy(e.pos);
     e.rig.root.rotation.y = e.facing;
   }
-  function spawnPoint(index, around = player.pos) {
-    for (let n = 0; n < 55; n++) {
-      const angle = index * 2.399 + n * 0.7,
-        radius = 18 + (index % 4) * 10 + n * 0.7;
-      const p = around.clone().add(V(Math.sin(angle) * radius, 0, Math.cos(angle) * radius));
-      p.y = worldFloor(p, around.y + 1.2);
+  function spawnPoint(index) {
+    const sp = JJMAP.spawn(Math.abs(index)),
+      base = V(sp.x, sp.y || 0, sp.z);
+    // Scatter within a spawn area only. This origin never depends on a target.
+    for (let n = 0; n < 80; n++) {
+      const ring = Math.floor(n / 12),
+        angle = n * 2.399 + index * 0.6;
+      const p = base.clone().add(V(Math.sin(angle) * ring * 1.7, 0, Math.cos(angle) * ring * 1.7));
+      p.y = worldFloor(p, base.y + 1.1);
       if (
-        !Number.isFinite(p.y) ||
-        Math.abs(p.y - around.y) > 8 ||
-        N.occupied(p) ||
-        bots.some((e) => !e.dead && e.pos.distanceTo(p) < 4)
+        Number.isFinite(p.y) &&
+        Math.abs(p.y - base.y) < 1.2 &&
+        !N.occupied(p) &&
+        !bots.some((e) => !e.dead && e.pos.distanceToSquared(p) < 5)
       )
-        continue;
-      return p;
+        return p;
     }
-    const p = JJMAP.spawn(index);
-    return V(p.x, p.y || 0, p.z);
+    return base;
   }
-  function make(id, name, char, pos, remote = false) {
+  function wanderPoint(e) {
+    const angle = rng() * Math.PI * 2,
+      p = e.pos.clone().add(V(Math.sin(angle) * 15, 0, Math.cos(angle) * 15));
+    p.y = worldFloor(p, e.pos.y + 1.1);
+    return Number.isFinite(p.y) && !N.occupied(p) ? p : e.spawn.clone();
+  }
+  function make(id, name, char, pos, remote = false, level = 'middle') {
     const e = new Enemy(pos.x, pos.z, 'dummy');
     const random = rng();
     e.ai = {
@@ -47279,6 +48362,7 @@ var JJS_DATA = await (async function () {
       skillBias: rng(),
       reaction: null
     };
+    B.init(e, level);
     e.hp = e.maxHp = 100;
     e.pos.copy(pos);
     e.spawn.copy(pos);
@@ -47288,6 +48372,7 @@ var JJS_DATA = await (async function () {
     rig(e, char);
     JJAIKITS.init(e);
     bots.push(e);
+    actorCache = null;
     enemies.push(e);
     return e;
   }
@@ -47318,8 +48403,22 @@ var JJS_DATA = await (async function () {
         const j = Math.floor(rng() * (i + 1));
         [ids[i], ids[j]] = [ids[j], ids[i]];
       }
-      for (let i = 0; i < Math.max(1, Math.min(16, count)); i++)
-        make('ai:' + epoch + ':' + i, names[i], ids[i % ids.length], spawnPoint(i));
+      const population = Math.max(1, Math.min(100, Math.floor(Number(count) || 12)));
+      S.difficulty = ['noob', 'middle', 'pro'].includes(options.difficulty)
+        ? options.difficulty
+        : 'mixed';
+      for (let i = 0; i < population; i++) {
+        const level = S.difficulty === 'mixed' ? ['noob', 'middle', 'pro'][i % 3] : S.difficulty;
+        const e = make(
+          'ai:' + epoch + ':' + i,
+          names[i % names.length] + (i >= names.length ? Math.floor(i / names.length) + 1 : ''),
+          ids[i % ids.length],
+          spawnPoint(i),
+          false,
+          level
+        );
+        e.ai.spawnIndex = i;
+      }
       player.hp = player.maxHp;
       player.dead = false;
       player.iframes = 2;
@@ -47352,6 +48451,7 @@ var JJS_DATA = await (async function () {
       if (i >= 0) enemies.splice(i, 1);
     }
     bots.length = 0;
+    actorCache = null;
     for (const e of stash) {
       if (!enemies.includes(e)) enemies.push(e);
       scene.add(e.rig.root);
@@ -47370,7 +48470,7 @@ var JJS_DATA = await (async function () {
     if (pending && MPJJ.host) {
       const count = pending;
       pending = 0;
-      start(count);
+      start(count.count, { difficulty: count.difficulty });
     } else if (S.active && S.authority) onMap();
   }
   function onMap() {
@@ -47404,50 +48504,10 @@ var JJS_DATA = await (async function () {
   }
   function damaged(e, source) {
     if (!source || source === e) return;
-    e.ai.lastAttacker = actorId(source);
-    e.ai.lastHurt = S.time;
-    e.ai.peace = 0;
-    e.ai.socialAction = null;
-    e.ai.path = [];
-    e.ai.pathT = 0;
-    remember(e, source).anger += 3;
-    e.ai.target = source;
-    e.ai.state = 'fighting';
-    e.action = null;
-    e.blocking = false;
+    B.damaged(e, source);
   }
   function killed(victim, killer) {
-    if (!S.active || !S.authority) return;
-    if (victim.ai) {
-      const b = victim.ai;
-      b.deaths++;
-      b.target = null;
-      b.path = [];
-      b.socialAction = null;
-      eNoAction(victim);
-      if (killer && rng() < b.grudge) {
-        b.revenge = actorId(killer);
-        b.revengeUntil = S.time + 150;
-        note(b.name + ' remembers a revenge target');
-      } else b.revenge = null;
-    }
-    if (killer?.ai) {
-      const b = killer.ai;
-      b.kills++;
-      note(b.name + ' won a fight');
-      if (b.revenge === actorId(victim)) {
-        b.revenge = null;
-        b.target = null;
-        b.taunt = { pos: victim.pos.clone(), victim: actorId(victim), t: 0 };
-        b.state = 'revenge celebration';
-        eNoAction(killer);
-        note(b.name + ' completed revenge');
-      } else {
-        b.target = null;
-        b.wander = 2 + rng() * 3;
-        b.peace = S.time + 1;
-      }
-    }
+    if (S.active && S.authority) B.killed(victim, killer);
   }
   function eNoAction(e) {
     JJAIKITS.cancel(e);
@@ -47457,9 +48517,11 @@ var JJS_DATA = await (async function () {
   }
   function hit(source, target, amount, knock, meta) {
     if (!S.active || !S.authority || !source.ai || !Number.isFinite(amount) || amount <= 0) return false;
+    if (B.friendly(source, target)) return false;
     if (target === player) {
       const before = player.hp;
       hurtPlayer(amount, knock, { ...meta.opts, combat: meta, aiSource: source.ai.id });
+      if (player.hp < before) JJAIKITS.gain(source, (before - player.hp) * 0.55);
       return player.hp < before;
     }
     if (target.net) {
@@ -47469,7 +48531,7 @@ var JJS_DATA = await (async function () {
         t: 'ai-hit-player',
         to: target.net.id,
         bot: source.ai.id,
-        d: amount,
+        d: Math.min(200, amount),
         k: knock.toArray(),
         bc: F.hitData(meta),
         sk: !!meta.skill
@@ -47495,8 +48557,13 @@ var JJS_DATA = await (async function () {
     }
     const hp = target.hp;
     amount *= JJAIKITS.damageScale(target);
-    target.hp = Math.max(JJGORE.isHeld(target) ? 1 : 0, hp - amount);
+    target.hp = Math.max(
+      JJGORE.isHeld(target) || (target.char === 'hakari' && JJAIKITS.awakened(target)) ? 1 : 0,
+      hp - amount
+    );
     damaged(target, source);
+    JJAIKITS.gain(target, (hp - target.hp) * 0.95);
+    if (source.ai) JJAIKITS.gain(source, (hp - target.hp) * 0.55);
     target.stunT = Math.max(target.stunT, meta?.stun || 0.35);
     if (knock) {
       target.vel.add(knock);
@@ -47540,49 +48607,16 @@ var JJS_DATA = await (async function () {
     if (target === player) note(e.ai.name + ' used a swap');
   }
   function choose(e) {
-    const b = e.ai;
-    let best = null,
-      score = -Infinity;
-    if (b.revenge && b.revengeUntil < S.time) b.revenge = null;
-    for (const t of actors()) {
-      if (
-        t === e ||
-        t.dead ||
-        t.cineHold ||
-        t.mhConsumed ||
-        t.iframes > 1 ||
-        (t === player && !gameInputActive())
-      )
-        continue;
-      const id = actorId(t),
-        dist = e.pos.distanceTo(t.pos),
-        known = b.memory.get(id),
-        revenge = id === b.revenge;
-      if (t === player && S.time < b.peace && !revenge) continue;
-      if (dist > (revenge ? 180 : 75) || Math.abs(t.pos.y - e.pos.y) > 80) continue;
-      if (
-        !revenge &&
-        !known &&
-        dist > 22 &&
-        !F.actors.visible(e.pos.clone().add(V(0, 3, 0)), t.pos.clone().add(V(0, 3, 0)))
-      )
-        continue;
-      let n = 65 - dist + (100 - t.hp) * 0.16 + (known?.anger || 0) * 6 + (revenge ? 110 : 0);
-      if (t === player) {
-        n -= 15 + (1 - b.aggression) * 24;
-        n -= bots.filter((o) => o !== e && o.ai.target === t).length * 22;
-      } else n -= bots.filter((o) => o !== e && o.ai.target === t).length * 21;
-      if (t.ai?.target === e) n += 12;
-      if (t === b.target) n += 5;
-      if (n > score) {
-        score = n;
-        best = t;
-      }
-    }
-    return best;
+    return B.choose(e);
   }
   function jump(e) {
-    if (e.onGround && C.free(e) && !e.action && !e.blocking && !N.occupied(e.pos.clone().add(V(0, 2, 0)))) {
+    if (
+      e.onGround &&
+      C.free(e) &&
+      !e.action &&
+      !e.blocking &&
+      !N.occupied(e.pos.clone().add(V(0, 2, 0)))
+    ) {
       e.vel.y = 15;
       e.onGround = false;
       return true;
@@ -47670,14 +48704,14 @@ var JJS_DATA = await (async function () {
     const b = e.ai;
     if (!C.free(e) || b.socialAction || b.taunt || S.time < b.walkAwayUntil) return;
     let target = b.target;
-    if (!target || target.dead || e.pos.distanceTo(target.pos) > 125 || S.time > (b.pickAt || 0)) {
+    if (!target || target.dead || S.time > (b.pickAt || 0)) {
       target = b.target = choose(e);
       b.pickAt = S.time + 1.3 + rng();
     }
     if (!target) {
       b.state = 'roaming';
       if (!b.goal || e.pos.distanceTo(b.goal) < 3 || b.wander <= 0) {
-        goal(e, spawnPoint(Math.floor(rng() * 16), e.pos));
+        goal(e, wanderPoint(e));
         b.wander = 5 + rng() * 5;
       }
       return;
@@ -47687,46 +48721,36 @@ var JJS_DATA = await (async function () {
     if (visible) {
       m.pos.copy(target.pos);
       m.seen = S.time;
-    } else if (S.time - m.seen > 5) {
-      b.target = null;
-      b.pickAt = 0;
-      return;
+    } else if (S.time > (m.trackAt || 0)) {
+      // Investigate the moving rival's latest location, then follow a real
+      // walkable route. No direct attacks or swaps through obstructing walls.
+      m.pos.copy(target.pos);
+      m.trackAt = S.time + 0.8 + b.react;
     }
     const distance = e.pos.distanceTo(m.pos);
+    if (visible || b.path.length || Math.hypot(e.vel.x, e.vel.z) > 1) b.pursuitUntil = S.time + 40;
     b.state = b.revenge === actorId(target) ? 'seeking revenge' : 'fighting';
     const toward = m.pos.clone().sub(e.pos).setY(0).normalize(),
       angle = Math.atan2(toward.x, toward.z);
-    C.turn(e, angle, 0.1, 12);
+    C.turn(e, angle, 0.1, b.profile.turn);
+    if (B.plan(e, target, visible, distance)) return;
     if (!visible || distance > 35 || Math.abs(target.pos.y - e.pos.y) > 3) {
       goal(e, m.pos);
       return;
     }
     m.guard = m.guard * 0.8 + (target.blocking ? 0.2 : 0);
-    const ta = target.action || target.bcFall || (target.net && MPJJ.fighters[target.net.id]?.action);
-    if (ta && (ta.type !== b.observed?.type || ta.t < b.observed.t - 0.05)) {
-      b.reactAt = S.time + b.react;
-    }
-    b.observed = ta ? { type: ta.type, t: ta.t } : null;
     if (
-      distance < 7 &&
-      ta &&
-      S.time >= b.reactAt &&
-      (['bc_m1', 'bc_dash'].includes(ta.type) || JJAIKITS.isSkill(ta) || !/^(pk_|bc_fall)/.test(ta.type)) &&
-      rng() < 0.83
+      e.action?.type === 'bc_dash' &&
+      e.action.kind === 'side' &&
+      e.action.t >= 0.13 &&
+      b.plan === 'flank combo' &&
+      distance < 5.2 &&
+      !F.blocked(target, { guardable: true, source: e.pos })
     ) {
-      if (target.blocking || m.guard > 0.65) {
-        if (C.dash(e, target, 'side', b.strafe)) {
-          b.plan = 'flank combo';
-          b.goal = null;
-          return;
-        }
-      }
-      if (C.guard(e, 0.18 + rng() * 0.3)) {
-        b.goal = null;
-        return;
-      }
-      if (C.dash(e, target, 'back')) {
-        b.goal = null;
+      e.action = null;
+      if (C.m1(e, target)) {
+        b.history.push('side dash + rotation + M1');
+        b.plan = null;
         return;
       }
     }
@@ -47736,7 +48760,8 @@ var JJS_DATA = await (async function () {
         e.action.type === 'bc_m1' &&
         e.action.n >= 1 &&
         e.action.n < 3 &&
-        e.action.t >= e.action.start + 0.16
+        e.action.t >= e.action.start + 0.16 &&
+        rng() < b.profile.combo
       ) {
         const slot = JJAIKITS.select(e, target, true, rng);
         if (slot >= 0 && C.skill(e, target, slot)) {
@@ -47758,7 +48783,15 @@ var JJS_DATA = await (async function () {
       return;
     }
     if (e.blocking) return;
-    if (distance < 8 && (target.blocking || m.guard > 0.45) && rng() < 0.85) {
+    if (!e.action && b.plan === 'front combo' && distance <= 5.8) {
+      b.goal = distance > 3.2 ? m.pos.clone() : null;
+      if (C.m1(e, target)) {
+        b.history.push('front dash + M1');
+        b.plan = null;
+        return;
+      }
+    }
+    if (distance < 8 && (target.blocking || m.guard > 0.45) && rng() < b.profile.dodge) {
       if (C.dash(e, target, 'side', b.strafe)) {
         b.plan = 'flank combo';
         b.history.push('rotate behind guard');
@@ -47828,14 +48861,29 @@ var JJS_DATA = await (async function () {
       return V();
     }
     // Jump momentum is handled by physics; traversal links start from a floor.
-    if (!e.onGround) return N.steer(e, p, actors());
-    if (N.walk(e.pos, p)) {
+    if (!e.onGround) return N.steer(e, p, near(e.pos, 4));
+    const navRevision = N.audit().revision;
+    if (
+      !b.walkCache ||
+      S.time > b.walkCache.until ||
+      navRevision !== b.walkCache.revision ||
+      b.walkCache.from.distanceToSquared(e.pos) > 4 ||
+      b.walkCache.to.distanceToSquared(p) > 9
+    )
+      b.walkCache = {
+        ok: N.walk(e.pos, p),
+        from: e.pos.clone(),
+        to: p.clone(),
+        until: S.time + 0.3,
+        revision: navRevision
+      };
+    if (b.walkCache.ok) {
       b.path = [];
       return N.steer(e, p, actors());
     }
     if (b.pathT <= 0 && b.pathPending <= 0) {
-      b.pathT = 1.2 + rng() * 0.5;
-      b.pathPending = 0.8;
+      b.pathT = 0.45 + rng() * 0.3;
+      b.pathPending = 1e6;
       const expected = epoch;
       N.request(
         e.pos,
@@ -47845,9 +48893,8 @@ var JJS_DATA = await (async function () {
           b.path = path;
           b.pathPending = 0;
           if (!complete && !path.length) {
-            b.pathT = 2;
-            b.target = null;
-            b.pickAt = S.time + 2;
+            b.pathT = 0.6;
+            B.escape(e);
           }
         },
         b.id
@@ -47858,24 +48905,34 @@ var JJS_DATA = await (async function () {
     if (!waypoint) return N.steer(e, p, actors());
     if (waypoint.link) {
       const l = waypoint.link;
-      if (e.pos.distanceTo(l.from) > 1.25) return N.steer(e, l.from, actors());
+      if (e.pos.distanceTo(l.from) > 1.25) return N.steer(e, l.from, near(e.pos, 4));
       if (C.free(e) && !e.action && !e.blocking) {
         if (!l.path.slice(1).every((q, i) => N.segment(l.path[i], q))) {
           b.path = [];
           b.pathT = 0;
           return V();
         }
-        e.action = { type: l.type === 'drop' ? 'pk_kick' : l.type, t: 0, dur: l.dur, link: l, side: 1 };
-        e.blocking = false;
-        e.onGround = false;
-        b.state = l.type === 'pk_climb' ? 'climbing' : 'vaulting';
-        C.turn(e, l.end, 1);
-        b.history.push(l.type);
+        beginTraversal(e, l);
         b.path.shift();
         return V();
       }
     }
-    return N.steer(e, waypoint.p, actors());
+    return N.steer(e, waypoint.p, near(e.pos, 4));
+  }
+  function beginTraversal(e, l) {
+    e.action = {
+      type: l.type === 'drop' || l.type === 'pk_hop' ? 'pk_kick' : l.type,
+      t: 0,
+      dur: l.dur,
+      link: l,
+      side: 1
+    };
+    e.blocking = false;
+    e.onGround = false;
+    e.vel.set(0, 0, 0);
+    e.ai.state = l.type === 'pk_climb' ? 'climbing' : 'vaulting';
+    C.turn(e, l.end, 1);
+    e.ai.history.push(l.type);
   }
   function traversal(e, a) {
     const l = a.link,
@@ -47944,13 +49001,23 @@ var JJS_DATA = await (async function () {
       b.taunt = null;
       e.blocking = false;
       b.guardT = 0;
-      b.walkAwayUntil = S.time + 5;
+      b.walkAwayUntil = S.time + 1.8;
       b.target = null;
       b.state = 'walking away';
       const away = e.pos.clone().sub(t.pos).setY(0);
-      if (away.lengthSq() < 0.01) away.set(Math.sin(e.facing + Math.PI), 0, Math.cos(e.facing + Math.PI));
+      if (away.lengthSq() < 0.01)
+        away.set(Math.sin(e.facing + Math.PI), 0, Math.cos(e.facing + Math.PI));
       goal(e, e.pos.clone().addScaledVector(away.normalize(), 15));
       b.history.push('walk away after revenge');
+      const friend = near(e.pos, 16).find((o) => o !== e && B.friendly(e, o) && !o.dead);
+      if (friend) {
+        b.socialAction = {
+          source: actorId(friend),
+          kind: rng() < 0.5 ? 'double block' : 'backstep jump',
+          t: 0
+        };
+        b.history.push('friendly signal to revenge teammate');
+      }
       return false;
     }
     C.turn(e, t.pos, dt);
@@ -47959,6 +49026,10 @@ var JJS_DATA = await (async function () {
       return true;
     }
     b.goal = null;
+    if (t.still) {
+      e.blocking = false;
+      return true;
+    }
     const phase = Math.floor(t.t / 0.2);
     e.blocking = phase % 2 === 0;
     b.guardT = e.blocking ? 0.1 : 0;
@@ -47977,6 +49048,7 @@ var JJS_DATA = await (async function () {
       return;
     }
     if (!MPJJ.active && !gameInputActive()) return;
+    B.step(e, dt);
     if (
       e.dead ||
       e.rag ||
@@ -48002,7 +49074,7 @@ var JJS_DATA = await (async function () {
     for (const k of ['pathT', 'pathPending', 'wander', 'think']) b[k] -= dt;
     const sociallyBusy = tauntStep(e, dt) || socialStep(e, dt);
     if (!sociallyBusy && b.think <= 0) {
-      b.think = nearPlayer(e) ? 0.07 + rng() * 0.06 : 0.18 + rng() * 0.1;
+      b.think = (b.target && e.pos.distanceTo(b.target.pos) < 40 ? 0.045 : 0.12) + rng() * 0.04;
       think(e);
     }
     const a = e.action;
@@ -48015,15 +49087,26 @@ var JJS_DATA = await (async function () {
         ? 3.4
         : e.action?.type === 'bc_m1'
           ? 4.8
-          : b.state === 'fighting' || b.revenge
-            ? 12.5
-            : 7.2;
+          : b.target || b.revenge || /retreat|escaping|climbing/.test(b.state)
+            ? b.profile.speed
+            : 9;
       if (!JJAIKITS.isSkill(e.action)) {
         e.vel.x += (d.x * speed - e.vel.x) * Math.min(1, dt * 12);
         e.vel.z += (d.z * speed - e.vel.z) * Math.min(1, dt * 12);
       } else {
         e.vel.x *= Math.max(0, 1 - dt * 3);
         e.vel.z *= Math.max(0, 1 - dt * 3);
+      }
+      if (e.onGround && !e.action && d.lengthSq() > 0.01) {
+        const step = e.pos.clone().addScaledVector(d, speed * dt),
+          top = worldFloor(step, e.pos.y + 1.05);
+        if (
+          Number.isFinite(top) &&
+          top > e.pos.y &&
+          top - e.pos.y <= 1.05 &&
+          !N.walkOccupied(step.clone().setY(top))
+        )
+          e.pos.y = top;
       }
       const y = e.pos.y;
       e.vel.y -= (JJAIKITS.isSkill(e.action) ? 34 : 30) * dt;
@@ -48039,13 +49122,7 @@ var JJS_DATA = await (async function () {
         b.stuck++;
         b.path = [];
         b.pathT = 0;
-        if (b.stuck === 2) jump(e);
-        if (b.stuck > 3) {
-          b.target = null;
-          b.goal = spawnPoint(Math.floor(rng() * 10), e.pos);
-          b.pickAt = S.time + 3;
-          b.stuck = 0;
-        }
+        if (b.stuck >= 1) B.escape(e);
       } else b.stuck = 0;
       b.lastPos.copy(e.pos);
       b.checkT = 0;
@@ -48056,7 +49133,10 @@ var JJS_DATA = await (async function () {
       if (e.react.t >= e.react.dur) e.react = null;
     }
     e.hp = Math.min(e.maxHp, e.hp + dt * 0.65);
-    C.pose(e);
+    if (nearPlayer(e, 185) || !e.ai.poseAt || S.time > e.ai.poseAt) {
+      C.pose(e);
+      e.ai.poseAt = S.time + 0.12;
+    }
     e.rig.root.visible =
       nearPlayer(e, 180) && !(e.action?.type === 'n4' && e.action.t > 0.12 && e.action.t < 1.1);
   };
@@ -48078,10 +49158,15 @@ var JJS_DATA = await (async function () {
     }
     const before = this.hp,
       prior = this.ai.lastAttacker;
+    if (this.char === 'hakari' && JJAIKITS.awakened(this))
+      amount = Math.min(amount, Math.max(0, this.hp - 1));
     this.ai.lastAttacker = 'human:' + MPJJ.id;
     const result = beforeDamage.call(this, amount, knock, opts);
-    if (this.hp < before && !this.dead) damaged(this, player);
-    else this.ai.lastAttacker = prior;
+    if (this.hp < before) {
+      JJAIKITS.gain(this, (before - this.hp) * 0.95);
+      this.stunT = Math.max(this.stunT || 0, opts.combat?.stun ?? opts.stun ?? 0.35);
+      if (!this.dead) damaged(this, player);
+    } else this.ai.lastAttacker = prior;
     return result;
   };
   const beforeDirect = Enemy.prototype.directDamage;
@@ -48104,13 +49189,19 @@ var JJS_DATA = await (async function () {
   const beforeRespawn = Enemy.prototype.respawn;
   Enemy.prototype.respawn = function () {
     if (this.ai) {
-      this.spawn.copy(spawnPoint(Math.floor(rng() * 16)));
+      this.spawn.copy(spawnPoint(this.ai.spawnIndex || 0));
       this.ai.path = [];
       this.ai.pathT = 0;
       this.ai.combo = 0;
       this.ai.comboReset = 0;
       JJAIKITS.reset(this);
       this.ai.target = null;
+      this.ai.think = 0;
+      this.ai.pickAt = 0;
+      this.ai.retreatUntil = 0;
+      this.ai.walkAwayUntil = 0;
+      this.ai.escapeUntil = 0;
+      this.ai.walkCache = null;
       this.ai.state = this.ai.revenge ? 'seeking revenge' : 'roaming';
       this.action = null;
     }
@@ -48145,6 +49236,7 @@ var JJS_DATA = await (async function () {
       to,
       seq: ++serial,
       map: JJMAP.id,
+      difficulty: S.difficulty || 'mixed',
       bots: bots.map((e) => {
         const a = e.bcFall || e.action;
         return {
@@ -48161,6 +49253,10 @@ var JJS_DATA = await (async function () {
           k: e.ai.kills,
           d: e.ai.deaths,
           mode: e.ai.mode,
+          level: e.ai.level,
+          aw: JJAIKITS.awakened(e),
+          charge: JJAIKITS.charge(e),
+          evasive: e.evasiveCD || 0,
           state: e.ai.state,
           og: e.onGround,
           a: a
@@ -48225,7 +49321,7 @@ var JJS_DATA = await (async function () {
         m.id !== hostId ||
         typeof m.epoch !== 'string' ||
         !Array.isArray(m.bots) ||
-        m.bots.length > 16 ||
+        m.bots.length > 100 ||
         !Number.isSafeInteger(m.seq)
       )
         return true;
@@ -48237,6 +49333,7 @@ var JJS_DATA = await (async function () {
       if (m.seq <= rxSeq) return true;
       rxSeq = m.seq;
       rxAt = S.time;
+      S.difficulty = ['noob', 'middle', 'pro', 'mixed'].includes(m.difficulty) ? m.difficulty : 'mixed';
       const valid = m.bots.filter(
         (s) =>
           typeof s.id === 'string' &&
@@ -48253,7 +49350,7 @@ var JJS_DATA = await (async function () {
       );
       for (const s of valid) {
         let e = bots.find((e) => e.ai.id === s.id);
-        if (!e) e = make(s.id, String(s.n).slice(0, 12), s.c, V(...s.p), true);
+        if (!e) e = make(s.id, String(s.n).slice(0, 12), s.c, V(...s.p), true, s.level);
         if (e.char !== s.c) rig(e, s.c);
         e.ai.remoteState = s;
         e.hp = Math.max(0, Math.min(100, s.hp));
@@ -48265,6 +49362,9 @@ var JJS_DATA = await (async function () {
         e.ai.deaths = s.d || 0;
         e.ai.state = s.state;
         e.ai.mode = s.mode || 0;
+        e.ai.awakeRemote = !!s.aw;
+        e.evasiveCD = Math.max(0, Math.min(25, s.evasive || 0));
+        JJAIKITS.remoteAwake(e, !!s.aw);
         const a = s.a;
         e.action =
           a && typeof a.type === 'string' && Number.isFinite(a.t) && Number.isFinite(a.dur)
@@ -48385,6 +49485,7 @@ var JJS_DATA = await (async function () {
       if (m.hit) {
         source.ai.confirm = true;
         source.ai.lastHit = S.time;
+        JJAIKITS.gain(source, 4);
       }
       if (m.dead && !target.dead) {
         target.dead = true;
@@ -48440,7 +49541,22 @@ var JJS_DATA = await (async function () {
     if (!hud) return;
     hud.hidden = !S.active;
     document.getElementById('jjAIStop').hidden = !S.active || !S.authority;
-    hud.querySelector('.aiCount').textContent = bots.length + ' AI FIGHTERS · VERY HARD';
+    hud.querySelector('.aiCount').textContent =
+      bots.length + ' AI FIGHTERS · ' + (S.difficulty || 'mixed').toUpperCase();
+    const rival = actor(S.humanRival);
+    hud.querySelector('.aiRival').textContent =
+      rival?.ai && !rival.dead
+        ? 'LAST RIVAL · ' +
+          rival.ai.name +
+          ' · ' +
+          Math.round(player.pos.distanceTo(rival.pos)) +
+          'm' +
+          (rival.pos.y > player.pos.y + 4
+            ? ' · ABOVE'
+            : rival.pos.y < player.pos.y - 4
+              ? ' · BELOW'
+              : '')
+        : '';
     hud.querySelector('.aiScores').replaceChildren(
       ...bots
         .slice()
@@ -48449,15 +49565,27 @@ var JJS_DATA = await (async function () {
         .map((e) => {
           const row = document.createElement('div');
           row.textContent =
-            e.ai.name + ' · ' + CHARS[e.char].name.split(' ')[0] + '   ' + e.ai.kills + ' / ' + e.ai.deaths;
+            e.ai.name +
+            ' [' +
+            e.ai.level +
+            '] · ' +
+            CHARS[e.char].name.split(' ')[0] +
+            '   ' +
+            e.ai.kills +
+            ' / ' +
+            e.ai.deaths;
           return row;
         })
     );
   }
   function joinUI() {
-    const count = Number(document.getElementById('jjAICount').value) || 12;
+    const count = Math.max(
+      1,
+      Math.min(100, Math.floor(Number(document.getElementById('jjAICount').value) || 12))
+    );
+    const difficulty = document.getElementById('jjAILevel').value;
     if (MPJJ.joined && MPJJ.host && !MPJJ.active) {
-      pending = count;
+      pending = { count, difficulty };
       document.getElementById('jjFight').click();
       return;
     }
@@ -48467,18 +49595,18 @@ var JJS_DATA = await (async function () {
       return;
     }
     if (!MPJJ.joined) JJMAP.load(MPJJ.map);
-    start(count);
+    start(count, { difficulty });
   }
   function installUI() {
     const style = document.createElement('style');
     style.textContent =
-      '#jjAICard{border:1px solid #776852;padding:14px;margin:14px 0;background:#22242a}#jjAICard h3{margin:0 0 8px;color:#ffe3b0;font:700 19px Arial}#jjAICard p{font:13px/1.5 Arial;color:#cfced2;margin:5px 0 12px}#jjAICard .aiRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#jjAICount{background:#10141c;color:white;padding:9px;border:1px solid #6e737e}#jjAIJoin,#jjAIStop{padding:9px 12px;background:#343943;color:#fff;border:1px solid #a39a86;cursor:pointer}#jjAIHud{position:fixed;right:14px;top:130px;padding:11px;background:#161b24d9;color:#e5e6e9;font:12px/1.7 Arial;z-index:14;pointer-events:none;max-width:260px}#jjAIHud strong{color:#ffe2b2}#jjAIHud[hidden]{display:none}#jjLobby .box{max-height:92vh;overflow-y:auto}@media(max-width:600px){#jjAIHud{top:80px;right:6px;font-size:10px;max-width:175px}.aiScores{display:none}}';
+      '#jjAICard{border:1px solid #776852;padding:14px;margin:14px 0;background:#22242a}#jjAICard h3{margin:0 0 8px;color:#ffe3b0;font:700 19px Arial}#jjAICard p{font:13px/1.5 Arial;color:#cfced2;margin:5px 0 12px}#jjAICard .aiRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#jjAICount,#jjAILevel{background:#10141c;color:white;padding:9px;border:1px solid #6e737e}#jjAIJoin,#jjAIStop{padding:9px 12px;background:#343943;color:#fff;border:1px solid #a39a86;cursor:pointer}#jjAIHud{position:fixed;right:14px;top:130px;padding:11px;background:#161b24d9;color:#e5e6e9;font:12px/1.7 Arial;z-index:14;pointer-events:none;max-width:260px}#jjAIHud strong{color:#ffe2b2}#jjAIHud[hidden]{display:none}#jjLobby .box{max-height:92vh;overflow-y:auto}@media(max-width:600px){#jjAIHud{top:80px;right:6px;font-size:10px;max-width:175px}.aiScores{display:none}}';
     document.head.appendChild(style);
     style.textContent += '#jjAICard .aiRow label{color:#e5e6e9;font-size:12px}';
     const card = document.createElement('section');
     card.id = 'jjAICard';
     card.innerHTML =
-      '<h3>AI Server</h3><p>Random fighters. Free-for-all battles. Combos, flanking, wall climbs and rivalries.</p><div class="aiRow"><label for="jjAICount">AI players</label><select id="jjAICount"><option>8</option><option selected>12</option><option>16</option></select><button id="jjAIJoin" type="button">JOIN AI SERVER</button><button id="jjAIStop" type="button" hidden>END AI SESSION</button></div><p id="jjAIInfo">Play locally, or add AI fighters to a room you host. Double-block or walk in a circle to signal nearby fighters. Some respond; some ignore you.</p>';
+      '<h3>AI Server</h3><p>1–100 random fighters. Combos, awakenings, pursuits, escapes and revenge teams.</p><div class="aiRow"><label for="jjAICount">AI players</label><input id="jjAICount" type="number" min="1" max="100" step="1" value="12" style="width:66px"><label for="jjAILevel">Difficulty</label><select id="jjAILevel"><option value="mixed">Mixed players</option><option value="noob">Noob</option><option value="middle">Middle</option><option value="pro">Pro</option></select><button id="jjAIJoin" type="button">JOIN AI SERVER</button><button id="jjAIStop" type="button" hidden>END AI SESSION</button></div><p id="jjAIInfo">Play locally, or add AI fighters to a room you host. Double-block or walk in a circle to signal nearby fighters. Some respond; some ignore you.</p>';
     document.querySelector('#jjLobby .sub').after(card);
     document.getElementById('jjAIJoin').addEventListener('click', joinUI);
     document.getElementById('jjAIStop').addEventListener('click', () => stop());
@@ -48495,7 +49623,8 @@ var JJS_DATA = await (async function () {
     const hud = document.createElement('aside');
     hud.id = 'jjAIHud';
     hud.hidden = true;
-    hud.innerHTML = '<strong>AI SERVER</strong><div class="aiCount"></div><div class="aiScores"></div>';
+    hud.innerHTML =
+      '<strong>AI SERVER</strong><div class="aiCount"></div><div class="aiRival"></div><div class="aiScores"></div>';
     document.body.appendChild(hud);
     refreshUI();
   }

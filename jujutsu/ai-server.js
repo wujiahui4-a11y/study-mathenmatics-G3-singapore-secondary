@@ -4,7 +4,12 @@
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z),
     C = JJAICOMBAT,
     N = JJAINAV,
-    F = JJFIGHT;
+    F = JJFIGHT,
+    B = JJAIBEHAVIOR,
+    human = player;
+  let actorCache = null,
+    cacheAt = -1,
+    spatial = new Map();
   const names = [
     'Kuro',
     'Lotus',
@@ -47,6 +52,15 @@
     start,
     stop,
     actors,
+    actor,
+    actorId,
+    random: rng,
+    remember,
+    note,
+    near,
+    friendly: B.friendly,
+    beginTraversal,
+    humanRival: null,
     hit,
     swap,
     castEvent,
@@ -70,6 +84,11 @@
         id: e.ai.id,
         name: e.ai.name,
         char: e.char,
+        level: e.ai.level,
+        charge: JJAIKITS.charge(e),
+        awakened: JJAIKITS.awakened(e),
+        evasive: e.evasiveCD || 0,
+        allies: [...e.ai.allies.keys()],
         hp: e.hp,
         kills: e.ai.kills,
         deaths: e.ai.deaths,
@@ -82,6 +101,7 @@
       }))
     })
   });
+  B.configure(S);
   function rng() {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 4294967296;
@@ -91,10 +111,31 @@
     if (events.length > 80) events.shift();
   }
   function actorId(e) {
-    return e === player ? 'human:' + MPJJ.id : e.ai?.id || 'human:' + e.net?.id;
+    return e === human ? 'human:' + MPJJ.id : e.ai?.id || 'human:' + e.net?.id;
   }
   function actors() {
-    return [player, ...bots, ...Object.values(MPJJ.fighters).map((f) => f.e)].filter((e) => e && e.pos);
+    if (!actorCache || cacheAt !== S.time) {
+      actorCache = [human, ...bots, ...Object.values(MPJJ.fighters).map((f) => f.e)].filter(
+        (e) => e && e.pos
+      );
+      cacheAt = S.time;
+      spatial.clear();
+      for (const e of actorCache) {
+        const k = Math.floor(e.pos.x / 16) + ',' + Math.floor(e.pos.z / 16);
+        if (!spatial.has(k)) spatial.set(k, []);
+        spatial.get(k).push(e);
+      }
+    }
+    return actorCache;
+  }
+  function near(pos, radius = 20) {
+    actors();
+    const found = [];
+    for (let x = Math.floor((pos.x - radius) / 16); x <= Math.floor((pos.x + radius) / 16); x++)
+      for (let z = Math.floor((pos.z - radius) / 16); z <= Math.floor((pos.z + radius) / 16); z++)
+        for (const e of spatial.get(x + ',' + z) || [])
+          if (e.pos.distanceToSquared(pos) < radius * radius) found.push(e);
+    return found;
   }
   function actor(id) {
     return actors().find((e) => actorId(e) === id);
@@ -130,7 +171,9 @@
     g.fillStyle = '#eadbc4';
     g.fillText('[AI] ' + e.ai.name, 128, 31);
     const tex = new THREE.CanvasTexture(canvas),
-      spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+      spr = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })
+      );
     spr.scale.set(5.2, 1, 1);
     spr.position.y = 7.4;
     e.rig.root.add(spr);
@@ -149,25 +192,32 @@
     e.rig.root.position.copy(e.pos);
     e.rig.root.rotation.y = e.facing;
   }
-  function spawnPoint(index, around = player.pos) {
-    for (let n = 0; n < 55; n++) {
-      const angle = index * 2.399 + n * 0.7,
-        radius = 18 + (index % 4) * 10 + n * 0.7;
-      const p = around.clone().add(V(Math.sin(angle) * radius, 0, Math.cos(angle) * radius));
-      p.y = worldFloor(p, around.y + 1.2);
+  function spawnPoint(index) {
+    const sp = JJMAP.spawn(Math.abs(index)),
+      base = V(sp.x, sp.y || 0, sp.z);
+    // Scatter within a spawn area only. This origin never depends on a target.
+    for (let n = 0; n < 80; n++) {
+      const ring = Math.floor(n / 12),
+        angle = n * 2.399 + index * 0.6;
+      const p = base.clone().add(V(Math.sin(angle) * ring * 1.7, 0, Math.cos(angle) * ring * 1.7));
+      p.y = worldFloor(p, base.y + 1.1);
       if (
-        !Number.isFinite(p.y) ||
-        Math.abs(p.y - around.y) > 8 ||
-        N.occupied(p) ||
-        bots.some((e) => !e.dead && e.pos.distanceTo(p) < 4)
+        Number.isFinite(p.y) &&
+        Math.abs(p.y - base.y) < 1.2 &&
+        !N.occupied(p) &&
+        !bots.some((e) => !e.dead && e.pos.distanceToSquared(p) < 5)
       )
-        continue;
-      return p;
+        return p;
     }
-    const p = JJMAP.spawn(index);
-    return V(p.x, p.y || 0, p.z);
+    return base;
   }
-  function make(id, name, char, pos, remote = false) {
+  function wanderPoint(e) {
+    const angle = rng() * Math.PI * 2,
+      p = e.pos.clone().add(V(Math.sin(angle) * 15, 0, Math.cos(angle) * 15));
+    p.y = worldFloor(p, e.pos.y + 1.1);
+    return Number.isFinite(p.y) && !N.occupied(p) ? p : e.spawn.clone();
+  }
+  function make(id, name, char, pos, remote = false, level = 'middle') {
     const e = new Enemy(pos.x, pos.z, 'dummy');
     const random = rng();
     e.ai = {
@@ -216,6 +266,7 @@
       skillBias: rng(),
       reaction: null
     };
+    B.init(e, level);
     e.hp = e.maxHp = 100;
     e.pos.copy(pos);
     e.spawn.copy(pos);
@@ -225,6 +276,7 @@
     rig(e, char);
     JJAIKITS.init(e);
     bots.push(e);
+    actorCache = null;
     enemies.push(e);
     return e;
   }
@@ -255,8 +307,22 @@
         const j = Math.floor(rng() * (i + 1));
         [ids[i], ids[j]] = [ids[j], ids[i]];
       }
-      for (let i = 0; i < Math.max(1, Math.min(16, count)); i++)
-        make('ai:' + epoch + ':' + i, names[i], ids[i % ids.length], spawnPoint(i));
+      const population = Math.max(1, Math.min(100, Math.floor(Number(count) || 12)));
+      S.difficulty = ['noob', 'middle', 'pro'].includes(options.difficulty)
+        ? options.difficulty
+        : 'mixed';
+      for (let i = 0; i < population; i++) {
+        const level = S.difficulty === 'mixed' ? ['noob', 'middle', 'pro'][i % 3] : S.difficulty;
+        const e = make(
+          'ai:' + epoch + ':' + i,
+          names[i % names.length] + (i >= names.length ? Math.floor(i / names.length) + 1 : ''),
+          ids[i % ids.length],
+          spawnPoint(i),
+          false,
+          level
+        );
+        e.ai.spawnIndex = i;
+      }
       player.hp = player.maxHp;
       player.dead = false;
       player.iframes = 2;
@@ -289,6 +355,7 @@
       if (i >= 0) enemies.splice(i, 1);
     }
     bots.length = 0;
+    actorCache = null;
     for (const e of stash) {
       if (!enemies.includes(e)) enemies.push(e);
       scene.add(e.rig.root);
@@ -307,7 +374,7 @@
     if (pending && MPJJ.host) {
       const count = pending;
       pending = 0;
-      start(count);
+      start(count.count, { difficulty: count.difficulty });
     } else if (S.active && S.authority) onMap();
   }
   function onMap() {
@@ -341,50 +408,10 @@
   }
   function damaged(e, source) {
     if (!source || source === e) return;
-    e.ai.lastAttacker = actorId(source);
-    e.ai.lastHurt = S.time;
-    e.ai.peace = 0;
-    e.ai.socialAction = null;
-    e.ai.path = [];
-    e.ai.pathT = 0;
-    remember(e, source).anger += 3;
-    e.ai.target = source;
-    e.ai.state = 'fighting';
-    e.action = null;
-    e.blocking = false;
+    B.damaged(e, source);
   }
   function killed(victim, killer) {
-    if (!S.active || !S.authority) return;
-    if (victim.ai) {
-      const b = victim.ai;
-      b.deaths++;
-      b.target = null;
-      b.path = [];
-      b.socialAction = null;
-      eNoAction(victim);
-      if (killer && rng() < b.grudge) {
-        b.revenge = actorId(killer);
-        b.revengeUntil = S.time + 150;
-        note(b.name + ' remembers a revenge target');
-      } else b.revenge = null;
-    }
-    if (killer?.ai) {
-      const b = killer.ai;
-      b.kills++;
-      note(b.name + ' won a fight');
-      if (b.revenge === actorId(victim)) {
-        b.revenge = null;
-        b.target = null;
-        b.taunt = { pos: victim.pos.clone(), victim: actorId(victim), t: 0 };
-        b.state = 'revenge celebration';
-        eNoAction(killer);
-        note(b.name + ' completed revenge');
-      } else {
-        b.target = null;
-        b.wander = 2 + rng() * 3;
-        b.peace = S.time + 1;
-      }
-    }
+    if (S.active && S.authority) B.killed(victim, killer);
   }
   function eNoAction(e) {
     JJAIKITS.cancel(e);
@@ -394,9 +421,11 @@
   }
   function hit(source, target, amount, knock, meta) {
     if (!S.active || !S.authority || !source.ai || !Number.isFinite(amount) || amount <= 0) return false;
+    if (B.friendly(source, target)) return false;
     if (target === player) {
       const before = player.hp;
       hurtPlayer(amount, knock, { ...meta.opts, combat: meta, aiSource: source.ai.id });
+      if (player.hp < before) JJAIKITS.gain(source, (before - player.hp) * 0.55);
       return player.hp < before;
     }
     if (target.net) {
@@ -406,7 +435,7 @@
         t: 'ai-hit-player',
         to: target.net.id,
         bot: source.ai.id,
-        d: amount,
+        d: Math.min(200, amount),
         k: knock.toArray(),
         bc: F.hitData(meta),
         sk: !!meta.skill
@@ -432,8 +461,13 @@
     }
     const hp = target.hp;
     amount *= JJAIKITS.damageScale(target);
-    target.hp = Math.max(JJGORE.isHeld(target) ? 1 : 0, hp - amount);
+    target.hp = Math.max(
+      JJGORE.isHeld(target) || (target.char === 'hakari' && JJAIKITS.awakened(target)) ? 1 : 0,
+      hp - amount
+    );
     damaged(target, source);
+    JJAIKITS.gain(target, (hp - target.hp) * 0.95);
+    if (source.ai) JJAIKITS.gain(source, (hp - target.hp) * 0.55);
     target.stunT = Math.max(target.stunT, meta?.stun || 0.35);
     if (knock) {
       target.vel.add(knock);
@@ -477,49 +511,16 @@
     if (target === player) note(e.ai.name + ' used a swap');
   }
   function choose(e) {
-    const b = e.ai;
-    let best = null,
-      score = -Infinity;
-    if (b.revenge && b.revengeUntil < S.time) b.revenge = null;
-    for (const t of actors()) {
-      if (
-        t === e ||
-        t.dead ||
-        t.cineHold ||
-        t.mhConsumed ||
-        t.iframes > 1 ||
-        (t === player && !gameInputActive())
-      )
-        continue;
-      const id = actorId(t),
-        dist = e.pos.distanceTo(t.pos),
-        known = b.memory.get(id),
-        revenge = id === b.revenge;
-      if (t === player && S.time < b.peace && !revenge) continue;
-      if (dist > (revenge ? 180 : 75) || Math.abs(t.pos.y - e.pos.y) > 80) continue;
-      if (
-        !revenge &&
-        !known &&
-        dist > 22 &&
-        !F.actors.visible(e.pos.clone().add(V(0, 3, 0)), t.pos.clone().add(V(0, 3, 0)))
-      )
-        continue;
-      let n = 65 - dist + (100 - t.hp) * 0.16 + (known?.anger || 0) * 6 + (revenge ? 110 : 0);
-      if (t === player) {
-        n -= 15 + (1 - b.aggression) * 24;
-        n -= bots.filter((o) => o !== e && o.ai.target === t).length * 22;
-      } else n -= bots.filter((o) => o !== e && o.ai.target === t).length * 21;
-      if (t.ai?.target === e) n += 12;
-      if (t === b.target) n += 5;
-      if (n > score) {
-        score = n;
-        best = t;
-      }
-    }
-    return best;
+    return B.choose(e);
   }
   function jump(e) {
-    if (e.onGround && C.free(e) && !e.action && !e.blocking && !N.occupied(e.pos.clone().add(V(0, 2, 0)))) {
+    if (
+      e.onGround &&
+      C.free(e) &&
+      !e.action &&
+      !e.blocking &&
+      !N.occupied(e.pos.clone().add(V(0, 2, 0)))
+    ) {
       e.vel.y = 15;
       e.onGround = false;
       return true;
@@ -607,14 +608,14 @@
     const b = e.ai;
     if (!C.free(e) || b.socialAction || b.taunt || S.time < b.walkAwayUntil) return;
     let target = b.target;
-    if (!target || target.dead || e.pos.distanceTo(target.pos) > 125 || S.time > (b.pickAt || 0)) {
+    if (!target || target.dead || S.time > (b.pickAt || 0)) {
       target = b.target = choose(e);
       b.pickAt = S.time + 1.3 + rng();
     }
     if (!target) {
       b.state = 'roaming';
       if (!b.goal || e.pos.distanceTo(b.goal) < 3 || b.wander <= 0) {
-        goal(e, spawnPoint(Math.floor(rng() * 16), e.pos));
+        goal(e, wanderPoint(e));
         b.wander = 5 + rng() * 5;
       }
       return;
@@ -624,46 +625,36 @@
     if (visible) {
       m.pos.copy(target.pos);
       m.seen = S.time;
-    } else if (S.time - m.seen > 5) {
-      b.target = null;
-      b.pickAt = 0;
-      return;
+    } else if (S.time > (m.trackAt || 0)) {
+      // Investigate the moving rival's latest location, then follow a real
+      // walkable route. No direct attacks or swaps through obstructing walls.
+      m.pos.copy(target.pos);
+      m.trackAt = S.time + 0.8 + b.react;
     }
     const distance = e.pos.distanceTo(m.pos);
+    if (visible || b.path.length || Math.hypot(e.vel.x, e.vel.z) > 1) b.pursuitUntil = S.time + 40;
     b.state = b.revenge === actorId(target) ? 'seeking revenge' : 'fighting';
     const toward = m.pos.clone().sub(e.pos).setY(0).normalize(),
       angle = Math.atan2(toward.x, toward.z);
-    C.turn(e, angle, 0.1, 12);
+    C.turn(e, angle, 0.1, b.profile.turn);
+    if (B.plan(e, target, visible, distance)) return;
     if (!visible || distance > 35 || Math.abs(target.pos.y - e.pos.y) > 3) {
       goal(e, m.pos);
       return;
     }
     m.guard = m.guard * 0.8 + (target.blocking ? 0.2 : 0);
-    const ta = target.action || target.bcFall || (target.net && MPJJ.fighters[target.net.id]?.action);
-    if (ta && (ta.type !== b.observed?.type || ta.t < b.observed.t - 0.05)) {
-      b.reactAt = S.time + b.react;
-    }
-    b.observed = ta ? { type: ta.type, t: ta.t } : null;
     if (
-      distance < 7 &&
-      ta &&
-      S.time >= b.reactAt &&
-      (['bc_m1', 'bc_dash'].includes(ta.type) || JJAIKITS.isSkill(ta) || !/^(pk_|bc_fall)/.test(ta.type)) &&
-      rng() < 0.83
+      e.action?.type === 'bc_dash' &&
+      e.action.kind === 'side' &&
+      e.action.t >= 0.13 &&
+      b.plan === 'flank combo' &&
+      distance < 5.2 &&
+      !F.blocked(target, { guardable: true, source: e.pos })
     ) {
-      if (target.blocking || m.guard > 0.65) {
-        if (C.dash(e, target, 'side', b.strafe)) {
-          b.plan = 'flank combo';
-          b.goal = null;
-          return;
-        }
-      }
-      if (C.guard(e, 0.18 + rng() * 0.3)) {
-        b.goal = null;
-        return;
-      }
-      if (C.dash(e, target, 'back')) {
-        b.goal = null;
+      e.action = null;
+      if (C.m1(e, target)) {
+        b.history.push('side dash + rotation + M1');
+        b.plan = null;
         return;
       }
     }
@@ -673,7 +664,8 @@
         e.action.type === 'bc_m1' &&
         e.action.n >= 1 &&
         e.action.n < 3 &&
-        e.action.t >= e.action.start + 0.16
+        e.action.t >= e.action.start + 0.16 &&
+        rng() < b.profile.combo
       ) {
         const slot = JJAIKITS.select(e, target, true, rng);
         if (slot >= 0 && C.skill(e, target, slot)) {
@@ -695,7 +687,15 @@
       return;
     }
     if (e.blocking) return;
-    if (distance < 8 && (target.blocking || m.guard > 0.45) && rng() < 0.85) {
+    if (!e.action && b.plan === 'front combo' && distance <= 5.8) {
+      b.goal = distance > 3.2 ? m.pos.clone() : null;
+      if (C.m1(e, target)) {
+        b.history.push('front dash + M1');
+        b.plan = null;
+        return;
+      }
+    }
+    if (distance < 8 && (target.blocking || m.guard > 0.45) && rng() < b.profile.dodge) {
       if (C.dash(e, target, 'side', b.strafe)) {
         b.plan = 'flank combo';
         b.history.push('rotate behind guard');
@@ -765,14 +765,29 @@
       return V();
     }
     // Jump momentum is handled by physics; traversal links start from a floor.
-    if (!e.onGround) return N.steer(e, p, actors());
-    if (N.walk(e.pos, p)) {
+    if (!e.onGround) return N.steer(e, p, near(e.pos, 4));
+    const navRevision = N.audit().revision;
+    if (
+      !b.walkCache ||
+      S.time > b.walkCache.until ||
+      navRevision !== b.walkCache.revision ||
+      b.walkCache.from.distanceToSquared(e.pos) > 4 ||
+      b.walkCache.to.distanceToSquared(p) > 9
+    )
+      b.walkCache = {
+        ok: N.walk(e.pos, p),
+        from: e.pos.clone(),
+        to: p.clone(),
+        until: S.time + 0.3,
+        revision: navRevision
+      };
+    if (b.walkCache.ok) {
       b.path = [];
       return N.steer(e, p, actors());
     }
     if (b.pathT <= 0 && b.pathPending <= 0) {
-      b.pathT = 1.2 + rng() * 0.5;
-      b.pathPending = 0.8;
+      b.pathT = 0.45 + rng() * 0.3;
+      b.pathPending = 1e6;
       const expected = epoch;
       N.request(
         e.pos,
@@ -782,9 +797,8 @@
           b.path = path;
           b.pathPending = 0;
           if (!complete && !path.length) {
-            b.pathT = 2;
-            b.target = null;
-            b.pickAt = S.time + 2;
+            b.pathT = 0.6;
+            B.escape(e);
           }
         },
         b.id
@@ -795,24 +809,34 @@
     if (!waypoint) return N.steer(e, p, actors());
     if (waypoint.link) {
       const l = waypoint.link;
-      if (e.pos.distanceTo(l.from) > 1.25) return N.steer(e, l.from, actors());
+      if (e.pos.distanceTo(l.from) > 1.25) return N.steer(e, l.from, near(e.pos, 4));
       if (C.free(e) && !e.action && !e.blocking) {
         if (!l.path.slice(1).every((q, i) => N.segment(l.path[i], q))) {
           b.path = [];
           b.pathT = 0;
           return V();
         }
-        e.action = { type: l.type === 'drop' ? 'pk_kick' : l.type, t: 0, dur: l.dur, link: l, side: 1 };
-        e.blocking = false;
-        e.onGround = false;
-        b.state = l.type === 'pk_climb' ? 'climbing' : 'vaulting';
-        C.turn(e, l.end, 1);
-        b.history.push(l.type);
+        beginTraversal(e, l);
         b.path.shift();
         return V();
       }
     }
-    return N.steer(e, waypoint.p, actors());
+    return N.steer(e, waypoint.p, near(e.pos, 4));
+  }
+  function beginTraversal(e, l) {
+    e.action = {
+      type: l.type === 'drop' || l.type === 'pk_hop' ? 'pk_kick' : l.type,
+      t: 0,
+      dur: l.dur,
+      link: l,
+      side: 1
+    };
+    e.blocking = false;
+    e.onGround = false;
+    e.vel.set(0, 0, 0);
+    e.ai.state = l.type === 'pk_climb' ? 'climbing' : 'vaulting';
+    C.turn(e, l.end, 1);
+    e.ai.history.push(l.type);
   }
   function traversal(e, a) {
     const l = a.link,
@@ -881,13 +905,23 @@
       b.taunt = null;
       e.blocking = false;
       b.guardT = 0;
-      b.walkAwayUntil = S.time + 5;
+      b.walkAwayUntil = S.time + 1.8;
       b.target = null;
       b.state = 'walking away';
       const away = e.pos.clone().sub(t.pos).setY(0);
-      if (away.lengthSq() < 0.01) away.set(Math.sin(e.facing + Math.PI), 0, Math.cos(e.facing + Math.PI));
+      if (away.lengthSq() < 0.01)
+        away.set(Math.sin(e.facing + Math.PI), 0, Math.cos(e.facing + Math.PI));
       goal(e, e.pos.clone().addScaledVector(away.normalize(), 15));
       b.history.push('walk away after revenge');
+      const friend = near(e.pos, 16).find((o) => o !== e && B.friendly(e, o) && !o.dead);
+      if (friend) {
+        b.socialAction = {
+          source: actorId(friend),
+          kind: rng() < 0.5 ? 'double block' : 'backstep jump',
+          t: 0
+        };
+        b.history.push('friendly signal to revenge teammate');
+      }
       return false;
     }
     C.turn(e, t.pos, dt);
@@ -896,6 +930,10 @@
       return true;
     }
     b.goal = null;
+    if (t.still) {
+      e.blocking = false;
+      return true;
+    }
     const phase = Math.floor(t.t / 0.2);
     e.blocking = phase % 2 === 0;
     b.guardT = e.blocking ? 0.1 : 0;
@@ -914,6 +952,7 @@
       return;
     }
     if (!MPJJ.active && !gameInputActive()) return;
+    B.step(e, dt);
     if (
       e.dead ||
       e.rag ||
@@ -939,7 +978,7 @@
     for (const k of ['pathT', 'pathPending', 'wander', 'think']) b[k] -= dt;
     const sociallyBusy = tauntStep(e, dt) || socialStep(e, dt);
     if (!sociallyBusy && b.think <= 0) {
-      b.think = nearPlayer(e) ? 0.07 + rng() * 0.06 : 0.18 + rng() * 0.1;
+      b.think = (b.target && e.pos.distanceTo(b.target.pos) < 40 ? 0.045 : 0.12) + rng() * 0.04;
       think(e);
     }
     const a = e.action;
@@ -952,15 +991,26 @@
         ? 3.4
         : e.action?.type === 'bc_m1'
           ? 4.8
-          : b.state === 'fighting' || b.revenge
-            ? 12.5
-            : 7.2;
+          : b.target || b.revenge || /retreat|escaping|climbing/.test(b.state)
+            ? b.profile.speed
+            : 9;
       if (!JJAIKITS.isSkill(e.action)) {
         e.vel.x += (d.x * speed - e.vel.x) * Math.min(1, dt * 12);
         e.vel.z += (d.z * speed - e.vel.z) * Math.min(1, dt * 12);
       } else {
         e.vel.x *= Math.max(0, 1 - dt * 3);
         e.vel.z *= Math.max(0, 1 - dt * 3);
+      }
+      if (e.onGround && !e.action && d.lengthSq() > 0.01) {
+        const step = e.pos.clone().addScaledVector(d, speed * dt),
+          top = worldFloor(step, e.pos.y + 1.05);
+        if (
+          Number.isFinite(top) &&
+          top > e.pos.y &&
+          top - e.pos.y <= 1.05 &&
+          !N.walkOccupied(step.clone().setY(top))
+        )
+          e.pos.y = top;
       }
       const y = e.pos.y;
       e.vel.y -= (JJAIKITS.isSkill(e.action) ? 34 : 30) * dt;
@@ -976,13 +1026,7 @@
         b.stuck++;
         b.path = [];
         b.pathT = 0;
-        if (b.stuck === 2) jump(e);
-        if (b.stuck > 3) {
-          b.target = null;
-          b.goal = spawnPoint(Math.floor(rng() * 10), e.pos);
-          b.pickAt = S.time + 3;
-          b.stuck = 0;
-        }
+        if (b.stuck >= 1) B.escape(e);
       } else b.stuck = 0;
       b.lastPos.copy(e.pos);
       b.checkT = 0;
@@ -993,7 +1037,10 @@
       if (e.react.t >= e.react.dur) e.react = null;
     }
     e.hp = Math.min(e.maxHp, e.hp + dt * 0.65);
-    C.pose(e);
+    if (nearPlayer(e, 185) || !e.ai.poseAt || S.time > e.ai.poseAt) {
+      C.pose(e);
+      e.ai.poseAt = S.time + 0.12;
+    }
     e.rig.root.visible =
       nearPlayer(e, 180) && !(e.action?.type === 'n4' && e.action.t > 0.12 && e.action.t < 1.1);
   };
@@ -1015,10 +1062,15 @@
     }
     const before = this.hp,
       prior = this.ai.lastAttacker;
+    if (this.char === 'hakari' && JJAIKITS.awakened(this))
+      amount = Math.min(amount, Math.max(0, this.hp - 1));
     this.ai.lastAttacker = 'human:' + MPJJ.id;
     const result = beforeDamage.call(this, amount, knock, opts);
-    if (this.hp < before && !this.dead) damaged(this, player);
-    else this.ai.lastAttacker = prior;
+    if (this.hp < before) {
+      JJAIKITS.gain(this, (before - this.hp) * 0.95);
+      this.stunT = Math.max(this.stunT || 0, opts.combat?.stun ?? opts.stun ?? 0.35);
+      if (!this.dead) damaged(this, player);
+    } else this.ai.lastAttacker = prior;
     return result;
   };
   const beforeDirect = Enemy.prototype.directDamage;
@@ -1041,13 +1093,19 @@
   const beforeRespawn = Enemy.prototype.respawn;
   Enemy.prototype.respawn = function () {
     if (this.ai) {
-      this.spawn.copy(spawnPoint(Math.floor(rng() * 16)));
+      this.spawn.copy(spawnPoint(this.ai.spawnIndex || 0));
       this.ai.path = [];
       this.ai.pathT = 0;
       this.ai.combo = 0;
       this.ai.comboReset = 0;
       JJAIKITS.reset(this);
       this.ai.target = null;
+      this.ai.think = 0;
+      this.ai.pickAt = 0;
+      this.ai.retreatUntil = 0;
+      this.ai.walkAwayUntil = 0;
+      this.ai.escapeUntil = 0;
+      this.ai.walkCache = null;
       this.ai.state = this.ai.revenge ? 'seeking revenge' : 'roaming';
       this.action = null;
     }
@@ -1082,6 +1140,7 @@
       to,
       seq: ++serial,
       map: JJMAP.id,
+      difficulty: S.difficulty || 'mixed',
       bots: bots.map((e) => {
         const a = e.bcFall || e.action;
         return {
@@ -1098,6 +1157,10 @@
           k: e.ai.kills,
           d: e.ai.deaths,
           mode: e.ai.mode,
+          level: e.ai.level,
+          aw: JJAIKITS.awakened(e),
+          charge: JJAIKITS.charge(e),
+          evasive: e.evasiveCD || 0,
           state: e.ai.state,
           og: e.onGround,
           a: a
@@ -1162,7 +1225,7 @@
         m.id !== hostId ||
         typeof m.epoch !== 'string' ||
         !Array.isArray(m.bots) ||
-        m.bots.length > 16 ||
+        m.bots.length > 100 ||
         !Number.isSafeInteger(m.seq)
       )
         return true;
@@ -1174,6 +1237,7 @@
       if (m.seq <= rxSeq) return true;
       rxSeq = m.seq;
       rxAt = S.time;
+      S.difficulty = ['noob', 'middle', 'pro', 'mixed'].includes(m.difficulty) ? m.difficulty : 'mixed';
       const valid = m.bots.filter(
         (s) =>
           typeof s.id === 'string' &&
@@ -1190,7 +1254,7 @@
       );
       for (const s of valid) {
         let e = bots.find((e) => e.ai.id === s.id);
-        if (!e) e = make(s.id, String(s.n).slice(0, 12), s.c, V(...s.p), true);
+        if (!e) e = make(s.id, String(s.n).slice(0, 12), s.c, V(...s.p), true, s.level);
         if (e.char !== s.c) rig(e, s.c);
         e.ai.remoteState = s;
         e.hp = Math.max(0, Math.min(100, s.hp));
@@ -1202,6 +1266,9 @@
         e.ai.deaths = s.d || 0;
         e.ai.state = s.state;
         e.ai.mode = s.mode || 0;
+        e.ai.awakeRemote = !!s.aw;
+        e.evasiveCD = Math.max(0, Math.min(25, s.evasive || 0));
+        JJAIKITS.remoteAwake(e, !!s.aw);
         const a = s.a;
         e.action =
           a && typeof a.type === 'string' && Number.isFinite(a.t) && Number.isFinite(a.dur)
@@ -1322,6 +1389,7 @@
       if (m.hit) {
         source.ai.confirm = true;
         source.ai.lastHit = S.time;
+        JJAIKITS.gain(source, 4);
       }
       if (m.dead && !target.dead) {
         target.dead = true;
@@ -1377,7 +1445,22 @@
     if (!hud) return;
     hud.hidden = !S.active;
     document.getElementById('jjAIStop').hidden = !S.active || !S.authority;
-    hud.querySelector('.aiCount').textContent = bots.length + ' AI FIGHTERS · VERY HARD';
+    hud.querySelector('.aiCount').textContent =
+      bots.length + ' AI FIGHTERS · ' + (S.difficulty || 'mixed').toUpperCase();
+    const rival = actor(S.humanRival);
+    hud.querySelector('.aiRival').textContent =
+      rival?.ai && !rival.dead
+        ? 'LAST RIVAL · ' +
+          rival.ai.name +
+          ' · ' +
+          Math.round(player.pos.distanceTo(rival.pos)) +
+          'm' +
+          (rival.pos.y > player.pos.y + 4
+            ? ' · ABOVE'
+            : rival.pos.y < player.pos.y - 4
+              ? ' · BELOW'
+              : '')
+        : '';
     hud.querySelector('.aiScores').replaceChildren(
       ...bots
         .slice()
@@ -1386,15 +1469,27 @@
         .map((e) => {
           const row = document.createElement('div');
           row.textContent =
-            e.ai.name + ' · ' + CHARS[e.char].name.split(' ')[0] + '   ' + e.ai.kills + ' / ' + e.ai.deaths;
+            e.ai.name +
+            ' [' +
+            e.ai.level +
+            '] · ' +
+            CHARS[e.char].name.split(' ')[0] +
+            '   ' +
+            e.ai.kills +
+            ' / ' +
+            e.ai.deaths;
           return row;
         })
     );
   }
   function joinUI() {
-    const count = Number(document.getElementById('jjAICount').value) || 12;
+    const count = Math.max(
+      1,
+      Math.min(100, Math.floor(Number(document.getElementById('jjAICount').value) || 12))
+    );
+    const difficulty = document.getElementById('jjAILevel').value;
     if (MPJJ.joined && MPJJ.host && !MPJJ.active) {
-      pending = count;
+      pending = { count, difficulty };
       document.getElementById('jjFight').click();
       return;
     }
@@ -1404,18 +1499,18 @@
       return;
     }
     if (!MPJJ.joined) JJMAP.load(MPJJ.map);
-    start(count);
+    start(count, { difficulty });
   }
   function installUI() {
     const style = document.createElement('style');
     style.textContent =
-      '#jjAICard{border:1px solid #776852;padding:14px;margin:14px 0;background:#22242a}#jjAICard h3{margin:0 0 8px;color:#ffe3b0;font:700 19px Arial}#jjAICard p{font:13px/1.5 Arial;color:#cfced2;margin:5px 0 12px}#jjAICard .aiRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#jjAICount{background:#10141c;color:white;padding:9px;border:1px solid #6e737e}#jjAIJoin,#jjAIStop{padding:9px 12px;background:#343943;color:#fff;border:1px solid #a39a86;cursor:pointer}#jjAIHud{position:fixed;right:14px;top:130px;padding:11px;background:#161b24d9;color:#e5e6e9;font:12px/1.7 Arial;z-index:14;pointer-events:none;max-width:260px}#jjAIHud strong{color:#ffe2b2}#jjAIHud[hidden]{display:none}#jjLobby .box{max-height:92vh;overflow-y:auto}@media(max-width:600px){#jjAIHud{top:80px;right:6px;font-size:10px;max-width:175px}.aiScores{display:none}}';
+      '#jjAICard{border:1px solid #776852;padding:14px;margin:14px 0;background:#22242a}#jjAICard h3{margin:0 0 8px;color:#ffe3b0;font:700 19px Arial}#jjAICard p{font:13px/1.5 Arial;color:#cfced2;margin:5px 0 12px}#jjAICard .aiRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#jjAICount,#jjAILevel{background:#10141c;color:white;padding:9px;border:1px solid #6e737e}#jjAIJoin,#jjAIStop{padding:9px 12px;background:#343943;color:#fff;border:1px solid #a39a86;cursor:pointer}#jjAIHud{position:fixed;right:14px;top:130px;padding:11px;background:#161b24d9;color:#e5e6e9;font:12px/1.7 Arial;z-index:14;pointer-events:none;max-width:260px}#jjAIHud strong{color:#ffe2b2}#jjAIHud[hidden]{display:none}#jjLobby .box{max-height:92vh;overflow-y:auto}@media(max-width:600px){#jjAIHud{top:80px;right:6px;font-size:10px;max-width:175px}.aiScores{display:none}}';
     document.head.appendChild(style);
     style.textContent += '#jjAICard .aiRow label{color:#e5e6e9;font-size:12px}';
     const card = document.createElement('section');
     card.id = 'jjAICard';
     card.innerHTML =
-      '<h3>AI Server</h3><p>Random fighters. Free-for-all battles. Combos, flanking, wall climbs and rivalries.</p><div class="aiRow"><label for="jjAICount">AI players</label><select id="jjAICount"><option>8</option><option selected>12</option><option>16</option></select><button id="jjAIJoin" type="button">JOIN AI SERVER</button><button id="jjAIStop" type="button" hidden>END AI SESSION</button></div><p id="jjAIInfo">Play locally, or add AI fighters to a room you host. Double-block or walk in a circle to signal nearby fighters. Some respond; some ignore you.</p>';
+      '<h3>AI Server</h3><p>1–100 random fighters. Combos, awakenings, pursuits, escapes and revenge teams.</p><div class="aiRow"><label for="jjAICount">AI players</label><input id="jjAICount" type="number" min="1" max="100" step="1" value="12" style="width:66px"><label for="jjAILevel">Difficulty</label><select id="jjAILevel"><option value="mixed">Mixed players</option><option value="noob">Noob</option><option value="middle">Middle</option><option value="pro">Pro</option></select><button id="jjAIJoin" type="button">JOIN AI SERVER</button><button id="jjAIStop" type="button" hidden>END AI SESSION</button></div><p id="jjAIInfo">Play locally, or add AI fighters to a room you host. Double-block or walk in a circle to signal nearby fighters. Some respond; some ignore you.</p>';
     document.querySelector('#jjLobby .sub').after(card);
     document.getElementById('jjAIJoin').addEventListener('click', joinUI);
     document.getElementById('jjAIStop').addEventListener('click', () => stop());
@@ -1432,7 +1527,8 @@
     const hud = document.createElement('aside');
     hud.id = 'jjAIHud';
     hud.hidden = true;
-    hud.innerHTML = '<strong>AI SERVER</strong><div class="aiCount"></div><div class="aiScores"></div>';
+    hud.innerHTML =
+      '<strong>AI SERVER</strong><div class="aiCount"></div><div class="aiRival"></div><div class="aiScores"></div>';
     document.body.appendChild(hud);
     refreshUI();
   }

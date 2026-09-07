@@ -36,6 +36,11 @@
   const settings = { enabled: true, rebuild: 30, debris: 192 };
   const X = (window.JJDESTRUCT = {
     hit,
+    canBreak(id) {
+      if (!enabled()) return false;
+      prepare();
+      return refs.has(Number(String(id).split(':')[0]));
+    },
     sweep,
     clear,
     update,

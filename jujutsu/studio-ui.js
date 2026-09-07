@@ -302,7 +302,7 @@
       c.box.dataset.key = key;
       c.box.classList.toggle('jjUtility', key === 'LMB' || key === 'Q');
       c.box.classList.toggle('jjSpecial', key === 'R');
-      c.box.classList.toggle('jjAuxiliary', key === 'F');
+      c.box.classList.toggle('jjAuxiliary', key === 'G');
       c.box.setAttribute('role', 'button');
       c.box.tabIndex = key === 'LMB' || key === 'Q' ? -1 : 0;
       c.box.setAttribute('aria-label', key + ': ' + c.def.lbl);

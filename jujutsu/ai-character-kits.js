@@ -5,12 +5,17 @@
   'use strict';
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
   const registry = window.JJCHARCAST;
-  registry.gojo = { cast: [castRed, castRapid, castTwofold, castPalm, castLimitless] };
+  registry.gojo = {
+    cast: [castRed, castRapid, castTwofold, castPalm, castLimitless],
+    scope: [...(registry.gojo?.scope || []), JJVOID],
+    awakeEnd: () => JJVOID.close()
+  };
   const states = Object.values(registry)
-    .map((r) => r.state)
+    .flatMap((r) => [r.state, ...(r.scope || [])])
     .filter(Boolean);
   if (window.JJAW) states.push(JJAW);
-  const snapshot = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => typeof v !== 'function'));
+  const snapshot = (o) =>
+    Object.fromEntries(Object.entries(o).filter(([, v]) => typeof v !== 'function'));
   function clone(v) {
     if (!v || typeof v !== 'object') return v;
     if (v.isVector3) return v.clone();
@@ -55,6 +60,225 @@
     nanami: [6, 0, 0, 0, 0],
     ryu: [0, 0, 7, 0, 0]
   };
+  const awakeCDs = {
+    gojo: ['awBlue', 'awRed', 'awPurple', 'awDomain'],
+    yuji: ['s1', 's2', 's3', 's4'],
+    hakari: ['ha1', 'ha2', 'ha3', 'ha4'],
+    choso: ['ca1', 'ca2', 'ca3', 'ca4'],
+    megumi: ['ga1', 'ga2', 'ga3', 'gdom'],
+    mahito: ['mha1', 'mha2', 'mha3', 'mha4'],
+    todo: ['tda1', 'tda2', 'tda3', 'tda4'],
+    naoya: ['n1', 'n2', 'n3', 'n4']
+  };
+  const awakeRanges = {
+    gojo: [30, 40, 50, 28, 24],
+    yuji: [34, 9, 45, 30, 10],
+    hakari: [28, 9, 28, 14, 8],
+    choso: [36, 28, 24, 28, 8],
+    megumi: [30, 28, 24, 28, 10],
+    mahito: [8, 12, 15, 25, 10],
+    todo: [12, 14, 10, 11, 8]
+  };
+  const awakeDur = {
+    gojo: 34,
+    yuji: 30,
+    hakari: 30,
+    choso: 26,
+    megumi: 30,
+    mahito: 60,
+    todo: 50,
+    naoya: 20
+  };
+  function menu(e) {
+    const base = menus[e.char],
+      k = init(e);
+    if (!k.awake || !awakeCDs[e.char]) return base;
+    return base.map((m, i) => (i < 4 ? { ...m, cd: awakeCDs[e.char][i], lbl: awakeCDs[e.char][i] } : m));
+  }
+  function charge(e) {
+    if (!e?.ai) return 0;
+    const k = init(e);
+    if (k.awake) return 0;
+    const own = k.states[states.indexOf(registry[e.char].state)],
+      aw = k.states[states.indexOf(JJAW)];
+    return Math.min(100, Math.max(k.charge, own?.charge || 0, aw?.charge || 0));
+  }
+  function gain(e, n) {
+    if (!e?.ai || e.dead || !awakeDur[e.char]) return;
+    const k = init(e);
+    if (!k.awake) k.charge = Math.min(100, k.charge + Math.max(0, n));
+  }
+  function awakened(e) {
+    if (!e || e.dead) return false;
+    if (e.ai) return e.ai.remote ? !!e.ai.awakeRemote : !!e.ai.kit?.awake;
+    if (e.net) {
+      const f = MPJJ.fighters[e.net.id];
+      return !!(f?.awakened || f?.aw || f?.fever);
+    }
+    return !!(
+      JJAW.active ||
+      JJAW.cine ||
+      JJAW.yuji ||
+      JJAW.choso ||
+      JJAW.megumi ||
+      JJHAKARI.fever > 0 ||
+      (e.char === 'mahito' && JJMAHITO.active) ||
+      (e.char === 'todo' && JJTODO.active) ||
+      JJNAOYA.rushing()
+    );
+  }
+  function canAwaken(e) {
+    return (
+      !!awakeDur[e.char] &&
+      charge(e) >= 100 &&
+      !init(e).awake &&
+      JJAICOMBAT.free(e) &&
+      !e.action &&
+      !e.blocking &&
+      !e.react
+    );
+  }
+  function syncAwake(e, remaining) {
+    const on = remaining > 0;
+    if (e.char === 'gojo') {
+      JJAW.active = on;
+      JJAW.cine = false;
+      JJAW.t = awakeDur.gojo - remaining;
+    }
+    if (e.char === 'yuji') {
+      JJAW.yuji = JJAW.sukuna = on;
+      JJAW.yujiT = remaining;
+    }
+    if (e.char === 'choso') {
+      JJAW.choso = on;
+      JJAW.chosoT = remaining;
+    }
+    if (e.char === 'megumi') {
+      JJAW.megumi = on;
+      JJAW.megumiT = remaining;
+    }
+    if (e.char === 'hakari') JJHAKARI.fever = remaining;
+    if (e.char === 'mahito') {
+      JJMAHITO.active = on;
+      JJMAHITO.remaining = remaining;
+      JJMAHITO.basePage = false;
+    }
+    if (e.char === 'todo') {
+      JJTODO.active = on;
+      JJTODO.remaining = remaining;
+      JJTODOVOX.awake(e.rig, on && !(e.action?.type === 'td_awaken' && e.action.t < 2.55));
+    }
+  }
+  function awaken(e, t) {
+    if (!canAwaken(e)) return false;
+    const k = init(e);
+    k.target = t;
+    k.charge = 0;
+    k.awake = true;
+    k.remaining = awakeDur[e.char];
+    run(e, () => {
+      JJAW.charge = 0;
+      JJAW.ready = false;
+      if (e.char === 'mahito') {
+        JJMAHITO.charge = 100;
+        JJMAHITO.awaken();
+      } else if (e.char === 'todo') {
+        JJTODO.charge = 100;
+        JJTODO.awaken();
+      } else {
+        e.action = {
+          type: e.char === 'naoya' ? 'ai_nrush' : 'ai_awaken',
+          t: 0,
+          dur: e.char === 'naoya' ? 20 : 1.4,
+          dir: V(Math.sin(e.facing), 0, Math.cos(e.facing)),
+          hits: new Map()
+        };
+        const color = new THREE.Color(CHARS[e.char].glow).getHex();
+        JJFX.ring(e.pos.clone().add(V(0, 0.15, 0)), color, { maxR: 9, life: 1.1 });
+        JJFX.dust(e.pos.clone(), 8, 0xdacfc0, 7, 3);
+        k.aura = JJFX.aura(() => e.pos, color);
+      }
+      syncAwake(e, k.remaining);
+      e.iframes = Math.max(e.iframes || 0, e.action?.type === 'td_awaken' ? 3.7 : 1.4);
+      e.hp = Math.min(e.maxHp, e.hp + (e.char === 'todo' || e.char === 'mahito' ? 0 : 25));
+      for (const key of awakeCDs[e.char]) k.cd[key] = 0;
+      if (e.char === 'gojo') JJAW.setLook(e.rig, true);
+    });
+    announce(e, 5, null);
+    e.ai.goal = null;
+    e.ai.guardT = 0;
+    e.blocking = false;
+    JJAISERVER.castEvent(e, { type: 'ai_awaken', id: ++e.ai.serial });
+    return true;
+  }
+  function endAwake(e) {
+    const k = init(e);
+    run(e, () => {
+      syncAwake(e, 0);
+      registry[e.char].awakeEnd?.();
+      if (e.char === 'gojo') JJAW.setLook(e.rig, false);
+    });
+    k.aura?.stop();
+    k.aura = null;
+    k.awake = false;
+    k.remaining = 0;
+    k.charge = 0;
+    const own = k.states[states.indexOf(registry[e.char].state)],
+      aw = k.states[states.indexOf(JJAW)];
+    if (own && 'charge' in own) own.charge = 0;
+    aw.charge = 0;
+    aw.ready = false;
+  }
+  function remoteAwake(e, on) {
+    const k = init(e);
+    if (k.remoteSetup && k.awake === on) return;
+    k.remoteSetup = true;
+    k.awake = on;
+    k.remaining = on ? 30 : 0;
+    run(e, () => syncAwake(e, k.remaining));
+    if (e.char === 'gojo') JJAW.setLook(e.rig, on);
+    if (e.char === 'todo') JJTODOVOX.awake(e.rig, on);
+    if (on && !k.aura) k.aura = JJFX.aura(() => e.pos, new THREE.Color(CHARS[e.char].glow).getHex());
+    else if (!on && k.aura) {
+      k.aura.stop();
+      k.aura = null;
+    }
+  }
+  function rush(e, a, dt) {
+    const k = init(e),
+      t = k.target;
+    if (!t || t.dead) {
+      e.action = null;
+      return;
+    }
+    const want = t.pos
+      .clone()
+      .addScaledVector(t.vel || V(), 0.12)
+      .sub(e.pos)
+      .setY(0)
+      .normalize();
+    a.dir.lerp(want, Math.min(1, dt * 4.5)).normalize();
+    JJFIGHT.actors.sweepMove(e, a.dir.clone().multiplyScalar(54 * dt));
+    e.facing = Math.atan2(a.dir.x, a.dir.z);
+    e.vel.x = e.vel.z = 0;
+    if (
+      e.pos.distanceTo(t.pos) < 5 &&
+      (a.hits.get(t) || -10) < a.t - 0.8 &&
+      JJFIGHT.actors.visible(e.pos.clone().add(V(0, 3, 0)), t.pos.clone().add(V(0, 3, 0)))
+    ) {
+      a.hits.set(t, a.t);
+      JJAISERVER.hit(e, t, 8, a.dir.clone().multiplyScalar(12).setY(3), {
+        source: e.pos.clone(),
+        guardable: true,
+        stun: 0.5,
+        kind: 'skill',
+        skill: true,
+        id: ++e.ai.serial
+      });
+    }
+    if (Math.floor(a.t * 12) !== Math.floor((a.t - dt) * 12) && e.pos.distanceTo(player.pos) < 120)
+      ghostAfterimage(e.rig, 0xcde9ff, 0.2);
+  }
   let current = null;
   const K = (window.JJAIKITS = {
     init,
@@ -68,24 +292,35 @@
     select,
     variant,
     isSkill,
-    menu: (e) => menus[e.char],
-    cooldown: (e, slot) => init(e).cd[menus[e.char][slot]?.cd] || 0,
+    menu: menu,
+    cooldown: (e, slot) => init(e).cd[menu(e)[slot]?.cd] || 0,
     defend,
     remotePose,
     pack,
     unpack,
-    damageScale
+    damageScale,
+    awaken,
+    awakened,
+    canAwaken,
+    gain,
+    charge,
+    remoteAwake
   });
   function init(e) {
     if (e.ai.kit?.char === e.char) return e.ai.kit;
     if (e.ai.kit) reset(e);
     const k = (e.ai.kit = {
       char: e.char,
+      charge: 0,
+      awake: false,
+      remaining: 0,
+      aura: null,
       cd: Object.fromEntries(Object.keys(baseCD).map((key) => [key, 0])),
       states: templates.map(clone),
       keys: {},
       proxies: new WeakMap(),
       timers: new Set(),
+      effects: [],
       roots: new Set(),
       active: true,
       last: null,
@@ -117,8 +352,11 @@
     e.char = k.char;
     cancel(e);
     e.char = char;
+    if (k.awake) endAwake(e);
+    k.aura?.stop();
     k.active = false;
     k.timers.clear();
+    k.effects.length = 0;
     // Spell roots are owned by this incarnation, never by another fighter.
     for (const root of k.roots) if (root !== e.rig.root) root.removeFromParent();
     k.roots.clear();
@@ -131,9 +369,11 @@
   function enter(e) {
     const k = init(e),
       parent = current;
-    const indexes = [states.indexOf(registry[e.char].state), states.indexOf(window.JJAW)].filter(
-      (i, n, all) => i >= 0 && all.indexOf(i) === n
-    );
+    const indexes = [
+      states.indexOf(registry[e.char].state),
+      ...(registry[e.char].scope || []).map((o) => states.indexOf(o)),
+      states.indexOf(window.JJAW)
+    ].filter((i, n, all) => i >= 0 && all.indexOf(i) === n);
     const saved = {
       player,
       enemies,
@@ -157,10 +397,15 @@
       states: indexes.map((i) => snapshot(states[i])),
       ui: [],
       moves: CHARS[e.char].moves,
-      locked: JJFIGHT.locked
+      locked: JJFIGHT.locked,
+      cameraPos: camera.position.clone(),
+      cameraQuat: camera.quaternion.clone(),
+      cameraFov: camera.fov,
+      background: scene.background,
+      fog: scene.fog
     };
     const undoNaoya = registry.naoya.isolate();
-    const candidates = JJAISERVER.actors().filter((t) => t !== e);
+    const candidates = JJAISERVER.actors().filter((t) => t !== e && !JJAISERVER.friendly(e, t));
     player = e;
     enemies = candidates.map((t) => targetProxy(e, t));
     cds = k.cd;
@@ -182,7 +427,9 @@
     addShake = hitstop = showSplash = startShatter = buildMovesBar = window.JJNOTICE = () => {};
     for (const [o, names] of [
       [window.JJFX, ['flash', 'tint', 'zoom', 'mangaLines', 'letterbox']],
-      [window.JJANIM, ['camKick', 'camRelease']]
+      [window.JJANIM, ['camKick', 'camRelease', 'camTo']],
+      [window.JJSTAGE, ['hide', 'show', 'hud']],
+      [window.JJAW, ['theme']]
     ]) {
       if (!o) continue;
       for (const name of names)
@@ -197,13 +444,10 @@
       return saved.add.apply(this, objects);
     };
     addFx = function (effect) {
-      const update = effect.update;
-      effect.update = function (dt) {
-        if (!k.active) return false;
-        if (!MPJJ.active && !gameInputActive()) return true;
-        return run(e, () => update.call(effect, dt));
-      };
-      return saved.addFx(effect);
+      // A character's effects share one actor context per simulation frame.
+      // This keeps 100 fighters from rebuilding target proxies for every mote.
+      k.effects.push(effect);
+      return effect;
     };
     window.setTimeout = function (fn, ms = 0, ...args) {
       if (typeof fn !== 'function') return 0;
@@ -243,6 +487,14 @@
         scene.add = saved.add;
         MPJJ.active = saved.active;
         for (const [o, name, fn] of saved.ui) o[name] = fn;
+        camera.position.copy(saved.cameraPos);
+        camera.quaternion.copy(saved.cameraQuat);
+        if (camera.fov !== saved.cameraFov) {
+          camera.fov = saved.cameraFov;
+          camera.updateProjectionMatrix();
+        }
+        scene.background = saved.background;
+        scene.fog = saved.fog;
         undoNaoya();
         current = parent;
       }
@@ -345,7 +597,7 @@
       a.aiSlot = slot;
       a.id = ++e.ai.serial;
       k.last = a;
-      e.ai.history.push('skill ' + (menus[e.char][slot]?.lbl || a.type) + ' [' + a.type + ']');
+      e.ai.history.push('skill ' + (menu(e)[slot]?.lbl || a.type) + ' [' + a.type + ']');
       if (e.ai.history.length > 64) e.ai.history.shift();
       k.casts.push(a.type);
       if (k.casts.length > 64) k.casts.shift();
@@ -372,7 +624,7 @@
     e.action = null;
     const priorCD = K.cooldown(e, slot),
       priorMode = e.ai.mode;
-    run(e, () => reg.cast[slot]());
+    run(e, () => (k.awake && slot < 4 && reg.awakeCast ? reg.awakeCast[slot] : reg.cast[slot])());
     // Bots commit to an arm stance before changing it again.
     if (e.char === 'mahito' && slot === 4) k.cd.mhMode = 3;
     announce(e, slot, before);
@@ -419,6 +671,7 @@
     const a = k.last;
     if (a)
       run(e, () => {
+        if (a.type === 'aw_domain') JJVOID.close();
         registry[e.char].release?.(a);
         if (a.aura?.stop) a.aura.stop();
         if (a.doors) for (const door of a.doors) door.removeFromParent();
@@ -437,6 +690,15 @@
     e.visYaw = 0;
   }
   function tick(e, dt) {
+    tickAction(e, dt);
+    const k = init(e);
+    if (k.effects.length)
+      run(e, () => {
+        for (let i = k.effects.length - 1; i >= 0; i--)
+          if (!k.effects[i].update(dt)) k.effects.splice(i, 1);
+      });
+  }
+  function tickAction(e, dt) {
     const k = init(e);
     if (k.last && k.last !== e.action) cancel(e);
     for (const key of Object.keys(k.cd)) k.cd[key] = Math.max(0, k.cd[key] - dt);
@@ -451,8 +713,21 @@
         run(e, job.fn);
       }
     }
-    if (e.dead) return;
-    run(e, () => registry[e.char].idle?.(dt));
+    if (e.dead) {
+      if (k.awake) endAwake(e);
+      return;
+    }
+    if (k.awake) {
+      if (e.char === 'hakari' || e.char === 'gojo')
+        e.hp = Math.min(e.maxHp, e.hp + dt * (e.char === 'hakari' ? 11 : 2.6));
+      k.remaining = Math.max(0, k.remaining - dt);
+      run(e, () => {
+        syncAwake(e, k.remaining);
+        registry[e.char].awakeIdle?.(dt);
+      });
+      if (!k.remaining) endAwake(e);
+    } else gain(e, dt * 1.15);
+    if (registry[e.char].idle) run(e, () => registry[e.char].idle(dt));
     const a = e.action;
     if (!isSkill(a)) return;
     const before = e.pos.clone(),
@@ -460,7 +735,11 @@
         .filter((t) => t !== e)
         .map((t) => [t, t.pos.clone()]);
     a.t += dt;
-    run(e, () => stepAction(a, dt));
+    if (a.type === 'ai_awaken') {
+      if (a.t >= a.dur) e.action = null;
+    } else if (a.type === 'ai_nrush') {
+      rush(e, a, dt);
+    } else run(e, () => stepAction(a, dt));
     if (e.action && e.action !== a) announce(e, a.aiSlot, a);
     // Older skills directly change position. Sweep their horizontal movement
     // through the same colliders used by dash and parkour.
@@ -482,28 +761,49 @@
     for (const root of k.roots) if (!root.parent) k.roots.delete(root);
   }
   function pose(e) {
+    if (e.action?.type === 'ai_awaken') {
+      const r = e.rig,
+        t = e.action.t / e.action.dur,
+        k = Math.sin(Math.min(1, t) * Math.PI);
+      r.spine.rotation.x = -0.16 * k;
+      r.neck.rotation.x = -0.28 * k;
+      r.shoulderL.rotation.set(-1.6 * k, 0, 0.3 * k);
+      r.shoulderR.rotation.set(-1.6 * k, 0, -0.3 * k);
+      r.elbowL.rotation.x = r.elbowR.rotation.x = -1.8 * k;
+      r.hips.position.y = r.hipsBaseY - 0.2 * k;
+      return;
+    }
+    if (e.action?.type === 'ai_nrush')
+      return JJFIGHT.pose(e.rig, { type: 'bc_dash', kind: 'front', t: 0.1, dur: 0.4, strikeAt: null });
     run(e, () => poseAction(e.rig, e.action));
   }
   function remotePose(e) {
-    if (e.char === 'mahito') JJMAHITO.remoteState(e.rig, e.ai.mode, false, e.action?.type, e.blocking);
+    if (e.char === 'mahito')
+      JJMAHITO.remoteState(e.rig, e.ai.mode, !!e.ai.awakeRemote, e.action?.type, e.blocking);
     pose(e);
   }
   function select(e, target, combo = false, random = Math.random) {
     const distance = e.pos.distanceTo(target.pos),
       k = init(e);
-    const options = [];
+    const options = [],
+      reach = k.awake ? awakeRanges[e.char] || ranges[e.char] : ranges[e.char];
     for (let slot = 0; slot < 5; slot++) {
       if (
         K.cooldown(e, slot) > 0 ||
-        distance > ranges[e.char][slot] ||
-        distance < (minimum[e.char]?.[slot] || 0)
+        distance > reach[slot] ||
+        distance < (k.awake ? 0 : minimum[e.char]?.[slot] || 0)
       )
         continue;
-      if (e.char === 'choso' && slot === 3 && k.states[states.indexOf(registry.choso.state)].scale > 2)
+      if (
+        !k.awake &&
+        e.char === 'choso' &&
+        slot === 3 &&
+        k.states[states.indexOf(registry.choso.state)].scale > 2
+      )
         continue;
       if ((e.char === 'hakari' || e.char === 'todo') && slot === 4 && !target.action) continue;
       if (e.char === 'mahito' && slot === 4 && (combo || random() > 0.25)) continue;
-      const melee = ranges[e.char][slot] <= 12;
+      const melee = reach[slot] <= 12;
       options.push({
         slot,
         score: random() + (combo && melee ? 1 : 0) + (!combo && distance > 10 && !melee ? 0.6 : 0)

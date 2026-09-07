@@ -714,6 +714,7 @@
       g.e.blocking = !!m.bl;
       g.e.iframes = Number.isFinite(m.iv) ? Math.max(0, m.iv / 100) : 0;
       if (window.JJMAHITO) JJMAHITO.remoteState(g.e.rig, m.mm || 0, m.ma, m.ac, m.bl);
+      g.awakened=!!(m.aw||m.hf||m.ma||m.ta||m.ya||m.ca||m.ga||m.nr);
       if (window.JJTODOVOX && g.char === 'todo') JJTODOVOX.awake(g.e.rig, !!m.ta);
       if (g.action && m.pf) { g.action.sprung = true; g.action.sprungAt = m.pf / 100; }
       if (g.action && m.ac === 'dash') {
@@ -1455,6 +1456,11 @@
       rd: player.react ? Math.round(player.react.dur * 100) : 0,
       rs: player.react ? player.react.side : 0,
       aw: (window.JJAW && window.JJAW.active) ? 1 : 0,
+      ya:player.char==='yuji'&&JJAW.yuji?1:0,
+      ca:player.char==='choso'&&JJAW.choso?1:0,
+      ga:player.char==='megumi'&&JJAW.megumi?1:0,
+      nr:player.char==='naoya'&&JJNAOYA.rushing()?1:0,
+      ev:Math.ceil(player.evasiveCD||0),
       /* Hakari's fever is his awakening: the bar, the boost and the aura
          all hang off it, so it travels the same way Gojo's does */
       hf: (window.JJHAKARI && window.JJHAKARI.fever > 0 && player.char === 'hakari') ? 1 : 0,

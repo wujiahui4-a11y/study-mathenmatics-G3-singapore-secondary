@@ -1493,7 +1493,7 @@
       e.stopImmediatePropagation();
       return;
     }
-    if (e.code === 'KeyB') {
+    if (e.code === 'KeyF') {
       if (!busy() && !player.react && !player.dead) player.blocking = true;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -1504,7 +1504,7 @@
     if (e.code === 'Digit2') keys.Digit2 = true;
     if (
       e.repeat &&
-      ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyR', 'KeyF', 'KeyG', 'KeyX', 'KeyE'].includes(e.code)
+      ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyR', 'KeyG', 'KeyX', 'KeyE'].includes(e.code)
     ) {
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -1512,7 +1512,7 @@
     }
     if (/^Digit[1-4]$/.test(e.code)) cast(Number(e.code.slice(-1)));
     else if (e.code === 'KeyR') special();
-    else if (e.code === 'KeyF' || e.code === 'KeyG') awaken();
+    else if (e.code === 'KeyG') awaken();
     else if (e.code === 'KeyX') {
       if (M.active && !busy()) {
         M.basePage = !M.basePage;
@@ -1540,7 +1540,7 @@
     'keyup',
     (e) => {
       if (e.code === 'Digit2') keys.Digit2 = false;
-      if (e.code === 'KeyB') player.blocking = false;
+      if (e.code === 'KeyF') player.blocking = false;
     },
     true
   );
@@ -1558,7 +1558,7 @@
   var help = document.createElement('div');
   help.className = 'kit-row';
   help.innerHTML =
-    '<span class="cn">MAHITO</span><span><b>R</b> arms · <b>3 → 3</b> timed Black Flash · <b>4 → 3</b> ride · <b>F / G</b> awaken · <b>X</b> switch kit<br><b>B</b> block · <b>E</b> pick up / throw soul · <b>R</b> store held soul · <b>B + LMB</b> retrieve · Hold <b>2</b> extra Soul Fire shots</span>';
+    '<span class="cn">MAHITO</span><span><b>R</b> arms · <b>3 → 3</b> timed Black Flash · <b>4 → 3</b> ride · <b>G</b> awaken · <b>X</b> switch kit<br><b>F</b> block · <b>E</b> pick up / throw soul · <b>R</b> store held soul · <b>B + LMB</b> retrieve · Hold <b>2</b> extra Soul Fire shots</span>';
   var control = document.querySelector('#menu .ctrl-kits');
   if (control) control.appendChild(help);
   var prevHUD = updateHUD;
@@ -1578,7 +1578,7 @@
         Math.ceil(M.remaining) +
         's · ' +
         (M.basePage ? 'BASE KIT' : 'AWAKENING KIT')
-      : 'ESSENCE OF THE SOUL · ' + Math.floor(M.charge) + '%' + (M.charge >= 100 ? ' · F / G READY' : '');
+      : 'ESSENCE OF THE SOUL · ' + Math.floor(M.charge) + '%' + (M.charge >= 100 ? ' · G READY' : '');
     if (M.grabbed)
       title =
         'FORCE GRAB · ' + (M.grabbed.escape ? 'PRESS SPACE TO ESCAPE ' + M.grabbed.jumps + '/5' : 'HELD');
@@ -1595,9 +1595,11 @@
         ' · B: block';
     if (a && a.type === 'mh_focus' && a.t >= 0.2 && a.t <= 0.38) hint = 'PRESS 3 NOW · BLACK FLASH';
     else if (a && a.type === 'mh_grab') hint = '2: slam · R: throw';
-    else if (M.active) hint += ' · X: switch kit · F/G: Black Flash';
+    else if (M.active) hint += ' · X: switch kit · G: Black Flash';
     hud.querySelector('.mhHint').textContent = hint;
   };
   // The AI invokes these same casts and the shared action/pose dispatchers.
   (window.JJCHARCAST ||= {}).mahito = { cast: [1,2,3,4].map(slot=>()=>M.cast(slot)).concat(()=>M.special()), state: M, idle(dt){M.modeCD=Math.max(0,M.modeCD-dt);cds.mhMode=Math.max(cds.mhMode||0,M.modeCD);VOX.mode(player.rig,M.mode,player.action?.type);}, release(a){release(a);if(a?.visual)discard(a.visual);} };
+  JJCHARCAST.mahito.awakeIdle=stepDomain;
+  JJCHARCAST.mahito.awakeEnd=closeDomain;
 })();

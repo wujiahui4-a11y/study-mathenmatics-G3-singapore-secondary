@@ -1689,4 +1689,5 @@
     if (SK.shrine && (player.dead || player.char !== 'yuji' || !awake())) closeShrine();
     return true;
   } });
+  Object.assign(JJCHARCAST.yuji,{awakeCast:[castDismantle,castCleave,castFlame,castShrine],scope:[SK]});
 })();

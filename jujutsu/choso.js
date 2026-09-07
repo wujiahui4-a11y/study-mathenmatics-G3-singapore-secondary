@@ -190,7 +190,7 @@
       { key: '3', lbl: 'Supernova', cd: 'c3', max: CCD.c3 },
       { key: '4', lbl: 'Flowing Red Scale', cd: 'c4', max: CCD.c4 },
       { key: 'R', lbl: 'Blood Edge', cd: 'cr', max: CCD.cr },
-      { key: 'F', lbl: 'Death Painting', cd: 'caw', max: 1 }
+      { key: 'G', lbl: 'Death Painting', cd: 'caw', max: 1 }
     ]
   };
   try { CHARS.choso.portrait = makePortrait(CHOSO_CFG); } catch (e) {}
@@ -1682,7 +1682,7 @@
 
   /* F: the shared meter, spent on the half of him that is a curse */
   window.addEventListener('keydown', function (e) {
-    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (e.code !== 'KeyG' || e.repeat || !started) return;
     if (player.char !== 'choso') return;
     var A = window.JJAW;
     if (!A || !A.ready || A.active || A.cine || A.choso) return;
@@ -1888,4 +1888,5 @@
   };
   // The AI invokes these same casts and the shared action/pose dispatchers.
   (window.JJCHARCAST ||= {}).choso = { cast: [castPierce, castMeteorite, castSupernova, castScale, castEdge], state: CH, idle(dt) { CH.scale=Math.max(0,CH.scale-dt); if(CH.scale<=0&&CH.aura){CH.aura.stop();CH.aura=null;} if(CH.stream)stepStream(dt); }, release(a){if(a?.type==='c1s')shutStream();} };
+  JJCHARCAST.choso.awakeCast=[castConverge,castBarrage,castSaw,castPillar];
 })();

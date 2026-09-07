@@ -149,12 +149,12 @@
     w.id = 'jjVoidWhite';
     document.body.appendChild(w);
   }
-  function card(on, slam) {
+  function card(on, slam) { if(player.ai)return;
     buildUI();
     ui.classList.toggle('on', !!on);
     ui.classList.toggle('slam', !!slam);
   }
-  function whiteOut(v) {
+  function whiteOut(v) { if(player.ai)return;
     buildUI();
     document.getElementById('jjVoidWhite').style.opacity = String(v);
   }
@@ -165,7 +165,7 @@
   /* a cutscene wants the frame to itself — as a class, so the pieces the
      HUD builds late are covered too */
   var hudCss = null;
-  function hud(show) {
+  function hud(show) { if(player.ai)return;
     if (!hudCss) {
       hudCss = document.createElement('style');
       hudCss.textContent = 'body.jjCine #hud,body.jjCine #crosshair,body.jjCine #jjScore,' +
@@ -179,7 +179,7 @@
 
   /* the city does not come with him */
   var world = null;
-  function hideWorld(extra) {
+  function hideWorld(extra) { if(player.ai)return;
     if (world) return;
     var keeps = new Set();
     keeps.add(player.rig.root);
@@ -197,7 +197,7 @@
     scene.fog = new THREE.Fog(world.sky || 0x01020a, 60, 340);
     enemies.forEach(function (e) { if (e && e.hpSpr) e.hpSpr.visible = false; });
   }
-  function showWorld() {
+  function showWorld() { if(player.ai)return;
     if (!world) return;
     world.hidden.forEach(function (o) { o.visible = true; });
     scene.fog = world.fog;
@@ -378,7 +378,7 @@
     V.outside = [];
     enemies.forEach(function (e) {
       if (!e || !e.rig || lifted.indexOf(e) >= 0 || !e.rig.root.visible) return;
-      e.rig.root.visible = false;
+      if(!player.ai)e.rig.root.visible = false;
       V.outside.push(e);
     });
 
@@ -741,4 +741,5 @@
     if (V.on && (!a || a.type !== 'aw_domain')) closeVoid();
     return true;
   } });
+  V.close=closeVoid;
 })();

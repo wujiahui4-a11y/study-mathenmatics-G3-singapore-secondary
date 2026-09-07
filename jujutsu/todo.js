@@ -820,7 +820,7 @@
         return;
       }
       if (!mine()) return;
-      var yes = /^Digit[1-4]$/.test(e.code) || ['KeyR', 'KeyF', 'KeyG'].includes(e.code);
+      var yes = /^Digit[1-4]$/.test(e.code) || ['KeyR', 'KeyG'].includes(e.code);
       if (!yes) return;
       if (!e.repeat) {
         if (e.code.startsWith('Digit')) T.cast(Number(e.code.slice(-1)));
@@ -852,7 +852,7 @@
   var help = document.createElement('div');
   help.className = 'kit-row';
   help.innerHTML =
-    '<span class="cn">AOI TODO</span><span><b>1–4</b> skills · <b>R</b> counter · <b>F / G</b> awaken<br>Air <b>1</b>: heel drop · <b>2 → 2</b>: stone swap · <b>3 → 3</b>: timed Black Flash · <b>B</b>: block</span>';
+    '<span class="cn">AOI TODO</span><span><b>1–4</b> skills · <b>R</b> counter · <b>G</b> awaken<br>Air <b>1</b>: heel drop · <b>2 → 2</b>: stone swap · <b>3 → 3</b>: timed Black Flash · <b>F</b>: block</span>';
   var panel = document.querySelector('#menu .ctrl-kits');
   if (panel) panel.appendChild(help);
   var beforeHUD = updateHUD;
@@ -864,7 +864,7 @@
     if (old) old.style.display = 'none';
     hud.querySelector('.td-title').textContent = T.active
       ? '120% POTENTIAL · ' + Math.ceil(T.remaining) + 's'
-      : 'MY BEST FRIEND · ' + Math.floor(T.charge) + '%' + (T.charge >= 100 ? ' · F / G TO AWAKEN' : '');
+      : 'MY BEST FRIEND · ' + Math.floor(T.charge) + '%' + (T.charge >= 100 ? ' · G TO AWAKEN' : '');
     hud.querySelector('.td-fill').style.width = (T.active ? T.remaining * 2 : T.charge) + '%';
     var a = player.action;
     hud.querySelector('.td-hint').textContent =

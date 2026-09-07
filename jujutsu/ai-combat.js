@@ -138,6 +138,8 @@
       side,
       dir: d,
       center,
+      target,
+      travel: !!target.travel,
       rad,
       angle: Math.atan2(e.pos.x - center.x, e.pos.z - center.z),
       origin: e.pos.clone(),
@@ -154,9 +156,10 @@
   function hitTargets(e, a, range = 5.1, width = 2.2) {
     const right = V(a.dir.z, 0, -a.dir.x),
       result = [];
-    for (const t of JJAISERVER.actors()) {
+    for (const t of JJAISERVER.near(e.pos, range + 5)) {
       if (
         t === e ||
+        JJAISERVER.friendly(e, t) ||
         t.dead ||
         t.iframes > 0 ||
         t.rag ||
@@ -197,7 +200,7 @@
         source: e.pos.clone(),
         guardable: true,
         breakGuard: a.variant === 'down' || (e.char === 'mahito' && a.mode === 2 && a.n >= 2),
-        stun: 0.6,
+        stun: last ? 0.65 : 0.5,
         down: last ? 1.35 : 0,
         variant: a.variant || 'normal',
         id: a.id,
@@ -232,7 +235,8 @@
   function tick(e, dt) {
     const b = e.ai,
       a = e.action;
-    for (const k of ['m1CD', 'frontCD', 'evadeCD', 'comboReset', 'guardT']) b[k] = Math.max(0, b[k] - dt);
+    for (const k of ['m1CD', 'frontCD', 'evadeCD', 'comboReset', 'guardT'])
+      b[k] = Math.max(0, b[k] - dt);
     b.charges = Math.min(2, b.charges + dt / 2.2);
     if (b.guardT <= 0) e.blocking = false;
     if (!free(e) && JJAIKITS.isSkill(a)) {
@@ -255,6 +259,8 @@
       }
       if (a.t >= a.start && a.t - dt <= a.start + 0.16) impact(e, a);
       if (a.n === 3 && a.t >= a.start + 0.16 && !a.hits.size) a.dur = Math.max(a.dur, 1.1);
+    } else if (a.type === 'bc_evasive') {
+      C.stepEvasive(e, a, dt);
     } else if (a.type === 'ai_naoya_dash') {
       world.sweepMove(e, a.dir.clone().multiplyScalar(41 * Math.min(dt, Math.max(0, 0.3 - (a.t - dt)))));
       if (b.target) turn(e, b.target.pos, dt);
@@ -265,7 +271,12 @@
       if (a.strikeAt === null && a.t <= c.travel + dt) {
         const distance = c.distance * ((1 - old) ** 2 - (1 - now) ** 2);
         let offset;
-        if (a.kind === 'side') {
+        if (a.kind !== 'side' && a.target && !a.target.dead) {
+          const d = a.target.pos.clone().sub(e.pos).setY(0).normalize();
+          if (a.kind === 'back') d.negate();
+          a.dir.lerp(d, Math.min(1, dt * 20)).normalize();
+        }
+        if (a.kind === 'side' && !a.travel) {
           const angle = a.angle + ((a.side * c.distance) / a.rad) * (1 - (1 - now) ** 2),
             goal = a.center.clone().add(V(Math.sin(angle) * a.rad, 0, Math.cos(angle) * a.rad));
           goal.y = e.pos.y;
@@ -273,7 +284,7 @@
           if (offset.length() > distance * 1.3) offset.setLength(distance * 1.3);
         } else offset = a.dir.clone().multiplyScalar(distance);
         const moved = world.sweepMove(e, offset);
-        if (b.target) turn(e, b.target.pos, dt, 15);
+        if (a.target) turn(e, a.target.pos, dt, e.ai.profile?.turn || 15);
         if (
           a.kind === 'front' &&
           ((a.t > 0.08 && hitTargets(e, a, 5.8).length) || moved < distance * 0.3 || a.t >= c.travel)

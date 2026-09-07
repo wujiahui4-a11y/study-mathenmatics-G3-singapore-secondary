@@ -675,7 +675,7 @@
 
   /* F: the meter is shared, and this is what he spends it on */
   window.addEventListener('keydown', function (e) {
-    if (e.code !== 'KeyF' || e.repeat || !started) return;
+    if (e.code !== 'KeyG' || e.repeat || !started) return;
     if (player.char !== 'yuji') return;
     var A = window.JJAW;
     if (!A || !A.ready || A.active || A.cine || A.yuji) return;

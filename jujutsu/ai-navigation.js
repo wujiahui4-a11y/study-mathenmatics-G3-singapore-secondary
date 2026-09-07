@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z),
-    STEP = 4,
+    STEP = 2,
     R = 0.9,
     H = 5.1;
   const jobs = [],
@@ -18,8 +18,10 @@
     clear,
     walk,
     link,
+    hop,
     segment,
     occupied,
+    walkOccupied,
     steer,
     audit: () => ({ jobs: jobs.length, cached: cache.size, expanded, revision })
   });
@@ -33,13 +35,12 @@
     return true;
   }
   function walk(a, b) {
-    if (Math.abs(a.y - b.y) > 1.2) return false;
-    const n = Math.max(1, Math.ceil(a.distanceTo(b) / 1.1));
+    const n = Math.max(1, Math.ceil(Math.hypot(a.x - b.x, a.z - b.z) / 0.55));
     let y = a.y;
     for (let i = 1; i <= n; i++) {
       const p = a.clone().lerp(b, i / n);
-      p.y = worldFloor(p, y + 1.15);
-      if (!Number.isFinite(p.y) || Math.abs(p.y - y) > 1.2 || occupied(p)) return false;
+      p.y = worldFloor(p, y + 1.05);
+      if (!Number.isFinite(p.y) || Math.abs(p.y - y) > 1.2 || walkOccupied(p)) return false;
       y = p.y;
     }
     return Math.abs(y - b.y) < 1.2;
@@ -47,6 +48,31 @@
   function support(p) {
     const y = worldFloor(p, p.y + 0.15);
     return Number.isFinite(y) && Math.abs(y - p.y) < 0.2 && !occupied(p);
+  }
+  function walkOccupied(p) {
+    // The grounded controller steps over low risers. A full capsule overlap
+    // incorrectly treats the next stair tread as an impassable wall.
+    return city() ? JJJJS.occupied(p.clone().add(V(0, 1.05, 0)), R, H - 1.05) : occupied(p);
+  }
+  function hop(from, direction) {
+    if (!city()) return null;
+    const d = direction.clone().setY(0).normalize();
+    for (const distance of [2.4, 3.6, 5.2, 6.5]) {
+      const end = from.clone().addScaledVector(d, distance);
+      end.y = worldFloor(end, from.y + 3.3);
+      if (!Number.isFinite(end.y) || end.y < from.y - 7 || occupied(end) || walk(from, end)) continue;
+      const path = [from.clone()];
+      for (let i = 1; i <= 16; i++) {
+        const t = i / 16,
+          p = from.clone().lerp(end, t);
+        // Fast initial lift clears crater lips instead of pushing into them.
+        p.y += Math.sin(Math.PI * t) * (2.6 + Math.max(0, end.y - from.y) * 0.4);
+        path.push(p);
+      }
+      if (path.slice(1).every((p, i) => segment(path[i], p)))
+        return { type: 'pk_hop', from: from.clone(), path, end, dur: 0.7 + distance * 0.025 };
+    }
+    return null;
   }
   function link(from, direction) {
     if (!city()) return null;
@@ -60,6 +86,8 @@
         end: vault.path.at(-1).clone(),
         dur: 0.68
       };
+    const small = hop(from, d);
+    if (small) return small;
     const a = from.clone().add(V(0, 2.6, 0)),
       hit = JJJJS.trace(a, a.clone().addScaledVector(d, 4.5));
     if (!hit || Math.abs(hit.normal.y) > 0.18 || hit.normal.dot(d) > -0.65) return null;
@@ -78,15 +106,24 @@
     lift.y = stand.y + 0.04;
     const path = [from.clone(), hang, lift, stand];
     if (!support(stand) || !path.slice(1).every((p, i) => segment(path[i], p))) return null;
-    return { type: 'pk_climb', from: from.clone(), path, end: stand.clone(), dur: 1.05, normal, id: hit.id };
+    return {
+      type: 'pk_climb',
+      from: from.clone(),
+      path,
+      end: stand.clone(),
+      dur: 1.05,
+      normal,
+      id: hit.id
+    };
   }
   function clear() {
+    for (const j of jobs) j.done([], false);
     jobs.length = 0;
     cache.clear();
     root = window.JJJJS?.root;
     revision = window.JJDESTRUCT?.audit().revision || 0;
   }
-  const key = (p) => Math.round(p.x / STEP) + ',' + Math.round(p.z / STEP) + ',' + Math.round(p.y * 4);
+  const key = (p) => Math.round(p.x * 2) + ',' + Math.round(p.z * 2) + ',' + Math.round(p.y * 4);
   const h = (a, b) => Math.hypot(a.x - b.x, a.z - b.z) + Math.abs(a.y - b.y) * 1.4;
   class Heap {
     constructor() {
@@ -137,8 +174,15 @@
       [-1, -1]
     ]) {
       const q = p.clone().add(V(x * STEP, 0, z * STEP));
-      q.y = worldFloor(q, p.y + 1.15);
-      if (Number.isFinite(q.y) && Math.abs(q.x) < 1000 && Math.abs(q.z) < 1000 && !occupied(q)) {
+      // Walk the floor samples, allowing several stair treads in one edge.
+      let height = p.y;
+      for (let t = 0.25; t <= 1; t += 0.25) {
+        const sample = p.clone().lerp(q, t);
+        height = worldFloor(sample, height + 1.05);
+        if (!Number.isFinite(height)) break;
+      }
+      q.y = height;
+      if (Number.isFinite(q.y) && Math.abs(q.x) < 1000 && Math.abs(q.z) < 1000 && !walkOccupied(q)) {
         if (walk(p, q)) {
           list.push({ p: q, cost: p.distanceTo(q) });
           continue;
@@ -167,7 +211,7 @@
         if (l) list.push({ p: l.end, cost: p.distanceTo(l.end) + 5, link: l });
       }
     }
-    if (cache.size > 3500) cache.delete(cache.keys().next().value);
+    if (cache.size > 12000) cache.delete(cache.keys().next().value);
     cache.set(tag, list);
     return list;
   }
@@ -182,7 +226,7 @@
       done([{ p: direct.end, link: direct }, { p: goal.clone() }], true);
       return;
     }
-    if (jobs.length >= 20) {
+    if (jobs.length >= 100) {
       done([], false);
       return;
     }
@@ -217,8 +261,8 @@
       const rev = window.JJDESTRUCT?.audit().revision || 0;
       if (root !== window.JJJJS?.root || revision !== rev) clear();
     }
-    const deadline = performance.now() + 2.5;
-    let budget = 55;
+    const deadline = performance.now() + 3.5;
+    let budget = 140;
     while (jobs.length && budget-- && performance.now() < deadline) {
       const j = jobs.shift();
       let n = j.heap.pop();
@@ -240,12 +284,11 @@
         finish(j, true);
         continue;
       }
-      if (j.count >= 1500) {
+      if (j.count >= 2400) {
         finish(j, false);
         continue;
       }
       for (const e of neighbors(n.p)) {
-        if (n.p.distanceTo(j.nodes.values().next().value.p) > 130) continue;
         const k = key(e.p),
           g = n.g + e.cost,
           old = j.nodes.get(k);
@@ -268,14 +311,18 @@
       if (n > 0.05 && n < 2.8) desired.addScaledVector(away, (2.8 - n) / (n * 3));
     }
     desired.normalize();
-    const ahead = actor.pos.clone().addScaledVector(desired, 2);
-    if (!occupied(ahead)) return desired;
+    const ahead = actor.pos.clone().addScaledVector(desired, 1.1);
+    const top = worldFloor(ahead, actor.pos.y + 1.05);
+    if (actor.onGround && Number.isFinite(top) && Math.abs(top - actor.pos.y) < 1.1) ahead.y = top;
+    if (!(actor.onGround ? walkOccupied(ahead) : occupied(ahead))) return desired;
     let best = null,
       score = -Infinity;
     for (const angle of [0.55, -0.55, 1, -1, 1.5, -1.5]) {
       const d = desired.clone().applyAxisAngle(V(0, 1, 0), angle),
-        p = actor.pos.clone().addScaledVector(d, 2);
-      if (!occupied(p)) {
+        p = actor.pos.clone().addScaledVector(d, 1.1);
+      const floor = worldFloor(p, actor.pos.y + 1.05);
+      if (actor.onGround && Number.isFinite(floor) && Math.abs(floor - actor.pos.y) < 1.1) p.y = floor;
+      if (!(actor.onGround ? walkOccupied(p) : occupied(p))) {
         const n = d.dot(goal.clone().sub(actor.pos).setY(0).normalize());
         if (n > score) {
           score = n;
