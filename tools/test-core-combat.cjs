@@ -331,9 +331,37 @@ async function naoya(page) {
     report.recovery = await page.evaluate(() => {
       __fight.tick(160, 0.02, true);
       const e = __fight.enemies.find((e) => !e.net);
-      return { fall: !!e.bcFall, y: e.pos.y, finite: e.pos.toArray().every(Number.isFinite) };
+      const rested = { fall: !!e.bcFall, y: e.pos.y, finite: e.pos.toArray().every(Number.isFinite) };
+      // A knockdown grants the victim 0.3s of iframes on standing up, and
+      // enemies have no clock of their own — base.html only ticks the
+      // player's down. Left running, that 0.3 stays on them for the rest of
+      // the round and every combat hit is refused while skills sail past the
+      // gate, so a dummy becomes permanently punch-proof after one combo.
+      rested.iframes = +(e.iframes || 0).toFixed(3);
+      __fight.player.pos.set(0, 0, 0);
+      __fight.player.facing = 0;
+      __fight.player.action = null;
+      __fight.player.comboN = 0;
+      __fight.cds.m1 = 0;
+      e.pos.set(0, 0, 3);
+      e.vel.set(0, 0, 0);
+      const before = e.hp;
+      for (let swing = 0; swing < 2; swing++) {
+        __fight.punch();
+        for (let i = 0; i < 40; i++) {
+          __fight.tick(1, 0.02, true);
+          if (!__fight.player.action && __fight.cds.m1 <= 0) break;
+        }
+      }
+      rested.punchAfterGetup = before - e.hp;
+      return rested;
     });
     assert.ok(!report.recovery.fall && report.recovery.finite && report.recovery.y >= 0);
+    assert.equal(report.recovery.iframes, 0, 'Knockdown iframes expire once the victim is up');
+    assert.ok(
+      report.recovery.punchAfterGetup > 0,
+      'M1 still lands on somebody who has got back up from a knockdown'
+    );
     await page.evaluate(() => __fight.reset());
     await page.keyboard.down('KeyB');
     await page.evaluate(() => {

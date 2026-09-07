@@ -673,6 +673,15 @@
   }
   const previousEnemyUpdate = Enemy.prototype.update;
   Enemy.prototype.update = function (dt) {
+    // Enemies never had an iframes clock. base.html ticks iframes down inside
+    // updatePlayer and nowhere else, so the 0.3 that stepFall grants an enemy
+    // on getting back up stayed on them for the rest of the round. Everything
+    // that reads iframes as "leave them alone" — the M1 candidate search, the
+    // guard-aware damage gate below, Mahito's transfiguration, Todo's swap —
+    // then skipped that enemy permanently, while skills calling damage()
+    // without combat metadata went straight past the gate and still landed.
+    // One knockdown was enough to make a dummy unpunchable for good.
+    if (this.iframes > 0) this.iframes = Math.max(0, this.iframes - dt);
     if (this.bcFall && !this.net && !this.dead) {
       const a = this.bcFall;
       a.t += dt;
