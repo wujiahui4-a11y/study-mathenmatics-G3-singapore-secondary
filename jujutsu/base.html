@@ -740,6 +740,7 @@ const clamp01 = x => Math.max(0, Math.min(1, x));
 const ease = x => x * x * (3 - 2 * x);
 
 function applyLocomotion(r, t, gait, moveAmt, runAmt, onGround, vy) {
+  if (window.JJMOVE) return JJMOVE.locomotion(r, t, gait, moveAmt, runAmt, onGround, vy);
   if (!onGround) {
     r.spine.rotation.x = vy > 2 ? .1 : -.14;
     r.shoulderL.rotation.x = -.55; r.shoulderR.rotation.x = -.55;
@@ -3050,6 +3051,8 @@ function updatePlayer(dt) {
   /* projection meter passive drain */
   if (p.proj > 0) p.proj = Math.max(0, p.proj - dt * 2);
 
+  if (window.JJMOVE) JJMOVE.beforeStep(dt);
+
   if (p.action) {
     const a = p.action;
     a.t += dt;
@@ -3062,6 +3065,9 @@ function updatePlayer(dt) {
   }
   const inAction = !!p.action;
 
+  // Traversal advances a swept path against the same world collision. The
+  // combat timers and pose layers above/below continue to run normally.
+  if (!window.JJMOVE || !JJMOVE.driving()) {
   const fwd = camForward();
   const rightv = new THREE.Vector3(-fwd.z, 0, fwd.x);
   const mv = new THREE.Vector3();
@@ -3104,6 +3110,7 @@ function updatePlayer(dt) {
   while (dy > Math.PI) dy -= Math.PI * 2;
   while (dy < -Math.PI) dy += Math.PI * 2;
   p.facing += dy * Math.min(1, dt * 14);
+  }
 
   /* ------- animation (24 FPS rule applies to Naoya's visuals) ------- */
   const sp = Math.hypot(p.vel.x, p.vel.z);

@@ -178,6 +178,7 @@
   function load(id) {
     id=id==='jjs'?'jjs':'plate';
     if(JJMAP.id===id&&((id==='jjs'&&JJJJS.root)||(id==='plate'&&plate.children.length)))return id;
+    if(window.JJMOVE)JJMOVE.cancel('map');
     clearWorld();
     JJMAP.id = id;
     if(id==='jjs')buildJJS();else build();

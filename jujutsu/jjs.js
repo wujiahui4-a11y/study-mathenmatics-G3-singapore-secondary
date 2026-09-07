@@ -197,6 +197,40 @@
     }return Math.max(0,hit-(length>0?.1/length:0));
   }
   J.transform=transform;
+  // Detailed collision queries for parkour. These use the same live oriented
+  // boxes as walking, including destruction fragments, never rendered meshes.
+  J.trace=function(from,to){
+    var delta=to.clone().sub(from),length=delta.length(),seen=new Set(),best=null;
+    if(length<1e-6)return null;
+    var steps=Math.max(1,Math.ceil(Math.max(Math.abs(delta.x),Math.abs(delta.z))/(CELL/2)));
+    for(var s=0;s<=steps;s++)for(var b of nearby(from.x+delta.x*s/steps,from.z+delta.z*s/steps,0)){
+      if(seen.has(b.id))continue;seen.add(b.id);
+      var source=D.parts[typeof b.id==='number'?b.id:Number(String(b.id).split(':')[0])];
+      // An enclosing custom-mesh box or an invisible boundary is useful for
+      // collision, but must not become an invisible ledge or wall-kick target.
+      if(source && (source[22] || source[18]>=.98))continue;
+      var o=[from.x-b.x,from.y-b.y,from.z-b.z],v=[delta.x,delta.y,delta.z],near=0,far=best?best.fraction:1,axis=-1,sign=0,inside=true;
+      for(var a=0;a<3;a++){
+        var origin=o[0]*b.r[a]+o[1]*b.r[3+a]+o[2]*b.r[6+a],dir=v[0]*b.r[a]+v[1]*b.r[3+a]+v[2]*b.r[6+a];
+        if(Math.abs(origin)>b.h[a])inside=false;
+        if(Math.abs(dir)<1e-9){if(Math.abs(origin)>b.h[a]){near=Infinity;break;}}
+        else{var t1=(-b.h[a]-origin)/dir,t2=(b.h[a]-origin)/dir,t=Math.min(t1,t2);if(t>near){near=t;axis=a;sign=dir>0?-1:1;}far=Math.min(far,Math.max(t1,t2));}
+      }
+      if(!inside&&axis>=0&&near<=far&&near>=0&&near<=1&&(!best||near<best.fraction))best={id:b.id,box:b,fraction:near,distance:near*length,point:from.clone().addScaledVector(delta,near),normal:new THREE.Vector3(b.r[axis],b.r[3+axis],b.r[6+axis]).multiplyScalar(sign)};
+    }return best;
+  };
+  J.occupied=function(pos,radius,height){
+    radius=radius||.85;height=height||HEIGHT;
+    var list=nearby(pos.x,pos.z,radius+1),count=Math.max(1,Math.ceil((height-2*radius)/.65));
+    for(var b of list){
+      if(b.maxY<=pos.y+.01||b.minY>=pos.y+height||pos.x+radius<b.minX||pos.x-radius>b.maxX||pos.z+radius<b.minZ||pos.z-radius>b.maxZ)continue;
+      for(var i=0;i<=count;i++){
+        var o=[pos.x-b.x,pos.y+radius+(height-2*radius)*i/count-b.y,pos.z-b.z],q=0;
+        for(var a=0;a<3;a++){var p=o[0]*b.r[a]+o[1]*b.r[3+a]+o[2]*b.r[6+a],d=p-Math.max(-b.h[a],Math.min(b.h[a],p));q+=d*d;}
+        if(q<radius*radius-.001)return true;
+      }
+    }return false;
+  };
   J.originals=originals;
   J.setFragments=function(id,list){
     var old=fragments.get(id)||[];

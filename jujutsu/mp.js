@@ -694,9 +694,11 @@
       g.speed = (m.sp || 0) / 10;
       g.onGround = m.og !== 0;
       g.vy = (m.vv || 0) / 10;
+      g.motion = {x:Number.isFinite(m.mvx)?Math.max(-120,Math.min(120,m.mvx/100)):0,z:Number.isFinite(m.mvz)?Math.max(-120,Math.min(120,m.mvz/100)):0};
       g.visYaw = (m.vy || 0) / 100;
       g.attack = m.at || 0;
       g.action = m.ac ? { type: m.ac, t: (m.ap || 0) / 100, dur: (m.ad || 1) / 100 } : null;
+      if(g.action && /^pk_/.test(g.action.type))g.action.side=m.pside===-1?-1:m.pside===1?1:0;
       /* Some poses are driven by which beat of the move they are on rather
          than by the clock alone, so the stage travels with the action.
          A finisher that has taken its caster over travels by name. */
@@ -1357,6 +1359,7 @@
     /* a remote body is driven entirely from here, so the lean a throw puts
        into it has to be cleared here too */
     if (r.body) r.body.rotation.set(0, 0, 0);
+    r.__travel=f.motion;
     applyLocomotion(r, e.animT, f.gait, moveAmt, runAmt, f.onGround !== false, f.vy || 0);
     if (f.char === 'naoya' && !f.action && !f.attack) {
       applyNaoyaFlair(r, e.animT, moveAmt, runAmt, f.onGround !== false);
@@ -1409,6 +1412,8 @@
       d: player.dead ? 1 : 0, f: player.frameT > 0 ? 1 : 0,
       /* everything the animation needs to be reproduced exactly */
       sp: Math.round(sp * 10), og: player.onGround ? 1 : 0, vv: Math.round(player.vel.y * 10),
+      mvx:Math.round(player.vel.x*100),mvz:Math.round(player.vel.z*100),
+      pside:player.action && /^pk_/.test(player.action.type) ? player.action.side||0 : 0,
       at: player.attackT > 0 ? (player.attackArm + 1) : 0,
       /* the awakening is not an action, but the other screens still have to
          play the poses, so it travels as one */
