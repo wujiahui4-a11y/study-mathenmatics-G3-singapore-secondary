@@ -62,6 +62,7 @@
     networkHit,
     pack,
     unpack,
+    actors: { profile, sweepMove, startFall, stepFall, visible },
     audit: () => ({ frontCD, evadeCD, held, guardHeld, combo: player.comboN, history: history.slice(-24) })
   });
   function log(event) {

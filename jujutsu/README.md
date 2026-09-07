@@ -8,6 +8,10 @@ meter and glass frames.
 
 ## Playing
 
+**AI SERVER** starts a free-for-all with 8, 12 or 16 random AI fighters, including
+flank combos, parkour, social signals and revenge behavior. It works locally or
+in a room you host. See [AI Server](AI-SERVER.md) for controls and details.
+
 Title screen → **PLAY ONLINE WITH FRIENDS**. Fourteen fighters: Gojo,
 Naoya, Yuji, Hakari, Choso, Megumi, Mahito, Todo, Higuruma, Yuta, Muta,
 Ryu, Nanami and Hanami.

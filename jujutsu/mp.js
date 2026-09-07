@@ -454,6 +454,7 @@
   }
 
   function connect(code) {
+    if(window.JJAISERVER)JJAISERVER.newRoom();
     status('Connecting…');
     el('jjCreate').disabled = el('jjJoin').disabled = true;
     if(window.JJDESTRUCT)JJDESTRUCT.newRoom();
@@ -481,6 +482,7 @@
   }
 
   function leaveRoom() {
+    if(window.JJAISERVER)JJAISERVER.newRoom();
     if (MP.relay) {
       if (MP.relay.connected) MP.relay.pub({ t: 'bye', id: MP.id });
       MP.relay.stop();
@@ -517,7 +519,7 @@
     closeLobby();
     /* the training dummies leave: this is a duel now */
     for (var i = enemies.length - 1; i >= 0; i--) {
-      if (enemies[i].net) continue;
+      if (enemies[i].net || enemies[i].ai) continue;
       scene.remove(enemies[i].rig.root);
       enemies.splice(i, 1);
     }
@@ -538,6 +540,7 @@
     MP.myChar = player.char;
     MP.wasDead = false;
     startCutscene();
+    if(window.JJAISERVER)JJAISERVER.onArena();
   }
 
   /* ---------------------------------------------------------- name tags
@@ -629,6 +632,7 @@
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (window.JJAISERVER && JJAISERVER.receive(m)) return;
     if (window.JJDESTRUCT && JJDESTRUCT.receive(m)) return;
     if (typeof m.t === 'string' && m.t.startsWith('td-') && window.JJTODO) {
       JJTODO.receive(m); return;
