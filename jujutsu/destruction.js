@@ -204,6 +204,7 @@
     return removed.length ? { f: out, removed } : null;
   }
   function hideOriginal(id, hidden) {
+    if(window.JJPOTATO)JJPOTATO.invalidate(id);
     for (const [mi, t] of refs.get(id) || []) {
       const mesh = J.visualMeshes[mi],
         a = mesh.geometry.index.array,

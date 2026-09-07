@@ -13,6 +13,7 @@
   function linear(a){return new THREE.Color().setRGB(a[0],a[1],a[2],THREE.SRGBColorSpace);}
   function transform(p){return new THREE.Matrix4().set(p[3],p[4],p[5],p[0]-D.origin[0],p[6],p[7],p[8],p[1]-D.origin[1],p[9],p[10],p[11],p[2]-D.origin[2],0,0,0,1);}
   function clear(){
+    if(window.JJPOTATO)JJPOTATO.clear();
     if(window.JJDESTRUCT)JJDESTRUCT.clear();
     if(root)scene.remove(root);
     resources.forEach(function(o){o.dispose();});resources=[];textures.clear();
