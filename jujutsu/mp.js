@@ -632,6 +632,7 @@
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (window.JJIWORLD && JJIWORLD.receive(m)) return;
     if (window.JJTRAIN && JJTRAIN.receive(m)) return;
     if (window.JJAISERVER && JJAISERVER.receive(m)) return;
     if (window.JJDESTRUCT && JJDESTRUCT.receive(m)) return;
@@ -673,6 +674,7 @@
       if (g.e.pos.x === 0 && g.e.pos.z === 0) { g.e.pos.set(m.x, g.ty, m.z); }
       g.e.hp = m.hp; g.e.maxHp = m.mx || 100;
       if (window.JJTRAIN) JJTRAIN.syncActor(g.e, m.d, m.tr);
+      if (window.JJIWORLD) JJIWORLD.syncActor(g.e, m.wr, m.cl);
       /* Somebody else going down used to just hide their body, so only the
          player who died ever saw a corpse. Their body drops here too, and
          their own broadcast decides where it lands. */
@@ -1429,6 +1431,7 @@
       hp: Math.round(player.hp), mx: Math.round(player.maxHp),
       d: player.dead ? 1 : 0, f: player.frameT > 0 ? 1 : 0,
       tr: player.trainCrash ? player.trainCrash.run : 0,
+      wr: player.worldRag?.event || '', cl: player.worldClimb ?? -1,
       /* everything the animation needs to be reproduced exactly */
       sp: Math.round(sp * 10), og: player.onGround ? 1 : 0, vv: Math.round(player.vel.y * 10),
       mvx:Math.round(player.vel.x*100),mvz:Math.round(player.vel.z*100),

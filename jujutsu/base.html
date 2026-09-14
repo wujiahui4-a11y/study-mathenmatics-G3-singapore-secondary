@@ -616,6 +616,7 @@ function makeAnimeRig(cfg) {
   const skull = M(.9, .92, .9, cfg.skin); skull.position.y = .48; head.add(skull);
 
   if (cfg.gojo) {
+    const hairStart = head.children.length;
     const hairC = 0xf2f6ff;
     const hairTop = M(1.0, .36, .98, hairC); hairTop.position.y = .96; head.add(hairTop);
     const hairBack = M(.98, .5, .24, hairC); hairBack.position.set(0, .78, -.38); head.add(hairBack);
@@ -634,6 +635,7 @@ function makeAnimeRig(cfg) {
       b.rotation.x = -.12;
       head.add(b);
     }
+    head.children.slice(hairStart).forEach(m => { m.userData.gojoHair = true; });
     const bf = M(.96, .26, .96, 0x0d0e14); bf.position.y = .58; head.add(bf);
     const collar = M(1.04, .42, .72, 0x11142a); collar.position.set(0, 1.08, 0); spine.add(collar);
   } else if (cfg.naoya) {
@@ -3035,6 +3037,7 @@ function updatePlayer(dt) {
     return;
   }
   /* frozen in own glass frame */
+  if (p.worldRag && p.rag) { p.iframes = Math.max(0, p.iframes - dt); return; }
   if (p.frameT > 0) {
     p.frameT -= dt;
     if (p.frameT <= 0) unframePlayer(false);
@@ -3057,6 +3060,7 @@ function updatePlayer(dt) {
 
   if (window.JJFIGHT) JJFIGHT.beforeStep(dt);
   if (window.JJMOVE) JJMOVE.beforeStep(dt);
+  if (window.JJIWORLD) JJIWORLD.beforeStep(dt);
 
   if (p.action) {
     const a = p.action;
@@ -3072,7 +3076,7 @@ function updatePlayer(dt) {
 
   // Traversal advances a swept path against the same world collision. The
   // combat timers and pose layers above/below continue to run normally.
-  if ((!window.JJMOVE || !JJMOVE.driving()) && (!window.JJFIGHT || !JJFIGHT.driving())) {
+  if ((!window.JJMOVE || !JJMOVE.driving()) && (!window.JJFIGHT || !JJFIGHT.driving()) && (!window.JJIWORLD || !JJIWORLD.driving())) {
   const fwd = camForward();
   const rightv = new THREE.Vector3(-fwd.z, 0, fwd.x);
   const mv = new THREE.Vector3();

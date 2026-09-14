@@ -13,6 +13,7 @@
     MAX_DEBRIS = 192,
     GRID = 32;
   const states = new Map(),
+    removed = new Set(),
     refs = new Map(),
     attached = new Map(),
     grid = new Map(),
@@ -36,6 +37,17 @@
   const settings = { enabled: true, rebuild: 30, debris: 192 };
   const X = (window.JJDESTRUCT = {
     hit,
+    setRemoved(ids, hidden) {
+      prepare();
+      for (const id of ids) {
+        if (!refs.has(id)) continue;
+        if (hidden) removed.add(id); else removed.delete(id);
+        hideOriginal(id, hidden || states.has(id));
+        const state = states.get(id);
+        if (state?.mesh) state.mesh.visible = !hidden;
+        J.setFragments(id, hidden ? [] : state ? state.f : null);
+      }
+    },
     canBreak(id) {
       if (!enabled()) return false;
       prepare();
@@ -80,6 +92,8 @@
     retiredEpochs.clear();
   }
   function clear() {
+    for (const id of removed) { hideOriginal(id, false); J.setFragments(id, null); }
+    removed.clear();
     if (epoch) retiredEpochs.add(epoch);
     if (retiredEpochs.size > 32) retiredEpochs.delete(retiredEpochs.values().next().value);
     for (const s of states.values()) restore(s.id);
@@ -209,6 +223,7 @@
     return removed.length ? { f: out, removed } : null;
   }
   function hideOriginal(id, hidden) {
+    hidden = hidden || removed.has(id);
     if(window.JJPOTATO)JJPOTATO.invalidate(id);
     for (const [mi, t] of refs.get(id) || []) {
       const mesh = J.visualMeshes[mi],
@@ -405,8 +420,9 @@
     group.matrix.copy(J.transform(p));
     J.root.add(group);
     s.mesh = group;
+    group.visible = !removed.has(s.id);
     hideOriginal(s.id, true);
-    J.setFragments(s.id, s.f);
+    J.setFragments(s.id, removed.has(s.id) ? [] : s.f);
   }
   function restore(id) {
     const s = states.get(id);
@@ -419,7 +435,7 @@
       s.cap.dispose();
     }
     hideOriginal(id, false);
-    J.setFragments(id, null);
+    J.setFragments(id, removed.has(id) ? [] : null);
     total -= s.f.length;
     states.delete(id);
   }
@@ -471,6 +487,7 @@
   }
   function hit(pos, radius = 4) {
     if (!enabled()) return false;
+    if (window.JJIWORLD) JJIWORLD.impact(pos, radius);
     prepare();
     const m = {
       p: pos.toArray ? pos.toArray() : [pos.x, pos.y, pos.z],

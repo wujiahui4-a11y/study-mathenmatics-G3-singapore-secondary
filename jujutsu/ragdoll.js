@@ -71,6 +71,7 @@
 
   function stop(ent) {
     if (ent) delete ent.trainCrash;
+    if (ent) delete ent.worldRag;
     if (!ent || !ent.rag) return;
     ent.rag = null;
     ent.ragKeep = false;
@@ -101,9 +102,9 @@
     var tip = Math.min(1, Math.abs(Math.sin(rag.rot.x)) + Math.abs(Math.sin(rag.rot.z)));
     var hipOffset = rig.hipsBaseY * (1 - tip) + HIP_REST * tip;
     var terrain = 0;
-    if (ent.trainCrash && window.JJMAP && JJMAP.id === 'jjs') {
+    if ((ent.trainCrash || ent.worldRag) && window.JJMAP && JJMAP.id === 'jjs') {
       var ground = JJJJS.floor(rag.hips, rag.hips.y + .2);
-      terrain = Number.isFinite(ground) ? ground : ent.trainCrash.floor;
+      terrain = Number.isFinite(ground) ? ground : (ent.trainCrash || ent.worldRag).floor;
     }
     var floor = terrain + hipOffset;
 
@@ -145,7 +146,7 @@
          every screen rather than lying down early */
       if (rag.pull.y != null) {
         var wantY = rag.pull.y + hipOffset;
-        if (ent.trainCrash || rag.pull.y > .3 || rag.hips.y < wantY) {
+        if (ent.trainCrash || ent.worldRag || rag.pull.y > .3 || rag.hips.y < wantY) {
           rag.hips.y += (wantY - rag.hips.y) * Math.min(1, dt * 2.6);
           if (rag.hips.y > floor + .2) rag.down = false;
         }

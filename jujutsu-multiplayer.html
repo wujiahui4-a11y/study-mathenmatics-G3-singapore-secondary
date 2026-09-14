@@ -653,6 +653,7 @@ function makeAnimeRig(cfg) {
   const skull = M(.9, .92, .9, cfg.skin); skull.position.y = .48; head.add(skull);
 
   if (cfg.gojo) {
+    const hairStart = head.children.length;
     const hairC = 0xf2f6ff;
     const hairTop = M(1.0, .36, .98, hairC); hairTop.position.y = .96; head.add(hairTop);
     const hairBack = M(.98, .5, .24, hairC); hairBack.position.set(0, .78, -.38); head.add(hairBack);
@@ -671,6 +672,7 @@ function makeAnimeRig(cfg) {
       b.rotation.x = -.12;
       head.add(b);
     }
+    head.children.slice(hairStart).forEach(m => { m.userData.gojoHair = true; });
     const bf = M(.96, .26, .96, 0x0d0e14); bf.position.y = .58; head.add(bf);
     const collar = M(1.04, .42, .72, 0x11142a); collar.position.set(0, 1.08, 0); spine.add(collar);
   } else if (cfg.naoya) {
@@ -3072,6 +3074,7 @@ function updatePlayer(dt) {
     return;
   }
   /* frozen in own glass frame */
+  if (p.worldRag && p.rag) { p.iframes = Math.max(0, p.iframes - dt); return; }
   if (p.frameT > 0) {
     p.frameT -= dt;
     if (p.frameT <= 0) unframePlayer(false);
@@ -3094,6 +3097,7 @@ function updatePlayer(dt) {
 
   if (window.JJFIGHT) JJFIGHT.beforeStep(dt);
   if (window.JJMOVE) JJMOVE.beforeStep(dt);
+  if (window.JJIWORLD) JJIWORLD.beforeStep(dt);
 
   if (p.action) {
     const a = p.action;
@@ -3109,7 +3113,7 @@ function updatePlayer(dt) {
 
   // Traversal advances a swept path against the same world collision. The
   // combat timers and pose layers above/below continue to run normally.
-  if ((!window.JJMOVE || !JJMOVE.driving()) && (!window.JJFIGHT || !JJFIGHT.driving())) {
+  if ((!window.JJMOVE || !JJMOVE.driving()) && (!window.JJFIGHT || !JJFIGHT.driving()) && (!window.JJIWORLD || !JJIWORLD.driving())) {
   const fwd = camForward();
   const rightv = new THREE.Vector3(-fwd.z, 0, fwd.x);
   const mv = new THREE.Vector3();
@@ -5717,6 +5721,7 @@ window.__game = {
 
   function stop(ent) {
     if (ent) delete ent.trainCrash;
+    if (ent) delete ent.worldRag;
     if (!ent || !ent.rag) return;
     ent.rag = null;
     ent.ragKeep = false;
@@ -5747,9 +5752,9 @@ window.__game = {
     var tip = Math.min(1, Math.abs(Math.sin(rag.rot.x)) + Math.abs(Math.sin(rag.rot.z)));
     var hipOffset = rig.hipsBaseY * (1 - tip) + HIP_REST * tip;
     var terrain = 0;
-    if (ent.trainCrash && window.JJMAP && JJMAP.id === 'jjs') {
+    if ((ent.trainCrash || ent.worldRag) && window.JJMAP && JJMAP.id === 'jjs') {
       var ground = JJJJS.floor(rag.hips, rag.hips.y + .2);
-      terrain = Number.isFinite(ground) ? ground : ent.trainCrash.floor;
+      terrain = Number.isFinite(ground) ? ground : (ent.trainCrash || ent.worldRag).floor;
     }
     var floor = terrain + hipOffset;
 
@@ -5791,7 +5796,7 @@ window.__game = {
          every screen rather than lying down early */
       if (rag.pull.y != null) {
         var wantY = rag.pull.y + hipOffset;
-        if (ent.trainCrash || rag.pull.y > .3 || rag.hips.y < wantY) {
+        if (ent.trainCrash || ent.worldRag || rag.pull.y > .3 || rag.hips.y < wantY) {
           rag.hips.y += (wantY - rag.hips.y) * Math.min(1, dt * 2.6);
           if (rag.hips.y > floor + .2) rag.down = false;
         }
@@ -8360,11 +8365,33 @@ window.__game = {
   }
 
   /* blindfold off, eyes lit — or back again */
+  function addLooseHair(rig) {
+    if (rig.looseHair) return;
+    const group = new THREE.Group(); group.name = 'Gojo loose awakened hair';
+    const material = new THREE.MeshLambertMaterial({color: 0xf2f6ff});
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(.53, 10, 6), material);
+    crown.position.y = .98; crown.scale.y = .48; group.add(crown);
+    const locks = new THREE.InstancedMesh(new THREE.ConeGeometry(.19, 1, 4), material, 22);
+    const up = new THREE.Vector3(0, 1, 0), matrix = new THREE.Matrix4();
+    for (let i = 0; i < 22; i++) {
+      const ring = i < 14, angle = (ring ? i / 14 : (i - 14) / 8) * Math.PI * 2;
+      const front = Math.sin(angle) > .3, length = ring ? (front ? .48 : .69) + (i % 3) * .045 : .52;
+      const direction = new THREE.Vector3(Math.cos(angle) * .8, ring ? -.7 : .28, Math.sin(angle) * .8).normalize();
+      const position = new THREE.Vector3(Math.cos(angle) * (ring ? .39 : .2), ring ? 1.02 : 1.12, Math.sin(angle) * (ring ? .36 : .2)).addScaledVector(direction, length * .25);
+      matrix.compose(position, new THREE.Quaternion().setFromUnitVectors(up, direction), new THREE.Vector3(1, length, .8));
+      locks.setMatrixAt(i, matrix);
+    }
+    locks.instanceMatrix.needsUpdate = true; locks.computeBoundingSphere(); group.add(locks);
+    group.visible = false; rig.head.add(group); rig.looseHair = group;
+  }
   function setLook(rig, on) {
     if (!rig || !rig.head) return;
     findBlindfold(rig);
     if (!rig.blindfold && !rig.sixEyes) return;      // not a Gojo
     addSixEyes(rig);
+    if (on) addLooseHair(rig);
+    rig.head.children.forEach(c => { if (c.userData.gojoHair) c.visible = !on; });
+    if (rig.looseHair) rig.looseHair.visible = !!on;
     if (rig.blindfold) rig.blindfold.visible = !on;
     if (rig.sixEyes) rig.sixEyes.visible = !!on;
   }
@@ -40793,6 +40820,7 @@ var JJS_DATA = await (async function () {
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (window.JJIWORLD && JJIWORLD.receive(m)) return;
     if (window.JJTRAIN && JJTRAIN.receive(m)) return;
     if (window.JJAISERVER && JJAISERVER.receive(m)) return;
     if (window.JJDESTRUCT && JJDESTRUCT.receive(m)) return;
@@ -40834,6 +40862,7 @@ var JJS_DATA = await (async function () {
       if (g.e.pos.x === 0 && g.e.pos.z === 0) { g.e.pos.set(m.x, g.ty, m.z); }
       g.e.hp = m.hp; g.e.maxHp = m.mx || 100;
       if (window.JJTRAIN) JJTRAIN.syncActor(g.e, m.d, m.tr);
+      if (window.JJIWORLD) JJIWORLD.syncActor(g.e, m.wr, m.cl);
       /* Somebody else going down used to just hide their body, so only the
          player who died ever saw a corpse. Their body drops here too, and
          their own broadcast decides where it lands. */
@@ -41590,6 +41619,7 @@ var JJS_DATA = await (async function () {
       hp: Math.round(player.hp), mx: Math.round(player.maxHp),
       d: player.dead ? 1 : 0, f: player.frameT > 0 ? 1 : 0,
       tr: player.trainCrash ? player.trainCrash.run : 0,
+      wr: player.worldRag?.event || '', cl: player.worldClimb ?? -1,
       /* everything the animation needs to be reproduced exactly */
       sp: Math.round(sp * 10), og: player.onGround ? 1 : 0, vv: Math.round(player.vel.y * 10),
       mvx:Math.round(player.vel.x*100),mvz:Math.round(player.vel.z*100),
@@ -42647,6 +42677,7 @@ var JJS_DATA = await (async function () {
     MAX_DEBRIS = 192,
     GRID = 32;
   const states = new Map(),
+    removed = new Set(),
     refs = new Map(),
     attached = new Map(),
     grid = new Map(),
@@ -42670,6 +42701,17 @@ var JJS_DATA = await (async function () {
   const settings = { enabled: true, rebuild: 30, debris: 192 };
   const X = (window.JJDESTRUCT = {
     hit,
+    setRemoved(ids, hidden) {
+      prepare();
+      for (const id of ids) {
+        if (!refs.has(id)) continue;
+        if (hidden) removed.add(id); else removed.delete(id);
+        hideOriginal(id, hidden || states.has(id));
+        const state = states.get(id);
+        if (state?.mesh) state.mesh.visible = !hidden;
+        J.setFragments(id, hidden ? [] : state ? state.f : null);
+      }
+    },
     canBreak(id) {
       if (!enabled()) return false;
       prepare();
@@ -42714,6 +42756,8 @@ var JJS_DATA = await (async function () {
     retiredEpochs.clear();
   }
   function clear() {
+    for (const id of removed) { hideOriginal(id, false); J.setFragments(id, null); }
+    removed.clear();
     if (epoch) retiredEpochs.add(epoch);
     if (retiredEpochs.size > 32) retiredEpochs.delete(retiredEpochs.values().next().value);
     for (const s of states.values()) restore(s.id);
@@ -42843,6 +42887,7 @@ var JJS_DATA = await (async function () {
     return removed.length ? { f: out, removed } : null;
   }
   function hideOriginal(id, hidden) {
+    hidden = hidden || removed.has(id);
     if(window.JJPOTATO)JJPOTATO.invalidate(id);
     for (const [mi, t] of refs.get(id) || []) {
       const mesh = J.visualMeshes[mi],
@@ -43039,8 +43084,9 @@ var JJS_DATA = await (async function () {
     group.matrix.copy(J.transform(p));
     J.root.add(group);
     s.mesh = group;
+    group.visible = !removed.has(s.id);
     hideOriginal(s.id, true);
-    J.setFragments(s.id, s.f);
+    J.setFragments(s.id, removed.has(s.id) ? [] : s.f);
   }
   function restore(id) {
     const s = states.get(id);
@@ -43053,7 +43099,7 @@ var JJS_DATA = await (async function () {
       s.cap.dispose();
     }
     hideOriginal(id, false);
-    J.setFragments(id, null);
+    J.setFragments(id, removed.has(id) ? [] : null);
     total -= s.f.length;
     states.delete(id);
   }
@@ -43105,6 +43151,7 @@ var JJS_DATA = await (async function () {
   }
   function hit(pos, radius = 4) {
     if (!enabled()) return false;
+    if (window.JJIWORLD) JJIWORLD.impact(pos, radius);
     prepare();
     const m = {
       p: pos.toArray ? pos.toArray() : [pos.x, pos.y, pos.z],
@@ -45097,6 +45144,7 @@ var JJS_DATA = await (async function () {
     return p;
   }
   function startM1() {
+    if (window.JJIWORLD && JJIWORLD.consumeM1()) { clearInput(); return true; }
     if (!gameInputActive() || taken() || player.stunT > 0) return false;
     if (player.blocking) {
       if (player.char === 'mahito') return JJMAHITO.withdraw();
@@ -49250,6 +49298,7 @@ var JJS_DATA = await (async function () {
           hp: e.hp,
           dead: e.dead,
           crash: e.trainCrash ? e.trainCrash.run : 0,
+          wr: e.worldRag?.event || '',
           bl: e.blocking,
           iv: e.iframes || 0,
           k: e.ai.kills,
@@ -49282,7 +49331,7 @@ var JJS_DATA = await (async function () {
     const b = e.ai,
       s = b.remoteState;
     if (!s) return;
-    if (e.trainCrash && e.rag) {
+    if ((e.trainCrash || e.worldRag) && e.rag) {
       e.rag.pull = { x: s.p[0], y: s.p[1], z: s.p[2] };
       e.rig.root.visible = nearPlayer(e, 180);
       return;
@@ -49363,6 +49412,7 @@ var JJS_DATA = await (async function () {
         e.hp = Math.max(0, Math.min(100, s.hp));
         e.dead = !!s.dead;
         if (window.JJTRAIN) JJTRAIN.syncActor(e, s.dead, s.crash);
+        if (window.JJIWORLD) JJIWORLD.syncActor(e, s.wr, -1);
         e.onGround = s.og !== false;
         e.blocking = !!s.bl;
         e.iframes = Math.max(0, Math.min(3, s.iv || 0));
@@ -49876,6 +49926,630 @@ var JJS_DATA = await (async function () {
   const render = renderer.render;
   renderer.render = function (s, c) { if (s === scene) tick(); return render.apply(this, arguments); };
   window.JJTRAIN = {request, receive, clear, syncActor, audit: () => ({button: buttonPos.toArray(), entry: entry.toArray(), end: end.toArray(), trackFloor, duration, run: run?.id || 0, elapsed: elapsed(), hits: run ? Array.from(run.hits) : [], visible: !!model?.visible, drawGroups: model?.children.length || 0})};
+})();
+
+
+/* ===== interaction-data.js ===== */
+/* Generated by tools/build-interaction-data.cjs. */
+window.JJINTERACTION_DATA = {"ladders":[{"ids":[2316,2317,2318,2319,2320,2321,2322,2323,2324,2325,2326,2327,2328,2329,2330,2331,2332],"min":[-107.867,-64.633,97.704],"max":[-103.337,-33.004,98.209],"p":[-105.602,-48.818,97.957],"n":[0,0,1]},{"ids":[2381,2382,2383,2384,2385,2386,2387,2388,2389,2390,2391,2392,2393,2394,2395,2396,2397],"min":[-80.856,-64.633,97.704],"max":[-76.325,-33.004,98.209],"p":[-78.59,-48.818,97.957],"n":[0,0,1]},{"ids":[4030,4031,4032,4033,4034,4035,4036,4037,4038,4039],"min":[6.97,145.772,134.495],"max":[7.27,162.272,138.036],"p":[7.12,154.022,136.266],"n":[-1,0,0]},{"ids":[4040,4041,4042,4043,4044,4045,4046,4047,4048,4049],"min":[-36.69,145.772,134.495],"max":[-36.39,162.272,138.036],"p":[-36.54,154.022,136.266],"n":[-1,0,0]},{"ids":[7020,7021,7022,7023,7024,7025,7026,7027,7028,7029,7030,7031,7032,7033,7034,7035,7036,7037,7038,7039,7040,7041,7042,7043,7044,7045,7046,7047,7048,7049,7050,7051,7052,7053,7054,7055,7056,7057,7058,7059,7060,7061,7062,7063,7064,7065,7066,7067,7068,7069,7070,7071,7072,7073,7074,7075,7076,7077,7078,7079,7080,7081,7082,7083,7084,7085,7086,7087,7088,7089,7090,7091,7092,7093,7094,7095,7096,7097,7098,7099,7100,7101],"min":[-40.231,0.272,106.426],"max":[-36.69,162.272,106.726],"p":[-38.46,81.272,106.576],"n":[0,0,-1]},{"ids":[7102,7103,7104,7105,7106,7107,7108,7109,7110,7111,7112,7113,7114,7115,7116,7117,7118,7119,7120,7121,7122,7123,7124,7125,7126,7127,7128,7129,7130,7131,7132,7133,7134,7135,7136,7137,7138,7139,7140,7141,7142,7143,7144,7145,7146,7147,7148,7149,7150,7151,7152,7153,7154,7155,7156,7157,7158,7159,7160,7161,7162,7163,7164,7165,7166,7167,7168,7169,7170,7171,7172,7173,7174,7175,7176,7177,7178,7179,7180,7181,7182,7183],"min":[66.769,0.272,165.726],"max":[70.31,162.272,166.026],"p":[68.54,81.272,165.876],"n":[0,0,-1]},{"ids":[7184,7185,7186,7187,7188,7189,7190,7191,7192,7193,7194,7195,7196,7197,7198,7199,7200,7201,7202,7203,7204,7205,7206,7207,7208,7209,7210,7211,7212,7213,7214,7215,7216,7217,7218,7219,7220,7221,7222,7223,7224,7225,7226,7227,7228,7229,7230,7231,7232,7233,7234,7235,7236,7237,7238,7239,7240,7241,7242,7243,7244,7245,7246,7247,7248,7249,7250,7251,7252,7253,7254,7255,7256,7257,7258,7259,7260,7261,7262,7263,7264,7265],"min":[7.269,0.272,106.426],"max":[10.81,162.272,106.726],"p":[9.04,81.272,106.576],"n":[0,0,-1]},{"ids":[7266,7267,7268,7269,7270,7271,7272,7273,7274,7275,7276,7277,7278,7279,7280,7281,7282,7283,7284,7285,7286,7287,7288,7289,7290,7291,7292,7293,7294,7295,7296,7297,7298,7299,7300,7301,7302,7303,7304,7305,7306,7307,7308,7309,7310,7311,7312,7313,7314,7315,7316,7317,7318,7319,7320,7321,7322,7323,7324,7325,7326,7327,7328,7329,7330,7331,7332,7333,7334,7335,7336,7337,7338,7339,7340,7341,7342,7343,7344,7345,7346,7347],"min":[7.269,0.272,165.726],"max":[10.81,162.272,166.026],"p":[9.04,81.272,165.876],"n":[0,0,-1]},{"ids":[7348,7349,7350,7351,7352,7353,7354,7355,7356,7357,7358,7359,7360,7361,7362,7363,7364,7365,7366,7367,7368,7369,7370,7371,7372,7373,7374,7375,7376,7377,7378,7379,7380,7381,7382,7383,7384,7385,7386,7387,7388,7389,7390,7391,7392,7393,7394,7395,7396,7397,7398,7399,7400,7401,7402,7403,7404,7405,7406,7407,7408,7409,7410,7411,7412,7413,7414,7415,7416,7417,7418,7419,7420,7421,7422,7423,7424,7425,7426,7427,7428,7429],"min":[-99.731,0.272,106.426],"max":[-96.19,162.272,106.726],"p":[-97.96,81.272,106.576],"n":[0,0,-1]},{"ids":[7430,7431,7432,7433,7434,7435,7436,7437,7438,7439,7440,7441,7442,7443,7444,7445,7446,7447,7448,7449,7450,7451,7452,7453,7454,7455,7456,7457,7458,7459,7460,7461,7462,7463,7464,7465,7466,7467,7468,7469,7470,7471,7472,7473,7474,7475,7476,7477,7478,7479,7480,7481,7482,7483,7484,7485,7486,7487,7488,7489,7490,7491,7492,7493,7494,7495,7496,7497,7498,7499,7500,7501,7502,7503,7504,7505,7506,7507,7508,7509,7510,7511],"min":[-99.731,0.272,165.726],"max":[-96.19,162.272,166.026],"p":[-97.96,81.272,165.876],"n":[0,0,-1]},{"ids":[7512,7513,7514,7515,7516,7517,7518,7519,7520,7521,7522,7523,7524,7525,7526,7527,7528,7529,7530,7531,7532,7533,7534,7535,7536,7537,7538,7539,7540,7541,7542,7543,7544,7545,7546,7547,7548,7549,7550,7551,7552,7553,7554,7555,7556,7557,7558,7559,7560,7561,7562,7563,7564,7565,7566,7567,7568,7569,7570,7571,7572,7573,7574,7575,7576,7577,7578,7579,7580,7581,7582,7583,7584,7585,7586,7587,7588,7589,7590,7591,7592,7593],"min":[66.769,0.272,106.426],"max":[70.31,162.272,106.726],"p":[68.54,81.272,106.576],"n":[0,0,-1]},{"ids":[7594,7595,7596,7597,7598,7599,7600,7601,7602,7603,7604,7605,7606,7607,7608,7609,7610,7611,7612,7613,7614,7615,7616,7617,7618,7619,7620,7621,7622,7623,7624,7625,7626,7627,7628,7629,7630,7631,7632,7633,7634,7635,7636,7637,7638,7639,7640,7641,7642,7643,7644,7645,7646,7647,7648,7649,7650,7651,7652,7653,7654,7655,7656,7657,7658,7659,7660,7661,7662,7663,7664,7665,7666,7667,7668,7669,7670,7671,7672,7673,7674,7675],"min":[-40.231,0.272,165.726],"max":[-36.69,162.272,166.026],"p":[-38.46,81.272,165.876],"n":[0,0,-1]}],"bins":[{"ids":[158,159,160,161,162,163,164],"min":[171.95,-53.866,-251.241],"max":[174.95,-49.366,-248.241],"p":[173.45,-51.616,-249.741]},{"ids":[256,257,258,259,260,261,262],"min":[137.25,-53.866,-251.241],"max":[140.25,-49.366,-248.241],"p":[138.75,-51.616,-249.741]},{"ids":[263,264,265,266,267,268,269],"min":[22.95,0.272,-151.277],"max":[25.95,4.772,-148.277],"p":[24.45,2.522,-149.777]},{"ids":[270,271,272,273,274,275,276],"min":[119.386,-33,359.482],"max":[122.395,-28.5,362.491],"p":[120.891,-30.75,360.987]},{"ids":[402,403,404,405,406,407,408],"min":[122.339,-33,-105.636],"max":[125.348,-28.5,-102.626],"p":[123.844,-30.75,-104.131]},{"ids":[450,451,452,453,454,455,456],"min":[184.26,0.272,-117.074],"max":[187.26,4.772,-114.074],"p":[185.76,2.522,-115.574]},{"ids":[457,458,459,460,461,462,463],"min":[92.18,-33,501.776],"max":[95.189,-28.5,504.786],"p":[93.685,-30.75,503.281]},{"ids":[464,465,466,467,468,469,470],"min":[199.585,0.272,118.721],"max":[202.585,4.772,121.721],"p":[201.085,2.522,120.221]},{"ids":[471,472,473,474,475,476,477],"min":[-0.692,0.231,374.135],"max":[2.308,4.731,377.135],"p":[0.808,2.481,375.635]},{"ids":[478,479,480,481,482,483,484],"min":[-28.96,0.072,256.126],"max":[-25.96,4.572,259.126],"p":[-27.46,2.322,257.626]},{"ids":[485,486,487,488,489,490,491],"min":[-230.07,0.272,-159.388],"max":[-227.07,4.772,-156.388],"p":[-228.57,2.522,-157.888]},{"ids":[492,493,494,495,496,497,498],"min":[34.69,1.05,-39.783],"max":[37.69,5.55,-36.783],"p":[36.19,3.3,-38.283]},{"ids":[499,500,501,502,503,504,505],"min":[35.09,1.05,64.017],"max":[38.09,5.55,67.017],"p":[36.59,3.3,65.517]},{"ids":[521,522,523,524,525,526,527],"min":[-69.11,1.05,-40.083],"max":[-66.11,5.55,-37.083],"p":[-67.61,3.3,-38.583]},{"ids":[555,556,557,558,559,560,561],"min":[-68.91,1.05,64.517],"max":[-65.91,5.55,67.517],"p":[-67.41,3.3,66.017]},{"ids":[577,578,579,580,581,582,583],"min":[253.985,1.272,-24.979],"max":[256.985,5.772,-21.979],"p":[255.485,3.522,-23.479]},{"ids":[633,634,635,636,637,638,639],"min":[-189.61,0.25,26.917],"max":[-186.61,4.75,29.917],"p":[-188.11,2.5,28.417]},{"ids":[716,717,718,719,720,721,722],"min":[-239.318,3.694,-119.22],"max":[-236.318,8.194,-116.22],"p":[-237.818,5.944,-117.72]},{"ids":[738,739,740,741,742,743,744],"min":[151.45,-83.466,-246.141],"max":[154.45,-78.966,-243.141],"p":[152.95,-81.216,-244.641]}],"screens":[{"part":11754,"control":11756},{"part":11758,"control":11761}]};
+
+
+/* ===== world-items.js ===== */
+/* Room-owned pickups, cartoon throwables and the exported city's ladders. */
+(function () {
+  'use strict';
+  const J = JJJJS, D = JJINTERACTION_DATA, V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+  const items = new Map(), broken = new Set(), masks = new Set(), models = new Map(), seen = new Set(), rates = new Map();
+  let root = null, sourceRoot = null, room = null, hostId = null, epoch = '', retired = new Set();
+  let clock = 0, lastFrame = 0, spawnAt = 0, serial = 0, sequence = 0, rx = -1, lastSend = 0, lastRequest = -10;
+  let hits = [], effects = [], climb = null, lastRig = player.rig, lastChar = player.char;
+  const now = () => performance.now() / 1000;
+  const online = () => !!window.MPJJ?.active;
+  const authority = () => !online() || !!MPJJ.host;
+  const active = () => window.JJMAP?.id === 'jjs' && !!J.root;
+  const localId = () => online() ? MPJJ.id : 'local';
+  const validV = a => Array.isArray(a) && a.length === 3 && a.every(n => Number.isFinite(n) && Math.abs(n) < 4000);
+  const actor = id => id === localId() ? player : MPJJ.fighters[id]?.e;
+  const available = e => e && !e.dead && !e.rag && !e.action && !(e.frameT > 0) && !(e.stunT > 0);
+  const allActors = () => [[localId(), player], ...Object.entries(online() ? MPJJ.fighters : {}).map(([id, f]) => [id, f.e]), ...enemies.filter(e => !e.net && (!e.ai || !e.ai.remote)).map((e, i) => [e.ai ? 'ai:' + e.ai.id : 'dummy:' + i, e])];
+  const heldBy = id => [...items.values()].find(i => i.state === 'held' && i.owner === id);
+  const resources = [], own = o => (resources.push(o), o);
+  let sharedBox = null, sharedMaterials = null, maskKey = '';
+  const ui = document.createElement('div'), hint = document.createElement('div'), use = document.createElement('button'), throwButton = document.createElement('button');
+  ui.style.cssText = 'position:fixed;bottom:15%;left:50%;transform:translateX(-50%);z-index:36;text-align:center;color:#fff;font:700 14px system-ui;pointer-events:none;display:none';
+  for (const b of [use, throwButton]) {b.type = 'button'; b.style.cssText = 'pointer-events:auto;background:#17273deb;color:white;border:1px solid #b0d6ff;border-radius:8px;padding:11px 16px;margin:4px;font:inherit';ui.appendChild(b);}
+  hint.style.cssText = 'background:#142033d9;border-radius:6px;padding:7px'; ui.appendChild(hint); document.body.appendChild(ui);
+  throwButton.textContent = 'Throw · M1';
+  function send(m) { if (online() && MPJJ.relay) MPJJ.relay.pub(Object.assign({id: MPJJ.id, room: MPJJ.code, map: 'jjs', epoch}, m)); }
+  function closeClimb() {
+    if (player.action?.type === 'wi_climb') player.action = null;
+    climb = null; delete player.worldClimb; player.onGround = false; player.__jjsLast = player.pos.clone();
+  }
+  function clear() {
+    closeClimb();
+    if (window.JJBROADCAST) JJBROADCAST.clear();
+    effects.forEach(disposeEffect);
+    if (root) scene.remove(root);
+    for (const i of masks) if (window.JJDESTRUCT && sourceRoot === J.root) JJDESTRUCT.setRemoved([i], false);
+    resources.forEach(o => o.dispose()); resources.length = 0;
+    sharedBox = sharedMaterials = null; maskKey = '';
+    for (const [, e] of allActors()) if (e?.worldRag) {JJRAG.stop(e); delete e.worldRag;}
+    root = null; items.clear(); broken.clear(); masks.clear(); models.clear(); seen.clear(); rates.clear(); hits = []; effects = [];
+    ui.style.display = 'none'; rx = -1;
+  }
+  function context() {
+    const key = online() ? MPJJ.code : 'offline';
+    if (room !== key || sourceRoot !== J.root || !active()) {
+      const roomChanged = room !== key;
+      if (epoch) {retired.add(epoch); if (retired.size > 16) retired.delete(retired.values().next().value);}
+      clear(); room = key; sourceRoot = J.root;
+      if (roomChanged) {hostId = null; retired.clear();}
+      epoch = authority() ? Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) : '';
+      clock = 0; lastFrame = now(); lastSend = -10; spawnAt = 0;
+    }
+    if (!active()) return false;
+    if (!root) {
+      root = new THREE.Group(); root.name = 'City interactions'; scene.add(root);
+      if (authority()) D.bins.forEach((b, n) => items.set('bin:' + n, {id: 'bin:' + n, kind: 'bin', bin: n, p: V(...b.p), v: V(), state: 'home', owner: '', age: 0}));
+    }
+    return true;
+  }
+  function reachable(e, p, range = 7) {
+    if (!e?.pos || e.dead) return false;
+    const eye = e.pos.clone().add(V(0, 3, 0)), d = eye.distanceTo(p);
+    return d < range && J.ray(eye, p.clone().lerp(eye, Math.min(1, 1.8 / Math.max(.01, d))), 0) >= .96;
+  }
+  function nearest() {
+    let best = null, distance = 7;
+    for (const i of items.values()) if ((i.state === 'home' || i.state === 'world') && reachable(player, i.p)) {
+      const d = player.pos.distanceTo(i.p); if (d < distance) {distance = d; best = i;}
+    }
+    return best;
+  }
+  function request(m) {
+    if (!context() || now() - lastRequest < .22) return false;
+    lastRequest = now();
+    if (authority()) command(Object.assign({id: localId(), epoch}, m)); else send(m);
+    return true;
+  }
+  function pickup() {
+    if (!gameInputActive() || !available(player) || heldBy(localId())) return false;
+    const i = nearest(); return !!i && request({t: 'wi-pick', item: i.id});
+  }
+  function consumeM1() {
+    if (!active() || !heldBy(localId())) return false;
+    if (gameInputActive() && available(player)) {
+      const direction = typeof aimDir === 'function' ? aimDir() : V(Math.sin(player.facing), .1, Math.cos(player.facing));
+      request({t: 'wi-throw', dir: direction.normalize().toArray()});
+    }
+    return true;
+  }
+  function mask() {
+    if (!window.JJDESTRUCT) return;
+    const key = [...broken].join(',') + '/' + [...items.values()].filter(i => i.kind === 'bin' && i.state !== 'home').map(i => i.bin).join(',');
+    if (key === maskKey) return; maskKey = key;
+    const desired = new Set();
+    for (const n of broken) D.ladders[n].ids.forEach(id => desired.add(id));
+    for (const i of items.values()) if (i.kind === 'bin' && i.state !== 'home') D.bins[i.bin].ids.forEach(id => desired.add(id));
+    const added = [...desired].filter(id => !masks.has(id)), removed = [...masks].filter(id => !desired.has(id));
+    if (added.length) JJDESTRUCT.setRemoved(added, true);
+    if (removed.length) JJDESTRUCT.setRemoved(removed, false);
+    masks.clear(); desired.forEach(id => masks.add(id));
+  }
+  function breakLadder(n) {
+    if (!Number.isInteger(n) || !D.ladders[n] || broken.has(n)) return false;
+    broken.add(n); mask();
+    const b = D.ladders[n]; flash(V(b.p[0], Math.max(b.min[1], Math.min(b.max[1], player.pos.y + 3)), b.p[2]), 0xb9c4d1, 4);
+    // A few loose rungs make the instant break visible without a large debris burst.
+    for (let k = 0; k < 6; k++) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, .16, .16), new THREE.MeshLambertMaterial({color: 0xa7b2c0, transparent: true}));
+      mesh.position.set(b.p[0], Math.max(b.min[1], Math.min(b.max[1], player.pos.y + k - 1)), b.p[2]);
+      root.add(mesh); effects.push({mesh, t: .8, size: 1, velocity: V((k % 2 ? 1 : -1) * 3, 2 + k * .2, (k % 3 - 1) * 3)});
+    }
+    while (effects.length > 12) disposeEffect(effects.shift());
+    if (climb?.n === n) {closeClimb(); knock(player, V(0, 3, 4), epoch + ':ladder:' + n);}
+    return true;
+  }
+  function ladderDistance(p, b) {
+    const q = V(...b.p); q.y = Math.max(b.min[1], Math.min(b.max[1], p.y)); return q.distanceTo(p);
+  }
+  function impact(pos, radius = 4) {
+    if (!context()) return;
+    const p = pos.clone ? pos : V(pos.x, pos.y, pos.z);
+    D.ladders.forEach((b, n) => {
+      if (!broken.has(n) && ladderDistance(p, b) < Math.min(18, radius) + 1) {
+        if (authority()) {breakLadder(n); snapshot();}
+        else request({t: 'wi-break', ladder: n});
+      }
+    });
+  }
+  function command(m) {
+    const e = actor(m.id);
+    if (!authority() || !e || !active()) return false;
+    const key = m.id + ':' + m.t, last = rates.get(key) ?? -10;
+    if (clock - last < .15) return false; rates.set(key, clock);
+    if (m.t === 'wi-pick') {
+      const i = items.get(m.item);
+      if (!available(e) || heldBy(m.id) || !i || !['home', 'world'].includes(i.state) || !reachable(e, i.p)) return false;
+      i.state = 'held'; i.owner = m.id; i.age = 0; i.v.set(0, 0, 0);
+      if (e === player && window.JJFIGHT) JJFIGHT.clearInput();
+      mask();
+    } else if (m.t === 'wi-throw') {
+      const i = heldBy(m.id);
+      if (!i || !available(e) || !validV(m.dir)) return false;
+      const dir = V(...m.dir); if (dir.lengthSq() < .25 || dir.lengthSq() > 2) return false; dir.normalize();
+      const origin = e.pos.clone().add(V(0, 3.4, 0));
+      i.p.copy(origin); i.v.copy(dir).multiplyScalar(i.kind === 'tnt' ? 36 : 43); i.v.y += 7;
+      i.state = 'flying'; i.age = 0;
+    } else if (m.t === 'wi-drop') {
+      const i = heldBy(m.id); if (!i) return false;
+      i.state = 'world'; i.owner = ''; i.age = 0; i.p.copy(e.pos).add(V(0, 2, 0)); i.v.set(0, 0, 0);
+    } else if (m.t === 'wi-break') {
+      const b = D.ladders[m.ladder];
+      if (!b || e.dead || e.rag || ladderDistance(e.pos.clone().add(V(0, 3, 0)), b) > 7) return false;
+      if (!breakLadder(m.ladder)) return false;
+    } else return false;
+    snapshot(); return true;
+  }
+  function spawn() {
+    if ([...items.values()].filter(i => i.kind === 'tnt').length >= 6) return;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const base = J.spawn(Math.floor(Math.random() * J.data.spawns.length));
+      const p = V(base.x + (Math.random() - .5) * 110, base.y + 30, base.z + (Math.random() - .5) * 110);
+      const ground = J.floor(p, p.y); if (!Number.isFinite(ground) || ground < -85) continue;
+      p.y = ground + 1.1;
+      if (J.occupied(p.clone().add(V(0, .1, 0)), 1.1, 2.3)) continue;
+      const ceiling = J.ceiling(p, p.y + 2); const height = Math.min(24, Number.isFinite(ceiling) ? ceiling - p.y - 2 : 24);
+      p.y += Math.max(0, height);
+      const id = 'drop:' + ++serial;
+      items.set(id, {id, kind: 'tnt', p, v: V(), state: 'falling', owner: '', age: 0, bin: -1}); return;
+    }
+  }
+  function knock(e, velocity, event) {
+    if (!e || e.dead || e.worldRag?.event === event) return;
+    if (e === player) {closeClimb(); if (window.JJMOVE) JJMOVE.cancel('item hit'); if (window.JJFIGHT) JJFIGHT.clearInput();}
+    if (e.ai && window.JJAIKITS) JJAIKITS.cancel(e);
+    if (e === player && e.frameT > 0 && typeof unframePlayer === 'function') unframePlayer(false);
+    else if (e.unframe) e.unframe(false);
+    e.action = e.bcFall = e.react = null; e.blocking = false; e.frameT = e.anchorT = e.lockT = 0;
+    JJRAG.stop(e);
+    const floor = J.floor(e.pos, e.pos.y + .5);
+    e.worldRag = {event, floor: Number.isFinite(floor) ? floor : e.pos.y}; e.vel.copy(velocity);
+    JJRAG.start(e, velocity, 1.15);
+  }
+  function syncActor(e, event, ladder) {
+    if (typeof event === 'string' && event.length > 0 && event.length < 100 && !e.dead) {
+      if (e.worldRag?.event !== event) knock(e, e.vel.clone().setY(Math.max(5, e.vel.y)), event);
+    } else if (e.worldRag) JJRAG.stop(e);
+    e.worldClimb = Number.isInteger(ladder) && D.ladders[ladder] && !broken.has(ladder) ? ladder : undefined;
+  }
+  function addHit(id, e, at, power, kind) {
+    const d = e.pos.clone().sub(at).setY(0); if (d.lengthSq() < .01) d.set(1, 0, 0);
+    d.normalize().multiplyScalar(power).setY(kind === 'tnt' ? 15 : 10);
+    const h = {event: epoch + ':' + ++serial, target: id, v: d.toArray(), age: 0}; hits.push(h); applyHit(h);
+  }
+  function applyHit(h) {
+    if (seen.has(h.event)) return;
+    let e = actor(h.target);
+    if (h.target.startsWith('ai:')) e = enemies.find(e => e.ai && String(e.ai.id) === h.target.slice(3));
+    if (h.target.startsWith('dummy:') && authority()) e = allActors().find(a => a[0] === h.target)?.[1];
+    if (!e) return;
+    seen.add(h.event); if (seen.size > 256) seen.delete(seen.values().next().value);
+    knock(e, V(...h.v), h.event);
+  }
+  function flash(p, color, size) {
+    const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({color, transparent: true, opacity: .7, wireframe: true, depthWrite: false}));
+    mesh.position.copy(p); root.add(mesh); effects.push({mesh, t: .45, size});
+    while (effects.length > 12) disposeEffect(effects.shift());
+  }
+  function disposeEffect(e) {root?.remove(e.mesh); e.mesh.geometry.dispose(); e.mesh.material.dispose();}
+  function detonate(i) {
+    if (i.kind === 'tnt') {
+      flash(i.p, 0xffbb55, 14);
+      for (const [id, e] of allActors()) if (e && !e.dead && e.pos.clone().add(V(0, 2.5, 0)).distanceTo(i.p) < 14 && J.ray(i.p, e.pos.clone().add(V(0, 2.5, 0)), 0) > .92) addHit(id, e, i.p, 25, 'tnt');
+      impact(i.p, 12);
+    }
+    i.state = 'spent'; i.age = 0; i.v.set(0, 0, 0);
+    snapshot();
+  }
+  function sweepActor(a, b, e, radius) {
+    const center = e.pos.clone().add(V(0, 2.55, 0));
+    const closest = new THREE.Line3(a, b).closestPointToPoint(center, true, V());
+    return Math.hypot(closest.x - center.x, closest.z - center.z) < radius + 1 && Math.abs(closest.y - center.y) < radius + 2.55;
+  }
+  function simulate(dt) {
+    for (const i of items.values()) {
+      i.age += dt;
+      if (i.state === 'held') {
+        const e = actor(i.owner);
+        if (!e || e.dead || e.rag || i.age > 90) {i.state = 'falling'; i.owner = ''; i.age = 0; i.v.set(0, 0, 0);}
+        else i.p.copy(e.pos).add(V(0, 3, 0));
+      }
+      if (['flying', 'falling', 'world'].includes(i.state)) {
+        const flying = i.state === 'flying'; i.v.y -= 30 * dt;
+        const next = i.p.clone().addScaledVector(i.v, dt), fraction = J.ray(i.p, next, i.kind === 'bin' ? 1.1 : .65);
+        const ground = J.floor(next, i.p.y + 1.5), bottom = next.y - (i.kind === 'bin' ? 2 : 1);
+        let hit = false;
+        if (flying && i.kind === 'bin') for (const [id, e] of allActors()) {
+          if (!e || e.dead || id === i.owner && i.age < .25) continue;
+          const end = i.p.clone().lerp(next, fraction);
+          if (sweepActor(i.p, end, e, 1.6)) {addHit(id, e, i.p, 24, 'bin'); hit = true; break;}
+        }
+        const wall = fraction < 1 - .1 / Math.max(.001, i.p.distanceTo(next)) - .0001;
+        i.p.lerp(next, wall ? fraction : 1);
+        if (flying && (wall || hit || bottom <= ground || i.age > (i.kind === 'tnt' ? 1.6 : 3))) {
+          if (wall) impact(i.p, 3); detonate(i);
+        } else if (bottom <= ground || wall) {i.p.y = Math.max(i.p.y, ground + (i.kind === 'bin' ? 2 : 1)); i.v.set(0, 0, 0); i.state = 'world';}
+      }
+      if (i.kind === 'tnt' && (i.state === 'spent' && i.age > 1 || i.age > 80 && i.state !== 'held' || i.p.y < -120)) items.delete(i.id);
+      if (i.kind === 'bin' && i.state === 'spent' && i.age > 35) {i.p.set(...D.bins[i.bin].p); i.state = 'home'; i.owner = ''; i.age = 0;}
+    }
+    hits.forEach(h => h.age += dt); hits = hits.filter(h => h.age < 5).slice(-64);
+    if (clock >= spawnAt) {spawn(); spawnAt = clock + 12;}
+    mask();
+  }
+  function snapshot() {
+    if (!authority() || !active()) return;
+    lastSend = now();
+    send({t: 'wi-state', seq: ++sequence, items: [...items.values()].map(i => ({id: i.id, kind: i.kind, bin: i.bin, p: i.p.toArray(), v: i.v.toArray(), state: i.state, owner: i.owner, age: i.age})), broken: [...broken], hits, screens: window.JJBROADCAST ? JJBROADCAST.snapshot() : []});
+  }
+  function receive(m) {
+    context();
+    if (!online()) return false;
+    if (m.t === 'hi' || m.t === 'hi2') {
+      if (m.host && !MPJJ.host && (!hostId || hostId === m.id)) hostId = m.id;
+      if (authority()) snapshot();
+      return false;
+    }
+    if (typeof m.t !== 'string' || !m.t.startsWith('wi-')) return false;
+    if (!active() || m.room !== MPJJ.code || m.map !== 'jjs' || m.to && m.to !== MPJJ.id) return true;
+    if (m.t === 'wi-state') {
+      if (authority() || m.id !== hostId || typeof m.epoch !== 'string' || m.epoch.length > 60 || retired.has(m.epoch) || !Number.isSafeInteger(m.seq) || m.epoch === epoch && m.seq <= rx) return true;
+      if (!Array.isArray(m.items) || m.items.length > 30 || !Array.isArray(m.broken) || m.broken.length > D.ladders.length || !Array.isArray(m.hits) || m.hits.length > 64) return true;
+      if (!m.items.every(i => typeof i.id === 'string' && i.id.length < 60 && ['bin', 'tnt'].includes(i.kind) && validV(i.p) && validV(i.v) && ['held','home','world','falling','flying','spent'].includes(i.state) && typeof i.owner === 'string' && i.owner.length < 80 && Number.isFinite(i.age) && (i.kind !== 'bin' || Number.isInteger(i.bin) && D.bins[i.bin]))) return true;
+      if (!m.broken.every(n => Number.isInteger(n) && D.ladders[n]) || !m.hits.every(h => typeof h.event === 'string' && h.event.length < 100 && typeof h.target === 'string' && h.target.length < 100 && validV(h.v))) return true;
+      if (epoch !== m.epoch) {if (epoch) retired.add(epoch); epoch = m.epoch; broken.clear(); seen.clear();}
+      rx = m.seq;
+      m.items.forEach(i => {if (i.kind === 'tnt' && i.state === 'spent' && items.get(i.id)?.state !== 'spent') flash(V(...i.p), 0xffbb55, 14);});
+      items.clear(); m.items.forEach(i => items.set(i.id, {...i, p: V(...i.p), v: V(...i.v)}));
+      m.broken.forEach(n => breakLadder(n)); mask(); m.hits.forEach(applyHit);
+      if (window.JJBROADCAST) JJBROADCAST.receiveState(m.screens);
+      return true;
+    }
+    if (m.epoch !== epoch) return true;
+    if (window.JJBROADCAST && JJBROADCAST.receive(m)) return true;
+    if (authority()) command(m);
+    return true;
+  }
+  function nearbyLadder() {
+    for (let n = 0; n < D.ladders.length; n++) {
+      const b = D.ladders[n];
+      if (broken.has(n) || player.pos.y < b.min[1] - 2 || player.pos.y > b.max[1] + 2) continue;
+      if (ladderDistance(player.pos, b) > 3.5) continue;
+      for (const sign of [1, -1]) {
+        const normal = V(...b.n).multiplyScalar(sign), p = V(b.p[0], Math.max(player.pos.y, b.min[1]), b.p[2]).addScaledVector(normal, 1.45);
+        if (p.distanceTo(player.pos) > 3.6 || J.occupied(p, .85, 5.1)) continue;
+        return {n, normal, p};
+      }
+    }
+    return null;
+  }
+  function beforeStep(dt) {
+    if (!context()) return;
+    if (lastRig !== player.rig || lastChar !== player.char) {request({t: 'wi-drop'}); closeClimb(); lastRig = player.rig; lastChar = player.char;}
+    const a = player.action;
+    if (a?.type === 'bc_m1' && a.t > .12 && !a.worldCheck) {
+      a.worldCheck = true;
+      const from = player.pos.clone().add(V(0, 3, 0)), forward = V(Math.sin(player.facing), 0, Math.cos(player.facing));
+      D.ladders.forEach((b, n) => {
+        const target = V(b.p[0], Math.max(b.min[1], Math.min(b.max[1], from.y)), b.p[2]), delta = target.clone().sub(from);
+        if (!broken.has(n) && delta.length() < 5.8 && delta.normalize().dot(forward) > .4 && reachable(player, target, 7)) request({t: 'wi-break', ladder: n});
+      });
+    }
+    if (climb && (!gameInputActive() || player.dead || player.rag || player.frameT > 0 || player.stunT > 0 || broken.has(climb.n) || player.action?.type !== 'wi_climb')) closeClimb();
+    if (!climb && gameInputActive() && available(player) && keys.KeyW && !(window.JJMOVE?.driving())) {
+      const l = nearbyLadder();
+      if (l && V(Math.sin(player.facing), 0, Math.cos(player.facing)).dot(l.normal) < -.25) {
+        climb = l; player.action = {type: 'wi_climb', t: 0, dur: 1e8}; player.worldClimb = l.n;
+        player.pos.copy(l.p); player.vel.set(0, 0, 0); player.onGround = false;
+      }
+    }
+    if (!climb) return;
+    const b = D.ladders[climb.n];
+    if (keys.Space) {const n = climb.normal.clone(); closeClimb(); player.vel.copy(n.multiplyScalar(9)).setY(11); keys.Space = false; return;}
+    const input = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), y = player.pos.y + input * 8 * dt;
+    if (y < b.min[1] - .2) {closeClimb(); return;}
+    if (y > b.max[1] - 1) {
+      for (const sign of [-1, 1]) {
+        const stand = V(b.p[0], b.max[1] + 3, b.p[2]).addScaledVector(climb.normal, sign * 2.3);
+        const floor = J.floor(stand, stand.y);
+        if (!Number.isFinite(floor) || floor < b.max[1] - 4 || floor > b.max[1] + 3) continue;
+        stand.y = floor + .04;
+        if (!J.occupied(stand, .85, 5.1)) {player.pos.copy(stand); closeClimb(); player.onGround = true; player.vel.set(0, 0, 0); return;}
+      }
+    }
+    const next = player.pos.clone(); next.y = Math.max(b.min[1], Math.min(b.max[1], y));
+    if (!J.occupied(next, .85, 5.1)) player.pos.copy(next);
+    player.vel.set(0, 0, 0); player.facing = Math.atan2(-climb.normal.x, -climb.normal.z); player.__jjsLast = player.pos.clone();
+  }
+  function model(i) {
+    if (models.has(i.id)) return models.get(i.id);
+    if (!sharedBox) {sharedBox = own(new THREE.BoxGeometry(1, 1, 1)); sharedMaterials = [0xe95448,0x456877,0xffefc8,0x263b49].map(color => own(new THREE.MeshLambertMaterial({color})));}
+    const g = new THREE.Group(), box = sharedBox;
+    const body = new THREE.Mesh(box, sharedMaterials[i.kind === 'tnt' ? 0 : 1]);
+    body.scale.setScalar(i.kind === 'tnt' ? 1.8 : 2.5); if (i.kind === 'bin') body.scale.y = 3.2; g.add(body);
+    const band = new THREE.Mesh(box, sharedMaterials[i.kind === 'tnt' ? 2 : 3]);
+    band.scale.set(i.kind === 'tnt' ? 1.84 : 2.9, .5, i.kind === 'tnt' ? 1.84 : 2.9); band.position.y = i.kind === 'tnt' ? 0 : 1.8; g.add(band);
+    g.name = i.kind === 'tnt' ? 'TNT pickup' : 'Throwable trash bin'; root.add(g); models.set(i.id, g); return g;
+  }
+  function renderActors() {
+    for (const [, e] of allActors()) {
+      if (!e?.rig || e.rag || e.dead) continue;
+      if (Number.isInteger(e.worldClimb)) {
+        const r = e.rig, t = e.pos.y * 2.1;
+        r.root.position.copy(e.pos); r.root.rotation.y = e.facing;
+        for (const [s, phase] of [['L', 0], ['R', Math.PI]]) {
+          if (r['shoulder' + s]) r['shoulder' + s].rotation.x = -2 + Math.sin(t + phase) * .4;
+          if (r['hip' + s]) r['hip' + s].rotation.x = -.3 + Math.sin(t + phase) * .55;
+          if (r['knee' + s]) r['knee' + s].rotation.x = .6 - Math.sin(t + phase) * .5;
+        }
+      }
+      if (heldBy(e === player ? localId() : e.net?.id)) {
+        if (e.rig.shoulderR) e.rig.shoulderR.rotation.x = -1.15;
+        if (e.rig.elbowR) e.rig.elbowR.rotation.x = -.6;
+      }
+    }
+  }
+  function tick() {
+    if (!context()) return;
+    const t = now(), delta = Math.min(.25, Math.max(0, t - lastFrame)); lastFrame = t;
+    if (authority() && (online() || gameInputActive())) {
+      let remaining = delta;
+      while (remaining > 0) {const dt = Math.min(1 / 60, remaining); clock += dt; simulate(dt); remaining -= dt;}
+      if (online() && t - lastSend > .15) snapshot();
+    }
+    for (const [id, g] of models) if (!items.has(id)) {root.remove(g); models.delete(id);}
+    for (const i of items.values()) {
+      if (i.state === 'home' || i.state === 'spent') {if (models.has(i.id)) models.get(i.id).visible = false; continue;}
+      const g = model(i); g.visible = true;
+      if (i.state === 'held') {
+        const e = actor(i.owner); if (!e) {g.visible = false; continue;}
+        const dir = V(Math.sin(e.facing), 0, Math.cos(e.facing));
+        g.position.copy(e.pos).add(V(0, 3.4, 0)).addScaledVector(dir, 2); g.rotation.set(0, e.facing, -.2);
+      } else {g.position.lerp(i.p, authority() ? 1 : .45); if (i.state === 'flying') g.rotation.x += delta * 7;}
+      g.visible = g.position.distanceToSquared(player.pos) < 320 * 320;
+    }
+    for (const e of effects) {
+      e.t -= delta;
+      if (e.velocity) {e.velocity.y -= delta * 22; e.mesh.position.addScaledVector(e.velocity, delta); e.mesh.rotation.z += delta * 4;}
+      else e.mesh.scale.setScalar(e.size * (1 - e.t / .45));
+      e.mesh.material.opacity = Math.max(0, Math.min(1, e.t * 2));
+    }
+    effects = effects.filter(e => {if (e.t > 0) return true; disposeEffect(e); return false;});
+    renderActors();
+    const held = heldBy(localId()), nearby = nearest(), consoleIndex = window.JJBROADCAST ? JJBROADCAST.nearConsole(player) : -1;
+    ui.style.display = gameInputActive() && (held || nearby || climb || consoleIndex >= 0) ? 'block' : 'none';
+    use.style.display = !held && (nearby || consoleIndex >= 0) ? 'inline-block' : 'none';
+    use.textContent = nearby ? 'Pick up ' + (nearby.kind === 'tnt' ? 'TNT' : 'bin') + ' · E' : 'Screen console · E';
+    throwButton.style.display = held ? 'inline-block' : 'none';
+    const text = held ? (held.kind === 'tnt' ? 'Holding TNT' : 'Holding bin') + ' · Left click to throw · X to drop' : climb ? 'W / S · Climb   Space · Jump off' : nearby ? 'Random drops and city props' : 'Broadcast to this building’s screen';
+    if (hint.textContent !== text) hint.textContent = text;
+    if (window.JJBROADCAST) JJBROADCAST.tick(delta);
+  }
+  function interact() {
+    if (pickup()) return true;
+    return !!window.JJBROADCAST && JJBROADCAST.openNearby();
+  }
+  use.addEventListener('click', e => {e.stopPropagation(); interact();});
+  throwButton.addEventListener('click', e => {e.stopPropagation(); consumeM1();});
+  window.addEventListener('keydown', e => {
+    if (e.repeat || !gameInputActive() || (typeof typingInUI === 'function' && typingInUI(e))) return;
+    if (e.code === 'KeyE' && interact() || e.code === 'KeyX' && heldBy(localId()) && request({t: 'wi-drop'})) {e.preventDefault(); e.stopImmediatePropagation();}
+  }, true);
+  const render = renderer.render;
+  renderer.render = function (s, c) {if (s === scene) tick(); return render.apply(this, arguments);};
+  window.JJIWORLD = {receive, beforeStep, consumeM1, pickup, impact, syncActor, clear, send, snapshot, authority, online, actor, reachable, available, active,
+    driving: () => !!climb, get epoch() {return epoch;}, get hostId() {return hostId;},
+    audit: () => ({items: [...items.values()].map(i => ({...i, p: i.p.toArray(), v: i.v.toArray()})), broken: [...broken], ladders: D.ladders.length, held: heldBy(localId())?.id || '', climb: climb?.n ?? -1, epoch, effects: effects.length, models: models.size})};
+})();
+
+
+/* ===== screens.js ===== */
+/* Two existing tower consoles. Photos travel in bounded room packets;
+   HTTPS video files play locally with a shared start time and muted audio. */
+(function () {
+  'use strict';
+  const W = JJIWORLD, J = JJJJS, D = JJINTERACTION_DATA.screens;
+  const V = (a) => new THREE.Vector3(...a), now = () => performance.now() / 1000;
+  const states = [null, null], assets = new Map(), incoming = new Map(), views = new Map(), requested = new Map();
+  const completed = new Set();
+  let root = null, queue = [], lastPacket = 0, version = 0, opened = -1, ticket = 0;
+  const controls = D.map(s => V(J.data.parts[s.control].slice(0, 3)).sub(V(J.data.origin)));
+  const partPos = id => V(J.data.parts[id].slice(0, 3)).sub(V(J.data.origin));
+  const MAX_PHOTO = 48000, CHUNK = 8000;
+  const panel = document.createElement('div'); panel.style.cssText = 'position:fixed;inset:0;z-index:180;display:none;align-items:center;justify-content:center;background:#080f1bd9;color:white;font:15px system-ui';
+  const card = document.createElement('div'); card.style.cssText = 'width:min(420px,88vw);max-height:85vh;overflow:auto;padding:24px;border-radius:16px;background:#172538;box-shadow:0 15px 70px #0008';
+  panel.appendChild(card); document.body.appendChild(panel);
+  function node(tag, text) {const e = document.createElement(tag); if (text) e.textContent = text; card.appendChild(e); return e;}
+  const title = node('h2', 'Building screen');
+  node('p', '选择照片，或填写 HTTPS 视频直链。房间内其他玩家也能看到。');
+  const imageInput = node('input'); imageInput.type = 'file'; imageInput.accept = 'image/png,image/jpeg,image/webp'; imageInput.setAttribute('aria-label', '选择投屏照片');
+  const photo = node('button', '投放照片 / Show photo'); photo.type = 'button';
+  node('p', '视频：HTTPS MP4 / WebM 直链（静音循环）。网站需要允许跨域播放；网页、YouTube 页面链接不能直接作为视频。');
+  const url = node('input'); url.type = 'url'; url.placeholder = 'https://…/video.mp4'; url.setAttribute('aria-label', '视频直链'); url.style.cssText = 'box-sizing:border-box;width:100%;padding:10px';
+  const video = node('button', '投放视频 / Show video'); video.type = 'button';
+  const stop = node('button', '停止投放 / Stop'), close = node('button', '返回游戏 / Close');
+  const status = node('p', ''); status.setAttribute('role', 'status');
+  for (const b of [photo, video, stop, close]) b.style.cssText = 'padding:10px 14px;margin:10px 8px 0 0;border-radius:7px;border:1px solid #9edbff;background:#254563;color:#fff;font:inherit';
+  const inputActive = gameInputActive;
+  gameInputActive = function () {return opened < 0 && inputActive();};
+  function nearConsole(e) {
+    if (!W.active() || !e || e.dead || e.rag) return -1;
+    for (let n = 0; n < controls.length; n++) if (W.reachable(e, controls[n], 8)) return n;
+    return -1;
+  }
+  function closePanel() {opened = -1; ticket++; panel.style.display = 'none';}
+  function openNearby() {
+    if (!gameInputActive() || !W.available(player)) return false;
+    const n = nearConsole(player); if (n < 0) return false;
+    opened = n; title.textContent = 'Building screen ' + (n + 1); status.textContent = ''; panel.style.display = 'flex';
+    if (document.exitPointerLock) document.exitPointerLock();
+    if (window.JJFIGHT) JJFIGHT.clearInput();
+    for (const key of Object.keys(keys)) keys[key] = false;
+    close.focus(); return true;
+  }
+  function validURL(value) {
+    if (typeof value !== 'string' || value.length > 1800) return false;
+    try {
+      const u = new URL(value);
+      return u.protocol === 'https:' && !u.username && !u.password && (!u.port || u.port === '443') && /\.(mp4|webm)$/i.test(u.pathname) && !/^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(u.hostname) && !u.hostname.startsWith('[');
+    } catch (_) {return false;}
+  }
+  function validPhoto(value) {return typeof value === 'string' && value.length <= MAX_PHOTO && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(value);}
+  function canEdit(id, n) {const e = W.actor(id); return Number.isInteger(n) && !!D[n] && !!e && !e.dead && !e.rag && W.reachable(e, controls[n], 8);}
+  function send(m) {W.send(m);}
+  function packet(m) {if (W.authority()) receive(Object.assign({id: W.online() ? MPJJ.id : 'local', epoch: W.epoch}, m)); else send(m);}
+  function commit(n, kind, value) {
+    const id = W.epoch + ':screen:' + ++version;
+    if (kind === 'image') assets.set(id, value);
+    states[n] = {kind, id, url: kind === 'video' ? value : '', start: now()};
+    const keep = new Set(states.filter(Boolean).map(s => s.id)); for (const id of assets.keys()) if (!keep.has(id)) assets.delete(id);
+    W.snapshot(); if (kind === 'image') share(id);
+  }
+  function share(id, to) {
+    if (!assets.has(id)) return;
+    const key = (to || '*') + id;
+    if (now() - (requested.get(key) || -10) < 1.5) return; requested.set(key, now());
+    const text = assets.get(id), count = Math.ceil(text.length / CHUNK);
+    for (let i = 0; i < count; i++) queue.push({t: 'wi-media-asset', to, asset: id, count, index: i, text: text.slice(i * CHUNK, (i + 1) * CHUNK)});
+    queue = queue.slice(-180);
+  }
+  function snapshot() {return states.map(s => s ? {kind: s.kind, id: s.id, url: s.url, age: Math.max(0, now() - s.start)} : null);}
+  function receiveState(list) {
+    if (!Array.isArray(list) || list.length !== 2) return;
+    if (!list.every(s => s === null || s && ['image','video','off'].includes(s.kind) && typeof s.id === 'string' && s.id.length < 100 && Number.isFinite(s.age) && s.age >= 0 && (s.kind !== 'video' || validURL(s.url)))) return;
+    list.forEach((s, n) => {states[n] = s ? {...s, start: now() - s.age} : null;});
+    const keep = new Set(states.filter(Boolean).map(s => s.id)); for (const id of assets.keys()) if (!keep.has(id)) assets.delete(id);
+  }
+  function assemble(m, key) {
+    if (typeof m.asset !== 'string' || m.asset.length > 100 || !Number.isInteger(m.count) || m.count < 1 || m.count > 6 || !Number.isInteger(m.index) || m.index < 0 || m.index >= m.count || typeof m.text !== 'string' || m.text.length > CHUNK) return null;
+    if (!incoming.has(key)) {
+      if (incoming.size >= 8) return null;
+      incoming.set(key, {parts: new Array(m.count), count: m.count, at: now(), screen: m.screen, id: m.id});
+    }
+    const s = incoming.get(key); if (s.count !== m.count || s.screen !== m.screen || s.id !== m.id) return null;
+    s.parts[m.index] = m.text;
+    if (Array.from(s.parts).some(x => typeof x !== 'string')) return null;
+    incoming.delete(key); const result = s.parts.join(''); return validPhoto(result) ? result : null;
+  }
+  function receive(m) {
+    if (typeof m.t !== 'string' || !m.t.startsWith('wi-media-')) return false;
+    if (m.t === 'wi-media-set' && W.authority() && canEdit(m.id, m.screen)) {
+      if (m.kind === 'video' && validURL(m.url)) commit(m.screen, 'video', m.url);
+      else if (m.kind === 'off') commit(m.screen, 'off', '');
+    } else if (m.t === 'wi-media-upload' && W.authority() && canEdit(m.id, m.screen)) {
+      const key = 'upload:' + m.id + ':' + m.asset;
+      if (completed.has(key)) return true;
+      const photo = assemble(m, key);
+      if (photo && canEdit(m.id, m.screen)) {completed.add(key); if (completed.size > 32) completed.delete(completed.values().next().value); commit(m.screen, 'image', photo);}
+    } else if (m.t === 'wi-media-get' && W.authority() && W.actor(m.id)) {
+      share(m.asset, m.id);
+    } else if (m.t === 'wi-media-asset' && !W.authority() && m.id === W.hostId && states.some(s => s?.id === m.asset)) {
+      const photo = assemble(m, 'asset:' + m.asset); if (photo) assets.set(m.asset, photo);
+    }
+    return true;
+  }
+  async function uploadPhoto() {
+    const file = imageInput.files?.[0], n = opened, token = ++ticket;
+    if (n < 0 || !file) {status.textContent = '请先选择照片。'; return;}
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type) || file.size > 12 * 1024 * 1024) {status.textContent = '请选择小于 12 MB 的 PNG、JPEG 或 WebP 照片。'; return;}
+    status.textContent = '正在准备照片…'; photo.disabled = true;
+    let objectURL = null;
+    try {
+      objectURL = URL.createObjectURL(file); const img = new Image();
+      await new Promise((resolve, reject) => {img.onload = resolve; img.onerror = reject; img.src = objectURL;});
+      if (token !== ticket || opened !== n || nearConsole(player) !== n) return;
+      const canvas = document.createElement('canvas'); const ratio = Math.min(1, 512 / Math.max(img.width, img.height));
+      canvas.width = Math.max(1, Math.round(img.width * ratio)); canvas.height = Math.max(1, Math.round(img.height * ratio));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      let value = canvas.toDataURL('image/jpeg', .72);
+      for (let quality = .6; value.length > MAX_PHOTO && quality >= .2; quality -= .1) value = canvas.toDataURL('image/jpeg', quality);
+      if (value.length > MAX_PHOTO) {canvas.width = Math.max(1, Math.round(canvas.width / 2)); canvas.height = Math.max(1, Math.round(canvas.height / 2)); canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); value = canvas.toDataURL('image/jpeg', .6);}
+      if (!validPhoto(value)) {status.textContent = '照片内容太复杂，请裁剪后重试。'; return;}
+      const asset = 'upload:' + Date.now().toString(36) + ':' + token, count = Math.ceil(value.length / CHUNK);
+      for (let i = 0; i < count; i++) {
+        const m = {t: 'wi-media-upload', screen: n, asset, index: i, count, text: value.slice(i * CHUNK, (i + 1) * CHUNK)};
+        if (W.authority()) packet(m); else queue.push(m, {...m});
+      }
+      status.textContent = '照片已发送，正在投放。';
+    } catch (_) {status.textContent = '无法读取这张照片，请换一张重试。';}
+    finally {if (objectURL) URL.revokeObjectURL(objectURL); photo.disabled = false;}
+  }
+  photo.addEventListener('click', uploadPhoto);
+  video.addEventListener('click', () => {
+    const value = url.value.trim(); if (opened < 0 || nearConsole(player) !== opened) return;
+    if (!validURL(value)) {status.textContent = '请输入 HTTPS 的 .mp4 或 .webm 视频直链。'; return;}
+    packet({t: 'wi-media-set', screen: opened, kind: 'video', url: value}); status.textContent = '视频已发送，正在加载。';
+  });
+  stop.addEventListener('click', () => {if (opened >= 0) packet({t: 'wi-media-set', screen: opened, kind: 'off'});});
+  close.addEventListener('click', closePanel);
+  panel.addEventListener('keydown', e => {if (e.code === 'Escape') closePanel(); e.stopPropagation();});
+  function dropView(n) {
+    const v = views.get(n); if (!v) return;
+    if (v.video) {v.video.pause(); v.video.removeAttribute('src'); v.video.load();}
+    root?.remove(v.mesh); v.mesh.geometry.dispose(); v.mesh.material.dispose(); v.texture?.dispose(); views.delete(n);
+  }
+  function makeView(n, s) {
+    dropView(n);
+    const p = J.data.parts[D[n].part], geo = new THREE.PlaneGeometry(p[12], p[13]);
+    const material = new THREE.MeshBasicMaterial({color: 0xffffff, side: THREE.DoubleSide, toneMapped: false});
+    const mesh = new THREE.Mesh(geo, material); mesh.name = 'Shared tower screen ' + (n + 1);
+    // Roblox front is local -Z. Keep the replacement just ahead of the original.
+    mesh.matrixAutoUpdate = false; mesh.matrix.copy(J.transform(p)).multiply(new THREE.Matrix4().makeTranslation(0, 0, -p[14] / 2 - .04)).multiply(new THREE.Matrix4().makeRotationY(Math.PI));
+    root.add(mesh); const v = {id: s.id, mesh, texture: null, video: null, failed: false}; views.set(n, v);
+    const fail = () => {if (views.get(n) !== v) return; v.failed = true; material.color.setHex(0x293c51); if (opened === n) status.textContent = '媒体加载失败：请检查文件地址和跨域权限，或重新投放照片。';};
+    if (s.kind === 'image') {
+      const img = new Image();
+      img.onload = () => {if (views.get(n) !== v) return; v.texture = new THREE.Texture(img); v.texture.colorSpace = THREE.SRGBColorSpace; v.texture.needsUpdate = true; material.map = v.texture; material.needsUpdate = true;};
+      img.onerror = fail; img.src = assets.get(s.id);
+    } else {
+      const el = document.createElement('video'); v.video = el; el.crossOrigin = 'anonymous'; el.muted = true; el.defaultMuted = true; el.loop = true; el.playsInline = true; el.preload = 'metadata';
+      el.addEventListener('error', fail);
+      el.addEventListener('loadedmetadata', () => {if (views.get(n) !== v) return; if (Number.isFinite(el.duration) && el.duration > 0) el.currentTime = (now() - states[n].start) % el.duration; el.play().catch(fail);});
+      v.texture = new THREE.VideoTexture(el); v.texture.colorSpace = THREE.SRGBColorSpace; material.map = v.texture; material.needsUpdate = true; el.src = s.url;
+    }
+    return v;
+  }
+  function tick() {
+    if (!root) {root = new THREE.Group(); root.name = 'Shared building screens'; scene.add(root);}
+    if (opened >= 0 && nearConsole(player) !== opened) closePanel();
+    const t = now();
+    for (const [id, transfer] of incoming) if (t - transfer.at > 12) incoming.delete(id);
+    if (queue.length && t - lastPacket > .05) {lastPacket = t; send(queue.shift());}
+    states.forEach((s, n) => {
+      if (!s || s.kind === 'off') {dropView(n); return;}
+      const near = player.pos.distanceToSquared(partPos(D[n].part)) < (window.JJPOTATO?.enabled ? 360 : 650) ** 2 && !document.hidden;
+      if (!near) {const v = views.get(n); if (v) {v.mesh.visible = false; v.video?.pause();} return;}
+      if (s.kind === 'image' && !assets.has(s.id)) {
+        dropView(n);
+        if (t - (requested.get(s.id) || -10) > 2) {requested.set(s.id, t); send({t: 'wi-media-get', asset: s.id});}
+        return;
+      }
+      let v = views.get(n); if (!v || v.id !== s.id) v = makeView(n, s);
+      v.mesh.visible = true;
+      if (v.video && !v.failed && v.video.readyState >= 2) {
+        const d = v.video.duration, target = Number.isFinite(d) && d > 0 ? (t - s.start) % d : 0;
+        if (Math.abs(v.video.currentTime - target) > 1.2) v.video.currentTime = target;
+        if (v.video.paused) v.video.play().catch(() => {});
+      }
+    });
+  }
+  function clear() {
+    closePanel(); states.fill(null); for (const n of [...views.keys()]) dropView(n);
+    if (root) scene.remove(root); root = null; incoming.clear(); assets.clear(); requested.clear(); completed.clear(); queue = [];
+  }
+  window.JJBROADCAST = {nearConsole, openNearby, receive, receiveState, snapshot, tick, clear, validURL,
+    audit: () => ({screens: snapshot(), assets: assets.size, incoming: incoming.size, queued: queue.length, views: views.size, opened})};
 })();
 
 </script>
