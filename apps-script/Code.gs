@@ -1,5 +1,5 @@
 /* Replace the web app's old doGet with this loader, then deploy a new version.
-   Merge the accompanying game changes before using this branch name. */
+   Supports both the existing p1-p4 build and the new p5 game module. */
 const JJS_REPO = 'wujiahui4-a11y/study-mathenmatics-G3-singapore-secondary';
 const JJS_REF = 'cursor/jujutsu-kaisen-multiplayer-0a77';
 const BASE = 'https://raw.githubusercontent.com/' + JJS_REPO + '/' + JJS_REF + '/jujutsu-parts/';

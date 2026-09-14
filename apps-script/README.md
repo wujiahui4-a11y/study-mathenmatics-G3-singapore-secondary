@@ -7,10 +7,12 @@ Potato mode controls local scenery rendering and texture decoding.
 
 ## Update an existing web app
 
-1. Merge this change into `cursor/jujutsu-kaisen-multiplayer-0a77`.
-2. Replace the old Apps Script loader (including its `BASE` and `doGet`) with
+1. Replace the old Apps Script loader (including its `BASE` and `doGet`) with
    the contents of `apps-script/Code.gs`. Keep only one `doGet` definition.
-3. Use **Deploy → Manage deployments → Edit → New version → Deploy**.
+2. Use **Deploy → Manage deployments → Edit → New version → Deploy**.
+3. Merge this change into `cursor/jujutsu-kaisen-multiplayer-0a77`. The replacement
+   loader also supports the old build, so deploying it first avoids a missing
+   `p5.js` route during the transition.
 4. Reload the web app, then enable **Settings → Performance → Potato Mode**.
 
 For testing before merge, change `JJS_REF` in `Code.gs` to the PR's branch.
