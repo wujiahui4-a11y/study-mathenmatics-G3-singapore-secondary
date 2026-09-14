@@ -448,10 +448,12 @@ let ARENA = 88;
 let timeScale = 1, hitstopT = 0;
 
 /* ---------------- renderer / scene ---------------- */
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+let potatoAtBoot = false;
+try { potatoAtBoot = localStorage.getItem('jj.potatoMode') === '1'; } catch (_) {}
+const renderer = new THREE.WebGLRenderer({ antialias: !potatoAtBoot });
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-renderer.shadowMap.enabled = true;
+renderer.setPixelRatio(Math.min(devicePixelRatio, potatoAtBoot ? .75 : 1.5));
+renderer.shadowMap.enabled = !potatoAtBoot;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 document.body.appendChild(renderer.domElement);

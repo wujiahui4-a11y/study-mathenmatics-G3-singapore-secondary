@@ -98,13 +98,13 @@ console.log('jujutsu-multiplayer.html  ' + Math.round(single.length / 1024) + ' 
 const out = path.join(root, 'jujutsu-parts');
 if (!fs.existsSync(out)) fs.mkdirSync(out);
 
-const partsThree = '<script type="importmap">\n' +
-  '{ "imports": { "three": "__PART_BASE__?p=1" } }\n</script>';
-const partsMqtt = '<script src="__PART_BASE__?p=2"></script>\n' +
-  '<script src="__PART_BASE__?p=3" async></script>\n' +
-  '<script src="__PART_BASE__?p=4" async></script>';
-
-let shell = assemble(partsThree, partsMqtt);
+// Keep the heavy module out of both the shell and its pop-out copy.
+const moduleBody = base.slice(modAt + MODULE_OPEN.length, modEnd);
+const gameModule = moduleBody + addons.map(a => '\n/* ===== ' + a.name + ' ===== */\n' + a.code + '\n').join('');
+fs.writeFileSync(path.join(out, 'p5.js'), gameModule);
+const loader = fs.readFileSync(path.join(src, 'loader.js'), 'utf8');
+let shell = base.slice(0, modAt) + '<script>\n' + guard(loader) + '\n</script>' + base.slice(modEnd + '</script>'.length);
+shell = shell.replace(IMPORTMAP, '');
 
 /* A copy of the page, kept as inert text. An embedded page cannot be granted
    pointer lock, but it can open a blank window and write this into it: that
@@ -123,6 +123,7 @@ fs.writeFileSync(path.join(out, 'index.local.html'),
 console.log('jujutsu-parts/index.html  ' + Math.round(shell.length / 1024) + ' kB');
 console.log('jujutsu-parts/p1.js       ' + Math.round(three.length / 1024) + ' kB (three.js)');
 console.log('jujutsu-parts/p2.js       ' + Math.round(mqtt.length / 1024) + ' kB (mqtt)');
+console.log('jujutsu-parts/p5.js       ' + Math.round(gameModule.length / 1024) + ' kB (game module)');
 const p3path = path.join(out, 'p3.js');
 if (fs.existsSync(p3path)) {
   console.log('jujutsu-parts/p3.js       ' + Math.round(fs.statSync(p3path).size / 1024) + ' kB (theme)');
