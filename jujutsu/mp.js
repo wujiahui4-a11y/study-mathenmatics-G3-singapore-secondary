@@ -632,6 +632,7 @@
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (window.JJTRAIN && JJTRAIN.receive(m)) return;
     if (window.JJAISERVER && JJAISERVER.receive(m)) return;
     if (window.JJDESTRUCT && JJDESTRUCT.receive(m)) return;
     if (typeof m.t === 'string' && m.t.startsWith('td-') && window.JJTODO) {
@@ -671,6 +672,7 @@
       g.ty = m.h / 10;
       if (g.e.pos.x === 0 && g.e.pos.z === 0) { g.e.pos.set(m.x, g.ty, m.z); }
       g.e.hp = m.hp; g.e.maxHp = m.mx || 100;
+      if (window.JJTRAIN) JJTRAIN.syncActor(g.e, m.d, m.tr);
       /* Somebody else going down used to just hide their body, so only the
          player who died ever saw a corpse. Their body drops here too, and
          their own broadcast decides where it lands. */
@@ -1426,6 +1428,7 @@
       y: Math.round(player.facing * 100), vy: Math.round(player.visYaw * 100),
       hp: Math.round(player.hp), mx: Math.round(player.maxHp),
       d: player.dead ? 1 : 0, f: player.frameT > 0 ? 1 : 0,
+      tr: player.trainCrash ? player.trainCrash.run : 0,
       /* everything the animation needs to be reproduced exactly */
       sp: Math.round(sp * 10), og: player.onGround ? 1 : 0, vv: Math.round(player.vel.y * 10),
       mvx:Math.round(player.vel.x*100),mvz:Math.round(player.vel.z*100),
@@ -2067,6 +2070,7 @@
      is how the two halves get checked against each other without standing
      a broker up in the middle of them. */
   MP.receive = onMessage;
+  MP.environmentKO = function () { MP.deaths++; updateScore(); };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectUI);
   else injectUI();

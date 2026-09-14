@@ -70,6 +70,7 @@
   }
 
   function stop(ent) {
+    if (ent) delete ent.trainCrash;
     if (!ent || !ent.rag) return;
     ent.rag = null;
     ent.ragKeep = false;
@@ -88,7 +89,7 @@
     rag.t += dt;
 
     /* --- the body itself --- */
-    if(window.JJDESTRUCT&&!ent.net&&rag.vel.length()>20)JJDESTRUCT.sweep(rag.hips,rag.hips.clone().addScaledVector(rag.vel,dt+.04),Math.min(7,rag.vel.length()/9));
+    if(window.JJDESTRUCT&&!ent.net&&!ent.trainCrash&&rag.vel.length()>20)JJDESTRUCT.sweep(rag.hips,rag.hips.clone().addScaledVector(rag.vel,dt+.04),Math.min(7,rag.vel.length()/9));
     rag.vel.y -= G * dt;
     rag.hips.addScaledVector(rag.vel, dt);
 
@@ -98,7 +99,13 @@
 
     /* the hips ride high while it is upright and low once it is over */
     var tip = Math.min(1, Math.abs(Math.sin(rag.rot.x)) + Math.abs(Math.sin(rag.rot.z)));
-    var floor = rig.hipsBaseY * (1 - tip) + HIP_REST * tip;
+    var hipOffset = rig.hipsBaseY * (1 - tip) + HIP_REST * tip;
+    var terrain = 0;
+    if (ent.trainCrash && window.JJMAP && JJMAP.id === 'jjs') {
+      var ground = JJJJS.floor(rag.hips, rag.hips.y + .2);
+      terrain = Number.isFinite(ground) ? ground : ent.trainCrash.floor;
+    }
+    var floor = terrain + hipOffset;
 
     if (rag.hips.y <= floor) {
       rag.hips.y = floor;
@@ -108,7 +115,7 @@
         rag.av.multiplyScalar(.55);
         rag.av.x += (Math.random() - .5) * 4;
         if (FX && hit > 8) {
-          FX.dust(new THREE.Vector3(rag.hips.x, 0, rag.hips.z), 4, 0xd2d8e4, 5, 2.2);
+          FX.dust(new THREE.Vector3(rag.hips.x, terrain, rag.hips.z), 4, 0xd2d8e4, 5, 2.2);
         }
         JOINTS.forEach(function (d) {
           var j = rag.j[d.n];
@@ -137,8 +144,8 @@
       /* follow them up too, so a body thrown into the air is in the air on
          every screen rather than lying down early */
       if (rag.pull.y != null) {
-        var wantY = rag.pull.y + floor;
-        if (rag.pull.y > .3 || rag.hips.y < wantY) {
+        var wantY = rag.pull.y + hipOffset;
+        if (ent.trainCrash || rag.pull.y > .3 || rag.hips.y < wantY) {
           rag.hips.y += (wantY - rag.hips.y) * Math.min(1, dt * 2.6);
           if (rag.hips.y > floor + .2) rag.down = false;
         }
@@ -184,7 +191,7 @@
       stop(ent);
       if (ent === player) { player.iframes = Math.max(player.iframes, .7); }
       else { ent.stunT = Math.max(ent.stunT || 0, .5); }
-      if (FX) FX.dust(new THREE.Vector3(rag.hips.x, 0, rag.hips.z), 3, 0xd2d8e4, 4, 2);
+      if (FX) FX.dust(new THREE.Vector3(rag.hips.x, terrain, rag.hips.z), 3, 0xd2d8e4, 4, 2);
       return;
     }
 
@@ -196,7 +203,7 @@
       ent.pos.z = rag.hips.z;
       /* the height goes out with it, so the other clients can put the body
          where it actually is rather than flat on the floor */
-      ent.pos.y = Math.max(0, rag.hips.y - floor);
+      ent.pos.y = Math.max(terrain, rag.hips.y - hipOffset);
     }
 
     /* --- write it out --- */
