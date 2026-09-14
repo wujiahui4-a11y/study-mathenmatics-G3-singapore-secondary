@@ -19,12 +19,28 @@
     resources.forEach(function(o){o.dispose();});resources=[];textures.clear();
     root=null;J.root=null;J.visualMeshes=[];boxes=[];buckets.clear();pending=[];originals.clear();fragments.clear();
   }
+  function fastMode(){
+    if(window.JJPOTATO)return JJPOTATO.enabled;
+    try{return localStorage.getItem('jj.potatoMode')==='1';}catch(_){return false;}
+  }
+  function loadTexture(tex){
+    if(tex&&tex.userData.jjsLoad)tex.userData.jjsLoad();
+  }
+  J.loadTexture=loadTexture;
+  J.loadTextures=function(){textures.forEach(loadTexture);J.ready=Promise.all(pending);return J.ready;};
   function texture(uri){
     var source=D.assets[uri]||(D.visual&&D.visual.textures[uri]);if(!source)return null;
     if(textures.has(uri))return textures.get(uri);
     var tex=own(new THREE.Texture());tex.colorSpace=THREE.SRGBColorSpace;
-    var img=new Image(), promise=new Promise(function(resolve){img.onload=function(){tex.image=img;tex.needsUpdate=true;resolve(true);};img.onerror=function(){resolve(false);};});
-    img.src=source;pending.push(promise);textures.set(uri,tex);return tex;
+    tex.userData.jjsLoad=function(){
+      delete tex.userData.jjsLoad;
+      var img=new Image(),promise=new Promise(function(resolve){
+        img.onload=function(){tex.image=img;tex.needsUpdate=true;resolve(true);};
+        img.onerror=function(){resolve(false);};
+      });
+      img.src=source;pending.push(promise);
+    };
+    textures.set(uri,tex);if(!fastMode())loadTexture(tex);return tex;
   }
   function material(p){
     var name=D.materials[p[20]],neon=name==='Neon';
@@ -76,7 +92,7 @@
       if(normal)normal.colorSpace=THREE.NoColorSpace;if(specular)specular.colorSpace=THREE.NoColorSpace;
       var mat=own(new THREE.MeshPhongMaterial({color:0xffffff,vertexColors:true,map:map,normalMap:normal,specularMap:specular,normalScale:new THREE.Vector2(1,-1),specular:0x222222,shininess:Math.max(1,p.ns),transparent:p.alpha<1,opacity:p.alpha,alphaTest:map?.025:0,depthWrite:p.alpha>=.99}));
       if(atlas){mat.onBeforeCompile=function(shader){shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',THREE.ShaderChunk.map_fragment.replace('diffuseColor *= sampledDiffuseColor;','sampledDiffuseColor.rgb *= 2.0; diffuseColor *= sampledDiffuseColor;'));};mat.customProgramCacheKey=function(){return 'jjs-plastic-atlas';};}
-      var mesh=new THREE.Mesh(geo,mat);mesh.name='JJS exported surfaces '+i;mesh.userData.originalIndex=geo.index.array.slice();mesh.userData.owners=g.owner?unpack(g.owner,true):null;J.visualMeshes.push(mesh);mesh.position.set(-D.origin[0],-D.origin[1],-D.origin[2]);mesh.castShadow=true;mesh.receiveShadow=true;root.add(mesh);
+      var mesh=new THREE.Mesh(geo,mat);mesh.name='JJS exported surfaces '+i;mesh.userData.originalIndex=geo.index.array.slice();mesh.userData.owners=g.owner?unpack(g.owner,true):null;J.visualMeshes.push(mesh);mesh.position.set(-D.origin[0],-D.origin[1],-D.origin[2]);mesh.castShadow=true;mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;root.add(mesh);
     });
   }
   // Roblox NormalId to an outward-facing plane: local right, up and normal.

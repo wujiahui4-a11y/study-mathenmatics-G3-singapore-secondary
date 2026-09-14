@@ -1,4 +1,4 @@
-/* Browser integration: Todo's models, real damage, variants, cameras and peers. */
+/* Browser integration: streamed scenery, GPU work, destruction and preferences. */
 'use strict';
 const fs = require('node:fs'),
   path = require('node:path'),
@@ -16,7 +16,7 @@ const hooks = `window.__tt={THREE,scene,camera,renderer,player,enemies,cds,keys,
  player.pos.set(0,0,0);player.vel.set(0,0,0);player.onGround=true;player.facing=0;camYaw=Math.PI;camPitch=.22;player.__jjsLast=null;clearMovement();
  for(const k in cds)cds[k]=0;for(const e of enemies){JJGORE.clear(e);if(window.JJRAG)JJRAG.stop(e);e.dead=false;e.hp=e.maxHp=1000;e.pos.set(85,0,85);e.vel.set(0,0,0);e.react=null;e.cineHold=false;e.stunT=0;e.iframes=0;e.blocking=false;e.rig.body.position.set(0,0,0);e.rig.body.scale.set(1,1,1);}
  },target(x=0,z=4,y=0,hp=1000){const e=enemies.find(e=>!e.net);e.pos.set(x,y,z);e.rig.root.position.copy(e.pos);e.hp=e.maxHp=hp;return e;},
- draw(pos,look){scene.updateMatrixWorld(true);if(pos){camera.position.set(...pos);camera.lookAt(...look);}camera.updateProjectionMatrix();renderer.render(scene,camera);},
+ draw(pos,look){scene.updateMatrixWorld(true);if(pos){camera.position.set(...pos);camera.lookAt(...look);}camera.updateProjectionMatrix();let frames=0;do{renderer.render(scene,camera);if(++frames>5000)throw new Error("Streaming did not settle");}while(window.JJPOTATO&&JJPOTATO.audit().pending);},
  hide(){document.querySelectorAll('body > :not(canvas):not(script)').forEach(e=>e.style.visibility='hidden');},
  hurt(d){hurtPlayer(d,new THREE.Vector3(0,0,-5));},punch(){punch();},red(pos){explodeRed(new THREE.Vector3(...pos));},step(a,dt){stepAction(a,dt);},resolve(e,y,r){resolveActorWorld(e,y,r);},cameraState(){return {yaw:camYaw,pitch:camPitch,fov:camera.fov};}};`;
 const server = http.createServer((req, res) => {
@@ -112,18 +112,21 @@ const server = http.createServer((req, res) => {
       const stable = JJPOTATO.audit().builds === before.builds;
       const old = JJJJS.root
         .getObjectByName('JJS nearby areas (Potato Mode)')
-        .children.map((m) => m.geometry);
+        .children.slice();
       let released = 0;
-      old.forEach((g) => g.addEventListener('dispose', () => released++));
-      __tt.player.pos.x += 170;
+      old.forEach(g => g.traverse(m => { if(m.geometry)m.geometry.addEventListener('dispose', () => released++); }));
+      __tt.player.pos.x += 48;
       __tt.draw(
         [__tt.player.pos.x + 18, 17, __tt.player.pos.z + 25],
         [__tt.player.pos.x, 3, __tt.player.pos.z]
       );
-      return { stable, released, old: old.length, before: before.center, after: JJPOTATO.audit().center };
+      const current=JJJJS.root.getObjectByName('JJS nearby areas (Potato Mode)').children;
+      return {stable,released,reused:current.filter(g=>old.includes(g)).length,built:JJPOTATO.audit().builds-before.builds,before:before.center,after:JJPOTATO.audit().center};
     });
     assert.ok(report.movement.stable);
-    assert.equal(report.movement.released, report.movement.old);
+    assert.ok(report.movement.released > 0);
+    assert.equal(report.movement.reused, 20);
+    assert.equal(report.movement.built, 5);
     assert.notDeepEqual(report.movement.before, report.movement.after);
     report.destruction = await page.evaluate(() => {
       const D = JJJJS.data,

@@ -187,6 +187,7 @@
     return p;
   }
   function startM1() {
+    if (window.JJIWORLD && JJIWORLD.consumeM1()) { clearInput(); return true; }
     if (!gameInputActive() || taken() || player.stunT > 0) return false;
     if (player.blocking) {
       if (player.char === 'mahito') return JJMAHITO.withdraw();

@@ -66,6 +66,9 @@
     castEvent,
     skillControl,
     receive,
+    environmentKO(e) {
+      if (S.authority && e.ai && !e.dead) { killed(e, null); eNoAction(e); }
+    },
     onArena,
     onMap,
     newRoom() {
@@ -1152,6 +1155,8 @@
           y: e.facing,
           hp: e.hp,
           dead: e.dead,
+          crash: e.trainCrash ? e.trainCrash.run : 0,
+          wr: e.worldRag?.event || '',
           bl: e.blocking,
           iv: e.iframes || 0,
           k: e.ai.kills,
@@ -1184,6 +1189,11 @@
     const b = e.ai,
       s = b.remoteState;
     if (!s) return;
+    if ((e.trainCrash || e.worldRag) && e.rag) {
+      e.rag.pull = { x: s.p[0], y: s.p[1], z: s.p[2] };
+      e.rig.root.visible = nearPlayer(e, 180);
+      return;
+    }
     e.pos.lerp(V(...s.p), Math.min(1, dt * 18));
     e.vel.fromArray(s.v);
     C.turn(e, s.y, dt, 18);
@@ -1259,6 +1269,8 @@
         e.ai.remoteState = s;
         e.hp = Math.max(0, Math.min(100, s.hp));
         e.dead = !!s.dead;
+        if (window.JJTRAIN) JJTRAIN.syncActor(e, s.dead, s.crash);
+        if (window.JJIWORLD) JJIWORLD.syncActor(e, s.wr, -1);
         e.onGround = s.og !== false;
         e.blocking = !!s.bl;
         e.iframes = Math.max(0, Math.min(3, s.iv || 0));

@@ -365,11 +365,33 @@
   }
 
   /* blindfold off, eyes lit — or back again */
+  function addLooseHair(rig) {
+    if (rig.looseHair) return;
+    const group = new THREE.Group(); group.name = 'Gojo loose awakened hair';
+    const material = new THREE.MeshLambertMaterial({color: 0xf2f6ff});
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(.53, 10, 6), material);
+    crown.position.y = .98; crown.scale.y = .48; group.add(crown);
+    const locks = new THREE.InstancedMesh(new THREE.ConeGeometry(.19, 1, 4), material, 22);
+    const up = new THREE.Vector3(0, 1, 0), matrix = new THREE.Matrix4();
+    for (let i = 0; i < 22; i++) {
+      const ring = i < 14, angle = (ring ? i / 14 : (i - 14) / 8) * Math.PI * 2;
+      const front = Math.sin(angle) > .3, length = ring ? (front ? .48 : .69) + (i % 3) * .045 : .52;
+      const direction = new THREE.Vector3(Math.cos(angle) * .8, ring ? -.7 : .28, Math.sin(angle) * .8).normalize();
+      const position = new THREE.Vector3(Math.cos(angle) * (ring ? .39 : .2), ring ? 1.02 : 1.12, Math.sin(angle) * (ring ? .36 : .2)).addScaledVector(direction, length * .25);
+      matrix.compose(position, new THREE.Quaternion().setFromUnitVectors(up, direction), new THREE.Vector3(1, length, .8));
+      locks.setMatrixAt(i, matrix);
+    }
+    locks.instanceMatrix.needsUpdate = true; locks.computeBoundingSphere(); group.add(locks);
+    group.visible = false; rig.head.add(group); rig.looseHair = group;
+  }
   function setLook(rig, on) {
     if (!rig || !rig.head) return;
     findBlindfold(rig);
     if (!rig.blindfold && !rig.sixEyes) return;      // not a Gojo
     addSixEyes(rig);
+    if (on) addLooseHair(rig);
+    rig.head.children.forEach(c => { if (c.userData.gojoHair) c.visible = !on; });
+    if (rig.looseHair) rig.looseHair.visible = !!on;
     if (rig.blindfold) rig.blindfold.visible = !on;
     if (rig.sixEyes) rig.sixEyes.visible = !!on;
   }
