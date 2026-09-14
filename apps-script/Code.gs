@@ -45,3 +45,14 @@ function doGet(e) {
     return HtmlService.createHtmlOutput('<h2>JJS could not load</h2><p>' + message + '</p><p>Refresh to try again.</p>');
   }
 }
+
+
+// Called by the HTML-service page through Google's native server-call bridge.
+function getGamePart(part, revision) {
+  if (!/^[1-5]$/.test(String(part))) throw new Error('Unknown game file.');
+  if (revision && !/^[a-f0-9]{40}$/.test(revision)) throw new Error('Invalid game revision.');
+  const base = revision
+    ? BASE.replace('/' + JJS_REF + '/jujutsu-parts/', '/' + revision + '/jujutsu-parts/')
+    : BASE;
+  return jjsFetch_(base + 'p' + part + '.js');
+}

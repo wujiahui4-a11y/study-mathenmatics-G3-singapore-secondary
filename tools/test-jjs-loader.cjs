@@ -2,19 +2,20 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..'), read = file => fs.readFileSync(path.join(root, file), 'utf8');
-async function bootstrap(fail) {
+async function bootstrap(fail, useBridge = false) {
   const calls = [], blobs = new Map(), nodes = new Map(); let serial = 0, imported = false, removed = false;
   const node = selector => {
     if (!nodes.has(selector)) nodes.set(selector, {hidden: selector === 'button', addEventListener() {}, removeAttribute(k) { delete this[k]; }});
     return nodes.get(selector);
   };
   const ctx = vm.createContext({console, Blob, TextDecoder, Uint8Array, AbortController,
-    setTimeout: (fn, ms) => setTimeout(fn, ms < 2000 ? 0 : ms), clearTimeout,
+    setTimeout: (fn, ms) => setTimeout(fn, fail === 'bridge-timeout' && ms === 45000 ? 1 : ms < 2000 ? 0 : ms), clearTimeout, setInterval, clearInterval,
     location: {reload() {}},
     URL: {revokeObjectURL(url) {blobs.delete(url);}, createObjectURL(b) {const id = 'blob:test-' + ++serial; blobs.set(id, b); return id;}},
     document: {body: {appendChild() {}}, head: {appendChild(s) { queueMicrotask(() => s.onload()); }},
       createElement() { return {style: {}, querySelector: node, remove() { removed = true; }}; }},
     fetch: async url => {
+      assert.equal(useBridge, false, 'Apps Script frames must use the native bridge, not HTTP fetch');
       const id = Number(url.match(/p=(\d+)/)[1]); calls.push(id);
       if (id === 5 && fail === 'http') return new Response('failed', {status: 503});
       if (id === 5 && fail === 'html') return new Response('<html>sign-in</html>', {headers: {'content-type': 'text/html'}});
@@ -22,6 +23,17 @@ async function bootstrap(fail) {
       return new Response(text, {headers: {'content-type': 'text/javascript'}});
     }});
   ctx.window = ctx;
+  if (useBridge) ctx.google = {script: {run: {withSuccessHandler(success) {
+    return {withFailureHandler(failure) {return {getGamePart(id, revision) {
+      calls.push(id); assert.equal(revision, '');
+      const value = id === 5 ? 'import * as THREE from "three"; /* game */' : '/* vendor */';
+      if (id === 5 && fail === 'bridge-missing') return queueMicrotask(() => failure({message: 'Script function not found: getGamePart'}));
+      if (id === 5 && fail === 'bridge-invalid') return queueMicrotask(() => success('<html>error</html>'));
+      if (id === 5 && fail === 'bridge-timeout') return setTimeout(() => success(value), 20);
+      queueMicrotask(() => success(value));
+    } };} };
+  } } } };
+
   const result = vm.runInContext(read('jujutsu/loader.js'), ctx, {
     importModuleDynamically: async specifier => {
       const code = await blobs.get(specifier).text();
@@ -34,7 +46,10 @@ async function bootstrap(fail) {
   await result;
   if (fail) {
     assert.equal(imported, false); assert.equal(removed, false); assert.equal(node('button').hidden, false);
-    assert.equal(calls.filter(id => id === 5).length, 3); assert.match(node('span').textContent, /Could not load JJS/);
+    assert.equal(calls.filter(id => id === 5).length, 1, 'Do not repeat an already stalled transfer');
+    if (fail === 'bridge-missing') assert.match(node('span').textContent, /deploy a new version/);
+    if (fail === 'bridge-timeout') {await new Promise(r => setTimeout(r, 30)); assert.equal(imported, false, 'Late callbacks cannot start a failed load');}
+    assert.match(node('span').textContent, /Could not load JJS/);
   } else {
     assert.equal(imported, true); assert.equal(removed, true); assert.equal(ctx.JJLOADER.ready, true);
     assert.ok(calls.includes(3) && calls.includes(4)); assert.equal(node('progress').max, undefined, 'Unknown lengths stay indeterminate');
@@ -53,6 +68,9 @@ function appsScript() {
   const html = context.doGet({parameter: {}}).text;
   assert.ok(!html.includes('__PART_BASE__')); assert.ok(html.includes('?p=5&v=' + revision));
   const response = context.doGet({parameter: {p: '5', v: revision}});
+  assert.equal(context.getGamePart(5, revision), '/* game part */');
+  assert.throws(() => context.getGamePart('../file', revision), /Unknown game file/);
+  assert.throws(() => context.getGamePart(5, '<bad>'), /Invalid game revision/);
   assert.equal(response.mime, 'javascript'); assert.ok(requests.at(-1).endsWith('/' + revision + '/jujutsu-parts/p5.js'));
   const count = requests.length;
   assert.match(context.doGet({parameter: {p: '../file'}}).text, /Unknown game file/);
@@ -69,6 +87,8 @@ function appsScript() {
   // The pop-out stores exactly the small shell with only script terminators escaped.
   const copy = html.match(/<script type="text\/plain" id="__selfDoc">([\s\S]*)<\/script>\n<\/body>/)[1];
   assert.equal(copy.replace(/<\\\/script/g, '</script'), html.replace(/<script type="text\/plain" id="__selfDoc">[\s\S]*<\/script>\n<\/body>/, '</body>'));
-  await bootstrap(); await bootstrap('http'); await bootstrap('html'); appsScript();
-  console.log('PASS: small shell, module parsing, pop-out copy, startup order, progress, retries, failure recovery, Apps Script version pinning and routes');
+  await bootstrap(); await bootstrap('http'); await bootstrap('html');
+  await bootstrap(null, true); await bootstrap('bridge-missing', true);
+  await bootstrap('bridge-invalid', true); await bootstrap('bridge-timeout', true); appsScript();
+  console.log('PASS: small shell, module parsing, pop-out copy, startup order, progress, native Apps Script calls, timeout/late-callback handling, failure recovery, version pinning and routes');
 })().catch(e => { console.error(e); process.exitCode = 1; });
