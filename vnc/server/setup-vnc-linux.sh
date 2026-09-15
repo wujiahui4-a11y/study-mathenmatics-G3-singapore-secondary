@@ -280,8 +280,12 @@ cmd_start() {
   fi
   echo "    Logs:        $RUN_DIR"
   echo
-  [ "$USE_TLS" -eq 0 ] && warn "Traffic is unencrypted. Use --tls, or tunnel over SSH:
-       ssh -L $WEB_PORT:127.0.0.1:$WEB_PORT $USER@$host"
+  # $USER is not set by every shell; and this is the last statement in the
+  # function, so a false test here would leak out as a non-zero exit status.
+  if [ "$USE_TLS" -eq 0 ]; then
+    warn "Traffic is unencrypted. Use --tls, or tunnel over SSH:
+       ssh -L $WEB_PORT:127.0.0.1:$WEB_PORT ${USER:-$(id -un)}@$host"
+  fi
 }
 
 cmd_stop() {
