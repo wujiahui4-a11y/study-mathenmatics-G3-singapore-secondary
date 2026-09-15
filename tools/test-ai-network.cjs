@@ -337,7 +337,7 @@ async function deliver(page, packets) {
     const realSkillPackets = await drain(host);
     await deliver(guest, realSkillPackets);
     report.characterDamage = await guest.evaluate(() => __fight.player.hp);
-    assert.ok(report.characterDamage <= 60.1, 'Both actual Divergent Fist hits reach the remote player');
+    assert.ok(report.characterDamage <= 65.1, 'Both actual Divergent Fist hits reach the remote player');
     await deliver(guest, realSkillPackets);
     assert.equal(
       await guest.evaluate(() => __fight.player.hp),

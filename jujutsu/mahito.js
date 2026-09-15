@@ -29,15 +29,15 @@
     secondAwakening: false
   });
   var KIT = (M.kit = {
-    mh_stock: { name: 'Stockpile', cd: 12, dur: 1.05, damage: 12, slot: 'mh1' },
-    mh_air: { name: 'Aerial Stockpile', cd: 12, dur: 1.3, damage: 10, slot: 'mh1' },
-    mh_fire: { name: 'Soul Fire', cd: 12, dur: 1.5, damage: 12, slot: 'mh2' },
-    mh_focus: { name: 'Focus Strike', cd: 15, dur: 1.15, damage: 10, slot: 'mh3' },
-    mh_black: { name: 'Focus Strike · Black Flash', cd: 15, dur: 1.15, damage: 12, slot: 'mh3' },
-    mh_chain: { name: 'Chainwhip', cd: 15, dur: 1.3, damage: 3, slot: 'mh3' },
-    mh_home: { name: 'Homerun', cd: 15, dur: 1.4, damage: 18, slot: 'mh3' },
-    mh_repel: { name: 'Body Repel', cd: 20, dur: 0.95, damage: 14, slot: 'mh4' },
-    mh_ride: { name: 'Body Repel · Ride', cd: 20, dur: 2.95, damage: 14, slot: 'mh4' },
+    mh_stock: { name: 'Stockpile', cd: 12, dur: 1.05, damage: 32, slot: 'mh1' },
+    mh_air: { name: 'Aerial Stockpile', cd: 12, dur: 1.3, damage: 30, slot: 'mh1' },
+    mh_fire: { name: 'Soul Fire', cd: 12, dur: 1.5, damage: 32, slot: 'mh2' },
+    mh_focus: { name: 'Focus Strike', cd: 15, dur: 1.15, damage: 34, slot: 'mh3' },
+    mh_black: { name: 'Focus Strike · Black Flash', cd: 15, dur: 1.15, damage: 38, slot: 'mh3' },
+    mh_chain: { name: 'Chainwhip', cd: 15, dur: 1.3, damage: 8, slot: 'mh3' },
+    mh_home: { name: 'Homerun', cd: 15, dur: 1.4, damage: 36, slot: 'mh3' },
+    mh_repel: { name: 'Body Repel', cd: 20, dur: 0.95, damage: 32, slot: 'mh4' },
+    mh_ride: { name: 'Body Repel · Ride', cd: 20, dur: 2.95, damage: 32, slot: 'mh4' },
     mh_blade_dash: { name: 'Blade Dash', cd: 8, dur: 0.7, damage: 6.5, slot: 'mhd' },
     mh_club_dash: { name: 'Club Dash', cd: 10, dur: 0.75, damage: 8.5, slot: 'mhd' },
     mh_awaken: { name: 'Essence of the Soul', cd: 0, dur: 2.2, damage: 15, slot: 'mhAw' },
@@ -606,7 +606,7 @@
           var targets = lineTargets(prev, d, step + 1, 1.1, -1.6, 1.6);
           if (targets.length) {
             var e = targets[0];
-            hit(e, 'mh_fire', 4, d, index >= 2 ? 21 : 1, index >= 2 ? 6 : 0, {
+            hit(e, 'mh_fire', 11, d, index >= 2 ? 21 : 1, index >= 2 ? 6 : 0, {
               stun: index >= 2 ? 0.8 : 0.38
             });
             if (index >= 2 && player.action === a) a.dur = Math.min(a.dur, a.t + 0.15);
@@ -688,7 +688,7 @@
         shatterProps(next, 2.5, owner);
         if (owner !== false) {
           lineTargets(prev, d, step + 2, 2.5, -2, 4).forEach((e) => {
-            if (!caught.has(e) && hit(e, 'mh_repel', 14, d, 20, 8, { unblockable: true })) caught.add(e);
+            if (!caught.has(e) && hit(e, 'mh_repel', 32, d, 20, 8, { unblockable: true })) caught.add(e);
           });
           caught.forEach((e) => {
             if (!e.dead) hold(a, e, next.clone().addScaledVector(d, 2.5), false);
@@ -923,17 +923,17 @@
     }
     if (type === 'mh_stock') {
       beat('one', 0.34, () => {
-        a.target = front(5, 2.7).find((e) => hit(e, type, 6, d, 0, 0, { ragdoll: false }));
+        a.target = front(5, 2.7).find((e) => hit(e, type, 14, d, 0, 0, { ragdoll: false }));
       });
       beat('two', 0.68, () => {
         var es = a.target && !a.target.dead ? [a.target] : front(5.8, 3.5);
-        es.forEach((e) => hit(e, type, 6, d, 12, 12, { unblockable: true }));
+        es.forEach((e) => hit(e, type, 18, d, 12, 12, { unblockable: true }));
       });
     } else if (type === 'mh_air') {
       if (a.t < 0.45) moveActor(player, d, dt * 7);
       beat('slam', 0.5, () => {
         player.vel.y = -22;
-        front(6, 3).forEach((e) => hit(e, type, 10, d, 8, -10, { unblockable: true }));
+        front(6, 3).forEach((e) => hit(e, type, 30, d, 8, -10, { unblockable: true }));
         impact(player.pos.clone().addScaledVector(d, 3), false, true);
       });
     } else if (type === 'mh_fire') {

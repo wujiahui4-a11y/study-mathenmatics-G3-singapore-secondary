@@ -2096,7 +2096,7 @@ function stepAction(a, dt) {
           p.iframes = Math.max(p.iframes, 1.65);
           sfx.kick();
           addShake(.25);
-          tgt.damage(5, null, { stun: .4, react: "gut", reactDur: .45 });
+          tgt.damage(4, null, { stun: .4, react: "gut", reactDur: .45 });
         }
       }
       if (a.locked && !tgt.dead && a.t < 1.42) {
@@ -2105,7 +2105,7 @@ function stepAction(a, dt) {
           a.acc += dt;
           if (a.acc > .09) {
             a.acc = 0;
-            tgt.damage(3, null, { stun: .3, react: "pummel", reactDur: .3 });
+            tgt.damage(2, null, { stun: .3, react: "pummel", reactDur: .3 });
             sfx.punch();
             addShake(.08);
             spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, 2.4 + Math.random() * 1.4, (Math.random() - .5) * 1.4)), 0xaad4ff, 3, 12);
@@ -2117,7 +2117,7 @@ function stepAction(a, dt) {
         if (!tgt.dead) {
           const f = facingVec();
           tgt.lockT = 0;
-          tgt.damage(14, f.multiplyScalar(38).setY(12), { color: "#9fd0ff" });
+          tgt.damage(10, f.multiplyScalar(38).setY(12), { color: "#9fd0ff" });
           sfx.kick();
           addShake(.5);
           hitstop(.06);
@@ -2133,7 +2133,7 @@ function stepAction(a, dt) {
         else {
           a.tgt = tgt;
           p.iframes = Math.max(p.iframes, .95);
-          tgt.damage(8, null, { stun: .9, color: "#bfe2ff" });
+          tgt.damage(12, null, { stun: .9, color: "#bfe2ff" });
           tgt.anchorT = .8;
           tgt.anchorPos.copy(tgt.pos).setY(3.4);
           tgt.vel.set(0, 0, 0);
@@ -2150,7 +2150,7 @@ function stepAction(a, dt) {
         if (tgt && !tgt.dead) {
           const f = facingVec();
           tgt.anchorT = 0;
-          tgt.damage(14, f.multiplyScalar(6).setY(27), { color: "#dff0ff" });
+          tgt.damage(20, f.multiplyScalar(6).setY(27), { color: "#dff0ff" });
           tgt.flung = true;
           sfx.kick();
           addShake(.5);
@@ -2168,7 +2168,7 @@ function stepAction(a, dt) {
         if (a.t >= times[i] && !a.hits[i]) {
           a.hits[i] = true;
           if (!tgt.dead) {
-            tgt.damage(6, null, { stun: .35, color: "#ffd27a", react: "gut", reactDur: .42 });
+            tgt.damage(7, null, { stun: .35, color: "#ffd27a", react: "gut", reactDur: .42 });
             sfx.palm();
             hitstop(.02);
             addShake(.14);
@@ -2182,7 +2182,7 @@ function stepAction(a, dt) {
           const f = facingVec();
           const kick = leftOf(f).multiplyScalar(30).add(f.clone().multiplyScalar(4)).setY(10);
           tgt.lockT = 0;
-          tgt.damage(10, kick, { color: "#ffd27a" });
+          tgt.damage(13, kick, { color: "#ffd27a" });
           sfx.kick();
           addShake(.45);
           hitstop(.05);
@@ -2240,7 +2240,7 @@ function stepAction(a, dt) {
         const tgt = nearestFrontEnemy(4.8, .35);
         if (tgt) {
           const f = facingVec();
-          tgt.damage(12, f.multiplyScalar(30).setY(10), { color: "#9fd8ff" });
+          tgt.damage(34, f.multiplyScalar(30).setY(10), { color: "#9fd8ff" });
           tgt.applyProj(35);
           sfx.kick();
           addShake(.4);
@@ -2268,7 +2268,7 @@ function stepAction(a, dt) {
         const tgt = nearestFrontEnemy(3.2, .45);
         if (tgt) {
           a.tgt = tgt;
-          tgt.damage(8, facingVec().multiplyScalar(4).setY(1), { stun: .8, color: "#dfe6f2", spark: 0xff3b4e, react: "stab", reactDur: 1 });
+          tgt.damage(32, facingVec().multiplyScalar(4).setY(1), { stun: .8, color: "#dfe6f2", spark: 0xff3b4e, react: "stab", reactDur: 1 });
           sfx.stab();
           hitstop(.05);
           addShake(.3);
@@ -2340,7 +2340,7 @@ function stepAction(a, dt) {
           a.fin = tgt.hp <= 25;
           a.dur = a.fin ? 2.9 : 1.75;
           p.vel.set(0, 0, 0);
-          tgt.damage(2, null, { stun: .5, color: "#ffd27a", react: "gut", reactDur: .4 });
+          tgt.damage(6, null, { stun: .5, color: "#ffd27a", react: "gut", reactDur: .4 });
           sfx.punch();
           addShake(.2);
         }
@@ -2360,7 +2360,7 @@ function stepAction(a, dt) {
           const rate = a.fin ? .07 : .1;
           if (a.acc > rate) {
             a.acc = 0;
-            tgt.damage(1, null, { stun: .3, color: "#ffd27a", react: "pummel", reactDur: .25 });
+            tgt.damage(3, null, { stun: .3, color: "#ffd27a", react: "pummel", reactDur: .25 });
             sfx.punch();
             addShake(.06);
             spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, 2.2 + Math.random() * 1.6, (Math.random() - .5) * 1.4)), 0xffe2a8, 2, 10);
@@ -2387,7 +2387,7 @@ function stepAction(a, dt) {
             a.kicked = true;
             if (!tgt.dead) {
               const f = facingVec();
-              tgt.damage(14, f.multiplyScalar(36).setY(13), { noFrameBonus: true, color: "#ffd27a" });
+              tgt.damage(30, f.multiplyScalar(36).setY(13), { noFrameBonus: true, color: "#ffd27a" });
               sfx.kick();
               addShake(.55);
               hitstop(.07);
@@ -11415,7 +11415,7 @@ window.__game = {
     spread: .52,            // half the angle of view, in radians
     hit: 3,                 // what one frame catches, close to him
     fan: .45,               // and how much more of it, the further out it is
-    dmg: 3.6,
+    dmg: 3,
     proj: 7                 // twenty four of these is well past a frame
   };
 
@@ -12083,7 +12083,7 @@ window.__game = {
       hitstop(.05);
       inFront(4.4).forEach(function (e) {
         /* barely moves them: the second impact has to find them here */
-        e.damage(16 * boost(), aim().multiplyScalar(5).setY(3),
+        e.damage(14 * boost(), aim().multiplyScalar(5).setY(3),
           { react: 'gut', reactDur: .45, spark: 0xffd9a8, noFrameBonus: true });
       });
       try { sfx.punch(); } catch (e) {}               // punch_hit_#3, first skill
@@ -12102,7 +12102,7 @@ window.__game = {
       addShake(1);
       hitstop(.1);
       inFront(6.5, 4.6).forEach(function (e) {
-        e.damage(24 * boost(), aim().multiplyScalar(34).setY(15),
+        e.damage(21 * boost(), aim().multiplyScalar(34).setY(15),
           { react: 'stagger', reactDur: .7, spark: 0xff8a5c });
       });
       try { sfx.redBoom(); } catch (e) {}
@@ -12143,7 +12143,7 @@ window.__game = {
       blackFlash(at);
       var hits = inFront(5.4, 4);
       hits.forEach(function (e) {
-        e.damage(52 * boost(), aim().multiplyScalar(46).setY(20),
+        e.damage(38 * boost(), aim().multiplyScalar(46).setY(20),
           { react: 'stagger', reactDur: .95, spark: 0xd4143c });
       });
       if (window.JJAW && hits.length) window.JJAW.gain(14);
@@ -12221,7 +12221,7 @@ window.__game = {
       inFront(4.6, 3.6).forEach(function (e) {
         var kb = aim().multiplyScalar(13);
         kb.y = 32;                                   // straight up with him
-        e.damage(23 * boost(), kb, { react: 'head', reactDur: .6, spark: 0xff9fb0 });
+        e.damage(32 * boost(), kb, { react: 'head', reactDur: .6, spark: 0xff9fb0 });
       });
       try { sfx.hit(); } catch (e) {}
     }
@@ -12310,7 +12310,7 @@ window.__game = {
         if (dist > 11) return;
         d.normalize().multiplyScalar(34);
         d.y = 13;
-        e.damage(10 * boost(), d, { react: 'stagger', reactDur: .6, spark: 0xff7f9a });
+        e.damage(56 * boost(), d, { react: 'stagger', reactDur: .6, spark: 0xff7f9a });
       });
     }
   }
@@ -13354,7 +13354,7 @@ window.__game = {
         e.hkHit = 1;
         setTimeout(function () { e.hkHit = 0; }, 1400);   // once per door
         var kb = a.dir.clone().multiplyScalar(40); kb.y = 15;
-        e.damage(26 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
+        e.damage(32 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
         FX.impact(e.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 0xffcc4d, 1.6);
         addShake(.5);
       });
@@ -13425,7 +13425,7 @@ window.__game = {
           var e = enemies[i];
           if (!e || e.dead || e.rag) continue;
           if (e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)).distanceTo(m.position) > 2.2) continue;
-          e.damage(4 * boost(), dir.clone().multiplyScalar(7).setY(3),
+          e.damage(2.5 * boost(), dir.clone().multiplyScalar(7).setY(3),
             { react: 'pummel', reactDur: .25, noFrameBonus: true, spark: LV.trim });
           FX.impact(m.position.clone(), LV.trim, .55);
           scene.remove(m); m.material.dispose();
@@ -13462,7 +13462,7 @@ window.__game = {
         addShake(.3 + i * .12);
         hitstop(.04);
         inFront(4.6).forEach(function (e) {
-          e.damage((11 + i * 3) * boost(), aim().multiplyScalar(9).setY(4),
+          e.damage((6 + i * 1.6) * boost(), aim().multiplyScalar(9).setY(4),
             { react: i === 1 ? 'head' : 'gut', reactDur: .4, spark: 0xffcc4d, noFrameBonus: true });
         });
         try { sfx.hit(); } catch (e) {}
@@ -13483,7 +13483,7 @@ window.__game = {
       hitstop(.14);
       inFront(6, 4.4).forEach(function (e) {
         var kb = aim().multiplyScalar(30); kb.y = 18;
-        e.damage(24 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
+        e.damage(12 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
       });
       try { sfx.redBoom(); } catch (e) {}
     }
@@ -13645,8 +13645,8 @@ window.__game = {
   var FEVER = {
     reach: 13,        // how far the first kick gets
     hold: .72,        // how long they hang there, and how long you have to aim
-    dmg1: 16,
-    dmg2: 44,
+    dmg1: 11,
+    dmg2: 27,
     launch: 46
   };
 
@@ -14527,7 +14527,7 @@ window.__game = {
      1 · PIERCING BLOOD
      ================================================================== */
   var PB = {
-    lance: { range: 74, width: 2.6, dmg: 46 },
+    lance: { range: 74, width: 2.6, dmg: 36 },
     stream: { range: 60, width: 2.2, dps: 46, turn: 1.35, max: 4.2 }
   };
 
@@ -14773,7 +14773,7 @@ window.__game = {
           enemies.forEach(function (e) {
             if (!e || e.dead || e.pos.distanceTo(at) > 12) return;
             var kb = e.pos.clone().sub(at).setY(0).normalize().multiplyScalar(28); kb.y = 13;
-            e.damage(40 * scale(), kb, {
+            e.damage(34 * scale(), kb, {
               react: 'blow', reactDur: .9, spark: BRIGHT, color: '#c8203c', death: 'sever', psn: awake()
             });
           });
@@ -14790,6 +14790,8 @@ window.__game = {
   /* =====================================================================
      3 · SUPERNOVA
      ================================================================== */
+  /* three orbs per body at twelve apiece: thirty six all in */
+  var SNOVA = { dmg: 12, each: 3 };
   function castSupernova() {
     if (!ready('c3')) return;
     start('c3', 1.5, 'c3', 'SUPERNOVA', '超新星');
@@ -14809,7 +14811,10 @@ window.__game = {
       FX.bloodRings(mid, 4, { maxR: 16, life: .6, gap: 34 });
       addShake(1.4);
       try { sfx.redFire(); } catch (e) {}
-      /* orbs in every direction, each one going somewhere of its own */
+      /* orbs in every direction, each one going somewhere of its own.
+         They share one budget: without it a target at the centre caught
+         most of the eighteen at once. */
+      var took = new Map();
       for (var i = 0; i < 18; i++) {
         (function (n) {
           setTimeout(function () {
@@ -14831,10 +14836,12 @@ window.__game = {
                   var e = enemies[j];
                   if (!e || e.dead) continue;
                   if (e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)).distanceTo(orb.position) > 2.8) continue;
+                  if ((took.get(e) || 0) >= SNOVA.each) continue;
+                  took.set(e, (took.get(e) || 0) + 1);
                   hit = true;
                   var at = orb.position.clone();
                   FX.bloodBurst(at, 1.7, d.clone());
-                  e.damage(15 * scale(), d.clone().multiplyScalar(11).setY(5), {
+                  e.damage(SNOVA.dmg * scale(), d.clone().multiplyScalar(11).setY(5), {
                     react: 'slash', reactDur: .3, spark: BRIGHT, color: '#c8203c', psn: awake(),
                     bleed: true, death: 'dice'
                   });
@@ -14900,7 +14907,7 @@ window.__game = {
       if (typeof hitstop === 'function') hitstop(.08);
       try { sfx.slash(); } catch (e) {}
       inLine(p.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), d, 9, 4, null).forEach(function (e) {
-        e.damage(30 * scale(), d.clone().multiplyScalar(20).setY(8), {
+        e.damage(56 * scale(), d.clone().multiplyScalar(20).setY(8), {
           react: 'slash', reactDur: .6, spark: BRIGHT, color: '#c8203c', psn: awake(),
           bleed: true, death: 'sever'
         });
@@ -16618,7 +16625,7 @@ window.__game = {
      Out of the sky rather than out of the road. It comes down on them,
      and what it carries is lightning.
      ================================================================== */
-  var NUE = { reach: 26, dmg: 26, drop: 34 };
+  var NUE = { reach: 26, dmg: 32, drop: 34 };
 
   function buildNue() {
     var g = new THREE.Group();
@@ -18084,15 +18091,15 @@ window.__game = {
     secondAwakening: false
   });
   var KIT = (M.kit = {
-    mh_stock: { name: 'Stockpile', cd: 12, dur: 1.05, damage: 12, slot: 'mh1' },
-    mh_air: { name: 'Aerial Stockpile', cd: 12, dur: 1.3, damage: 10, slot: 'mh1' },
-    mh_fire: { name: 'Soul Fire', cd: 12, dur: 1.5, damage: 12, slot: 'mh2' },
-    mh_focus: { name: 'Focus Strike', cd: 15, dur: 1.15, damage: 10, slot: 'mh3' },
-    mh_black: { name: 'Focus Strike · Black Flash', cd: 15, dur: 1.15, damage: 12, slot: 'mh3' },
-    mh_chain: { name: 'Chainwhip', cd: 15, dur: 1.3, damage: 3, slot: 'mh3' },
-    mh_home: { name: 'Homerun', cd: 15, dur: 1.4, damage: 18, slot: 'mh3' },
-    mh_repel: { name: 'Body Repel', cd: 20, dur: 0.95, damage: 14, slot: 'mh4' },
-    mh_ride: { name: 'Body Repel · Ride', cd: 20, dur: 2.95, damage: 14, slot: 'mh4' },
+    mh_stock: { name: 'Stockpile', cd: 12, dur: 1.05, damage: 32, slot: 'mh1' },
+    mh_air: { name: 'Aerial Stockpile', cd: 12, dur: 1.3, damage: 30, slot: 'mh1' },
+    mh_fire: { name: 'Soul Fire', cd: 12, dur: 1.5, damage: 32, slot: 'mh2' },
+    mh_focus: { name: 'Focus Strike', cd: 15, dur: 1.15, damage: 34, slot: 'mh3' },
+    mh_black: { name: 'Focus Strike · Black Flash', cd: 15, dur: 1.15, damage: 38, slot: 'mh3' },
+    mh_chain: { name: 'Chainwhip', cd: 15, dur: 1.3, damage: 8, slot: 'mh3' },
+    mh_home: { name: 'Homerun', cd: 15, dur: 1.4, damage: 36, slot: 'mh3' },
+    mh_repel: { name: 'Body Repel', cd: 20, dur: 0.95, damage: 32, slot: 'mh4' },
+    mh_ride: { name: 'Body Repel · Ride', cd: 20, dur: 2.95, damage: 32, slot: 'mh4' },
     mh_blade_dash: { name: 'Blade Dash', cd: 8, dur: 0.7, damage: 6.5, slot: 'mhd' },
     mh_club_dash: { name: 'Club Dash', cd: 10, dur: 0.75, damage: 8.5, slot: 'mhd' },
     mh_awaken: { name: 'Essence of the Soul', cd: 0, dur: 2.2, damage: 15, slot: 'mhAw' },
@@ -18661,7 +18668,7 @@ window.__game = {
           var targets = lineTargets(prev, d, step + 1, 1.1, -1.6, 1.6);
           if (targets.length) {
             var e = targets[0];
-            hit(e, 'mh_fire', 4, d, index >= 2 ? 21 : 1, index >= 2 ? 6 : 0, {
+            hit(e, 'mh_fire', 11, d, index >= 2 ? 21 : 1, index >= 2 ? 6 : 0, {
               stun: index >= 2 ? 0.8 : 0.38
             });
             if (index >= 2 && player.action === a) a.dur = Math.min(a.dur, a.t + 0.15);
@@ -18743,7 +18750,7 @@ window.__game = {
         shatterProps(next, 2.5, owner);
         if (owner !== false) {
           lineTargets(prev, d, step + 2, 2.5, -2, 4).forEach((e) => {
-            if (!caught.has(e) && hit(e, 'mh_repel', 14, d, 20, 8, { unblockable: true })) caught.add(e);
+            if (!caught.has(e) && hit(e, 'mh_repel', 32, d, 20, 8, { unblockable: true })) caught.add(e);
           });
           caught.forEach((e) => {
             if (!e.dead) hold(a, e, next.clone().addScaledVector(d, 2.5), false);
@@ -18978,17 +18985,17 @@ window.__game = {
     }
     if (type === 'mh_stock') {
       beat('one', 0.34, () => {
-        a.target = front(5, 2.7).find((e) => hit(e, type, 6, d, 0, 0, { ragdoll: false }));
+        a.target = front(5, 2.7).find((e) => hit(e, type, 14, d, 0, 0, { ragdoll: false }));
       });
       beat('two', 0.68, () => {
         var es = a.target && !a.target.dead ? [a.target] : front(5.8, 3.5);
-        es.forEach((e) => hit(e, type, 6, d, 12, 12, { unblockable: true }));
+        es.forEach((e) => hit(e, type, 18, d, 12, 12, { unblockable: true }));
       });
     } else if (type === 'mh_air') {
       if (a.t < 0.45) moveActor(player, d, dt * 7);
       beat('slam', 0.5, () => {
         player.vel.y = -22;
-        front(6, 3).forEach((e) => hit(e, type, 10, d, 8, -10, { unblockable: true }));
+        front(6, 3).forEach((e) => hit(e, type, 30, d, 8, -10, { unblockable: true }));
         impact(player.pos.clone().addScaledVector(d, 3), false, true);
       });
     } else if (type === 'mh_fire') {
@@ -20836,13 +20843,13 @@ window.__game = {
     lastAction: null
   });
   var K = (T.kit = {
-    b1: { name: 'Clap & Collide', slot: 'b1', cd: 8, dur: 1.05, damage: 14 },
-    td_air: { name: 'Clap & Collide · Heel Drop', slot: 'b1', cd: 8, dur: 1.15, damage: 17 },
-    b2: { name: 'Cursed Stone', slot: 'b2', cd: 11, dur: 0.7, damage: 10 },
-    td_stone: { name: 'Stone Feint · Blindside', slot: 'b2', cd: 11, dur: 0.95, damage: 18 },
-    b3: { name: 'Heavy Knuckle', slot: 'b3', cd: 13, dur: 1.1, damage: 16 },
-    td_black: { name: 'Heavy Knuckle · Black Flash', slot: 'b3', cd: 13, dur: 1.1, damage: 22 },
-    b4: { name: 'Brother’s Rhythm', slot: 'b4', cd: 17, dur: 2.15, damage: 25 },
+    b1: { name: 'Clap & Collide', slot: 'b1', cd: 8, dur: 1.05, damage: 34 },
+    td_air: { name: 'Clap & Collide · Heel Drop', slot: 'b1', cd: 8, dur: 1.15, damage: 38 },
+    b2: { name: 'Cursed Stone', slot: 'b2', cd: 11, dur: 0.7, damage: 32 },
+    td_stone: { name: 'Stone Feint · Blindside', slot: 'b2', cd: 11, dur: 0.95, damage: 36 },
+    b3: { name: 'Heavy Knuckle', slot: 'b3', cd: 13, dur: 1.1, damage: 34 },
+    td_black: { name: 'Heavy Knuckle · Black Flash', slot: 'b3', cd: 13, dur: 1.1, damage: 38 },
+    b4: { name: 'Brother’s Rhythm', slot: 'b4', cd: 17, dur: 2.15, damage: 36 },
     br: { name: 'False Clap', slot: 'br', cd: 9, dur: 0.85, damage: 8 },
     td_awaken: { name: 'My Best Friend · 120%', slot: 'tdAw', cd: 0, dur: 3.65, damage: 0 },
     tda1: { name: 'Cross Rhythm', slot: 'tda1', cd: 13, dur: 2.0, damage: 28, awake: true },
@@ -21095,6 +21102,11 @@ window.__game = {
     if (key === 'td_stone') {
       a.spot = T.stone.g.position.clone();
       a.spot.y = worldFloor(a.spot);
+      // Swapping before the rock lands cancels it, so the blindside is the
+      // whole of the feint on that line and has to carry a full skill's
+      // weight; swapping after it has already connected must not stack a
+      // second full hit on top.
+      a.stoneHit = !!T.stone.struck;
       removeStone();
     }
     if (key === 'td_awaken') {
@@ -21188,7 +21200,8 @@ window.__game = {
             g.rotation.z = time * 4;
             if (u === 1 && !s.landed) {
               s.landed = true;
-              if (e && e.pos.distanceTo(g.position) < 4) hit(e, 'b2', 10, a.dir, 3, 0, { fin: false });
+              if (e && e.pos.distanceTo(g.position) < 4)
+                s.struck = hit(e, 'b2', 32, a.dir, 3, 0, { fin: false }) !== false;
             }
             if (u === 1) g.position.y = dest.y + Math.sin(time * 5) * 0.13;
           },
@@ -21203,7 +21216,7 @@ window.__game = {
         move(player, a.spot, true);
         if (e) a.facing = Math.atan2(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
       });
-      beat('kick', 0.47, () => Fist(e, key, 18, e ? face(e) : a.dir, 24, 7, 6));
+      beat('kick', 0.47, () => Fist(e, key, a.stoneHit ? 6 : 32, e ? face(e) : a.dir, 24, 7, 6));
     } else if (key === 'b3' || key === 'td_black') {
       if (t > 0.27 && t < 0.45) move(player, player.pos.clone().addScaledVector(a.dir, dt * 6), false);
       beat('hit', 0.49, () => {
@@ -21251,7 +21264,7 @@ window.__game = {
           hit(
             e,
             key,
-            last ? (sky ? 18 : key === 'tda1' ? 13 : 10) : sky ? 6 : 5,
+            last ? (sky ? 18 : key === 'tda1' ? 13 : 18) : sky ? 6 : 6,
             face(e),
             last ? 29 : 0,
             last ? (sky ? 2 : 11) : 0,
@@ -22572,7 +22585,7 @@ window.__game = {
      Sheets of it, out in a fan. They stick to whatever they reach and
      then pull taut, which is the part that hurts.
      ================================================================== */
-  var EV = { dmg: 26, sheets: 26, reach: 20, radius: 5.5 };
+  var EV = { dmg: 32, sheets: 26, reach: 20, radius: 5.5 };
 
   function sheet(from, to, life) {
     var m = new THREE.Mesh(new THREE.PlaneGeometry(.9, 1.25),
@@ -22666,7 +22679,7 @@ window.__game = {
      The court itself. It rises behind him, hears the thing, and hands
      down a column of cold light with a gavel coming after it.
      ================================================================== */
-  var JM = { dmg: 44, radius: 9, dur: 3.2 };
+  var JM = { dmg: 26, radius: 9, dur: 3.2 };
 
   function buildJudge() {
     var g = new THREE.Group();
@@ -22871,7 +22884,7 @@ window.__game = {
      R · RECESS  休廷
      One rap, and the dock comes up out of the floor between him and it.
      ================================================================== */
-  var RC = { dmg: 14, back: 15, radius: 6 };
+  var RC = { dmg: 56, back: 15, radius: 6 };
 
   function raiseDock(at, dir, ghost) {
     var g = new THREE.Group();
@@ -25641,7 +25654,7 @@ window.__game = {
      Four that leave in the wrong direction entirely, and then come back.
      The turn is the whole move: fired straight they would be move 2.
      ================================================================== */
-  var TRK = { dmg: 9, n: 4, radius: 3.8, speed: 40, turn: 5.6, life: 2.4 };
+  var TRK = { dmg: 11, n: 4, radius: 3.8, speed: 40, turn: 5.6, life: 2.4 };
 
   function tracker(from, out, target, ghost) {
     var m = FX.billboard(FX.T.star, CE, 1);
@@ -27070,7 +27083,7 @@ window.__game = {
     hn2: { name: 'Cursed Buds', cd: 10, dur: 1.85, damage: 30 },
     hn3: { name: 'Branch Breaker', cd: 10, dur: 1.35, damage: 32 },
     hn4: { name: 'Solar Bloom', cd: 15, dur: 2.05, damage: 38 },
-    hnr: { name: 'Flower Field', cd: 21, dur: 1.05, damage: 10 }
+    hnr: { name: 'Flower Field', cd: 21, dur: 1.05, damage: 56 }
   };
   var clamp = function (v) { return Math.max(0, Math.min(1, v)); };
   var smooth = function (v) { v = clamp(v); return v * v * (3 - 2 * v); };
@@ -27543,7 +27556,7 @@ window.__game = {
       var prop=visual(key,index,from,d,true);
       if(key==='hnr') {
         H.field=prop;
-        enemies.slice().forEach(function(e){if(e&&!e.dead&&e.pos.distanceTo(from)<10.5)hit(e,key,10,d,0,0);});
+        enemies.slice().forEach(function(e){if(e&&!e.dead&&e.pos.distanceTo(from)<10.5)hit(e,key,56,d,0,0);});
       } else if(key==='hn1') {
         if(window.JJDESTRUCT)JJDESTRUCT.hit(from.clone().addScaledVector(d,5+index*4.4).add(V(0,.5,0)),4);
         targets(from,d,7+index*4.4,4+index*.3,-1,4.7).forEach(function(e){

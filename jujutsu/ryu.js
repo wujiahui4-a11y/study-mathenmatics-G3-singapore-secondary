@@ -501,7 +501,7 @@
      Four that leave in the wrong direction entirely, and then come back.
      The turn is the whole move: fired straight they would be move 2.
      ================================================================== */
-  var TRK = { dmg: 9, n: 4, radius: 3.8, speed: 40, turn: 5.6, life: 2.4 };
+  var TRK = { dmg: 11, n: 4, radius: 3.8, speed: 40, turn: 5.6, life: 2.4 };
 
   function tracker(from, out, target, ghost) {
     var m = FX.billboard(FX.T.star, CE, 1);

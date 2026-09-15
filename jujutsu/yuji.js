@@ -161,7 +161,7 @@
       hitstop(.05);
       inFront(4.4).forEach(function (e) {
         /* barely moves them: the second impact has to find them here */
-        e.damage(16 * boost(), aim().multiplyScalar(5).setY(3),
+        e.damage(14 * boost(), aim().multiplyScalar(5).setY(3),
           { react: 'gut', reactDur: .45, spark: 0xffd9a8, noFrameBonus: true });
       });
       try { sfx.punch(); } catch (e) {}               // punch_hit_#3, first skill
@@ -180,7 +180,7 @@
       addShake(1);
       hitstop(.1);
       inFront(6.5, 4.6).forEach(function (e) {
-        e.damage(24 * boost(), aim().multiplyScalar(34).setY(15),
+        e.damage(21 * boost(), aim().multiplyScalar(34).setY(15),
           { react: 'stagger', reactDur: .7, spark: 0xff8a5c });
       });
       try { sfx.redBoom(); } catch (e) {}
@@ -221,7 +221,7 @@
       blackFlash(at);
       var hits = inFront(5.4, 4);
       hits.forEach(function (e) {
-        e.damage(52 * boost(), aim().multiplyScalar(46).setY(20),
+        e.damage(38 * boost(), aim().multiplyScalar(46).setY(20),
           { react: 'stagger', reactDur: .95, spark: 0xd4143c });
       });
       if (window.JJAW && hits.length) window.JJAW.gain(14);
@@ -299,7 +299,7 @@
       inFront(4.6, 3.6).forEach(function (e) {
         var kb = aim().multiplyScalar(13);
         kb.y = 32;                                   // straight up with him
-        e.damage(23 * boost(), kb, { react: 'head', reactDur: .6, spark: 0xff9fb0 });
+        e.damage(32 * boost(), kb, { react: 'head', reactDur: .6, spark: 0xff9fb0 });
       });
       try { sfx.hit(); } catch (e) {}
     }
@@ -388,7 +388,7 @@
         if (dist > 11) return;
         d.normalize().multiplyScalar(34);
         d.y = 13;
-        e.damage(10 * boost(), d, { react: 'stagger', reactDur: .6, spark: 0xff7f9a });
+        e.damage(56 * boost(), d, { react: 'stagger', reactDur: .6, spark: 0xff7f9a });
       });
     }
   }

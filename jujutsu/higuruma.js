@@ -520,7 +520,7 @@
      Sheets of it, out in a fan. They stick to whatever they reach and
      then pull taut, which is the part that hurts.
      ================================================================== */
-  var EV = { dmg: 26, sheets: 26, reach: 20, radius: 5.5 };
+  var EV = { dmg: 32, sheets: 26, reach: 20, radius: 5.5 };
 
   function sheet(from, to, life) {
     var m = new THREE.Mesh(new THREE.PlaneGeometry(.9, 1.25),
@@ -614,7 +614,7 @@
      The court itself. It rises behind him, hears the thing, and hands
      down a column of cold light with a gavel coming after it.
      ================================================================== */
-  var JM = { dmg: 44, radius: 9, dur: 3.2 };
+  var JM = { dmg: 26, radius: 9, dur: 3.2 };
 
   function buildJudge() {
     var g = new THREE.Group();
@@ -819,7 +819,7 @@
      R · RECESS  休廷
      One rap, and the dock comes up out of the floor between him and it.
      ================================================================== */
-  var RC = { dmg: 14, back: 15, radius: 6 };
+  var RC = { dmg: 56, back: 15, radius: 6 };
 
   function raiseDock(at, dir, ghost) {
     var g = new THREE.Group();
