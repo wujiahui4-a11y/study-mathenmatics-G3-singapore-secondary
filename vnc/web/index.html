@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Linux VNC Console</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>&#x1F5A5;</text></svg>">
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <span class="dot" id="statusDot" data-state="idle"></span>
+    <strong>Linux VNC Console</strong>
+    <span class="sub" id="statusText">Not connected</span>
+  </div>
+  <div class="bar-actions">
+    <button id="btnCtrlAltDel" class="btn" disabled title="Send Ctrl+Alt+Delete">Ctrl+Alt+Del</button>
+    <button id="btnKeys" class="btn" disabled title="Special keys">Keys</button>
+    <button id="btnClipboard" class="btn" disabled title="Clipboard">Clipboard</button>
+    <button id="btnScreenshot" class="btn" disabled title="Save a PNG of the screen">Snapshot</button>
+    <button id="btnFullscreen" class="btn" title="Fullscreen">Fullscreen</button>
+    <button id="btnSettings" class="btn" title="Connection settings">Settings</button>
+    <button id="btnDisconnect" class="btn btn-danger" disabled>Disconnect</button>
+  </div>
+</header>
+
+<main id="screen" class="screen" tabindex="-1">
+  <div id="placeholder" class="placeholder">
+    <div class="placeholder-card">
+      <h1>Connect to a Linux desktop</h1>
+      <p>
+        This page speaks the RFB (VNC) protocol over a WebSocket using the
+        <a href="vendor/novnc/docs/API.md">noVNC</a> library bundled in
+        <code>web/vendor/novnc</code>. Your VNC server needs a WebSocket
+        front-end — <code>websockify</code> — which
+        <code>server/setup-vnc-linux.sh</code> sets up for you.
+      </p>
+      <button id="btnOpenSettings" class="btn btn-primary">Open connection settings</button>
+    </div>
+  </div>
+</main>
+
+<!-- Connection settings -->
+<dialog id="settingsDialog" class="dialog">
+  <form method="dialog" id="settingsForm">
+    <h2>Connection</h2>
+
+    <div class="grid">
+      <label class="field span2">
+        <span>Host</span>
+        <input id="host" name="host" type="text" placeholder="192.168.1.50 or vnc.example.com" required>
+      </label>
+
+      <label class="field">
+        <span>Port</span>
+        <input id="port" name="port" type="number" min="1" max="65535" value="6080" required>
+      </label>
+
+      <label class="field">
+        <span>Path</span>
+        <input id="path" name="path" type="text" value="websockify" placeholder="websockify">
+      </label>
+
+      <label class="field span2">
+        <span>Password <em>(not stored)</em></span>
+        <input id="password" name="password" type="password" autocomplete="current-password">
+      </label>
+
+      <label class="field span2">
+        <span>Username <em>(only for VeNCrypt / RSA-AES servers)</em></span>
+        <input id="username" name="username" type="text" autocomplete="username">
+      </label>
+    </div>
+
+    <fieldset class="toggles">
+      <legend>Options</legend>
+      <label><input type="checkbox" id="encrypt"> Encrypted WebSocket (<code>wss://</code>)</label>
+      <label><input type="checkbox" id="scaleViewport" checked> Scale remote screen to fit</label>
+      <label><input type="checkbox" id="resizeSession"> Ask server to match this window's size</label>
+      <label><input type="checkbox" id="clipViewport"> Clip to window (drag to pan)</label>
+      <label><input type="checkbox" id="viewOnly"> View only (send no input)</label>
+      <label><input type="checkbox" id="shared" checked> Shared session (don't kick other clients)</label>
+      <label><input type="checkbox" id="remember" checked> Remember these settings in this browser</label>
+    </fieldset>
+
+    <details class="advanced">
+      <summary>Advanced</summary>
+      <div class="grid">
+        <label class="field">
+          <span>Quality (0&ndash;9)</span>
+          <input id="qualityLevel" type="number" min="0" max="9" value="6">
+        </label>
+        <label class="field">
+          <span>Compression (0&ndash;9)</span>
+          <input id="compressionLevel" type="number" min="0" max="9" value="2">
+        </label>
+        <label class="field span2">
+          <span>Repeater ID <em>(optional)</em></span>
+          <input id="repeaterID" type="text" placeholder="leave empty unless you use a VNC repeater">
+        </label>
+      </div>
+      <p class="hint" id="urlPreview"></p>
+    </details>
+
+    <p class="error" id="settingsError" hidden></p>
+
+    <menu>
+      <button type="button" class="btn" id="settingsCancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="settingsConnect">Connect</button>
+    </menu>
+  </form>
+</dialog>
+
+<!-- Credentials requested mid-handshake -->
+<dialog id="credsDialog" class="dialog">
+  <form method="dialog" id="credsForm">
+    <h2>Credentials required</h2>
+    <p class="hint" id="credsHint">The server asked for more credentials.</p>
+    <div class="grid">
+      <label class="field span2" id="credsUserField" hidden>
+        <span>Username</span>
+        <input id="credsUsername" type="text" autocomplete="username">
+      </label>
+      <label class="field span2" id="credsPassField" hidden>
+        <span>Password</span>
+        <input id="credsPassword" type="password" autocomplete="current-password">
+      </label>
+      <label class="field span2" id="credsTargetField" hidden>
+        <span>Target</span>
+        <input id="credsTarget" type="text">
+      </label>
+    </div>
+    <menu>
+      <button type="button" class="btn" id="credsCancel">Cancel</button>
+      <button type="submit" class="btn btn-primary">Send</button>
+    </menu>
+  </form>
+</dialog>
+
+<!-- Server identity verification (RSA-AES) -->
+<dialog id="verifyDialog" class="dialog">
+  <form method="dialog" id="verifyForm">
+    <h2>Verify server identity</h2>
+    <p class="hint">
+      The server presented a public key. Compare this fingerprint with the one
+      printed on the server before you continue.
+    </p>
+    <pre class="fingerprint" id="fingerprint"></pre>
+    <menu>
+      <button type="button" class="btn" id="verifyCancel">Cancel</button>
+      <button type="submit" class="btn btn-primary">Trust and continue</button>
+    </menu>
+  </form>
+</dialog>
+
+<!-- Clipboard -->
+<dialog id="clipboardDialog" class="dialog">
+  <form method="dialog" id="clipboardForm">
+    <h2>Clipboard</h2>
+    <p class="hint">
+      Text copied inside the remote desktop shows up here. Edit it and press
+      <em>Send to remote</em> to paste it into the Linux session.
+    </p>
+    <textarea id="clipboardText" rows="8" spellcheck="false"></textarea>
+    <menu>
+      <button type="button" class="btn" id="clipboardClose">Close</button>
+      <button type="submit" class="btn btn-primary">Send to remote</button>
+    </menu>
+  </form>
+</dialog>
+
+<!-- Special keys -->
+<dialog id="keysDialog" class="dialog">
+  <form method="dialog" id="keysForm">
+    <h2>Special keys</h2>
+    <p class="hint">Keys a browser normally swallows before the remote desktop sees them.</p>
+    <div class="keypad" id="keypad"></div>
+    <menu>
+      <button type="submit" class="btn">Close</button>
+    </menu>
+  </form>
+</dialog>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

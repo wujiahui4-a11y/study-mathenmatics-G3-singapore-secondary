@@ -1,0 +1,276 @@
+/* Linux VNC Console — UI shell around the noVNC RFB library. */
+
+:root {
+  color-scheme: dark;
+  --bg: #14161a;
+  --bar: #1c1f26;
+  --line: #2b303b;
+  --fg: #e7e9ee;
+  --muted: #9aa3b2;
+  --accent: #4c8dff;
+  --danger: #e5534b;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --radius: 8px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+/* Elements below set display:grid/flex, which outranks the UA [hidden] rule. */
+[hidden] { display: none !important; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 var(--font);
+  overflow: hidden;
+}
+
+/* ---------- top bar ---------- */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  background: var(--bar);
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.brand .sub {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: 0 0 auto;
+}
+
+.dot[data-state="connecting"] { background: var(--warn); animation: pulse 1s infinite; }
+.dot[data-state="connected"]  { background: var(--ok); }
+.dot[data-state="error"]      { background: var(--danger); }
+
+@keyframes pulse { 50% { opacity: .3; } }
+
+.bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #262b35;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) { border-color: #3c4454; background: #2e3440; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #3d7ce8; border-color: #3d7ce8; }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #cf4740; border-color: #cf4740; }
+
+/* ---------- screen ---------- */
+
+.screen {
+  flex: 1 1 auto;
+  position: relative;
+  min-height: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+.screen:focus { outline: none; }
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.placeholder-card {
+  max-width: 560px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bar);
+}
+
+.placeholder-card h1 { margin: 0 0 12px; font-size: 20px; }
+.placeholder-card p { margin: 0 0 16px; color: var(--muted); }
+.placeholder-card a { color: var(--accent); }
+
+code {
+  font-family: var(--mono);
+  font-size: .92em;
+  background: #00000040;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* ---------- dialogs ---------- */
+
+.dialog {
+  width: min(560px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bar);
+  color: var(--fg);
+}
+
+.dialog::backdrop { background: #000b; }
+.dialog form { padding: 20px; margin: 0; }
+.dialog h2 { margin: 0 0 14px; font-size: 17px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field.span2 { grid-column: 1 / -1; }
+.field > span { font-size: 12px; color: var(--muted); }
+.field em { font-style: normal; opacity: .75; }
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+textarea {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #11141a;
+  color: var(--fg);
+  font: inherit;
+}
+
+textarea { font-family: var(--mono); font-size: 12px; resize: vertical; }
+
+input:focus, textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+
+.toggles {
+  margin: 16px 0 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 7px;
+}
+
+.toggles legend { padding: 0 6px; font-size: 12px; color: var(--muted); }
+.toggles label { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+
+.advanced { margin-top: 14px; }
+.advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.advanced .grid { margin-top: 12px; }
+
+.hint { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+.error { color: var(--danger); font-size: 13px; margin: 12px 0 0; }
+
+.fingerprint {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: #11141a;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.dialog menu {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 6px;
+}
+
+/* ---------- toasts ---------- */
+
+.toasts {
+  position: fixed;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+  max-width: min(360px, calc(100vw - 24px));
+}
+
+.toast {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--bar);
+  font-size: 13px;
+  box-shadow: 0 6px 24px #0008;
+  animation: slide .2s ease-out;
+}
+
+.toast[data-kind="error"] { border-left-color: var(--danger); }
+.toast[data-kind="ok"]    { border-left-color: var(--ok); }
+.toast[data-kind="info"]  { border-left-color: var(--accent); }
+
+@keyframes slide { from { opacity: 0; transform: translateY(8px); } }
+
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr; }
+  .field.span2 { grid-column: auto; }
+  .brand .sub { display: none; }
+  .btn { padding: 6px 9px; font-size: 12px; }
+}

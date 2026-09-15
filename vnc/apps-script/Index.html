@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<base target="_top">
+<?!= include('Stylesheet') ?>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <span class="dot" id="statusDot" data-state="idle"></span>
+    <strong>Linux VNC Console</strong>
+    <span class="sub" id="statusText">Not connected</span>
+  </div>
+  <div class="actions">
+    <button id="btnCtrlAltDel" disabled>Ctrl+Alt+Del</button>
+    <button id="btnClipboard" disabled>Clipboard</button>
+    <button id="btnFullscreen">Fullscreen</button>
+    <button id="btnSettings" hidden>Settings</button>
+    <button id="btnDisconnect" class="danger" disabled>Disconnect</button>
+  </div>
+</header>
+
+<main id="stage" class="stage" tabindex="-1">
+  <div id="panel" class="panel">
+    <div class="card">
+      <h1>Connect to a Linux desktop</h1>
+      <p class="who" id="who"></p>
+
+      <div class="grid">
+        <label class="field span2">
+          <span>websockify host</span>
+          <input id="host" type="text" placeholder="vnc.example.com" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Port</span>
+          <input id="port" type="number" min="1" max="65535" value="6080">
+        </label>
+        <label class="field">
+          <span>Path</span>
+          <input id="path" type="text" value="websockify">
+        </label>
+        <label class="field span2">
+          <span>Password <em>(sent to the VNC server, never stored)</em></span>
+          <input id="password" type="password" autocomplete="current-password">
+        </label>
+      </div>
+
+      <fieldset class="toggles">
+        <legend>Options</legend>
+        <label><input type="checkbox" id="encrypt" checked> Encrypted WebSocket (<code>wss://</code>) — required here</label>
+        <label><input type="checkbox" id="scaleViewport" checked> Scale remote screen to fit</label>
+        <label><input type="checkbox" id="resizeSession"> Ask server to match this window's size</label>
+        <label><input type="checkbox" id="viewOnly"> View only (send no input)</label>
+        <label><input type="checkbox" id="shared" checked> Shared session</label>
+      </fieldset>
+
+      <div class="row">
+        <button id="btnConnect" class="primary">Connect</button>
+        <button id="btnTest">Test reachability</button>
+        <button id="btnSave">Save as my default</button>
+      </div>
+
+      <p class="msg" id="message" hidden></p>
+
+      <p class="note">
+        Apps Script hosts this page but cannot carry VNC traffic — the WebSocket
+        goes from your browser straight to <code>websockify</code>. That host must
+        be reachable from here and must serve <code>wss://</code>, because this
+        page is HTTPS. With a self-signed certificate, open
+        <code>https://host:port/</code> in a tab once and accept the warning first.
+      </p>
+    </div>
+  </div>
+</main>
+
+<dialog id="credsDialog">
+  <h2>Credentials required</h2>
+  <p class="note" id="credsHint"></p>
+  <div class="grid">
+    <label class="field span2" id="credsUserField" hidden>
+      <span>Username</span>
+      <input id="credsUsername" type="text">
+    </label>
+    <label class="field span2" id="credsPassField" hidden>
+      <span>Password</span>
+      <input id="credsPassword" type="password">
+    </label>
+  </div>
+  <menu>
+    <button id="credsCancel">Cancel</button>
+    <button id="credsSend" class="primary">Send</button>
+  </menu>
+</dialog>
+
+<dialog id="clipboardDialog">
+  <h2>Clipboard</h2>
+  <p class="note">Text copied in the remote desktop appears here. Edit and send it back to paste.</p>
+  <textarea id="clipboardText" rows="8" spellcheck="false"></textarea>
+  <menu>
+    <button id="clipboardClose">Close</button>
+    <button id="clipboardSend" class="primary">Send to remote</button>
+  </menu>
+</dialog>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script>
+/*
+ * The vendored copy of noVNC in vnc/web cannot be used here: HtmlService
+ * serves HTML, not a directory of ES modules, so the library is loaded from a
+ * CDN instead. Both mirrors publish the same @novnc/novnc package.
+ */
+var NOVNC_VERSION = '1.7.0';
+var CDN_BASES = [
+  'https://cdn.jsdelivr.net/npm/@novnc/novnc@' + NOVNC_VERSION + '/core/',
+  'https://unpkg.com/@novnc/novnc@' + NOVNC_VERSION + '/core/'
+];
+
+var CONFIG = <?!= JSON.stringify(config).replace(/</g, '\\u003c') ?>;
+var USER_EMAIL = <?!= JSON.stringify(user).replace(/</g, '\\u003c') ?>;
+
+var RFB = null;
+var rfb = null;
+var desktopName = '';
+var userInitiatedDisconnect = false;
+// securityfailure is always followed by disconnect; keep the auth message.
+var securityFailed = false;
+
+var $ = function(id) { return document.getElementById(id); };
+
+/* ---------------- status + messages ---------------- */
+
+function setStatus(state, text) {
+  $('statusDot').dataset.state = state;
+  $('statusText').textContent = text;
+}
+
+function showMessage(text, kind) {
+  var el = $('message');
+  el.textContent = text;
+  el.dataset.kind = kind || 'info';
+  el.hidden = false;
+}
+
+function hideMessage() { $('message').hidden = true; }
+
+function toast(text, kind, ms) {
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.dataset.kind = kind || 'info';
+  el.textContent = text;
+  $('toasts').appendChild(el);
+  setTimeout(function() { el.remove(); }, ms || 5000);
+}
+
+function setConnectedUI(connected) {
+  ['btnCtrlAltDel', 'btnClipboard', 'btnDisconnect'].forEach(function(id) {
+    $(id).disabled = !connected;
+  });
+  $('btnSettings').hidden = !connected;
+  $('panel').hidden = connected;
+}
+
+/* ---------------- settings ---------------- */
+
+function readForm() {
+  return {
+    host: $('host').value.trim(),
+    port: $('port').value.trim(),
+    path: $('path').value.trim().replace(/^\/+/, ''),
+    password: $('password').value,
+    encrypt: $('encrypt').checked,
+    scaleViewport: $('scaleViewport').checked,
+    resizeSession: $('resizeSession').checked,
+    viewOnly: $('viewOnly').checked,
+    shared: $('shared').checked,
+    qualityLevel: CONFIG.qualityLevel,
+    compressionLevel: CONFIG.compressionLevel
+  };
+}
+
+function fillForm(config) {
+  ['host', 'port', 'path'].forEach(function(key) {
+    if (config[key] !== undefined && config[key] !== null) $(key).value = config[key];
+  });
+  ['encrypt', 'scaleViewport', 'resizeSession', 'viewOnly', 'shared'].forEach(function(key) {
+    if (config[key] !== undefined) $(key).checked = !!config[key];
+  });
+}
+
+function buildURL(config) {
+  var scheme = config.encrypt ? 'wss' : 'ws';
+  var host = (config.host.indexOf(':') !== -1 && config.host.charAt(0) !== '[')
+      ? '[' + config.host + ']' : config.host;
+  return scheme + '://' + host + ':' + config.port + '/' + (config.path || '');
+}
+
+/* ---------------- library loading ---------------- */
+
+function loadNoVNC() {
+  if (RFB) return Promise.resolve(RFB);
+
+  var attempt = function(index) {
+    if (index >= CDN_BASES.length) {
+      return Promise.reject(new Error(
+          'Could not load the noVNC library from any CDN. A content blocker, ' +
+          'a corporate proxy, or an offline network is the usual cause.'));
+    }
+    return import(CDN_BASES[index] + 'rfb.js')
+        .then(function(module) {
+          RFB = module.default;
+          return RFB;
+        })
+        .catch(function() { return attempt(index + 1); });
+  };
+
+  return attempt(0);
+}
+
+/* ---------------- connect ---------------- */
+
+function connect() {
+  var config = readForm();
+  hideMessage();
+
+  if (!config.host) {
+    showMessage('Enter the host that runs websockify.', 'error');
+    return;
+  }
+  if (!config.encrypt) {
+    showMessage(
+        'This page is served over HTTPS by Apps Script, so the browser will ' +
+        'block a plain ws:// connection. Keep the encrypted option on and run ' +
+        'websockify with --cert/--key.', 'error');
+    return;
+  }
+
+  setStatus('connecting', 'Loading noVNC…');
+  securityFailed = false;
+
+  loadNoVNC().then(function() {
+    var url = buildURL(config);
+    setStatus('connecting', 'Connecting to ' + url);
+
+    var credentials = {};
+    if (config.password) credentials.password = config.password;
+
+    rfb = new RFB($('stage'), url, {
+      shared: config.shared,
+      credentials: credentials
+    });
+
+    rfb.scaleViewport = config.scaleViewport;
+    rfb.resizeSession = config.resizeSession;
+    rfb.viewOnly = config.viewOnly;
+    rfb.qualityLevel = config.qualityLevel;
+    rfb.compressionLevel = config.compressionLevel;
+    rfb.background = '#000';
+
+    rfb.addEventListener('connect', onConnect);
+    rfb.addEventListener('disconnect', onDisconnect);
+    rfb.addEventListener('credentialsrequired', onCredentialsRequired);
+    rfb.addEventListener('securityfailure', onSecurityFailure);
+    rfb.addEventListener('desktopname', function(e) {
+      desktopName = e.detail.name;
+      if (rfb && $('statusDot').dataset.state === 'connected') {
+        setStatus('connected', desktopName);
+      }
+    });
+    rfb.addEventListener('clipboard', function(e) {
+      $('clipboardText').value = e.detail.text;
+      toast('Remote clipboard updated.', 'info', 4000);
+    });
+
+    $('password').value = '';
+    $('panel').hidden = true;
+    desktopName = '';
+    lastConfig = config;
+  }).catch(function(err) {
+    setStatus('error', 'Could not start');
+    showMessage(err.message, 'error');
+    $('panel').hidden = false;
+  });
+}
+
+var lastConfig = null;
+
+function onConnect() {
+  setConnectedUI(true);
+  setStatus('connected', desktopName || 'Connected');
+  toast('Connected', 'ok', 2500);
+  userInitiatedDisconnect = false;
+  rfb.focus();
+  google.script.run.logAccess('connect', lastConfig);
+}
+
+function onDisconnect(e) {
+  setConnectedUI(false);
+  var clean = e.detail.clean;
+  var wasUser = userInitiatedDisconnect;
+  rfb = null;
+  userInitiatedDisconnect = false;
+
+  if (securityFailed) {
+    securityFailed = false;          // already explained by onSecurityFailure
+  } else if (wasUser) {
+    setStatus('idle', 'Disconnected');
+  } else if (clean) {
+    setStatus('idle', 'Disconnected by the server');
+    showMessage('The server closed the connection.', 'info');
+  } else {
+    setStatus('error', 'Connection lost');
+    showMessage(
+        'The WebSocket could not be established or was lost. Most often: the ' +
+        'host is not reachable from this browser, websockify is not running, ' +
+        'or its TLS certificate has not been accepted yet — open ' +
+        'https://' + $('host').value + ':' + $('port').value + '/ in a tab and ' +
+        'accept the warning, then try again.', 'error');
+  }
+  google.script.run.logAccess('disconnect', lastConfig);
+}
+
+function onSecurityFailure(e) {
+  securityFailed = true;
+  var reason = e.detail.reason ? ': ' + e.detail.reason : '';
+  setStatus('error', 'Authentication failed');
+  showMessage('Authentication failed (status ' + e.detail.status + ')' + reason, 'error');
+}
+
+function onCredentialsRequired(e) {
+  var types = e.detail.types;
+  $('credsUserField').hidden = types.indexOf('username') === -1;
+  $('credsPassField').hidden = types.indexOf('password') === -1;
+  $('credsHint').textContent = 'The server is asking for: ' + types.join(', ') + '.';
+  $('credsDialog').showModal();
+}
+
+function disconnect() {
+  if (!rfb) return;
+  userInitiatedDisconnect = true;
+  rfb.disconnect();
+}
+
+/* ---------------- server-side calls ---------------- */
+
+function testReachability() {
+  var config = readForm();
+  if (!config.host) {
+    showMessage('Enter a host first.', 'error');
+    return;
+  }
+  showMessage('Probing ' + config.host + ':' + config.port + ' from Google…', 'info');
+  $('btnTest').disabled = true;
+
+  google.script.run
+      .withSuccessHandler(function(result) {
+        $('btnTest').disabled = false;
+        showMessage(result.message, result.ok ? 'ok' : 'error');
+      })
+      .withFailureHandler(function(err) {
+        $('btnTest').disabled = false;
+        showMessage(err.message, 'error');
+      })
+      .checkGateway(config);
+}
+
+function saveDefaults() {
+  var config = readForm();
+  delete config.password;
+  $('btnSave').disabled = true;
+
+  google.script.run
+      .withSuccessHandler(function() {
+        $('btnSave').disabled = false;
+        showMessage('Saved. These settings load automatically next time.', 'ok');
+      })
+      .withFailureHandler(function(err) {
+        $('btnSave').disabled = false;
+        showMessage(err.message, 'error');
+      })
+      .saveConfig(config);
+}
+
+/* ---------------- wiring ---------------- */
+
+function wire() {
+  $('btnConnect').addEventListener('click', connect);
+  $('btnTest').addEventListener('click', testReachability);
+  $('btnSave').addEventListener('click', saveDefaults);
+  $('btnDisconnect').addEventListener('click', disconnect);
+  $('btnSettings').addEventListener('click', function() {
+    $('panel').hidden = !$('panel').hidden;
+  });
+  $('btnCtrlAltDel').addEventListener('click', function() {
+    if (rfb) rfb.sendCtrlAltDel();
+  });
+  $('btnClipboard').addEventListener('click', function() {
+    $('clipboardDialog').showModal();
+  });
+  $('btnFullscreen').addEventListener('click', function() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(function(err) {
+        toast('Fullscreen refused: ' + err.message, 'error');
+      });
+    }
+  });
+
+  $('credsCancel').addEventListener('click', function() {
+    $('credsDialog').close();
+    disconnect();
+  });
+  $('credsSend').addEventListener('click', function() {
+    if (!rfb) return;
+    var creds = {};
+    if (!$('credsUserField').hidden) creds.username = $('credsUsername').value;
+    if (!$('credsPassField').hidden) creds.password = $('credsPassword').value;
+    rfb.sendCredentials(creds);
+    $('credsPassword').value = '';
+    $('credsDialog').close();
+  });
+
+  $('clipboardClose').addEventListener('click', function() {
+    $('clipboardDialog').close();
+  });
+  $('clipboardSend').addEventListener('click', function() {
+    if (rfb) {
+      rfb.clipboardPasteFrom($('clipboardText').value);
+      toast('Clipboard sent.', 'ok', 2500);
+    }
+    $('clipboardDialog').close();
+  });
+
+  document.querySelectorAll('dialog').forEach(function(dialog) {
+    dialog.addEventListener('close', function() { if (rfb) rfb.focus(); });
+  });
+
+  $('host').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') connect();
+  });
+  $('password').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') connect();
+  });
+}
+
+function init() {
+  wire();
+  fillForm(CONFIG);
+  $('who').textContent = USER_EMAIL
+      ? 'Signed in as ' + USER_EMAIL
+      : 'Hosted by Google Apps Script';
+
+  if (CONFIG.allowedHosts && CONFIG.allowedHosts.length) {
+    showMessage('This deployment only allows: ' + CONFIG.allowedHosts.join(', '), 'info');
+  }
+
+  setConnectedUI(false);
+  setStatus('idle', 'Not connected');
+
+  if (CONFIG.autoconnect && CONFIG.host) connect();
+}
+
+init();
+</script>
+</body>
+</html>
