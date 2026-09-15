@@ -14,7 +14,7 @@
     hn2: { name: 'Cursed Buds', cd: 10, dur: 1.85, damage: 30 },
     hn3: { name: 'Branch Breaker', cd: 10, dur: 1.35, damage: 32 },
     hn4: { name: 'Solar Bloom', cd: 15, dur: 2.05, damage: 38 },
-    hnr: { name: 'Flower Field', cd: 21, dur: 1.05, damage: 10 }
+    hnr: { name: 'Flower Field', cd: 21, dur: 1.05, damage: 56 }
   };
   var clamp = function (v) { return Math.max(0, Math.min(1, v)); };
   var smooth = function (v) { v = clamp(v); return v * v * (3 - 2 * v); };
@@ -487,7 +487,7 @@
       var prop=visual(key,index,from,d,true);
       if(key==='hnr') {
         H.field=prop;
-        enemies.slice().forEach(function(e){if(e&&!e.dead&&e.pos.distanceTo(from)<10.5)hit(e,key,10,d,0,0);});
+        enemies.slice().forEach(function(e){if(e&&!e.dead&&e.pos.distanceTo(from)<10.5)hit(e,key,56,d,0,0);});
       } else if(key==='hn1') {
         if(window.JJDESTRUCT)JJDESTRUCT.hit(from.clone().addScaledVector(d,5+index*4.4).add(V(0,.5,0)),4);
         targets(from,d,7+index*4.4,4+index*.3,-1,4.7).forEach(function(e){

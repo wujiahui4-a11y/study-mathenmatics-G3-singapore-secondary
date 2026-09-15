@@ -1243,6 +1243,53 @@ and out-of-range hits, four lethal finishers, defensive behavior, interruption,
 cleanup, two-browser packet replay and both generated entry points. Test hooks
 exist only in the test server's response and are not shipped in the game.
 
+## What a skill is worth
+
+Every base skill on the roster now lands in one of two bands. This was not
+true before: the numbers had drifted move by move as fighters were added,
+and a survey of all fourteen kits found **8 damage at the bottom and 150 at
+the top** — an eighteenfold spread between one press and another.
+
+| | band | was | now |
+| --- | --- | --- | --- |
+| Keys `1`–`4` | **30–38** | 8 → 150 | 30 → 38 |
+| `R`, where it is a damage special | **54–62** | 10 → 62 | 54 → 62 |
+
+Fifty five normals and nine specials, measured rather than read off the
+constants — a move that misses its own hit window deals less than it says
+it does, and a multi-hit deals a great deal more.
+
+**Utility `R`s keep their zero.** Five fighters spend that slot on
+something other than damage, and forcing a number onto them would take the
+move away: Gojo's **Limitless** is a teleport, Naoya's **Projection** and
+Hakari's **Door Guard** are counters, Todo's **False Clap** is the swap,
+and Mahito's `R` cycles his arms. Choso's `4`, **Flowing Red Scale**, is a
+multiplier on everything else he does, and is zero for the same reason.
+
+### The four that were not numbers at all
+
+Most of the pass was arithmetic. Four were structural, and those are worth
+naming:
+
+- **Supernova fired eighteen orbs, each with its own hit flag.** Anybody
+  standing on Choso caught ten of them — 150 from one press, five times
+  any other normal. The orbs now share a budget: three hits on any one
+  person, twelve apiece.
+- **Todo's stone feint double-dipped.** Swapping *after* the rock landed
+  paid for the rock and the blindside both, 50 all in; swapping *before* it
+  landed cancelled the rock and paid 6. The blindside now carries a full
+  skill's weight on its own and drops to a tap when the rock already
+  connected, so both lines come out at 32 and 38.
+- **Gachinko's flurry escalated per hit** — `11 + i * 3` and then a finish,
+  66 together, the heaviest single normal anywhere.
+- **Naoya's first three sat at 12, 8 and 10** while his fourth sat at 43.
+  His Tanto is an execution: the 8 was its ordinary hit, and the 20 and 6
+  behind it only fire on a target already under 14 HP. That structure is
+  intact; only the ordinary hit moved.
+
+Awakened kits are deliberately out of this: Sukuna, the fever, the garden,
+the Death Painting and Gojo's awakening all keep their own scale.
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**

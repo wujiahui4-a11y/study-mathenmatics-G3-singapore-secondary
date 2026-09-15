@@ -76,7 +76,7 @@ async function main(){
     await page.screenshot({path:path.join(artifacts,'hanami-model.png')});
     console.log('Model and roster rendered.');
     // Real key input, actual wrapped damage, cooldowns and full recovery.
-    for(const [key,code,expected] of [['hn1','Digit1',34],['hn2','Digit2',30],['hn3','Digit3',32],['hn4','Digit4',38],['hnr','KeyR',10]]){
+    for(const [key,code,expected] of [['hn1','Digit1',34],['hn2','Digit2',30],['hn3','Digit3',32],['hn4','Digit4',38],['hnr','KeyR',56]]){
       await reset();await page.evaluate(()=>__ht.target());
       await page.keyboard.press(code);
       const first=await page.evaluate(()=>({type:__ht.player.action?.type,cd:__ht.cds[__ht.player.action?.type]}));

@@ -461,7 +461,7 @@
      Out of the sky rather than out of the road. It comes down on them,
      and what it carries is lightning.
      ================================================================== */
-  var NUE = { reach: 26, dmg: 26, drop: 34 };
+  var NUE = { reach: 26, dmg: 32, drop: 34 };
 
   function buildNue() {
     var g = new THREE.Group();

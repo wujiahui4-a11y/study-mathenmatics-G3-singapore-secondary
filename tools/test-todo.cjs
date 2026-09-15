@@ -113,7 +113,7 @@ const server = http.createServer((req, res) => {
     });
     await tick(1.3);
     report.variants.air = 1000 - (await page.evaluate(() => __tt.enemies.find((e) => !e.net).hp));
-    assert.equal(report.variants.air, 17);
+    assert.equal(report.variants.air, 38);
     await page.evaluate(() => {
       __tt.reset();
       __tt.target();
@@ -123,7 +123,7 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.evaluate(() => JJTODO.cast(2)), true);
     await tick(1.1);
     report.variants.stone = 1000 - (await page.evaluate(() => __tt.enemies.find((e) => !e.net).hp));
-    assert.equal(report.variants.stone, 28);
+    assert.equal(report.variants.stone, 38);
     await page.evaluate(() => {
       __tt.reset();
       __tt.target();
@@ -133,7 +133,7 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.evaluate(() => JJTODO.cast(3)), true);
     await tick(1);
     report.variants.black = 1000 - (await page.evaluate(() => __tt.enemies.find((e) => !e.net).hp));
-    assert.equal(report.variants.black, 22);
+    assert.equal(report.variants.black, 38);
     await page.evaluate(() => {
       __tt.reset();
       __tt.target();
@@ -428,7 +428,7 @@ const server = http.createServer((req, res) => {
           pos: pos.toArray(),
           actual: __tt.player.pos.toArray()
         });
-        if (e.hp === 986 && Math.abs(__tt.player.pos.y - y) < 0.1)
+        if (e.hp === 966 && Math.abs(__tt.player.pos.y - y) < 0.1)
           return { floor: y, playerY: __tt.player.pos.y, damage: 1000 - e.hp };
       }
       return { failed: true, attempts };

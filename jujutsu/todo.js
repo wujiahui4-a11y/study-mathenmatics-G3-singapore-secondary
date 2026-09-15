@@ -17,13 +17,13 @@
     lastAction: null
   });
   var K = (T.kit = {
-    b1: { name: 'Clap & Collide', slot: 'b1', cd: 8, dur: 1.05, damage: 14 },
-    td_air: { name: 'Clap & Collide · Heel Drop', slot: 'b1', cd: 8, dur: 1.15, damage: 17 },
-    b2: { name: 'Cursed Stone', slot: 'b2', cd: 11, dur: 0.7, damage: 10 },
-    td_stone: { name: 'Stone Feint · Blindside', slot: 'b2', cd: 11, dur: 0.95, damage: 18 },
-    b3: { name: 'Heavy Knuckle', slot: 'b3', cd: 13, dur: 1.1, damage: 16 },
-    td_black: { name: 'Heavy Knuckle · Black Flash', slot: 'b3', cd: 13, dur: 1.1, damage: 22 },
-    b4: { name: 'Brother’s Rhythm', slot: 'b4', cd: 17, dur: 2.15, damage: 25 },
+    b1: { name: 'Clap & Collide', slot: 'b1', cd: 8, dur: 1.05, damage: 34 },
+    td_air: { name: 'Clap & Collide · Heel Drop', slot: 'b1', cd: 8, dur: 1.15, damage: 38 },
+    b2: { name: 'Cursed Stone', slot: 'b2', cd: 11, dur: 0.7, damage: 32 },
+    td_stone: { name: 'Stone Feint · Blindside', slot: 'b2', cd: 11, dur: 0.95, damage: 36 },
+    b3: { name: 'Heavy Knuckle', slot: 'b3', cd: 13, dur: 1.1, damage: 34 },
+    td_black: { name: 'Heavy Knuckle · Black Flash', slot: 'b3', cd: 13, dur: 1.1, damage: 38 },
+    b4: { name: 'Brother’s Rhythm', slot: 'b4', cd: 17, dur: 2.15, damage: 36 },
     br: { name: 'False Clap', slot: 'br', cd: 9, dur: 0.85, damage: 8 },
     td_awaken: { name: 'My Best Friend · 120%', slot: 'tdAw', cd: 0, dur: 3.65, damage: 0 },
     tda1: { name: 'Cross Rhythm', slot: 'tda1', cd: 13, dur: 2.0, damage: 28, awake: true },
@@ -276,6 +276,11 @@
     if (key === 'td_stone') {
       a.spot = T.stone.g.position.clone();
       a.spot.y = worldFloor(a.spot);
+      // Swapping before the rock lands cancels it, so the blindside is the
+      // whole of the feint on that line and has to carry a full skill's
+      // weight; swapping after it has already connected must not stack a
+      // second full hit on top.
+      a.stoneHit = !!T.stone.struck;
       removeStone();
     }
     if (key === 'td_awaken') {
@@ -369,7 +374,8 @@
             g.rotation.z = time * 4;
             if (u === 1 && !s.landed) {
               s.landed = true;
-              if (e && e.pos.distanceTo(g.position) < 4) hit(e, 'b2', 10, a.dir, 3, 0, { fin: false });
+              if (e && e.pos.distanceTo(g.position) < 4)
+                s.struck = hit(e, 'b2', 32, a.dir, 3, 0, { fin: false }) !== false;
             }
             if (u === 1) g.position.y = dest.y + Math.sin(time * 5) * 0.13;
           },
@@ -384,7 +390,7 @@
         move(player, a.spot, true);
         if (e) a.facing = Math.atan2(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
       });
-      beat('kick', 0.47, () => Fist(e, key, 18, e ? face(e) : a.dir, 24, 7, 6));
+      beat('kick', 0.47, () => Fist(e, key, a.stoneHit ? 6 : 32, e ? face(e) : a.dir, 24, 7, 6));
     } else if (key === 'b3' || key === 'td_black') {
       if (t > 0.27 && t < 0.45) move(player, player.pos.clone().addScaledVector(a.dir, dt * 6), false);
       beat('hit', 0.49, () => {
@@ -432,7 +438,7 @@
           hit(
             e,
             key,
-            last ? (sky ? 18 : key === 'tda1' ? 13 : 10) : sky ? 6 : 5,
+            last ? (sky ? 18 : key === 'tda1' ? 13 : 18) : sky ? 6 : 6,
             face(e),
             last ? 29 : 0,
             last ? (sky ? 2 : 11) : 0,
