@@ -1,0 +1,35 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#132;color:#fff;font:15px monospace">
+<canvas id="cv" width="360" height="220" style="background:#254;display:block"></canvas>
+<button id="pop" style="font-size:16px;padding:8px 14px">open in full window</button>
+<div id="out"></div>
+<script>
+var out = document.getElementById('out');
+function log(s){ out.textContent += s + '\n'; window.__log = (window.__log || '') + s + '\n'; }
+log('framed: ' + (window.top !== window.self));
+document.getElementById('cv').addEventListener('mousedown', function () {
+  try {
+    var p = document.getElementById('cv').requestPointerLock();
+    if (p && p.then) p.then(function(){}, function(e){ log('reject: ' + e.message); });
+  } catch (e) { log('threw: ' + e.message); }
+  setTimeout(function(){ log('locked: ' + (document.pointerLockElement ? 'YES' : 'NO')); window.__locked = !!document.pointerLockElement; }, 350);
+});
+document.addEventListener('pointerlockerror', function(){ log('pointerlockerror'); });
+document.getElementById('pop').addEventListener('click', function () {
+  var mode = location.hash === '#blob' ? 'blob' : 'url';
+  var w;
+  if (mode === 'blob') {
+    var html = '<!doctype html><meta charset="utf-8"><body style="margin:0;background:#204;color:#fff;font:15px monospace">'
+      + '<canvas id="cv" width="360" height="220" style="background:#417;display:block"></canvas><div id="out"></div>'
+      + '<' + 'script>var out=document.getElementById("out");function log(s){out.textContent+=s+"\n";window.__log=(window.__log||"")+s+"\n";}'
+      + 'log("framed: "+(window.top!==window.self));'
+      + 'document.getElementById("cv").addEventListener("mousedown",function(){try{var p=document.getElementById("cv").requestPointerLock();'
+      + 'if(p&&p.then)p.then(function(){},function(e){log("reject: "+e.message);});}catch(e){log("threw: "+e.message);}'
+      + 'setTimeout(function(){log("locked: "+(document.pointerLockElement?"YES":"NO"));},350);});'
+      + 'document.addEventListener("pointerlockerror",function(){log("pointerlockerror");});<' + '/script>';
+    w = window.open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank');
+  } else {
+    w = window.open(location.href, '_blank');
+  }
+  log('popup: ' + (w ? 'opened' : 'BLOCKED'));
+});
+</script>
