@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MERLIO — Singapore Pixel Adventure</title>
+<style>
+  :root { color-scheme: dark; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #05060f;
+    overflow: hidden;
+    font-family: monospace;
+    touch-action: none;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  #wrap {
+    position: relative;
+    line-height: 0;
+    box-shadow: 0 0 60px rgba(120, 80, 255, .25), 0 0 12px rgba(0,0,0,.8);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  canvas {
+    width: min(960px, 100vw);
+    height: auto;
+    max-height: 100vh;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+    background: #0e1440;
+  }
+  /* subtle CRT scanlines */
+  #wrap::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px,
+      rgba(0,0,0,.12) 3px
+    );
+    mix-blend-mode: multiply;
+  }
+  .tbtn {
+    position: fixed;
+    bottom: 4vh;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.08);
+    border: 2px solid rgba(255,255,255,.35);
+    color: #fff;
+    font-size: 26px;
+    font-family: monospace;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 10;
+  }
+  .tbtn:active { background: rgba(255,255,255,.25); }
+  #btnL { left: 4vw; }
+  #btnR { left: calc(4vw + 80px); }
+  #btnJ { right: 4vw; width: 76px; height: 76px; }
+  @media (pointer: coarse) { .tbtn { display: flex; } }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="960" height="720"></canvas></div>
+<div class="tbtn" id="btnL">&#9664;</div>
+<div class="tbtn" id="btnR">&#9654;</div>
+<div class="tbtn" id="btnJ">A</div>
+
+<script>
+"use strict";
+/* ============================================================
+   MERLIO — Singapore Pixel Adventure
+   A love letter to the Lion City, in 16x16 pixels.
+   Stomp durians, grab orchid coins, eat chilli crab,
+   and raise the flag at Marina Bay. Majulah!
+   ============================================================ */
+
+const TILE = 16, VW = 320, VH = 240, SCALE = 3;
+const ROWS = 15;
+
+const cvs = document.getElementById("game");
+const ctx = cvs.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+
+/* ---------------- sprite baking ---------------- */
+function bake(rows, pal) {
+  const w = Math.max(...rows.map(r => r.length));
+  const h = rows.length;
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const g = c.getContext("2d");
+  for (let y = 0; y < h; y++) {
+    const row = rows[y];
+    for (let x = 0; x < row.length; x++) {
+      const ch = row[x];
+      if (ch === "." || ch === " ") continue;
+      g.fillStyle = pal[ch] || "#f0f";
+      g.fillRect(x, y, 1, 1);
+    }
+  }
+  return c;
+}
+
+/* ---------------- player sprites ---------------- */
+const PPAL = { R:"#e23b3b", r:"#a31f26", W:"#f4f4f4", S:"#f6c998",
+               H:"#4a2c12", B:"#22222c", Y:"#ffcf3f" };
+const P_TOP = [
+  "....RRRRRRR.....",
+  "...RRRRRRRRRR...",
+  "...RRWWRRRRRR...",
+  "....HHHSSSB.....",
+  "...HSSHSSSSB....",
+  "...HSSHSSSSS....",
+  "...HSSSSSSS.....",
+  "....SSBBBBS.....",
+  "....RRRRRRR.....",
+  "...RRWWWWWRR....",
+  "..SSRWYWWYWRSS..",
+  "..SSWWWWWWWWSS..",
+];
+const P_TOP_JUMP = [
+  "....RRRRRRR.....",
+  "...RRRRRRRRRR...",
+  "...RRWWRRRRRR...",
+  "....HHHSSSB.....",
+  "...HSSHSSSSB....",
+  "...HSSHSSSSS....",
+  "...HSSSSSSS.....",
+  "....SSBBBBS.....",
+  "..SS.RRRRRR.SS..",
+  "..SSRWWWWWWRSS..",
+  "...RWYWWYWWR....",
+  "...WWWWWWWWW....",
+];
+const LEGS_STAND = [
+  "....WWWWWWW.....",
+  "....WWW.WWW.....",
+  "...BBBB.BBBB....",
+  "...BBBB.BBBB....",
+];
+const LEGS_W1 = [
+  "....WWWWWWW.....",
+  "...WWW...WWW....",
+  "..BBBB...BBBB...",
+  ".BBBB.....BBBB..",
+];
+const LEGS_W2 = [
+  "....WWWWWW......",
+  ".....WWWW.......",
+  "....BBBBB.......",
+  "....BBBBB.......",
+];
+const LEGS_JUMP = [
+  "....WWWWWWW.....",
+  "...WWW...WWW....",
+  "...BBB...BBB....",
+  "..BBB.....BBB...",
+];
+const SPR_P_STAND = bake(P_TOP.concat(LEGS_STAND), PPAL);
+const SPR_P_W1    = bake(P_TOP.concat(LEGS_W1), PPAL);
+const SPR_P_W2    = bake(P_TOP.concat(LEGS_W2), PPAL);
+const SPR_P_JUMP  = bake(P_TOP_JUMP.concat(LEGS_JUMP), PPAL);
+
+/* ---------------- durian enemy ---------------- */
+const DPAL = { G:"#8fbc3f", g:"#4d7a1e", B:"#1c1c28", W:"#ffffff" };
+const D_BODY = [
+  "...gGGGGGGg.....",
+  "..gGGGGGGGGg....",
+  ".gGGGGGGGGGGg...",
+  ".gGGGGGGGGGGg...",
+  "..GGWWBGGWWBG...",
+  ".gGGWWBGGWWBGg..",
+  "..GGGGGGGGGGG...",
+  ".gGGGBBBBBGGg...",
+  "..GGBGGGGGBGG...",
+  "..gGGGGGGGGGg...",
+  "...gGGGGGGGg....",
+  "....gGGGGGg.....",
+  ".....ggggg......",
+  "................",
+];
+const SPR_D1 = bake([
+  "...g...g...g....",
+  "..g.g.g.g.g.g...",
+].concat(D_BODY), DPAL);
+const SPR_D2 = bake([
+  "..g..g..g..g....",
+  "...g.g.g.g.g.g..",
+].concat(D_BODY), DPAL);
+const SPR_D_SQ = bake([
+  "................","................","................","................",
+  "................","................","................","................",
+  "................","................","................","................",
+  "..g.g.g.g.g.g...",
+  "..gGGGGGGGGGg...",
+  ".gGGGGGGGGGGGg..",
+  ".ggggggggggggg..",
+], DPAL);
+
+/* ---------------- coin (star coin) ---------------- */
+const CPAL = { Y:"#ffd23f", y:"#c8901e", W:"#fffbe8" };
+const SPR_COIN = bake([
+  ".....yyyyyy.....",
+  "....yYYYYYYy....",
+  "...yYYYYYYYYy...",
+  "..yYYYYWYYYYy...",
+  "..yYYYWWWYYYy...",
+  "..yYYWWWWWYYy...",
+  "..yYYYWWWYYYy...",
+  "..yYYYWYWYYYy...",
+  "..yYYYYYYYYYy...",
+  "...yYYYYYYYYy...",
+  "....yYYYYYYy....",
+  ".....yyyyyy.....",
+], CPAL);
+
+/* ---------------- chilli crab power-up ---------------- */
+const KPAL = { R:"#e8442c", r:"#9c2413", W:"#ffffff", B:"#1c1c28" };
+const SPR_CRAB = bake([
+  "..r..........r..",
+  ".rr..rr..rr..rr.",
+  ".r...RRRRRR...r.",
+  ".rr.RRRRRRRR.rr.",
+  "..rRRWBRRWBRRr..",
+  "...RRRRRRRRRR...",
+  "..RRRRRrrRRRRR..",
+  ".r.RRRRRRRRRR.r.",
+  "....r..rr..r....",
+  "...r...rr...r...",
+], KPAL);
+
+/* ---------------- singapore flag ---------------- */
+const FPAL = { R:"#ee2536", W:"#ffffff" };
+const SPR_FLAG = bake([
+  "RRRRRRRRRRRRRRRR",
+  "RRWWRRRRRWRRRRRR",
+  "RWWRRRRWRRRWRRRR",
+  "RWWRRRRRRWRRRRRR",
+  "RRWWRRRRWRRRWRRR",
+  "RRRRRRRRRRRRRRRR",
+  "WWWWWWWWWWWWWWWW",
+  "WWWWWWWWWWWWWWWW",
+  "WWWWWWWWWWWWWWWW",
+  "WWWWWWWWWWWWWWWW",
+], FPAL);
+
+/* ---------------- merlion statue ---------------- */
+const MPAL = { W:"#e6ecf2", g:"#9fb2c4", C:"#6fd8f0", c:"#b8ecfa" };
+const SPR_MERLION = bake([
+  "....WWWW........",
+  "...WWWWWW.......",
+  "..WWgWWgWW......",
+  "..WWWWWWWWCc....",
+  "...WWWWWWWC.c...",
+  "..gWWWWWWW.C....",
+  "..WWWWWWWW..c...",
+  ".gWWWWWWWWg.....",
+  ".gWWWWWWWWg.....",
+  "..WWWWWWWW......",
+  "..gWWWWWWg......",
+  "...WWWWWW.......",
+  "...gWWWWg.......",
+  "...WWWWWW.......",
+  "..WWWWWWWW......",
+  ".WWWWWWWWWW.....",
+  "gggggggggggg....",
+  "gggggggggggg....",
+], MPAL);
+
+/* ---------------- tiles ---------------- */
+function bakeTile(draw) {
+  const c = document.createElement("canvas");
+  c.width = TILE; c.height = TILE;
+  draw(c.getContext("2d"));
+  return c;
+}
+const T_GROUND = bakeTile(g => {
+  g.fillStyle = "#8a5a2c"; g.fillRect(0, 0, 16, 16);
+  g.fillStyle = "#6e4520";
+  [[2,7],[9,10],[5,13],[12,5],[1,11],[13,13],[7,5]].forEach(([x,y]) => g.fillRect(x, y, 2, 2));
+  g.fillStyle = "#3faf4a"; g.fillRect(0, 0, 16, 4);
+  g.fillStyle = "#2e8a3a";
+  [[0,3],[3,2],[6,3],[9,2],[12,3],[15,2]].forEach(([x,y]) => g.fillRect(x, y, 2, 4 - y));
+  g.fillStyle = "#63d670"; g.fillRect(0, 0, 16, 1);
+});
+const T_BRICK = bakeTile(g => {
+  g.fillStyle = "#c8452c"; g.fillRect(0, 0, 16, 16);
+  g.fillStyle = "#e06045"; g.fillRect(0, 0, 16, 1);
+  g.fillStyle = "#7c2415";
+  g.fillRect(0, 7, 16, 1); g.fillRect(0, 15, 16, 1);
+  g.fillRect(7, 0, 1, 7); g.fillRect(3, 8, 1, 7); g.fillRect(11, 8, 1, 7);
+});
+const T_Q = bakeTile(g => {
+  g.fillStyle = "#ffb02e"; g.fillRect(0, 0, 16, 16);
+  g.fillStyle = "#ffd97a"; g.fillRect(1, 1, 14, 2);
+  g.fillStyle = "#b06a10"; g.fillRect(0, 14, 16, 2); g.fillRect(14, 0, 2, 16);
+  g.fillStyle = "#7c4a08";
+  [[1,1],[13,1],[1,13],[13,13]].forEach(([x,y]) => g.fillRect(x, y, 2, 2));
+  g.fillStyle = "#7c4a08";
+  g.fillRect(5, 3, 6, 2); g.fillRect(9, 5, 2, 2); g.fillRect(7, 7, 3, 2);
+  g.fillRect(7, 9, 2, 1); g.fillRect(7, 12, 2, 2);
+});
+const T_USED = bakeTile(g => {
+  g.fillStyle = "#9a7550"; g.fillRect(0, 0, 16, 16);
+  g.fillStyle = "#7a5a3c"; g.fillRect(0, 14, 16, 2); g.fillRect(14, 0, 2, 16);
+  g.fillStyle = "#5c422a";
+  [[1,1],[13,1],[1,13],[13,13]].forEach(([x,y]) => g.fillRect(x, y, 2, 2));
+});
+const T_POLE = bakeTile(g => {
+  g.fillStyle = "#c2cdd8"; g.fillRect(7, 0, 3, 16);
+  g.fillStyle = "#7e8b98"; g.fillRect(9, 0, 1, 16);
+});
+
+/* ---------------- audio ---------------- */
+let AC = null, muted = false;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === "suspended") AC.resume();
+  return AC;
+}
+function tone(freq, dur, type = "square", vol = 0.12, slide = 0, delay = 0) {
+  const ac = audio(); if (!ac || muted) return;
+  const t0 = ac.currentTime + delay;
+  const o = ac.createOscillator(), gn = ac.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t0);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t0 + dur);
+  gn.gain.setValueAtTime(vol, t0);
+  gn.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  o.connect(gn).connect(ac.destination);
+  o.start(t0); o.stop(t0 + dur + 0.02);
+}
+const sfx = {
+  jump()  { tone(240, 0.18, "square", 0.10, 320); },
+  coin()  { tone(988, 0.08, "square", 0.10); tone(1319, 0.22, "square", 0.10, 0, 0.08); },
+  stomp() { tone(220, 0.12, "square", 0.14, -140); },
+  bump()  { tone(120, 0.08, "square", 0.10, -40); },
+  hurt()  { tone(300, 0.3, "sawtooth", 0.12, -240); },
+  power() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.12, "square", 0.10, 0, i * 0.07)); },
+  die()   { [494, 466, 440, 220, 165, 110].forEach((f, i) => tone(f, 0.16, "triangle", 0.14, 0, i * 0.13)); },
+  win()   { [523, 587, 659, 784, 880, 1047, 1319].forEach((f, i) => tone(f, 0.18, "square", 0.10, 0, i * 0.12)); },
+};
+
+/* ---------------- level ---------------- */
+const LEVEL_W = 232;
+let grid, qContents, bumpMap;
+let enemySpawns, coinSpawns, decorations;
+const FLAG_X = 214;
+
+function key(x, y) { return x + "," + y; }
+
+function buildLevel() {
+  grid = Array.from({ length: ROWS }, () => new Array(LEVEL_W).fill(0));
+  qContents = {}; bumpMap = {};
+  enemySpawns = []; coinSpawns = []; decorations = [];
+
+  const ground = (x1, x2) => { for (let x = x1; x <= x2; x++) { grid[13][x] = 1; grid[14][x] = 1; } };
+  const block  = (x, y, t) => { grid[y][x] = t; };
+  const q      = (x, y, what) => { grid[y][x] = 3; qContents[key(x, y)] = what; };
+  const coins  = (list) => list.forEach(([x, y]) => coinSpawns.push({ x: x * TILE + 2, y: y * TILE + 2 }));
+  const durian = (x) => enemySpawns.push({ x: x * TILE, y: 12 * TILE });
+  const stairsUp = (x0, h) => { for (let i = 0; i < h; i++) for (let j = 0; j <= i; j++) grid[12 - j][x0 + i] = 1; };
+  const stairsDn = (x0, h) => { for (let i = 0; i < h; i++) for (let j = 0; j <= h - 1 - i; j++) grid[12 - j][x0 + i] = 1; };
+
+  ground(0, 60); ground(64, 95); ground(99, 140); ground(144, 175); ground(179, LEVEL_W - 1);
+
+  decorations.push({ type: "merlion", x: 6 * TILE, y: 13 * TILE - 36 });
+  decorations.push({ type: "sign", x: 3 * TILE, y: 13 * TILE - 20, text: "MARINA BAY \u2192" });
+
+  q(11, 9, "coin");
+  block(15, 9, 2); q(16, 9, "coin"); block(17, 9, 2); q(18, 9, "coin"); block(19, 9, 2);
+  q(17, 5, "coin");
+  durian(23); durian(26);
+  coins([[30, 9], [31, 9], [32, 9]]);
+  block(36, 9, 2); block(37, 9, 2); q(38, 9, "crab"); block(39, 9, 2);
+  durian(42); durian(45);
+  coins([[50, 8], [51, 7], [52, 7], [53, 8]]);
+  q(55, 9, "coin"); q(57, 9, "coin");
+
+  // gap 61-63
+  coins([[61, 9], [62, 8], [63, 9]]);
+
+  decorations.push({ type: "supertree", x: 67 * TILE });
+  block(68, 9, 2); block(69, 9, 2); q(70, 9, "coin"); block(71, 9, 2); block(72, 9, 2);
+  q(70, 5, "coin");
+  durian(75); durian(79); durian(83);
+  coins([[86, 8], [87, 8], [88, 8], [89, 8], [90, 8]]);
+  stairsUp(90, 3); stairsDn(93, 3);
+  decorations.push({ type: "supertree", x: 88 * TILE });
+
+  // gap 96-98 (ground level)
+  coins([[96, 9], [97, 8], [98, 9]]);
+  durian(107);
+  block(108, 8, 2); q(109, 8, "coin"); q(110, 8, "coin"); block(111, 8, 2);
+  durian(114); durian(118);
+  decorations.push({ type: "supertree", x: 116 * TILE });
+  decorations.push({ type: "supertree", x: 121 * TILE });
+  coins([[122, 9], [123, 9], [124, 9]]);
+  q(127, 9, "crab");
+  durian(130); durian(133);
+  block(136, 9, 2); block(137, 9, 2); block(138, 9, 2);
+  coins([[136, 5], [137, 5], [138, 5]]);
+
+  // gap 141-143
+  coins([[141, 9], [142, 8], [143, 9]]);
+
+  durian(148);
+  q(150, 9, "coin"); block(151, 9, 2); q(152, 9, "coin");
+  durian(155); durian(159); durian(163);
+  stairsUp(166, 3);
+  coins([[168, 7], [169, 6], [170, 6]]);
+  stairsDn(170, 3);
+  decorations.push({ type: "merlion", x: 173 * TILE, y: 13 * TILE - 36 });
+
+  // gap 176-178
+  coins([[176, 8], [177, 7], [178, 8]]);
+
+  durian(183); durian(187);
+  q(190, 9, "coin"); q(192, 9, "coin");
+  coins([[195, 9], [196, 9], [197, 9]]);
+  stairsUp(200, 8);
+  for (let y = 4; y <= 12; y++) grid[y][FLAG_X] = 5;
+  decorations.push({ type: "hdb", x: 220 * TILE });
+  decorations.push({ type: "sign", x: 216 * TILE, y: 13 * TILE - 20, text: "MAJULAH!" });
+}
+
+function solidAt(tx, ty) {
+  if (tx < 0 || tx >= LEVEL_W) return true;
+  if (ty < 0) return false;
+  if (ty >= ROWS) return false;
+  const t = grid[ty][tx];
+  return t === 1 || t === 2 || t === 3 || t === 4;
+}
+
+/* ---------------- entities & state ---------------- */
+let state, player, enemies, items, coinsE, particles, popups;
+let camX, score, coinCount, lives, timeLeft, winTimer, deadTimer, shake;
+
+function resetPlayer() {
+  player = {
+    x: 2 * TILE, y: 11 * TILE, w: 10, h: 14,
+    vx: 0, vy: 0, dir: 1, onGround: false,
+    coyote: 0, jbuf: 0, anim: 0, power: 0, inv: 0,
+  };
+}
+function spawnWorld() {
+  enemies = enemySpawns.map(s => ({
+    x: s.x, y: s.y, w: 13, h: 13, vx: -30, vy: 0,
+    alive: true, squash: 0, anim: Math.random() * 10, active: false,
+  }));
+  coinsE = coinSpawns.map(s => ({ x: s.x, y: s.y, taken: false }));
+  items = []; particles = []; popups = [];
+  bumpMap = {};
+}
+function newGame() {
+  buildLevel();
+  score = 0; coinCount = 0; lives = 3; timeLeft = 300;
+  resetPlayer(); spawnWorld();
+  camX = 0; winTimer = 0; deadTimer = 0; shake = 0;
+  state = "play";
+}
+
+/* ---------------- input ---------------- */
+const keys = {};
+addEventListener("keydown", e => {
+  if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(e.key)) e.preventDefault();
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === " ") keys["space"] = true;
+  if (e.key.toLowerCase() === "m" && !e.repeat) muted = !muted;
+  const onScreen = state === "title" || state === "gameover" || state === "won";
+  if ((e.key === "Enter" || e.key === " ") && onScreen) {
+    audio(); newGame();
+  } else if (state === "play" && (e.key === " " || e.key === "ArrowUp" || e.key.toLowerCase() === "w") && !e.repeat) {
+    player.jbuf = 0.12;
+  }
+  audio();
+});
+addEventListener("keyup", e => {
+  keys[e.key.toLowerCase()] = false;
+  if (e.key === " ") keys["space"] = false;
+});
+function bindBtn(id, k) {
+  const el = document.getElementById(id);
+  const on  = e => { e.preventDefault(); keys[k] = true; audio();
+                     if (k === "space" && state === "play") player.jbuf = 0.12;
+                     if (k === "space" && state !== "play") newGame(); };
+  const off = e => { e.preventDefault(); keys[k] = false; };
+  el.addEventListener("touchstart", on); el.addEventListener("touchend", off);
+  el.addEventListener("mousedown", on);  el.addEventListener("mouseup", off);
+}
+bindBtn("btnL", "arrowleft"); bindBtn("btnR", "arrowright"); bindBtn("btnJ", "space");
+
+const left  = () => keys["arrowleft"] || keys["a"];
+const right = () => keys["arrowright"] || keys["d"];
+const jumpK = () => keys["space"] || keys["arrowup"] || keys["w"];
+
+/* ---------------- helpers ---------------- */
+function popup(x, y, txt, color = "#fff") { popups.push({ x, y, txt, t: 1, color }); }
+function burst(x, y, color, n = 8, spd = 70) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = spd * (0.4 + Math.random() * 0.8);
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 40, t: 0.6 + Math.random() * 0.3, color });
+  }
+}
+function addScore(n, x, y) { score += n; if (x !== undefined) popup(x, y, "+" + n); }
+
+/* ---------------- tile bump ---------------- */
+function bumpTile(tx, ty) {
+  const t = grid[ty][tx];
+  const k = key(tx, ty);
+  if (t === 3) {
+    const what = qContents[k] || "coin";
+    grid[ty][tx] = 4;
+    bumpMap[k] = 0.25;
+    if (what === "coin") {
+      coinCount++; addScore(200);
+      popup(tx * TILE + 2, ty * TILE - 10, "+200", "#ffd23f");
+      burst(tx * TILE + 8, ty * TILE - 4, "#ffd23f", 6, 50);
+      sfx.coin();
+    } else {
+      items.push({ type: "crab", x: tx * TILE, y: ty * TILE - 4, vx: 0, vy: -60, rise: 0.4 });
+      sfx.power();
+    }
+  } else if (t === 2) {
+    bumpMap[k] = 0.25;
+    sfx.bump();
+  }
+}
+
+/* ---------------- physics ---------------- */
+function moveAndCollide(e, hitBlocks) {
+  e.onGround = false;
+  // horizontal
+  e.x += e.vx * DT;
+  let x0 = Math.floor(e.x / TILE), x1 = Math.floor((e.x + e.w - 1) / TILE);
+  let y0 = Math.floor(e.y / TILE), y1 = Math.floor((e.y + e.h - 1) / TILE);
+  if (e.vx > 0) {
+    for (let ty = y0; ty <= y1; ty++) if (solidAt(x1, ty)) { e.x = x1 * TILE - e.w; e.vx = hitBlocks ? 0 : -e.vx; e.hitWall = true; break; }
+  } else if (e.vx < 0) {
+    for (let ty = y0; ty <= y1; ty++) if (solidAt(x0, ty)) { e.x = (x0 + 1) * TILE; e.vx = hitBlocks ? 0 : -e.vx; e.hitWall = true; break; }
+  }
+  // vertical
+  e.y += e.vy * DT;
+  x0 = Math.floor(e.x / TILE); x1 = Math.floor((e.x + e.w - 1) / TILE);
+  y0 = Math.floor(e.y / TILE); y1 = Math.floor((e.y + e.h - 1) / TILE);
+  if (e.vy > 0) {
+    for (let tx = x0; tx <= x1; tx++) if (solidAt(tx, y1)) { e.y = y1 * TILE - e.h; e.vy = 0; e.onGround = true; break; }
+  } else if (e.vy < 0) {
+    for (let tx = x0; tx <= x1; tx++) if (solidAt(tx, y0)) {
+      e.y = (y0 + 1) * TILE; e.vy = 0;
+      if (hitBlocks) {
+        // bump the block most overlapped by the head
+        let best = tx, bestOv = -1;
+        for (let t2 = x0; t2 <= x1; t2++) if (solidAt(t2, y0)) {
+          const ov = Math.min(e.x + e.w, (t2 + 1) * TILE) - Math.max(e.x, t2 * TILE);
+          if (ov > bestOv) { bestOv = ov; best = t2; }
+        }
+        bumpTile(best, y0);
+      }
+      break;
+    }
+  }
+}
+
+const GRAV = 1500, MOVE = 900, MAXVX = 118, RUNVX = 150, FRICTION = 800, JUMPV = 445;
+let DT = 1 / 60;
+
+function updatePlayer(dt) {
+  const p = player;
+  const accel = (left() ? -1 : 0) + (right() ? 1 : 0);
+  const maxv = p.power > 0 ? RUNVX : MAXVX;
+  if (accel !== 0) {
+    p.vx += accel * MOVE * dt;
+    p.dir = accel;
+    p.anim += Math.abs(p.vx) * dt * 0.15;
+  } else {
+    const f = FRICTION * dt;
+    if (Math.abs(p.vx) <= f) p.vx = 0; else p.vx -= Math.sign(p.vx) * f;
+  }
+  p.vx = Math.max(-maxv, Math.min(maxv, p.vx));
+
+  p.coyote = p.onGround ? 0.08 : Math.max(0, p.coyote - dt);
+  p.jbuf = Math.max(0, p.jbuf - dt);
+  if (p.jbuf > 0 && p.coyote > 0) {
+    p.vy = -JUMPV; p.coyote = 0; p.jbuf = 0; sfx.jump();
+  }
+  if (!jumpK() && p.vy < -140) p.vy = -140; // variable jump height
+
+  p.vy = Math.min(p.vy + GRAV * dt, 420);
+  moveAndCollide(p, true);
+  p.x = Math.max(0, Math.min(p.x, LEVEL_W * TILE - p.w));
+
+  if (p.inv > 0) p.inv -= dt;
+  if (p.power > 0) {
+    p.power -= dt;
+    if (Math.random() < 0.35) particles.push({
+      x: p.x + Math.random() * p.w, y: p.y + Math.random() * p.h,
+      vx: (Math.random() - 0.5) * 30, vy: -50, t: 0.4,
+      color: ["#ff5252","#ffd23f","#5ce1e6","#7cf25c"][Math.floor(Math.random() * 4)],
+    });
+  }
+
+  // fell into the bay
+  if (p.y > ROWS * TILE + 24) killPlayer(true);
+
+  // reached the flag
+  if (p.x + p.w / 2 >= FLAG_X * TILE + 6 && state === "play") {
+    state = "winAnim"; winTimer = 0;
+    addScore(Math.floor(timeLeft) * 10);
+    sfx.win();
+  }
+}
+
+function killPlayer(fell) {
+  if (state !== "play") return;
+  state = "dying"; deadTimer = 0;
+  player.vy = fell ? 0 : -380;
+  player.vx = 0;
+  shake = 0.3;
+  sfx.die();
+}
+function hurtPlayer() {
+  if (player.inv > 0 || player.power > 0) return;
+  killPlayer(false);
+}
+
+function updateEnemies(dt) {
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    if (!e.active) {
+      if (e.x < camX + VW + 48 && e.x > camX - 48) e.active = true;
+      else continue;
+    }
+    if (e.squash > 0) { e.squash -= dt; if (e.squash <= 0) e.alive = false; continue; }
+    if (e.flung) {
+      e.vy += GRAV * dt; e.x += e.vx * dt; e.y += e.vy * dt;
+      if (e.y > ROWS * TILE + 40) e.alive = false;
+      continue;
+    }
+    e.anim += dt * 6;
+    e.hitWall = false;
+    e.vy = Math.min(e.vy + GRAV * dt, 420);
+    moveAndCollide(e, false);
+    // turn at ledges
+    if (e.onGround) {
+      const ahead = e.vx > 0 ? Math.floor((e.x + e.w + 1) / TILE) : Math.floor((e.x - 1) / TILE);
+      const below = Math.floor((e.y + e.h + 2) / TILE);
+      if (!solidAt(ahead, below)) e.vx = -e.vx;
+    }
+    if (e.x > camX - 40 && state === "play") {
+      // vs player
+      const p = player;
+      if (p.x < e.x + e.w && p.x + p.w > e.x && p.y < e.y + e.h && p.y + p.h > e.y) {
+        if (p.power > 0) {
+          e.flung = true; e.vx = 120 * Math.sign(e.x - p.x + 0.1); e.vy = -260;
+          addScore(200, e.x, e.y - 8); burst(e.x + 8, e.y + 8, "#8fbc3f"); sfx.stomp();
+        } else if (p.vy > 60 && p.y + p.h - e.y < 11) {
+          e.squash = 0.45;
+          p.vy = -260; p.jbuf = 0;
+          addScore(100, e.x, e.y - 8); burst(e.x + 8, e.y + 10, "#8fbc3f", 6, 50); sfx.stomp();
+        } else {
+          hurtPlayer();
+        }
+      }
+    }
+  }
+}
+
+function updateItems(dt) {
+  for (const it of items) {
+    if (it.dead) continue;
+    if (it.rise > 0) { it.rise -= dt; it.y += it.vy * dt; if (it.rise <= 0) { it.vx = 40; it.vy = 0; } continue; }
+    it.vy = Math.min(it.vy + GRAV * dt, 420);
+    it.w = 13; it.h = 10;
+    moveAndCollide(it, false);
+    const p = player;
+    if (p.x < it.x + 13 && p.x + p.w > it.x && p.y < it.y + 10 && p.y + p.h > it.y) {
+      it.dead = true;
+      p.power = 8; p.inv = Math.max(p.inv, 0.5);
+      addScore(1000, it.x, it.y - 8);
+      popup(p.x - 14, p.y - 18, "CHILLI POWER!", "#ff5252");
+      burst(it.x + 8, it.y + 5, "#e8442c", 12, 90);
+      sfx.power();
+    }
+    if (it.y > ROWS * TILE + 40) it.dead = true;
+  }
+}
+
+function updateCoins(dt) {
+  const p = player;
+  for (const c of coinsE) {
+    if (c.taken) continue;
+    if (p.x < c.x + 12 && p.x + p.w > c.x && p.y < c.y + 12 && p.y + p.h > c.y) {
+      c.taken = true; coinCount++; addScore(100);
+      popup(c.x - 2, c.y - 8, "+100", "#ffd23f");
+      burst(c.x + 6, c.y + 6, "#ffd23f", 5, 45);
+      sfx.coin();
+    }
+  }
+}
+
+function updateFx(dt) {
+  for (const pa of particles) { pa.t -= dt; pa.x += pa.vx * dt; pa.y += pa.vy * dt; pa.vy += 500 * dt; }
+  particles = particles.filter(pa => pa.t > 0);
+  for (const po of popups) { po.t -= dt; po.y -= 24 * dt; }
+  popups = popups.filter(po => po.t > 0);
+  for (const k in bumpMap) { bumpMap[k] -= dt; if (bumpMap[k] <= 0) delete bumpMap[k]; }
+  if (shake > 0) shake -= dt;
+}
+
+/* ---------------- background ---------------- */
+const stars = Array.from({ length: 70 }, () => ({
+  x: Math.random() * VW * 2, y: Math.random() * 110, tw: Math.random() * 6,
+}));
+const clouds = Array.from({ length: 7 }, (_, i) => ({
+  x: i * 340 + Math.random() * 200, y: 24 + Math.random() * 55,
+  w: 34 + Math.random() * 30, spd: 3 + Math.random() * 4,
+}));
+const cityBuildings = [];
+{
+  let bx = 0; let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  while (bx < LEVEL_W * TILE * 0.3 + VW + 200) {
+    const w = 18 + rnd() * 26, h = 30 + rnd() * 55;
+    cityBuildings.push({ x: bx, w, h, win: rnd() });
+    bx += w + 4 + rnd() * 14;
+  }
+}
+
+function drawBackground(t) {
+  const g = ctx.createLinearGradient(0, 0, 0, VH);
+  g.addColorStop(0, "#0c1238");
+  g.addColorStop(0.45, "#2c2260");
+  g.addColorStop(0.72, "#8a3d5e");
+  g.addColorStop(0.88, "#e07a4a");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, VW, VH);
+
+  // stars
+  ctx.fillStyle = "#ffffff";
+  for (const s of stars) {
+    const a = 0.35 + 0.65 * Math.abs(Math.sin(t * 1.6 + s.tw));
+    ctx.globalAlpha = a * 0.8;
+    ctx.fillRect(((s.x - camX * 0.05) % (VW + 20) + VW + 20) % (VW + 20) - 10, s.y, 1, 1);
+  }
+  ctx.globalAlpha = 1;
+
+  // moon
+  ctx.fillStyle = "#fff6d8";
+  ctx.beginPath(); ctx.arc(270, 34, 11, 0, 7); ctx.fill();
+  ctx.fillStyle = "#2c2260";
+  ctx.beginPath(); ctx.arc(274, 31, 9, 0, 7); ctx.fill();
+
+  // clouds
+  ctx.fillStyle = "rgba(240,220,255,0.16)";
+  for (const c of clouds) {
+    const cx = ((c.x + t * c.spd - camX * 0.1) % (VW + 120) + VW + 120) % (VW + 120) - 60;
+    ctx.fillRect(cx, c.y, c.w, 5);
+    ctx.fillRect(cx + 5, c.y - 4, c.w * 0.6, 4);
+    ctx.fillRect(cx + 8, c.y + 5, c.w * 0.7, 3);
+  }
+
+  const HOR = 172;
+
+  // far skyline (parallax .25)
+  const par = camX * 0.25;
+  ctx.fillStyle = "#141b3e";
+  for (const b of cityBuildings) {
+    const sx = b.x - par;
+    if (sx + b.w < -10 || sx > VW + 10) continue;
+    ctx.fillRect(sx, HOR - b.h, b.w, b.h);
+  }
+  // lit windows
+  ctx.fillStyle = "#ffd97a";
+  for (const b of cityBuildings) {
+    const sx = b.x - par;
+    if (sx + b.w < -10 || sx > VW + 10) continue;
+    for (let wy = HOR - b.h + 4; wy < HOR - 4; wy += 7) {
+      for (let wx = 3; wx < b.w - 3; wx += 6) {
+        if (((wx * 31 + wy * 17 + b.x) % 13) < 4) ctx.fillRect(sx + wx, wy, 2, 3);
+      }
+    }
+  }
+
+  // Singapore Flyer (parallax .3)
+  {
+    const fx = 520 - camX * 0.3, fy = 118, r = 32;
+    if (fx > -60 && fx < VW + 60) {
+      ctx.strokeStyle = "#3a4a8c"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(fx, fy, r, 0, 7); ctx.stroke();
+      ctx.lineWidth = 1;
+      const rot = t * 0.12;
+      for (let i = 0; i < 8; i++) {
+        const a = rot + i * Math.PI / 4;
+        ctx.beginPath(); ctx.moveTo(fx, fy);
+        ctx.lineTo(fx + Math.cos(a) * r, fy + Math.sin(a) * r); ctx.stroke();
+        ctx.fillStyle = "#ffd97a";
+        ctx.fillRect(fx + Math.cos(a) * r - 1.5, fy + Math.sin(a) * r - 1.5, 3, 3);
+      }
+      ctx.strokeStyle = "#3a4a8c";
+      ctx.beginPath(); ctx.moveTo(fx - 12, HOR); ctx.lineTo(fx, fy); ctx.lineTo(fx + 12, HOR); ctx.stroke();
+    }
+  }
+
+  // Marina Bay Sands (parallax .3)
+  {
+    const mx = 900 - camX * 0.3, my = HOR;
+    if (mx > -120 && mx < VW + 120) {
+      ctx.fillStyle = "#1b2547";
+      for (let i = 0; i < 3; i++) {
+        const tx = mx + i * 22;
+        ctx.beginPath();
+        ctx.moveTo(tx, my); ctx.lineTo(tx + 4, my - 58);
+        ctx.lineTo(tx + 12, my - 58); ctx.lineTo(tx + 16, my);
+        ctx.closePath(); ctx.fill();
+      }
+      // skypark deck (the "boat")
+      ctx.fillStyle = "#26335e";
+      ctx.beginPath();
+      ctx.moveTo(mx - 10, my - 58);
+      ctx.quadraticCurveTo(mx + 30, my - 70, mx + 72, my - 58);
+      ctx.lineTo(mx + 68, my - 52);
+      ctx.quadraticCurveTo(mx + 30, my - 62, mx - 6, my - 52);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#ffd97a";
+      for (let i = 0; i < 3; i++) {
+        const tx = mx + i * 22;
+        for (let wy = my - 52; wy < my - 6; wy += 8) ctx.fillRect(tx + 7, wy, 2, 3);
+      }
+    }
+  }
+
+  // bay water
+  const wg = ctx.createLinearGradient(0, HOR, 0, VH);
+  wg.addColorStop(0, "#233a75");
+  wg.addColorStop(1, "#101a44");
+  ctx.fillStyle = wg;
+  ctx.fillRect(0, HOR, VW, VH - HOR);
+  ctx.fillStyle = "rgba(255,214,120,0.25)";
+  for (let i = 0; i < 20; i++) {
+    const rx = ((i * 53 + Math.floor(t * 10) * (i % 3 + 1)) % VW);
+    ctx.fillRect(rx, HOR + 4 + (i * 13) % 40, 8 + (i % 3) * 4, 1);
+  }
+
+  // supertrees mid-layer (parallax .55)
+  for (const d of decorations) {
+    if (d.type !== "supertree") continue;
+    drawSupertree(d.x - camX * 0.55, 13 * TILE, t);
+  }
+}
+
+function drawSupertree(x, groundY, t) {
+  if (x < -40 || x > VW + 40) return;
+  const topY = groundY - 66;
+  ctx.fillStyle = "#5c2a6e";
+  ctx.fillRect(x - 3, topY + 18, 6, groundY - topY - 18);
+  ctx.fillStyle = "#7b3a8e";
+  ctx.fillRect(x - 1, topY + 18, 2, groundY - topY - 18);
+  ctx.strokeStyle = "#a44fb5"; ctx.lineWidth = 1;
+  for (let i = -3; i <= 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(x, topY + 22);
+    ctx.quadraticCurveTo(x + i * 7, topY + 6, x + i * 9, topY);
+    ctx.stroke();
+  }
+  const glow = 0.5 + 0.5 * Math.sin(t * 2 + x);
+  ctx.fillStyle = `rgba(255,80,180,${0.35 + glow * 0.3})`;
+  for (let i = -3; i <= 3; i++) ctx.fillRect(x + i * 9 - 1, topY - 1, 2, 2);
+  ctx.fillStyle = `rgba(120,255,160,${0.25 + glow * 0.2})`;
+  ctx.fillRect(x - 4, topY + 14, 8, 4);
+}
+
+function drawHDB(x, groundY) {
+  if (x < -100 || x > VW + 100) return;
+  const w = 74, h = 96, y = groundY - h;
+  ctx.fillStyle = "#dfe3ea"; ctx.fillRect(x, y, w, h);
+  const stripes = ["#e8564a", "#f2a03c", "#3fa9c9"];
+  for (let i = 0; i < 3; i++) { ctx.fillStyle = stripes[i]; ctx.fillRect(x, y + 8 + i * 6, w, 5); }
+  ctx.fillStyle = "#b8c0cc"; ctx.fillRect(x, y, w, 4);
+  for (let fy = y + 30; fy < groundY - 8; fy += 12) {
+    for (let fx = x + 5; fx < x + w - 6; fx += 12) {
+      ctx.fillStyle = ((fx * 7 + fy * 13) % 11) < 5 ? "#ffe9a8" : "#4a5568";
+      ctx.fillRect(fx, fy, 6, 7);
+    }
+  }
+  ctx.fillStyle = "#2e3648";
+  ctx.fillRect(x + w / 2 - 7, groundY - 14, 14, 14);
+}
+
+function drawSign(x, y, text) {
+  ctx.fillStyle = "#7a5230"; ctx.fillRect(x + 14, y + 8, 3, 12);
+  ctx.fillStyle = "#9c6b3c"; ctx.fillRect(x, y, 32, 10);
+  ctx.fillStyle = "#5c3a1c"; ctx.fillRect(x, y + 9, 32, 1);
+  ctx.fillStyle = "#fff2d0";
+  ctx.font = "5px monospace"; ctx.textAlign = "center";
+  ctx.fillText(text, x + 16, y + 7);
+  ctx.textAlign = "left";
+}
+
+/* ---------------- world drawing ---------------- */
+function drawTiles() {
+  const x0 = Math.max(0, Math.floor(camX / TILE));
+  const x1 = Math.min(LEVEL_W - 1, Math.ceil((camX + VW) / TILE));
+  for (let ty = 0; ty < ROWS; ty++) {
+    for (let tx = x0; tx <= x1; tx++) {
+      const t = grid[ty][tx];
+      if (!t) continue;
+      let dy = 0;
+      const b = bumpMap[key(tx, ty)];
+      if (b !== undefined) dy = -Math.sin((0.25 - b) / 0.25 * Math.PI) * 5;
+      const sx = Math.round(tx * TILE - camX), sy = Math.round(ty * TILE + dy);
+      if (t === 1)      ctx.drawImage(T_GROUND, sx, sy);
+      else if (t === 2) ctx.drawImage(T_BRICK, sx, sy);
+      else if (t === 3) ctx.drawImage(T_Q, sx, sy);
+      else if (t === 4) ctx.drawImage(T_USED, sx, sy);
+      else if (t === 5) ctx.drawImage(T_POLE, sx, sy);
+    }
+  }
+  // flag at top of pole
+  const fx = Math.round(FLAG_X * TILE - camX);
+  if (fx > -40 && fx < VW + 40) {
+    const wave = Math.sin(performance.now() / 300) * 1.5;
+    ctx.drawImage(SPR_FLAG, fx + 10, 4 * TILE - 8 + wave);
+    ctx.fillStyle = "#ffd23f";
+    ctx.fillRect(fx + 6, 4 * TILE - 12, 5, 4);
+  }
+}
+
+function drawCoins(t) {
+  for (const c of coinsE) {
+    if (c.taken) continue;
+    const sx = Math.round(c.x - camX);
+    if (sx < -20 || sx > VW + 20) continue;
+    const ph = Math.cos(t * 5 + c.x * 0.15);
+    const w = Math.max(2, Math.abs(ph) * 12);
+    ctx.drawImage(SPR_COIN, 2, 0, 12, 12, sx + (12 - w) / 2, Math.round(c.y + Math.sin(t * 3 + c.x) * 1.5), w, 12);
+  }
+}
+
+function drawEnemies() {
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const sx = Math.round(e.x - camX - 1), sy = Math.round(e.y - 2);
+    if (sx < -24 || sx > VW + 24) continue;
+    if (e.squash > 0) { ctx.drawImage(SPR_D_SQ, sx, sy); continue; }
+    if (e.flung) {
+      ctx.save();
+      ctx.translate(sx + 8, sy + 8);
+      ctx.rotate(performance.now() / 100);
+      ctx.drawImage(SPR_D1, -8, -8);
+      ctx.restore();
+      continue;
+    }
+    ctx.drawImage(Math.floor(e.anim) % 2 ? SPR_D1 : SPR_D2, sx, sy);
+  }
+}
+
+function drawItems() {
+  for (const it of items) {
+    if (it.dead) continue;
+    ctx.drawImage(SPR_CRAB, Math.round(it.x - camX - 1), Math.round(it.y - 1));
+  }
+}
+
+function drawPlayer(t) {
+  const p = player;
+  if (state === "play" && p.inv > 0 && Math.floor(t * 16) % 2) return;
+  let spr;
+  if (!p.onGround) spr = SPR_P_JUMP;
+  else if (Math.abs(p.vx) > 8) spr = Math.floor(p.anim) % 2 ? SPR_P_W1 : SPR_P_W2;
+  else spr = SPR_P_STAND;
+  const sx = Math.round(p.x - camX - 3), sy = Math.round(p.y - 2);
+  ctx.save();
+  if (p.power > 0) {
+    const hue = (t * 500) % 360;
+    ctx.filter = `hue-rotate(${hue}deg) saturate(1.6)`;
+  }
+  if (p.dir < 0) {
+    ctx.translate(sx + 16, sy);
+    ctx.scale(-1, 1);
+    ctx.drawImage(spr, 0, 0);
+  } else {
+    ctx.drawImage(spr, sx, sy);
+  }
+  ctx.restore();
+}
+
+function drawFx() {
+  for (const pa of particles) {
+    ctx.globalAlpha = Math.min(1, pa.t * 2);
+    ctx.fillStyle = pa.color;
+    ctx.fillRect(Math.round(pa.x - camX), Math.round(pa.y), 2, 2);
+  }
+  ctx.globalAlpha = 1;
+  ctx.font = "bold 7px monospace";
+  for (const po of popups) {
+    ctx.globalAlpha = Math.min(1, po.t * 2);
+    ctx.fillStyle = "#000";
+    ctx.fillText(po.txt, Math.round(po.x - camX) + 1, Math.round(po.y) + 1);
+    ctx.fillStyle = po.color;
+    ctx.fillText(po.txt, Math.round(po.x - camX), Math.round(po.y));
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.fillRect(0, 0, VW, 14);
+  ctx.font = "bold 8px monospace";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("SCORE " + String(score).padStart(6, "0"), 6, 10);
+  ctx.drawImage(SPR_COIN, 2, 0, 12, 12, 108, 3, 9, 9);
+  ctx.fillText("x" + String(coinCount).padStart(2, "0"), 119, 10);
+  ctx.fillStyle = "#ff5b6e";
+  ctx.fillText("\u2665", 158, 10);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("x" + lives, 166, 10);
+  ctx.fillText("TIME " + String(Math.max(0, Math.ceil(timeLeft))).padStart(3, "0"), 208, 10);
+  if (player.power > 0) {
+    ctx.fillStyle = "#ff5252";
+    ctx.fillText("CHILLI! " + Math.ceil(player.power), 268, 10);
+  }
+  if (muted) { ctx.fillStyle = "#8899aa"; ctx.fillText("MUTE", 288, 24); }
+}
+
+function centerText(txt, y, size, color, outline) {
+  ctx.font = "bold " + size + "px monospace";
+  ctx.textAlign = "center";
+  if (outline) {
+    ctx.fillStyle = outline;
+    for (const [ox, oy] of [[-1,0],[1,0],[0,-1],[0,1],[1,1],[-1,-1]])
+      ctx.fillText(txt, VW / 2 + ox, y + oy);
+  }
+  ctx.fillStyle = color;
+  ctx.fillText(txt, VW / 2, y);
+  ctx.textAlign = "left";
+}
+
+/* ---------------- screens ---------------- */
+let tGlobal = 0;
+function drawTitle(t) {
+  camX = (t * 14) % (140 * TILE);
+  drawBackground(t);
+  for (const d of decorations) {
+    if (d.type === "merlion") ctx.drawImage(SPR_MERLION, Math.round(d.x - camX), d.y, 32, 36);
+    if (d.type === "hdb") drawHDB(Math.round(d.x - camX), 13 * TILE);
+  }
+  drawTiles(); drawCoins(t);
+
+  ctx.fillStyle = "rgba(6,8,24,0.55)";
+  ctx.fillRect(0, 0, VW, VH);
+
+  const bob = Math.sin(t * 2) * 3;
+  centerText("MERLIO", 74 + bob, 30, "#ffd23f", "#7c2415");
+  centerText("SINGAPORE PIXEL ADVENTURE", 92 + bob, 9, "#ffffff", "#1a1a2e");
+
+  ctx.drawImage(SPR_MERLION, VW / 2 - 60, 108, 32, 36);
+  ctx.drawImage(SPR_P_STAND, VW / 2 - 8, 116, 32, 32);
+  ctx.drawImage(SPR_D1, VW / 2 + 34, 124, 28, 28);
+
+  centerText("STOMP THE DURIANS \u00b7 GRAB THE CHILLI CRAB", 168, 7, "#9fe8ff");
+  centerText("ARROWS / WASD MOVE \u00b7 SPACE JUMP \u00b7 M MUTE", 180, 7, "#c9d4ff");
+  if (Math.floor(t * 2) % 2) centerText("- PRESS ENTER TO START -", 204, 9, "#ffffff", "#000");
+  centerText("MAJULAH SINGAPURA!", 226, 7, "#ff8896");
+}
+
+function drawWinOverlay(t) {
+  ctx.fillStyle = "rgba(6,8,24,0.55)";
+  ctx.fillRect(0, 40, VW, 120);
+  centerText("MAJULAH!", 78, 22, "#ffd23f", "#7c2415");
+  centerText("YOU REACHED MARINA BAY!", 98, 9, "#ffffff", "#000");
+  centerText("SCORE " + score + "   COINS " + coinCount, 118, 8, "#9fe8ff");
+  if (Math.floor(t * 2) % 2) centerText("- PRESS ENTER TO PLAY AGAIN -", 140, 8, "#ffffff", "#000");
+  // fireworks
+  if (Math.random() < 0.08) {
+    const fx = camX + 40 + Math.random() * (VW - 80);
+    burst(fx, 40 + Math.random() * 60,
+      ["#ff5252","#ffd23f","#5ce1e6","#ff8ae2","#7cf25c"][Math.floor(Math.random() * 5)], 16, 100);
+  }
+}
+
+/* ---------------- main loop ---------------- */
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  let dt = Math.min((now - last) / 1000, 1 / 30);
+  last = now;
+  tGlobal += dt;
+  DT = dt;
+
+  ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+
+  if (state === "title") { drawTitle(tGlobal); return; }
+
+  /* --- update --- */
+  if (state === "play") {
+    timeLeft -= dt;
+    if (timeLeft <= 0) { timeLeft = 0; killPlayer(false); }
+    updatePlayer(dt);
+    updateEnemies(dt);
+    updateItems(dt);
+    updateCoins(dt);
+  } else if (state === "dying") {
+    deadTimer += dt;
+    player.vy += GRAV * dt;
+    player.y += player.vy * dt;
+    if (deadTimer > 1.6) {
+      lives--;
+      if (lives <= 0) state = "gameover";
+      else { resetPlayer(); spawnWorld(); timeLeft = 300; camX = 0; state = "play"; player.inv = 2; }
+    }
+  } else if (state === "winAnim") {
+    winTimer += dt;
+    const p = player;
+    // slide to pole base then walk right
+    if (p.y + p.h < 13 * TILE - 1) { p.x = FLAG_X * TILE + 1; p.y += 90 * dt; p.vx = 0; }
+    else { p.y = 13 * TILE - p.h; p.x += 55 * dt; p.dir = 1; p.anim += dt * 8; }
+    if (winTimer > 2.6) state = "won";
+    updateEnemies(dt);
+  } else if (state === "won") {
+    // idle celebrate
+  }
+  updateFx(dt);
+
+  // camera
+  if (state !== "won") {
+    const target = player.x - VW * 0.38;
+    camX += (target - camX) * Math.min(1, dt * 8);
+    camX = Math.max(0, Math.min(camX, LEVEL_W * TILE - VW));
+  }
+
+  /* --- draw --- */
+  const shx = shake > 0 ? (Math.random() - 0.5) * 5 : 0;
+  const shy = shake > 0 ? (Math.random() - 0.5) * 5 : 0;
+  ctx.setTransform(SCALE, 0, 0, SCALE, shx * SCALE, shy * SCALE);
+
+  drawBackground(tGlobal);
+  for (const d of decorations) {
+    const sx = Math.round(d.x - camX);
+    if (d.type === "merlion") ctx.drawImage(SPR_MERLION, sx, d.y, 32, 36);
+    else if (d.type === "hdb") drawHDB(sx, 13 * TILE);
+    else if (d.type === "sign") drawSign(sx, d.y, d.text);
+  }
+  drawTiles();
+  drawCoins(tGlobal);
+  drawItems();
+  drawEnemies();
+  if (!(state === "dying" && deadTimer > 1.3)) drawPlayer(tGlobal);
+  drawFx();
+  drawHUD();
+
+  if (state === "gameover") {
+    ctx.fillStyle = "rgba(6,8,24,0.7)";
+    ctx.fillRect(0, 0, VW, VH);
+    centerText("GAME OVER LAH!", 100, 18, "#ff5b6e", "#2a0a10");
+    centerText("SCORE " + score, 122, 9, "#ffffff");
+    if (Math.floor(tGlobal * 2) % 2) centerText("- PRESS ENTER TO RETRY -", 146, 8, "#ffffff", "#000");
+  }
+  if (state === "won") drawWinOverlay(tGlobal);
+}
+
+/* ---------------- boot ---------------- */
+buildLevel();
+score = 0; coinCount = 0; lives = 3; timeLeft = 300;
+resetPlayer(); spawnWorld();
+camX = 0; state = "title";
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
