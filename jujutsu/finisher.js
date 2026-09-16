@@ -2531,335 +2531,292 @@
        is read, the finding is made, and then the thing happens.
        ============================================================== */
 
-    /* 1 · the black sword. One cut, and the line stays in the air a
-       moment longer than they do */
-    j1: { name: 'SENTENCED', color: '#f2f4f8', hold: 1.9, run: function (e, d, p, G) {
+    /* 1 · thrown, and then he is already there, and then it is bigger
+       than he is */
+    j1: { name: 'HELD IN CONTEMPT', color: '#ffc83c', hold: 2.1, run: function (e, d, p, G) {
       var HG = window.JJHIGURUMA;
-      var INK = (HG && HG.INK) || 0x14141a, EDGE = (HG && HG.EDGE) || 0xf2f4f8;
-      var BRASS = (HG && HG.BRASS) || 0xd8a441;
+      var GOLD = (HG && HG.GOLD) || 0xffc83c, GOLD_L = (HG && HG.GOLD_L) || 0xfff0b4;
+      var OAK_D = (HG && HG.OAK_D) || 0x4e3320;
+      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
       var floor = new THREE.Vector3(p.x, 0, p.z);
-      /* the charge is put to them first: the seal, and everything stops */
-      if (HG && HG.stamp) HG.stamp(floor, 9);
-      FX.converge(p.clone(), BRASS, 22, 10, .55);
-      FX.zoom(-6, .5);
-      FX.mangaLines(.5, .45);
-      if (typeof hitstop === 'function') hitstop(.12);
-      if (e && !e.dead) { e.anchorT = .8; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 1.2); }
-
-      /* the blade comes up in both hands */
-      var sw = (HG && HG.buildSword) ? HG.buildSword() : null;
-      if (sw) {
-        sw.position.copy(p).addScaledVector(d, -3.4).add(up(3));
-        sw.rotation.y = Math.atan2(d.x, d.z);
-        sw.rotation.z = .3;
-        scene.add(sw);
+      var ham = (HG && HG.buildHammer) ? HG.buildHammer() : null;
+      if (ham) {
+        ham.__size = 3.4; ham.__len = 6;
+        if (HG.layHammer) HG.layHammer(ham);
+        ham.position.copy(p).addScaledVector(side, -9).add(up(5));
+        ham.rotation.z = 1.5;
+        scene.add(ham);
       }
-      var t = 0, cut = false;
-      addFx({ t: 1e9, update: function (dt) {
-        t += dt;
-        if (typeof scene === 'undefined') return false;
-        if (sw) {
-          var k = Math.min(1, t / .6);
-          /* over the head, then straight down through the middle */
-          sw.position.copy(p).addScaledVector(d, -3.4 + 3.4 * k).add(up(3 + 5 * (1 - k)));
-          sw.rotation.z = .3 - k * .3;
-          sw.rotation.x = -.6 + k * 1.9;
-        }
-        if (!cut && t > .62) {
-          cut = true;
-          var at = (e && !e.dead ? e.pos.clone().add(up(2.6)) : p.clone());
-          FX.flash('#ffffff', .55, .24);
-          FX.slash(at.clone(), new THREE.Vector3(0, -1, 0), INK, 24, .34);
-          FX.slash(at.clone(), new THREE.Vector3(0, -1, 0), EDGE, 18, .24);
-          /* the line, which outlasts them */
-          FX.cutLine(at.clone().add(up(7)), at.clone().add(up(-3)), EDGE, 1.6, .8);
-          FX.blood(at.clone(), new THREE.Vector3(0, -1, 0), 24, 2.6);
-          FX.mangaLines(1, .34);
-          if (typeof hitstop === 'function') hitstop(.26);
-          addShake(3.6);
-          if (e) e.anchorT = 0;
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            G.halve(e, { dir: new THREE.Vector3(1, 0, 0), power: 2.4 });
-          }, 200);
-        }
-        if (t > 1.35) {
-          if (sw) {
-            scene.remove(sw);
-            sw.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
-          }
-          return false;
-        }
-        return true;
-      } });
-    } },
+      FX.mangaLines(.6, .45);
+      FX.zoom(-6, .4);
+      if (e && !e.dead) { e.anchorT = 1.6; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2); }
 
-    /* 2 · three raps, and each one is bigger than the last */
-    j2: { name: 'CASE CLOSED', color: '#d8a441', hold: 2.4, run: function (e, d, p, G) {
-      var HG = window.JJHIGURUMA;
-      var BRASS = (HG && HG.BRASS) || 0xd8a441, OAK_D = (HG && HG.OAK_D) || 0x4e3320;
-      var floor = new THREE.Vector3(p.x, 0, p.z);
-      [0, .62, 1.32].forEach(function (ms, i) {
-        setTimeout(function () {
-          if (typeof scene === 'undefined') return;
-          var size = .7 + i * .9;
-          var at = (e && !e.dead ? new THREE.Vector3(e.pos.x, 0, e.pos.z) : floor.clone());
-          var g = (HG && HG.buildGavel) ? HG.buildGavel(size) : null;
-          if (g) {
-            g.position.copy(at).add(up(20 + i * 8));
-            g.rotation.z = .4;
-            scene.add(g);
-          }
-          var t = 0, hit = false;
-          addFx({ t: 1e9, update: function (dt) {
-            t += dt;
-            if (typeof scene === 'undefined') return false;
-            if (g) {
-              g.position.y = Math.max(2 * size, (20 + i * 8) - (150 + i * 60) * t * t);
-              g.rotation.z = .4 * Math.max(0, 1 - t * 6);
-            }
-            if (!hit && (!g || g.position.y <= 2.1 * size)) {
-              hit = true;
-              if (HG && HG.stamp) HG.stamp(at, 8 + i * 6);
-              FX.flash('#ffe9c0', .3 + i * .16, .2);
-              FX.impact(at.clone().add(up(1.6)), BRASS, 3 + i * 1.4);
-              FX.rings(new THREE.Vector3(at.x, .12, at.z), BRASS, 3 + i,
-                { maxR: 14 + i * 9, life: .6, gap: 36 });
-              FX.cracks(new THREE.Vector3(at.x, .1, at.z), 14 + i * 6, 18 + i * 8, OAK_D);
-              FX.dust(new THREE.Vector3(at.x, 0, at.z), 10 + i * 5, 0xd6c8ae, 14 + i * 6, 5);
-              FX.debris(new THREE.Vector3(at.x, .1, at.z), 8 + i * 5, 12 + i * 6, OAK_D);
-              addShake(2 + i * 1.2);
-              if (typeof hitstop === 'function') hitstop(.1 + i * .06);
-              if (e && !e.dead) {
-                e.anchorT = .5;
-                e.anchorPos.set(at.x, 0, at.z);
-                e.pos.lerp(e.anchorPos, .7);
-                e.stunT = Math.max(e.stunT || 0, .8);
-                FX.blood(e.pos.clone().add(up(1.4)), up(1), 9 + i * 5, 1.6);
-              }
-              /* and on the third, that is the finding */
-              if (i === 2) {
-                FX.mangaLines(1, .34);
-                if (e) e.anchorT = 0;
-                G.flatten(e, { crater: 17 });
-              }
-            }
-            if (t > .9) {
-              if (g) {
-                scene.remove(g);
-                g.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
-              }
-              return false;
-            }
-            return true;
-          } });
-        }, ms * 1000);
-      });
-    } },
-
-    /* 3 · every sheet of it, on them, and then all of it pulled at once */
-    j3: { name: 'ENTERED INTO EVIDENCE', color: '#f2ecd9', hold: 2.3, run: function (e, d, p, G) {
-      var HG = window.JJHIGURUMA;
-      var PAPER = (HG && HG.PAPER) || 0xf2ecd9, BRASS = (HG && HG.BRASS) || 0xd8a441;
-      var floor = new THREE.Vector3(p.x, 0, p.z);
-      FX.streaks(p.clone(), PAPER, 8, 16, .9);
-      addShake(1);
-
-      /* the blizzard: it keeps arriving for a second and a half */
       var t = 0, n = 0;
       addFx({ t: 1e9, update: function (dt) {
         t += dt;
         if (typeof scene === 'undefined') return false;
-        var body = (e && !e.dead ? e.pos.clone() : floor.clone()).add(up(2.2));
-        if (t > n * .045) {
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.6)) : p.clone().add(up(2.6)));
+        /* three passes, each one across from the other side */
+        if (n < 3 && t > .3 + n * .42) {
           n++;
-          if (HG && HG.sheet) {
-            var a = Math.random() * TAU, r = 7 + Math.random() * 5;
-            HG.sheet(body.clone().add(new THREE.Vector3(
-              Math.cos(a) * r, (Math.random() - .5) * 6, Math.sin(a) * r)),
-              body.clone().add(new THREE.Vector3(
-                Math.cos(a) * .8, (Math.random() - .5) * 2.2, Math.sin(a) * .8)), .9);
+          var from = side.clone().multiplyScalar(n % 2 ? 1 : -1);
+          if (ham) {
+            ham.position.copy(at).addScaledVector(from, -4);
+            ham.rotation.z = 1.5 * (n % 2 ? 1 : -1);
           }
-          if (n % 5 === 0) {
-            FX.impact(body.clone(), PAPER, 1.6);
-            addShake(.5);
-          }
+          if (HG && HG.wind) HG.wind(at.clone(), from.clone().negate(), 9, 12);
+          if (HG && HG.knock) HG.knock(at.clone(), from, 2 + n * .4);
+          FX.cross(at.clone(), GOLD_L, 4 + n, .2);
+          FX.blood(at.clone(), from.clone().negate(), 10 + n * 4, 1.8);
+          FX.debris(floor.clone(), 6, 11, OAK_D);
+          if (typeof hitstop === 'function') hitstop(.07 + n * .02);
+          addShake(1.8 + n * .5);
         }
-        if (e && !e.dead) {
-          e.anchorT = .4;
-          e.anchorPos.copy(floor).add(up(.4 + Math.min(3, t * 2)));
-          e.pos.lerp(e.anchorPos, Math.min(1, dt * 7));
-          e.vel.set(0, 0, 0);
-          e.stunT = Math.max(e.stunT || 0, .6);
-        }
-        return t < 1.45;
-      } });
-
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        var body = (e && !e.dead ? e.pos.clone() : floor.clone().add(up(3)));
-        /* and every one of them goes back out, taking a piece with it */
-        for (var i = 0; i < 40; i++) {
-          var a = Math.random() * TAU, r = 14 + Math.random() * 10;
-          if (HG && HG.sheet) {
-            HG.sheet(body.clone(), body.clone().add(new THREE.Vector3(
-              Math.cos(a) * r, (Math.random() - .3) * 10, Math.sin(a) * r)), .8);
-          }
-        }
-        FX.flash('#fffaf0', .5, .26);
-        FX.cross(body.clone(), 0xffffff, 11, .28);
-        FX.rings(body.clone(), BRASS, 4, { maxR: 20, life: .7, ground: false, gap: 34 });
-        FX.blood(body.clone(), new THREE.Vector3(1, 0, 0), 22, 2.4);
-        FX.mangaLines(1, .34);
-        if (typeof hitstop === 'function') hitstop(.22);
-        addShake(3.4);
-        if (e) e.anchorT = 0;
-        G.dice(e, { dir: d, power: 2.4, cubes: 26 });
-      }, 1550);
-    } },
-
-    /* 4 · the whole court, and what it decides */
-    j4: { name: 'THE VERDICT', color: '#bfd4ff', hold: 3.0, run: function (e, d, p, G) {
-      var HG = window.JJHIGURUMA;
-      var BRASS = (HG && HG.BRASS) || 0xd8a441, OAK_D = (HG && HG.OAK_D) || 0x4e3320;
-      var LAW = (HG && HG.LAW) || 0xbfd4ff, LAW2 = (HG && HG.LAW2) || 0xeaf2ff;
-      var floor = new THREE.Vector3(p.x, 0, p.z);
-      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
-      var stand = floor.clone().addScaledVector(d, 13).addScaledVector(side, 7);
-      var j = (HG && HG.buildJudge) ? HG.buildJudge() : null;
-      if (j) {
-        j.position.set(stand.x, -18, stand.z);
-        j.rotation.y = Math.atan2(floor.x - stand.x, floor.z - stand.z);
-        scene.add(j);
-      }
-      FX.cracks(new THREE.Vector3(stand.x, .06, stand.z), 14, 18, OAK_D);
-      FX.tint('#0d1420', .4, 1.6);
-      addShake(2);
-
-      var t = 0, held = false, read = false, done = false;
-      addFx({ t: 1e9, update: function (dt) {
-        t += dt;
-        if (typeof scene === 'undefined') return false;
-        if (j) j.position.y = Math.min(0, -18 + 30 * t);
-
-        /* BEAT ONE — they are held for it */
-        if (!held && t > .7) {
-          held = true;
-          if (HG && HG.stamp) HG.stamp(floor, 11);
-          FX.rings(new THREE.Vector3(floor.x, .12, floor.z), BRASS, 3,
-            { maxR: 18, life: .7, gap: 40 });
-          addShake(1.4);
-        }
-        if (e && !e.dead && !done) {
-          e.anchorT = .5;
-          e.anchorPos.copy(floor).add(up(.4));
-          e.pos.lerp(e.anchorPos, Math.min(1, dt * 7));
-          e.vel.set(0, 0, 0);
-          e.stunT = Math.max(e.stunT || 0, 1.4);
-        }
-
-        /* BEAT TWO — the finding, as a column standing on them */
-        if (!read && t > 1.35) {
-          read = true;
-          if (HG && HG.column) HG.column(floor, 1.7, 7);
-          FX.flash('#eaf2ff', .5, .3);
-          FX.converge(floor.clone().add(up(2.4)), LAW, 34, 13, .6);
-          FX.mangaLines(.8, .3);
-          addShake(2.4);
-          if (typeof hitstop === 'function') hitstop(.12);
-          if (e && !e.dead) FX.blood(e.pos.clone().add(up(2.4)), up(1), 8, 1.4);
-        }
-
-        /* BEAT THREE — and the gavel behind it */
-        if (read && !done && t > 2.3) {
-          done = true;
-          if (j) {
-            if (j.__arms && j.__arms[1]) j.__arms[1].rotation.x = -1.5;
-            if (j.__gavel) j.__gavel.rotation.z = -1.2;
-          }
-          setTimeout(function () {
-            if (typeof scene === 'undefined') return;
-            FX.flash('#ffffff', .8, .32);
-            FX.impact(floor.clone().add(up(2)), LAW2, 6);
-            FX.rings(new THREE.Vector3(floor.x, .12, floor.z), BRASS, 6,
-              { maxR: 30, life: 1, gap: 36 });
-            FX.cracks(new THREE.Vector3(floor.x, .1, floor.z), 26, 34, OAK_D);
-            FX.dust(new THREE.Vector3(floor.x, 0, floor.z), 18, 0xd6c8ae, 24, 6);
-            FX.debris(new THREE.Vector3(floor.x, .1, floor.z), 18, 20, OAK_D);
-            FX.mangaLines(1, .38);
-            if (typeof hitstop === 'function') hitstop(.28);
-            addShake(4.6);
-            if (e) e.anchorT = 0;
-            G.erase(e, { color: LAW2, dir: d, power: 2 });
-            /* and the seal, on an empty floor */
-            if (HG && HG.stamp) HG.stamp(floor, 16);
-          }, 260);
-        }
-
-        if (t > 3.4) {
-          if (j) {
-            var s2 = 0;
-            addFx({ t: 1e9, update: function (dd) {
-              s2 += dd;
-              j.position.y = -26 * s2;
-              if (s2 > .9) {
-                scene.remove(j);
-                j.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
-                return false;
-              }
-              return true;
-            } });
-          }
+        /* and the last one goes through the floor with them */
+        if (t > 1.7) {
+          if (ham) { ham.position.copy(at).add(up(4)); ham.rotation.z = 0; }
+          FX.flash('#ffe7a0', .8, .36);
+          if (HG && HG.knock) HG.knock(at.clone(), d, 4);
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), GOLD, 5, { maxR: 20, life: .8, gap: 30 });
+          FX.cracks(floor.clone(), 26, 32, 0x4a4238);
+          FX.debris(floor.clone(), 18, 20, OAK_D);
+          FX.dust(floor.clone(), 16, 0xcdc4b2, 20, 6);
+          FX.mangaLines(1, .36);
+          if (HG && HG.stamp) HG.stamp(floor.clone(), 12);
+          if (typeof hitstop === 'function') hitstop(.26);
+          addShake(4.8);
+          if (e) e.anchorT = 0;
+          G.flatten(e, { dir: d });
+          if (ham) scene.remove(ham);
           return false;
         }
         return true;
       } });
     } },
 
-    /* R · the dock, and they are on the wrong side of it */
-    jr: { name: 'HELD IN CONTEMPT', color: '#7a5230', hold: 1.8, run: function (e, d, p, G) {
+    /* 2 · the butt of it, over and over, until there is nothing left to
+       ask — and then they ride the head into the floor */
+    j2: { name: 'NO FURTHER QUESTIONS', color: '#d8a441', hold: 2.5, run: function (e, d, p, G) {
       var HG = window.JJHIGURUMA;
+      var GOLD = (HG && HG.GOLD) || 0xffc83c, GOLD_L = (HG && HG.GOLD_L) || 0xfff0b4;
+      var PAPER = (HG && HG.PAPER) || 0xf2ecd9, OAK_D = (HG && HG.OAK_D) || 0x4e3320;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var ham = (HG && HG.buildHammer) ? HG.buildHammer() : null;
+      if (ham) { ham.__size = 1.6; ham.__len = 3; if (HG.layHammer) HG.layHammer(ham); scene.add(ham); }
+      FX.mangaLines(.5, .5);
+      if (e && !e.dead) { e.anchorT = 2.2; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.4); }
+
+      var t = 0, n = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone().add(up(2.5)));
+        /* twelve of them, from wherever the handle happens to reach */
+        if (n < 12 && t > .18 + n * .12) {
+          n++;
+          var a2 = Math.random() * TAU;
+          var from = at.clone().add(new THREE.Vector3(
+            Math.cos(a2) * 6, (Math.random() - .3) * 4, Math.sin(a2) * 6));
+          if (ham) {
+            ham.position.copy(from);
+            ham.lookAt(at);
+            ham.rotateX(-Math.PI / 2);
+          }
+          FX.cutLine(from, at.clone(), n % 2 ? PAPER : GOLD_L, .5, .1);
+          FX.impact(at.clone(), GOLD_L, 1.4);
+          FX.blood(at.clone(), at.clone().sub(from).normalize(), 4, 1.1);
+          if (n % 3 === 0) addShake(1);
+        }
+        if (t > 1.85) {
+          if (ham) { ham.__size = 3; if (HG.layHammer) HG.layHammer(ham); ham.position.copy(at).add(up(5)); ham.rotation.set(0, 0, 0); }
+          FX.flash('#ffe7a0', .75, .34);
+          if (HG && HG.knock) HG.knock(at.clone(), d, 3.6);
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), GOLD, 5, { maxR: 18, life: .8, gap: 30 });
+          FX.cracks(floor.clone(), 24, 28, 0x4a4238);
+          FX.debris(floor.clone(), 16, 18, OAK_D);
+          FX.mangaLines(1, .34);
+          if (HG && HG.stamp) HG.stamp(floor.clone(), 11);
+          if (typeof hitstop === 'function') hitstop(.24);
+          addShake(4.4);
+          if (e) e.anchorT = 0;
+          G.flatten(e, { dir: d });
+          if (ham) scene.remove(ham);
+          return false;
+        }
+        return true;
+      } });
+    } },
+
+    /* 3 · he does not stop running, and the floor keeps arriving */
+    j3: { name: 'RUN DOWN', color: '#ffc83c', hold: 2.3, run: function (e, d, p, G) {
+      var HG = window.JJHIGURUMA;
+      var GOLD = (HG && HG.GOLD) || 0xffc83c;
+      var OAK_D = (HG && HG.OAK_D) || 0x4e3320;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      FX.mangaLines(.6, .5);
+      if (e && !e.dead) { e.anchorT = 2.0; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.2); }
+
+      var t = 0, n = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.4)) : p.clone().add(up(2.4)));
+        var here = new THREE.Vector3(at.x, 0, at.z);
+        /* five, each one closer, and the floor gives way a little more */
+        if (n < 5 && t > .22 + n * .3) {
+          n++;
+          var off = (5 - n) * 2.2;
+          var a3 = Math.random() * TAU;
+          var spot = here.clone().add(new THREE.Vector3(Math.cos(a3) * off, 0, Math.sin(a3) * off));
+          if (HG && HG.knock) HG.knock(spot.clone().add(up(.6)), d, 1.2 + n * .4);
+          FX.rings(new THREE.Vector3(spot.x, .12, spot.z), GOLD, 2, { maxR: 7 + n * 2, life: .5, gap: 30 });
+          FX.cracks(spot.clone(), 8 + n * 3, 11 + n * 3, 0x4a4238);
+          FX.debris(spot.clone(), 6, 10, OAK_D);
+          FX.dust(spot.clone(), 6, 0xcdc4b2, 9, 3);
+          if (HG && HG.stamp) HG.stamp(spot, 5 + n);
+          FX.blood(at.clone(), d, 4 + n * 2, 1.2);
+          addShake(1.4 + n * .4);
+          if (typeof hitstop === 'function') hitstop(.05);
+        }
+        if (t > 1.85) {
+          FX.flash('#ffe7a0', .8, .36);
+          if (HG && HG.wind) HG.wind(at.clone(), d.clone(), 11, 14);
+          if (HG && HG.knock) HG.knock(at.clone(), d, 4);
+          FX.rings(new THREE.Vector3(here.x, .12, here.z), GOLD, 6, { maxR: 24, life: .9, gap: 28 });
+          FX.cracks(here.clone(), 30, 36, 0x4a4238);
+          FX.debris(here.clone(), 20, 22, OAK_D);
+          FX.dust(here.clone(), 18, 0xcdc4b2, 22, 6);
+          FX.mangaLines(1, .38);
+          if (typeof hitstop === 'function') hitstop(.26);
+          addShake(5);
+          if (e) e.anchorT = 0;
+          G.flatten(e, { dir: d });
+          return false;
+        }
+        return true;
+      } });
+    } },
+
+    /* 4 · the handle goes out until it is not a hammer any more, and the
+       floor is whipped with what is left of them on it */
+    j4: { name: 'HANDED DOWN', color: '#7a5230', hold: 2.8, run: function (e, d, p, G) {
+      var HG = window.JJHIGURUMA;
+      var GOLD = (HG && HG.GOLD) || 0xffc83c, GOLD_L = (HG && HG.GOLD_L) || 0xfff0b4;
+      var OAK_D = (HG && HG.OAK_D) || 0x4e3320;
+      var floor = new THREE.Vector3(p.x, 0, p.z);
+      var ham = (HG && HG.buildHammer) ? HG.buildHammer() : null;
+      if (ham) {
+        ham.__size = 4; ham.__len = 22;
+        if (HG.layHammer) HG.layHammer(ham);
+        ham.position.copy(floor);
+        scene.add(ham);
+      }
+      FX.mangaLines(.7, .6);
+      FX.zoom(-8, .5);
+      if (e && !e.dead) { e.anchorT = 2.4; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.6); }
+
+      var t = 0, n = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone().add(up(2.5)));
+        var here = new THREE.Vector3(at.x, 0, at.z);
+        /* it lashes, and where it lands is not somewhere anybody chose */
+        if (n < 6 && t > .25 + n * .28) {
+          n++;
+          var ang = Math.random() * TAU;
+          var dir2 = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
+          var far = 12 + Math.random() * 12;
+          var to = here.clone().addScaledVector(dir2, far);
+          if (ham) {
+            ham.__len = far;
+            ham.__bend.set((Math.random() - .5) * 12, 0, (Math.random() - .5) * 8);
+            if (HG.layHammer) HG.layHammer(ham);
+            ham.position.copy(here);
+            ham.rotation.set(1.45, ang, 0);
+          }
+          if (HG && HG.trace) HG.trace(here.clone().addScaledVector(dir2, 3), to);
+          if (HG && HG.wind) HG.wind(to.clone().add(up(1)), dir2, 7, 9);
+          if (HG && HG.knock) HG.knock(to.clone().add(up(.8)), dir2, 2);
+          FX.debris(new THREE.Vector3(to.x, .1, to.z), 10, 14, OAK_D);
+          FX.blood(at.clone(), dir2, 6, 1.4);
+          addShake(2.2);
+          if (typeof hitstop === 'function') hitstop(.06);
+        }
+        if (t > 2.05) {
+          if (ham) {
+            ham.__len = 24; ham.__bend.set(0, 0, 0);
+            if (HG.layHammer) HG.layHammer(ham);
+            ham.position.copy(here); ham.rotation.set(Math.PI, 0, 0);
+          }
+          FX.flash('#ffe7a0', .9, .4);
+          if (HG && HG.knock) HG.knock(at.clone(), d, 4.5);
+          FX.rings(new THREE.Vector3(here.x, .12, here.z), GOLD, 7, { maxR: 28, life: 1, gap: 26 });
+          FX.cracks(here.clone(), 34, 40, 0x4a4238);
+          FX.debris(here.clone(), 24, 26, OAK_D);
+          FX.dust(here.clone(), 20, 0xcdc4b2, 26, 7);
+          FX.cross(at.clone(), GOLD_L, 9, .3);
+          FX.mangaLines(1, .42);
+          if (HG && HG.stamp) HG.stamp(here, 14);
+          if (typeof hitstop === 'function') hitstop(.3);
+          addShake(5.6);
+          if (e) e.anchorT = 0;
+          G.flatten(e, { dir: d });
+          if (ham) scene.remove(ham);
+          return false;
+        }
+        return true;
+      } });
+    } },
+
+    /* R · one after another after another, and none of them was the one
+       that did it */
+    jr: { name: 'THE WHOLE DOCKET', color: '#d8a441', hold: 2.4, run: function (e, d, p, G) {
+      var HG = window.JJHIGURUMA;
+      var GOLD = (HG && HG.GOLD) || 0xffc83c;
       var BRASS = (HG && HG.BRASS) || 0xd8a441, OAK_D = (HG && HG.OAK_D) || 0x4e3320;
       var floor = new THREE.Vector3(p.x, 0, p.z);
-      var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
-      FX.impact(p.clone(), BRASS, 2.4);
-      FX.cross(p.clone(), BRASS, 5, .18);
-      addShake(1.2);
-      if (e && !e.dead) { e.anchorT = .8; e.anchorPos.copy(floor).add(up(.4)); e.stunT = Math.max(e.stunT || 0, 1.4); }
+      FX.mangaLines(.5, .55);
+      if (e && !e.dead) { e.anchorT = 2.1; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.3); }
 
-      /* four of them, boxing the body in, one at a time */
-      [0, .18, .36, .54].forEach(function (ms, i) {
-        setTimeout(function () {
-          if (typeof scene === 'undefined') return;
-          var a = i / 4 * TAU + .4;
-          var at = floor.clone().add(new THREE.Vector3(Math.cos(a) * 4.6, 0, Math.sin(a) * 4.6));
-          var face = floor.clone().sub(at).setY(0).normalize();
-          if (HG && HG.buildDock) HG.buildDock(at, face, true);
-          FX.dust(new THREE.Vector3(at.x, 0, at.z), 6, 0xd6c8ae, 10, 4);
-          addShake(1);
-          if (typeof hitstop === 'function') hitstop(.05);
-        }, ms * 1000);
-      });
-
-      /* and the last one comes up underneath */
-      setTimeout(function () {
-        if (typeof scene === 'undefined') return;
-        var at = (e && !e.dead ? new THREE.Vector3(e.pos.x, 0, e.pos.z) : floor.clone());
-        if (HG && HG.buildDock) HG.buildDock(at, d.clone(), true);
-        if (HG && HG.stamp) HG.stamp(at, 12);
-        FX.flash('#ffe9c0', .55, .26);
-        FX.impact(at.clone().add(up(2)), BRASS, 4.4);
-        FX.rings(new THREE.Vector3(at.x, .12, at.z), BRASS, 4,
-          { maxR: 20, life: .7, gap: 36 });
-        FX.cracks(new THREE.Vector3(at.x, .1, at.z), 20, 24, OAK_D);
-        FX.debris(new THREE.Vector3(at.x, .1, at.z), 18, 20, OAK_D);
-        FX.blood(at.clone().add(up(2.2)), up(1), 20, 2.4);
-        FX.mangaLines(1, .32);
-        if (typeof hitstop === 'function') hitstop(.24);
-        addShake(3.8);
-        if (e) e.anchorT = 0;
-        G.dice(e, { dir: side, power: 2.6, cubes: 24 });
-      }, 1000);
+      var t = 0, n = 0;
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined') return false;
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone().add(up(2.5)));
+        /* twenty of them, and the smoke never clears */
+        if (n < 20 && t > .12 + n * .085) {
+          n++;
+          var a4 = Math.random() * TAU;
+          var from = at.clone().add(new THREE.Vector3(
+            Math.cos(a4) * 9, 2 + Math.random() * 4, Math.sin(a4) * 9));
+          FX.cutLine(from, at.clone(), n % 2 ? GOLD : BRASS, .55, .1);
+          FX.impact(at.clone(), GOLD, 1.5);
+          FX.dust(from.clone(), 3, 0xd6cfc0, 3, 2);
+          FX.blood(at.clone(), at.clone().sub(from).normalize(), 3, 1);
+          if (n % 4 === 0) { addShake(1.2); if (typeof hitstop === 'function') hitstop(.035); }
+        }
+        if (t > 1.9) {
+          FX.flash('#ffe7a0', .85, .36);
+          for (var q = 0; q < 8; q++) {
+            var a5 = q / 8 * TAU;
+            FX.cutLine(at.clone().add(new THREE.Vector3(Math.cos(a5) * 13, 6, Math.sin(a5) * 13)),
+              at.clone(), 0xfff0b4, 1.1, .26);
+          }
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), GOLD, 6, { maxR: 22, life: .9, gap: 28 });
+          FX.cracks(floor.clone(), 28, 32, 0x4a4238);
+          FX.debris(floor.clone(), 22, 22, OAK_D);
+          FX.dust(floor.clone(), 20, 0xd6cfc0, 24, 7);
+          FX.mangaLines(1, .4);
+          if (HG && HG.stamp) HG.stamp(floor.clone(), 13);
+          if (typeof hitstop === 'function') hitstop(.28);
+          addShake(5.2);
+          if (e) e.anchorT = 0;
+          G.dice(e, { dir: d });
+          return false;
+        }
+        return true;
+      } });
     } },
 
     /* =================================================================

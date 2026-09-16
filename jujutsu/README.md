@@ -906,58 +906,97 @@ an open jacket came out as a man in no jacket at all.
 
 ## Hiromi Higuruma
 
-Deadly Sentencing 誅伏賜死. He was a defence lawyer and he still works like
-one: **nothing he does is an attack until it has been established.** Every
-move either puts a charge on somebody or carries one out, and the black
-sword at the end of it is not so much a weapon as a sentence being executed.
+**Deadly Sentencing 誅伏賜死.** He was a defence lawyer and he still works
+like one: nothing he does is an attack until it has been established.
+
+### One prop, and he never puts it down
+
+He used to carry four — a black sword, a gavel, sheets of paper, a dock —
+and the gavel was the only one anybody remembered. So there is one now, it
+is in his hand on every frame he exists, and **that includes the ordinary
+combo**: `LMB` swings the same hammer the techniques do, which needed no
+special case anywhere because he is simply holding it.
+
+**The handle is elastic.** It is not a box — it is a chain of twelve
+segments laid along a quadratic curve every frame, from his fist at one end
+to the head at the other, with the middle pushed off the straight line by a
+vector. Three numbers describe the whole prop:
+
+| | |
+| --- | --- |
+| `__len` | how far the head is from his hand |
+| `__bend` | how far the middle of the handle is pushed aside, as a vector |
+| `__size` | the head's scale — 1 is the gavel he carries, 4 is the one in the finisher |
+
+That is what lets the same object be a gavel, a maul, a spear, a pile
+driver and a whip without a second model in the file. `JJHIGURUMA.layHammer`
+does the laying; everything else just sets the three numbers.
 
 | Key | Move | What it does |
 | --- | --- | --- |
-| `1` | **Executioner's Sword** 死刑執行人の剣 | the black blade, drawn out of nothing and brought down. It does not glow and it does not spark; it opens a line |
-| `2` | **Gavel** 木槌 | brought down where he points, and whatever is under it is on the record |
-| `3` | **Evidence** 証拠 | sheets of it out in a fan; they stick to what they reach and then pull taut, which is the part that hurts |
-| `4` | **Judgeman** 裁判長 | the court rises beyond the accused, and the verdict comes down as a column of cold light with a gavel behind it |
-| `R` | **Recess** 休廷 | one rap, the dock comes up out of the floor, and he is behind it |
+| `1` | **Contempt** 侮辱 | thrown straight, and whoever it reaches is **held**. Press `1` again while that hold is up and he closes the distance himself, the head comes up to full size on the way in, and he takes them across the ribs with it |
+| `2` | **Cross Examination** 尋問 | six with the butt of the handle, faster than they can be answered, each one leaving an afterimage — then the head comes round, they go **up onto it**, and he carries them forward before putting them through the floor |
+| `3` | **Bench Warrant** 勾引状 | a hop into a knee. On a hit he runs them down, hitting the floor three times wherever he happens to be, then leaves the ground turning over flat and lands on them |
+| `4` | **Handing Down** 宣告 | overhead, and the handle goes out as far as it has to — it measures the distance to whoever is in front of him. Press `4` again and it **does not come back**: both hands go on the shaft and the floor gets whipped |
+| `R` | **Contempt of Court** 法廷侮辱 | one after another after another, thirteen of them, and he can be pointing anywhere while it runs |
 
-### A charge, and then a sentence
+### The three that are two presses
 
-Anything of his that lands leaves a small **brass seal** — a set of scales —
-turning over the body it landed on. While that seal is up, everything else
-of his hits **45 % harder**, and every hit refreshes it for six seconds.
+**Contempt** and **Handing Down** both have a second half that only exists
+for a few seconds, and the follow-up is the same key rather than a new one:
 
-So his damage is never in any one move: it is in the order he does them in.
-Gavel then sword is worth appreciably more than sword then gavel, and
-Judgeman is worth 64 rather than 44 because its own verdict seals the target
-a beat before its gavel falls.
+* The thrown gavel puts a **hold** on whoever it hits, worth 3.2 seconds.
+  While anybody is holding one, pressing `1` spends it instead of throwing
+  again. The throw is 7 on its own and the pair is 14 — a throw that never
+  gets followed up is a setup, not a move.
+* The extended handle stays out for 2.6 seconds after the head lands, and
+  the notice says so. Pressing `4` in that window takes it in both hands.
+  The whip directions are `Math.random()` every single lash, so where a
+  handle that long goes is not somewhere anybody chose — including him.
 
-The seal is deliberately **not** rebuilt on other people's screens — it is
-what makes his *next* hit worth more, and a second one put up remotely would
-be a charge nobody filed.
+**And `3` is a different move if the fourth punch already put them down.**
+The shared combo's downslam leaves `bcFall.variant === 'down'` on whoever it
+floored; `3` reads that and sweeps along the floor instead, taking their
+feet out and sending them **thirty four units** along the ground. He does
+not need to bring somebody in who is already lying at his feet.
 
-### His colours are a courtroom and not a fight
+### What they are worth
 
-Oak, brass, paper, and a cold blue-white for the verdict. The
-**Executioner's Sword is the only black thing on the roster drawn with a
-white edge and no glow at all**: everything else in this game says "this is
-cursed energy" by lighting up, and the entire point of that blade is that it
-is not made of any. Its cut is drawn the same way round — a black slash with
-a white core, which nothing else here does.
+Measured 12, 15, 12, 14 on the four and 28 on `R`, which is
+[the band the whole roster sits in](#what-a-skill-is-worth). Two of them are
+worth reading twice:
 
-Judgeman took three passes to place. Behind Higuruma is where the chase
-camera lives, so the first cut put a judge's bench across the bottom of the
-lens; pushing it further back put it somewhere nobody would ever see. It
-presides over the **accused**, not over him, so it comes up beyond them and
-off to one side, facing back.
+- **The charge is still the point.** Anything that lands leaves a brass seal
+  turning over the body, and while it is up everything else of his hits 45 %
+  harder. `3` is built around it: the knee is only 4, but it seals, and the
+  three on the floor and the landing are all collected at the higher rate.
+  A `3` whose knee misses is worth almost nothing, which is correct.
+- **`3` chases.** Its first version ran forty units in a straight line past a
+  target that had not moved, so the three floor hits landed on nothing. It
+  steers toward whoever the knee caught and pulls up short of running
+  through them. The speed comes back from `chase()` as a multiplier rather
+  than being applied to `player.vel` inside it — the caller sets the run
+  speed on the line after, so anything written to the velocity in there was
+  overwritten before it was ever used.
+
+### The suit
+
+The reference is a **tidy man**, not a wreck, and the first pass had him in a
+rumpled open jacket with a maroon tie and hair over one eye. He is in a plain
+black two-piece worn **closed** over a white shirt, with a dark green tie up
+at the collar, a pin on the lapel, the single button done up, and heavy dark
+hair swept back off his face with two pieces at the front that did not stay
+put. He only looks tired, which is a different thing from looking beaten.
 
 ### The five endings
 
 | | What it does |
 | --- | --- |
-| **SENTENCED** | the charge is read and everything stops; then one cut, and the line stays in the air a moment longer than they do |
-| **CASE CLOSED** | three raps, each bigger than the last, and the third is the size of a building |
-| **ENTERED INTO EVIDENCE** | a second and a half of paper arriving on them from every side — and then all forty sheets go back out at once, each taking a piece |
-| **THE VERDICT** | held for it, the finding read as a column standing on them, and the gavel behind it. What is left is a seal on an empty floor |
-| **HELD IN CONTEMPT** | four docks come up and box them in, and the fifth comes up underneath |
+| **HELD IN CONTEMPT** | three passes across, each from the other side, and then one through the floor with them |
+| **NO FURTHER QUESTIONS** | twelve with the butt of it from wherever the handle reaches, and then they ride the head down |
+| **RUN DOWN** | five on the floor, each one nearer than the last, and the ground gives way a little more each time |
+| **HANDED DOWN** | the handle goes out until it is not a hammer any more, and the floor is whipped with what is left of them on it |
+| **THE WHOLE DOCKET** | twenty of them, and the smoke never clears |
 
 ## Yuta Okkotsu
 
