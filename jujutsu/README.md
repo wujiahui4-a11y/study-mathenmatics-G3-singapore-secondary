@@ -983,52 +983,75 @@ only one that dims the frame first.
 
 **Mechamaru — Puppet Manipulation 傀儡操術.** The body on the screen is his
 real one: small, thin, barefoot, wrapped in bandages, in a school uniform
-four sizes too big, with a plate where a face should be. **It is not what
-fights.**
+four sizes too big, with a plate where a face should be.
 
-What fights is machinery, and the machinery is not there until he builds
-it. So every move in the file is the same three beats:
+### The rewrite: nothing is summoned any more
 
-* the parts fly in from nowhere and **lock**, one snap at a time
-* the thing does exactly one thing, and it is a heavy one
-* and then it **comes apart**, because he never keeps any of it
+The first version of him conjured. Every move built a piece of machinery
+out of nothing in the air beside his head, used it once and threw it away,
+which meant two things: he barely moved in any of the five, and none of the
+machinery was ever really *his*. It was five variations on the same trick.
 
-`JJMUTA.assemble(group, secs)` throws every mesh in a group out to a
-scattered origin and snaps them home one at a time; `JJMUTA.scrap(group,
-at)` blows them back apart with sparks and disposes of them 1.3 seconds
-later. Between them they are the character. He barely moves in any of the
-five — the body braces, and the frame is full anyway.
+Every weapon is now bolted to the arm it comes out of. It starts folded
+flat inside the sleeve, slides out along the forearm and locks, and it is
+parented to the hand — so it swings when he swings, it is where his fist
+is, and the move is his arm doing something rather than a boy standing
+beside a machine. The three beats are the same shape; what they are made of
+is not:
+
+* a forearm **opens**: the plates slide out along it and lock
+* he **swings, throws, leans on or drives** the thing they made
+* and it **folds shut**, because it was part of him
+
+`JJMUTA.mount(bone, group)` parents a build to a hand and turns it a
+quarter turn — the builders all author along `+Z`, because that is what a
+projectile wants, and an arm points down its own `-Y`. `JJMUTA.unfold(group,
+secs)` runs each plate out from flat against the forearm to its place, in
+order. `JJMUTA.handOff(group)` is the one that matters for the punch: it
+hands a mounted piece to the world at exactly the position and rotation his
+arm had it, so his fist can leave without popping.
 
 | Key | Move | What it does |
 | --- | --- | --- |
-| `1` | **Arm Cannon** 腕砲 | one barrel assembles at his shoulder, one shell, and it stops at the first person it reaches |
-| `2` | **Rocket Punch** 拳射出 | the fist leaves on a chain at full weight and is reeled back in at thirty per cent |
-| `3` | **Drill Arm** 削岩 | it does not hit them. It is put against them and left running, and he walks it forward |
-| `4` | **Missile Pod** 弾幕 | a shoulder rack and eight of them, each going up before it goes anywhere else |
-| `R` | **Ultra Spin** 超高速回転 | the special. The whole frame assembles *around* him, and then it turns |
+| `1` | **Arm Cannon** 腕砲 | the forearm opens into a barrel. He levels it with his other hand under it and fires one shell |
+| `2` | **Rocket Punch** 拳射出 | the gauntlet closes over his hand, and then his hand leaves — the same piece, on a chain bolted to the arm, reeled back into the open socket it left behind |
+| `3` | **Drill** 削岩 | a bit over the knuckles. It is not swung at them: it is put against them and he walks forward behind his own fist |
+| `4` | **Pile Bunker** 杭打 | **new.** A piston down the left forearm. He plants both feet, the housing locks, and it drives one spike through whatever is in front of him — and you watch it being drawn back to re-cock |
+| `R` | **Ultra Spin** 超高速回転 | the special. Both arms lock out straight, a bracer runs out along each, the thrusters in them light, and *he* turns |
 
-It is a **skill, not an ultimate**, and it took a pass to make that true.
-It shipped with `FX.letterbox(true)`, a three-and-a-half second cast and
-three and a half seconds of invulnerability — which is the treatment this
-game gives a domain expansion, and it read as one. The cinema bars are
-gone, the cast is 2.1 seconds, the invulnerability is 0.9, and the numbers
-came down with them. It is still the biggest thing he does. It is no
-longer a cutscene.
+**The drill was the loudest of the old ones.** It was over six units long
+on its own carriage — three times his forearm — and it floated at his
+shoulder while he stood still behind it. The one he wears now is shorter
+than his forearm, sits on the knuckles, and goes wherever the fist goes,
+which is straight out in front of him for the whole cast.
+
+**Pile Bunker replaced Missile Pod**, which was the most conjured thing in
+the kit: a rack materialised at his shoulder and eight missiles came out of
+it. The bunker is the opposite in every way — no barrel, no chain, nothing
+that leaves, and it is the only move of his that needs him to be close.
+
+**Ultra Spin is a skill, not an ultimate**, and it took a pass to make that
+true. It shipped with `FX.letterbox(true)`, a three-and-a-half second cast
+and three and a half seconds of invulnerability — the treatment this game
+gives a domain expansion. The cinema bars are gone, the cast is 2.1
+seconds, the invulnerability is 0.9. It no longer builds a frame around
+him either: the spin is `player.visYaw`, the body yaw the renderer adds on
+top of his facing, so his own aim is exactly where he left it when it ends.
 
 ### Four normals of the same weight, and one that is not
 
-This is the rule the kit was built to. Against a standing target the four
-land 32, 34, 35 and 32; `R` lands 54. Getting there took three passes, and
-every one of them was a hit-detection bug rather than a number:
+Against a standing target the four land 13, 14, 14 and 14; `R` lands 28,
+which is [the band the whole roster sits in](#what-a-skill-is-worth).
+Getting the first version there took three passes, and every one of them
+was a hit-detection bug rather than a number:
 
-- **The drill searched from its own tip**, which is held out to one side —
+- **The drill searched from its own tip**, which was held out to one side —
   so anybody standing on his other shoulder was never touched. It searches
-  from in front of *him* now.
+  from in front of *him*, which is also where the bit now is.
 - **The drill's exit hit searched from a point it had already walked past**,
   with a cone pointing away from everybody it had just gone through.
-- **The first missile punted them clear of the other seven.** A barrage is
-  supposed to pin somebody down, so the per-missile knockback went from a
-  shove to almost nothing, plus a short stun.
+- **The first missile punted them clear of the other seven.** That kit is
+  gone, but the lesson stands: a barrage has to pin somebody down.
 
 ### The one hot colour
 
@@ -1041,15 +1064,17 @@ it at all.
 
 ### The five endings
 
-Every one of them ends with the weapon in pieces on the floor beside them.
-
 | | What it does |
 | --- | --- |
 | **SHELLED** | the cannon is built behind him at twice its size and walks three ranging shells in, each landing nearer than the last. The fourth was the aimed one |
 | **ON THE CHAIN** | out and back, out and back, and the third one comes down from fifteen metres straight up |
 | **DRILLED** | in, held there turning while it throws out everything it takes, and then out the far side |
-| **ORDNANCE** | four pods in a ring overhead, twelve arcing in three at a time, and then every tube that is left at once |
-| **SCRAPPED** | the frame comes together around him and spins up, and keeps spinning up. Then he lets go of all of it, in one direction |
+| **DRIVEN THROUGH** | the bunker re-cocked and driven again five times, each one further in than the last, and then a sixth that does not stop at the far side of them |
+| **SCRAPPED** | both bracers up to speed, and kept there. Then he lets go of all of it, in one direction |
+
+The finishers are the one place he still builds at full size in open air:
+a finisher is a set piece, and a cannon the size of a car is the point of
+**SHELLED**. `JJMUTA.assemble` and `JJMUTA.scrap` exist for them.
 
 ## Ryu Ishigori
 

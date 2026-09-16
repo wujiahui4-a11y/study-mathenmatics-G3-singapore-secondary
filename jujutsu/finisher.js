@@ -3379,68 +3379,53 @@
     } },
 
     /* 4 · four pods in a ring, and none of them is saving anything */
-    k4: { name: 'ORDNANCE', color: '#ff8a3d', hold: 2.2, run: function (e, d, p, G) {
+    /* 4 · the bunker, re-cocked and driven again, and again, until the
+       last one does not stop at the far side of them */
+    k4: { name: 'DRIVEN THROUGH', color: '#ff8a3d', hold: 2.3, run: function (e, d, p, G) {
       var MU = window.JJMUTA;
       var HOT = (MU && MU.HOT) || 0xff8a3d, WARN = (MU && MU.WARN) || 0xd8c24a;
+      var GUN = (MU && MU.GUN) || 0x4a5058;
       var floor = new THREE.Vector3(p.x, 0, p.z);
-      var pods = [];
-      for (var i = 0; i < 4; i++) {
-        var a = i / 4 * TAU + .4;
-        var pod = (MU && MU.buildPod) ? MU.buildPod() : null;
-        if (!pod) break;
-        pod.position.copy(p).add(new THREE.Vector3(Math.cos(a) * 9, 8 + (i % 2) * 2.5, Math.sin(a) * 9));
-        pod.scale.setScalar(1.5);
-        scene.add(pod);
-        if (MU.assemble) MU.assemble(pod, .55);
-        pods.push(pod);
-      }
       FX.mangaLines(.5, .5);
-      if (e && !e.dead) { e.anchorT = 1.8; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.2); }
+      if (e && !e.dead) { e.anchorT = 2.0; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.4); }
 
-      var t = 0, fired = 0, salvo = 0;
+      var t = 0, driven = 0;
       addFx({ t: 1e9, update: function (dt) {
         t += dt;
         if (typeof scene === 'undefined') return false;
-        var at = (e && !e.dead ? e.pos.clone().add(up(2.4)) : p.clone().add(up(2.4)));
-        for (var j = 0; j < pods.length; j++) pods[j].lookAt(at);
-        /* twelve, three at a time, arcing in over the top */
-        if (fired < 12 && t > .75 + salvo * .22) {
-          salvo++;
-          for (var k2 = 0; k2 < 3 && fired < 12; k2++) {
-            var src = pods[fired % pods.length].position.clone();
-            var apex = src.clone().lerp(at, .5).add(up(5 + Math.random() * 4));
-            var land = at.clone().add(new THREE.Vector3(
-              (Math.random() - .5) * 5, (Math.random() - .5) * 2, (Math.random() - .5) * 5));
-            FX.cutLine(src, apex, HOT, .5, .12);
-            FX.cutLine(apex, land, HOT, .5, .14);
-            FX.impact(land, HOT, 2.4);
-            FX.flame(land.clone(), 2.2, .35);
-            FX.blood(land.clone(), d, 5, 1.4);
-            fired++;
-          }
-          if (MU && MU.sparks) MU.sparks(at.clone(), 6);
-          addShake(1.1);
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone().add(up(2.5)));
+        /* five of them, each one further through than the last */
+        if (driven < 5 && t > .35 + driven * .3) {
+          driven++;
+          var back = at.clone().addScaledVector(d, -3.4);
+          var deep = at.clone().addScaledVector(d, .4 + driven * .55);
+          FX.cutLine(back, deep, 0xffe9a8, .7 + driven * .12, .16);
+          FX.impact(at.clone(), HOT, 2.2 + driven * .4);
+          FX.cross(at.clone(), 0xffffff, 1.8 + driven * .3, .16);
+          FX.blood(at.clone(), d, 6 + driven * 2, 1.4 + driven * .2);
+          if (MU && MU.sparks) MU.sparks(at.clone(), 8 + driven * 2);
+          FX.debris(floor.clone(), 5, 9, GUN);
+          if (typeof hitstop === 'function') hitstop(.05 + driven * .012);
+          addShake(1.2 + driven * .3);
         }
-        /* and then every tube left, at once */
+        /* and the sixth goes out the back of them and keeps going */
         if (t > 1.95) {
+          var through = at.clone().addScaledVector(d, 26);
           FX.flash('#ffb070', .8, .38);
-          for (var m = 0; m < pods.length; m++) {
-            FX.cutLine(pods[m].position.clone(), at.clone(), 0xffe9a8, 1.3, .26);
-          }
+          FX.cutLine(at.clone().addScaledVector(d, -4), through, 0xffe9a8, 1.6, .3);
+          FX.beam(at.clone(), d.clone(), 26, HOT, { life: .28, width: 1.1 });
           FX.impact(at.clone(), WARN, 7);
-          FX.fire(at.clone(), 18, 1.8, 4, 1);
-          FX.flame(at.clone(), 6, .9);
-          FX.rings(new THREE.Vector3(at.x, .12, at.z), HOT, 5, { maxR: 20, life: .8, gap: 32 });
-          FX.scorch(new THREE.Vector3(at.x, 0, at.z), 7, 34);
+          FX.rings(at.clone(), HOT, 4, { maxR: 13, life: .7, ground: false, axis: d, gap: 30 });
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), HOT, 4, { maxR: 20, life: .8, gap: 32 });
           FX.cracks(floor.clone(), 22, 28, 0x3a3f46);
+          FX.debris(floor.clone(), 14, 16, GUN);
+          FX.dust(floor.clone(), 12, 0x9aa0a8, 16, 5);
           FX.mangaLines(1, .36);
+          if (MU && MU.sparks) MU.sparks(at.clone(), 20);
           if (typeof hitstop === 'function') hitstop(.26);
           addShake(4.6);
           if (e) e.anchorT = 0;
-          G.burn(e, { dir: d });
-          for (var q = 0; q < pods.length; q++) {
-            if (MU.scrap) MU.scrap(pods[q], pods[q].position.clone());
-          }
+          G.sever(e, { dir: d, power: 2.6, cubes: 16 });
           return false;
         }
         return true;
@@ -4473,7 +4458,7 @@
     b1: 'ragdoll', b2: 'ragdoll', b3: 'ragdoll', b4: 'ragdoll',
     j1: 'sever', j2: 'flat', j3: 'dice', j4: 'gone', jr: 'dice',
     o1: 'sever', o2: 'sever', o3: 'sever', o4: 'dice', or: 'gone',
-    k1: 'sever', k2: 'flat', k3: 'gone', k4: 'burn', kr: 'dice',
+    k1: 'sever', k2: 'flat', k3: 'gone', k4: 'sever', kr: 'dice',
     r1: 'gone', r2: 'burn', r3: 'dice', r4: 'flat', rr: 'gone',
     w1: 'sever', w2: 'flat', w3: 'dice', w4: 'sever', wr: 'sever',
     hn1: 'ragdoll', hn2: 'ragdoll', hn3: 'flat', hn4: 'ragdoll'

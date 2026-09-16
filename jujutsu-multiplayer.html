@@ -23977,24 +23977,36 @@ window.__game = {
    KOKICHI MUTA  —  MECHAMARU
    Puppet Manipulation 傀儡操術. The body on the screen is his real one:
    small, thin, barefoot, wrapped in bandages and a uniform four sizes too
-   big, with a plate where a face should be. It is not what fights.
+   big, with a plate where a face should be.
 
-   What fights is machinery, and the machinery is not there until he
-   builds it. So every move in this file is the same three beats —
+   THE REWRITE. The first version of him conjured. Every move built a piece
+   of machinery out of nothing in the air beside his head, used it once and
+   threw it away, which meant he barely moved and none of it was ever
+   really his. Nothing here is summoned any more. Every weapon is bolted to
+   the arm it comes out of — folded flat inside the sleeve until it opens,
+   parented to the hand so it swings when he swings — and the move is the
+   arm doing something, not a boy standing beside a machine.
 
-     · the parts fly in from nowhere and LOCK, one snap at a time
-     · the thing does exactly one thing, and it is a heavy one
-     · and then it comes apart, because he never keeps any of it
+   So the three beats are now:
 
-   which means he barely moves, and the frame is full anyway.
+     · a forearm OPENS: plates slide out along it and lock
+     · he swings, throws, leans on or drives the thing they made
+     · and it folds shut again, because it was part of him
 
-     1  ARM CANNON        腕砲 — one barrel, one shell
-     2  ROCKET PUNCH      拳射出 — the fist leaves on a chain and is
-                          reeled back in
-     3  DRILL ARM         削岩 — it does not hit them, it goes IN
-     4  MISSILE POD       弾幕 — a shoulder rack, and eight of them
-     R  ULTRA SPIN        超高速回転 — the special. The whole frame comes
-                          together around him and turns
+     1  ARM CANNON        腕砲 — the forearm opens into a barrel, and he
+                          levels it and fires one shell
+     2  ROCKET PUNCH      拳射出 — the gauntlet closes over his hand and
+                          then his hand leaves, on a chain bolted to the
+                          arm, and is reeled back into the open socket
+     3  DRILL             削岩 — a bit over the knuckles. Not swung at
+                          them: put against them and walked forward
+     4  PILE BUNKER       杭打 — NEW. A piston down the left forearm. He
+                          plants both feet and drives one spike through
+                          whatever is in front of him, and you can see it
+                          being re-cocked
+     R  ULTRA SPIN        超高速回転 — the special. Both arms lock out
+                          straight, a bracer runs out along each, the
+                          thrusters light, and HE turns
 
    One to four are four ordinary pieces of ordnance of about the same
    weight. The big one is on R, where a special belongs.
@@ -24115,8 +24127,8 @@ window.__game = {
       { key: 'Q', lbl: 'Dash', cd: 'dash', max: 1 },
       { key: '1', lbl: 'Arm Cannon', cd: 'k1', max: KCD.k1 },
       { key: '2', lbl: 'Rocket Punch', cd: 'k2', max: KCD.k2 },
-      { key: '3', lbl: 'Drill Arm', cd: 'k3', max: KCD.k3 },
-      { key: '4', lbl: 'Missile Pod', cd: 'k4', max: KCD.k4 },
+      { key: '3', lbl: 'Drill', cd: 'k3', max: KCD.k3 },
+      { key: '4', lbl: 'Pile Bunker', cd: 'k4', max: KCD.k4 },
       { key: 'R', lbl: 'Ultra Spin', cd: 'kr', max: KCD.kr }
     ]
   };
@@ -24253,6 +24265,92 @@ window.__game = {
   }
   MU.scrap = scrap;
 
+  /* =====================================================================
+     MOUNTING
+     The difference between this Kokichi and the last one. None of his
+     machinery is conjured in the air beside him any more. Every weapon is
+     parented to the arm it comes out of and folded flat inside the sleeve
+     until it opens, so it moves with the pose, swings when he swings, and
+     sits where his fist is instead of a metre from his head.
+
+     The builders author everything pointing along +Z, because that is what
+     a projectile wants. An arm points down its own -Y. ARM_TURN is that
+     quarter turn, and it is the only thing mounting has to know.
+     ================================================================== */
+  var ARM_TURN = Math.PI / 2;
+
+  function hand(right) {
+    var r = player.rig;
+    return r ? (right ? r.handR : r.handL) : null;
+  }
+  function mount(bone, g, scale, lift) {
+    if (!bone) { scene.add(g); keep(g); return g; }
+    g.rotation.set(ARM_TURN, 0, 0);
+    g.position.set(0, lift == null ? -.15 : lift, 0);
+    if (scale) g.scale.setScalar(scale);
+    bone.add(g);
+    keep(g);
+    return g;
+  }
+  /* hand a mounted piece back to the world at the place it had reached, so
+     it flies off or comes apart where it was standing rather than jumping
+     to the origin the moment it stops being part of him */
+  function handOff(g) {
+    if (!g) return null;
+    var w = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+    g.updateWorldMatrix(true, false);
+    g.matrixWorld.decompose(w, q, s);
+    if (g.parent) g.parent.remove(g);
+    scene.add(g);
+    g.position.copy(w); g.quaternion.copy(q); g.scale.copy(s);
+    return g;
+  }
+  /* where a mounted piece has got to, for aiming and for effects */
+  function tipOf(g, along) {
+    if (!g) return player.pos.clone().add(new THREE.Vector3(0, 2.8, 0));
+    var v = new THREE.Vector3(0, 0, along == null ? 1 : along);
+    g.updateWorldMatrix(true, false);
+    return g.localToWorld(v);
+  }
+
+  /* Opening, not summoning. Each plate starts folded flat against the
+     forearm and slides out along it in order, so the weapon comes OUT of
+     him — the same three beats as before, without the parts arriving from
+     off screen. */
+  function unfold(g, secs) {
+    var st = [];
+    g.children.forEach(function (c, i) {
+      if (!c.isMesh) return;
+      var to = c.position.clone();
+      var from = new THREE.Vector3(to.x * .2, to.y * .2, Math.min(to.z, 0) * .2);
+      c.position.copy(from);
+      c.scale.setScalar(.15);
+      st.push({ m: c, to: to, from: from, at: i * .012 });
+    });
+    var span = Math.max(.05, secs * .45), t = 0;
+    addFx({ t: 1e9, update: function (dt) {
+      t += dt;
+      if (typeof scene === 'undefined' || !g.parent) return false;
+      var live = false;
+      st.forEach(function (s2) {
+        var k = (t - s2.at) / span;
+        if (k >= 1) { s2.m.position.copy(s2.to); s2.m.scale.setScalar(1); return; }
+        live = true;
+        if (k < 0) return;
+        var e2 = E.out(k);
+        s2.m.position.lerpVectors(s2.from, s2.to, e2);
+        s2.m.scale.setScalar(.15 + .85 * e2);
+      });
+      if (!live) {
+        var w = new THREE.Vector3();
+        g.getWorldPosition(w);
+        FX.mote(w, WARN, 1.1, .16);
+      }
+      return live;
+    } });
+  }
+  MU.unfold = unfold;
+
   /* the one hot colour in the file, and it only ever means "firing" */
   function sparks(at, n) {
     for (var i = 0; i < n; i++) {
@@ -24284,6 +24382,12 @@ window.__game = {
     }
   }
 
+  /* the jet off the back of a mounted piece as it comes round */
+  function exhaustTrail(g, chance) {
+    if (Math.random() > chance) return;
+    FX.mote(tipOf(g, -1.2), Math.random() < .6 ? HOT : FLASH, 1.1, .16);
+  }
+
   /* a shared bracket: the plate-and-rivet look every build shares */
   function plated(g, w, h, d, x, y, z, c) {
     var m = part(g, w, h, d, x, y, z, c == null ? GUN : c);
@@ -24299,6 +24403,22 @@ window.__game = {
      One barrel, built beside his shoulder, and one shell.
      ================================================================== */
   var CAN = { dmg: 13, reach: 34, radius: 5.5, speed: 78 };
+
+  /* the arm version: a barrel over the knuckles, not a field piece. The
+     full size one below is still what the finishers use, where a set piece
+     is the point. */
+  function buildArmCannon() {
+    var g = new THREE.Group();
+    plated(g, .78, .78, 1.1, 0, 0, -.1, GUN);            // the breech, over the fist
+    plated(g, .56, .56, 1.3, 0, 0, 1.0, IRON);           // the barrel
+    part(g, .7, .7, .2, 0, 0, 1.72, STEEL);              // the brake
+    part(g, .26, .26, .8, -.44, -.1, .5, COP);           // recoil rods along the forearm
+    part(g, .26, .26, .8, .44, -.1, .5, COP);
+    part(g, .8, .08, .16, 0, .36, .1, WARN);
+    part(g, .8, .08, .16, 0, .36, .7, WARN);
+    return g;
+  }
+  MU.buildArmCannon = buildArmCannon;
 
   function buildCannon() {
     var g = new THREE.Group();
@@ -24372,36 +24492,33 @@ window.__game = {
   function stepCannon(a, dt) {
     var p = player, d = a.dir;
     p.vel.x *= .8; p.vel.z *= .8;
-    var side = new THREE.Vector3(-d.z, 0, d.x);
-    var at = p.pos.clone().addScaledVector(side, 1.9).add(new THREE.Vector3(0, 3.1, 0));
     if (a.stage < 1) {
       a.stage = 1;
-      var g = buildCannon();
-      g.position.copy(at);
-      g.rotation.y = Math.atan2(d.x, d.z);
-      scene.add(g);
-      keep(g);
-      a.gun = g;
-      assemble(g, .42);
-      addShake(.5);
+      /* it opens along his own forearm, and the pose below points it */
+      a.gun = mount(hand(true), buildArmCannon());
+      unfold(a.gun, .34);
+      addShake(.35);
     }
     if (a.stage < 2 && a.t > .5) {
       a.stage = 2;
-      var muzzle = at.clone().addScaledVector(d, 5.2);
+      var muzzle = tipOf(a.gun, 2);
       FX.flash('#fff0d0', .35, .18);
       FX.impact(muzzle.clone(), FLASH, 3);
       FX.speedRing(muzzle.clone(), HOT, 9, .22);
-      exhaust(at.clone().addScaledVector(d, -2), d, 9);
+      exhaust(tipOf(a.gun, -1), d, 9);
       sparks(muzzle.clone(), 10);
       addShake(2);
       if (typeof hitstop === 'function') hitstop(.09);
       try { sfx.redBoom(); } catch (e) {}
+      /* fired from the muzzle, but along where he is looking: the arm is
+         mid recoil by the time the shell exists */
       fireShell(muzzle, d.clone());
-      if (a.gun) { a.gun.position.addScaledVector(d, -.7); }
+      a.kick = .16;
     }
-    if (a.stage < 3 && a.t > .85) {
+    if (a.stage < 3 && a.t > .86) {
       a.stage = 3;
-      if (a.gun) scrap(a.gun, a.gun.position.clone());
+      /* and it folds shut, rather than being thrown away */
+      if (a.gun) { sparks(tipOf(a.gun, 0), 5); drop(a.gun); }
       a.gun = null;
     }
   }
@@ -24427,6 +24544,31 @@ window.__game = {
   }
   MU.buildFist = buildFist;
 
+  /* the one he actually wears, and the hole it leaves */
+  function buildArmFist() {
+    var g = new THREE.Group();
+    plated(g, .9, .82, 1.0, 0, 0, .1, GUN);
+    part(g, .94, .2, 1.05, 0, .38, .1, IRON);
+    for (var i = 0; i < 4; i++) {
+      part(g, .18, .2, .46, -.33 + i * .22, -.08, .66, STEEL);
+      part(g, .18, .12, .16, -.33 + i * .22, -.14, .92, COP);
+    }
+    part(g, .28, .28, .58, -.56, -.16, .3, STEEL);       // the thumb
+    part(g, .5, .5, .24, 0, 0, -.5, COP);                // the coupling it leaves on
+    return g;
+  }
+  MU.buildArmFist = buildArmFist;
+
+  function buildSocket() {
+    var g = new THREE.Group();
+    plated(g, .74, .74, .34, 0, 0, 0, IRON);
+    var lit = part(g, .4, .4, .1, 0, 0, .21, HOT);       // the open coupling
+    lit.material.emissive = new THREE.Color(HOT);
+    lit.material.emissiveIntensity = .7;
+    part(g, .78, .07, .14, 0, .34, 0, WARN);
+    return g;
+  }
+
   function chainTo(a, b) {
     var n = Math.max(3, Math.round(a.distanceTo(b) / 1.6));
     for (var i = 0; i < n; i++) {
@@ -24446,19 +24588,31 @@ window.__game = {
     }
   }
 
-  function throwFist(from, dir, ghost) {
-    var g = buildFist();
-    g.position.copy(from);
-    g.rotation.y = Math.atan2(dir.x, dir.z);
-    scene.add(g);
-    keep(g);
-    assemble(g, .2);
+  /* `given` is the fist he was already wearing, handed to the world at the
+     place his arm had it. Without one — a spectator's copy, a finisher —
+     it builds a loose one at `from` instead. */
+  function throwFist(from, dir, ghost, given, onHome) {
+    var g = given;
+    if (!g) {
+      g = buildFist();
+      g.position.copy(from);
+      g.rotation.y = Math.atan2(dir.x, dir.z);
+      scene.add(g);
+      keep(g);
+      assemble(g, .2);
+    }
     var t = 0, back = false, hit = [];
     var home = from.clone();
 
     addFx({ t: 1e9, update: function (dt) {
       t += dt;
       if (typeof scene === 'undefined') return false;
+      /* the chain is bolted to his forearm, so the far end of it follows
+         him around rather than hanging in the air where he threw from */
+      if (given && !ghost && player.char === 'muta' && player.rig && player.rig.handR) {
+        player.rig.handR.updateWorldMatrix(true, false);
+        player.rig.handR.getWorldPosition(home);
+      }
       if (!back) {
         g.position.addScaledVector(dir, RP.speed * dt);
         if (g.position.distanceTo(home) > RP.reach) { back = true; hit = []; }
@@ -24485,10 +24639,18 @@ window.__game = {
       }
       if (back && g.position.distanceTo(home) < 2) {
         sparks(home.clone(), 8);
-        scrap(g, g.position.clone());
+        /* his own hand is put back on; a loose one is only scrap */
+        if (given) { drop(g); if (onHome) onHome(); }
+        else scrap(g, g.position.clone());
         return false;
       }
-      return t < 3.2;
+      /* it can be flung somewhere it cannot get back from; the arm still
+         has to stop waiting for it */
+      if (t >= 3.2) {
+        if (given) { drop(g); if (onHome) onHome(); }
+        return false;
+      }
+      return true;
     } });
   }
 
@@ -24502,24 +24664,62 @@ window.__game = {
   function stepFist(a, dt) {
     var p = player, d = a.dir;
     p.vel.x *= .8; p.vel.z *= .8;
-    if (a.stage < 1 && a.t > .38) {
+    if (a.stage < 1) {
       a.stage = 1;
-      var from = p.pos.clone().addScaledVector(d, 2.6).add(new THREE.Vector3(0, 2.9, 0));
+      /* the gauntlet closes over the hand he is about to lose */
+      a.fist = mount(hand(true), buildArmFist());
+      unfold(a.fist, .24);
+    }
+    if (a.stage < 2 && a.t > .38) {
+      a.stage = 2;
+      /* and then it is not his any more: the same piece is handed to the
+         world exactly where his arm had it, so nothing pops */
+      var g = handOff(a.fist);
+      a.fist = null;
+      var from = g ? g.position.clone() : p.pos.clone().addScaledVector(d, 2.6).add(new THREE.Vector3(0, 2.9, 0));
+      a.socket = mount(hand(true), buildSocket());
       FX.flash('#fff0d0', .3, .16);
       FX.speedRing(from.clone(), HOT, 10, .24);
       exhaust(from.clone().addScaledVector(d, -1.6), d, 8);
       addShake(1.8);
       if (typeof hitstop === 'function') hitstop(.08);
       try { sfx.redBoom(); } catch (e) {}
-      throwFist(from, d.clone());
+      throwFist(from, d.clone(), false, g, function () {
+        // it comes home and the socket shuts over it
+        if (a.socket) { drop(a.socket); a.socket = null; }
+      });
     }
   }
 
   /* =====================================================================
-     3 · DRILL ARM  削岩
-     It does not hit them. It is put against them and left running.
+     3 · DRILL  削岩
+     A bit over the knuckles, not a rig on a mount. It is not swung at
+     them — it is put against them and left running, and he has to walk
+     forward behind his own fist to keep it there.
      ================================================================== */
   var DR = { dmg: 14, reach: 9, ticks: 6, tick: 1.5, out: 5, step: 13 };
+
+  /* The drill he wears. The old one was six units long on its own carriage
+     and floated at his shoulder; this is shorter than his forearm and it
+     goes wherever the fist goes. */
+  function buildHandDrill() {
+    var g = new THREE.Group();
+    plated(g, .66, .66, .74, 0, 0, -.16, GUN);           // the housing over the fist
+    part(g, .52, .52, .2, 0, 0, .26, COP);               // the collar
+    g.__bit = new THREE.Group();
+    for (var i = 0; i < 5; i++) {
+      var w = .44 - i * .07;
+      var seg = part(g.__bit, w, w, .26, 0, 0, .44 + i * .25, i % 2 ? STEEL : PALE);
+      seg.rotation.z = i * .62;
+    }
+    part(g.__bit, .11, .11, .42, 0, 0, 1.78, PALE);      // the point
+    g.add(g.__bit);
+    part(g, .7, .07, .15, 0, .32, -.1, WARN);
+    part(g, .24, .24, .5, -.4, -.1, -.1, COP);           // the motor down the forearm
+    part(g, .24, .24, .5, .4, -.1, -.1, COP);
+    return g;
+  }
+  MU.buildHandDrill = buildHandDrill;
 
   function buildDrill() {
     var g = new THREE.Group();
@@ -24549,40 +24749,30 @@ window.__game = {
   }
   function stepDrill(a, dt) {
     var p = player, d = a.dir;
-    var side = new THREE.Vector3(-d.z, 0, d.x);
-    var at = p.pos.clone().addScaledVector(side, 1.6).add(new THREE.Vector3(0, 2.7, 0));
     if (a.stage < 1) {
       a.stage = 1;
-      var g = buildDrill();
-      g.position.copy(at);
-      g.rotation.y = Math.atan2(d.x, d.z);
-      scene.add(g);
-      keep(g);
-      a.drill = g;
-      assemble(g, .38);
-      addShake(.5);
+      a.drill = mount(hand(true), buildHandDrill());
+      unfold(a.drill, .3);
+      addShake(.3);
     }
-    if (a.drill) {
-      a.drill.position.copy(at);
-      a.drill.rotation.y = Math.atan2(d.x, d.z);
-      if (a.drill.__bit && a.t > .4) a.drill.__bit.rotation.z += dt * 34;
-    }
+    /* the bit spins in the housing; the housing goes wherever the pose
+       below puts his arm, which is straight out in front of him */
+    if (a.drill && a.drill.__bit && a.t > .34) a.drill.__bit.rotation.z += dt * 34;
+    var tip = tipOf(a.drill, 2.1);
     if (a.t < .42) { p.vel.x *= .7; p.vel.z *= .7; return; }
     /* he walks it forward and it stays on them */
     if (a.t < 1.15) {
       p.vel.x = d.x * DR.step; p.vel.z = d.z * DR.step;
-      var tip = at.clone().addScaledVector(d, 6);
       if (Math.random() < dt * 26) sparks(tip.clone(), 3);
       if (a.n < DR.ticks && a.t > .48 + a.n * .11) {
         a.n++;
-        /* the drill is held out to one side, but what it is being put
-           against is whatever is in front of HIM — searching from the
-           tip meant everybody on his other shoulder was never touched */
+        /* what it is being put against is whatever is in front of HIM;
+           searching from the tip alone missed anyone his arm swung past */
         var got = enemiesNear(
-          p.pos.clone().addScaledVector(d, 5).add(new THREE.Vector3(0, 2.4, 0)),
+          p.pos.clone().addScaledVector(d, 4).add(new THREE.Vector3(0, 2.4, 0)),
           DR.reach, d, .1);
         if (got.length) {
-          FX.impact(tip.clone(), FLASH, 1.8);
+          FX.impact(tip.clone(), FLASH, 1.5);
           sparks(tip.clone(), 8);
           addShake(.9);
           got.forEach(function (e) {
@@ -24598,8 +24788,8 @@ window.__game = {
     p.vel.x *= .6; p.vel.z *= .6;
     if (a.stage < 2) {
       a.stage = 2;
-      /* it comes out the far side, and then it is finished with */
-      var tip2 = at.clone().addScaledVector(d, 6);
+      /* he leans on it once, and it goes through */
+      var tip2 = tipOf(a.drill, 2.1);
       FX.flash('#fff0d0', .35, .2);
       FX.impact(tip2.clone(), FLASH, 3.6);
       sparks(tip2.clone(), 16);
@@ -24616,137 +24806,108 @@ window.__game = {
           react: 'blow', reactDur: .8, spark: HOT, stun: .8,
           bleed: true, death: 'gone' });
       });
-      if (a.drill) { scrap(a.drill, a.drill.position.clone()); a.drill = null; }
+    }
+    if (a.stage < 3 && a.t > a.dur - .2) {
+      a.stage = 3;
+      if (a.drill) { sparks(tipOf(a.drill, 0), 6); drop(a.drill); a.drill = null; }
     }
   }
 
   /* =====================================================================
-     4 · MISSILE POD  弾幕
-     A rack on the shoulder and eight of them, which go up before they go
-     anywhere else.
-     ================================================================== */
-  var POD = { dmg: 1.75, n: 8, radius: 5.5, spread: 4.4, out: 22 };
+     4 · PILE BUNKER  杭打
+     The new one, and the least like the rest of him: no barrel, no chain,
+     nothing that leaves. A piston runs the length of his left forearm. He
+     plants both feet, the housing locks, and it drives one spike through
+     whatever is directly in front of him.
 
-  function buildPod() {
+     Short, heavy, and the only move of his that needs him to be close.
+     ================================================================== */
+  var PILE = { dmg: 14, reach: 7.5, radius: 4.6, throw: 34, drive: .32 };
+
+  function buildBunker() {
     var g = new THREE.Group();
-    plated(g, 3.0, 2.0, 2.0, 0, 0, 0, GUN);
-    for (var i = 0; i < 4; i++) {
-      for (var j = 0; j < 2; j++) {
-        part(g, .5, .5, .3, -1.0 + i * .68, .42 - j * .84, 1.05, IRON);
-        part(g, .34, .34, .12, -1.0 + i * .68, .42 - j * .84, 1.16, HOT);
-      }
-    }
-    part(g, 3.1, .18, .4, 0, 1.1, .4, WARN);
-    plated(g, 1.2, .8, 1.4, 0, -1.1, -.6, IRON);
+    plated(g, .84, .84, 1.5, 0, 0, -.2, GUN);            // the housing along the forearm
+    part(g, .95, .18, 1.55, 0, .38, -.2, IRON);          // the rail on top
+    part(g, .3, .3, 1.1, -.5, -.12, -.1, COP);           // the return springs
+    part(g, .3, .3, 1.1, .5, -.12, -.1, COP);
+    part(g, .9, .09, .18, 0, .4, .35, WARN);
+    part(g, .9, .09, .18, 0, .4, -.6, WARN);
+    plated(g, .62, .62, .34, 0, 0, .72, IRON);           // the muzzle it comes out of
+    /* the spike itself, which is the only part that moves */
+    g.__pin = new THREE.Group();
+    part(g.__pin, .3, .3, 1.3, 0, 0, .5, STEEL);
+    part(g.__pin, .18, .18, .5, 0, 0, 1.35, PALE);
+    part(g.__pin, .44, .44, .2, 0, 0, -.2, COP);
+    g.add(g.__pin);
     return g;
   }
-  MU.buildPod = buildPod;
+  MU.buildBunker = buildBunker;
 
-  function missile(from, target, delay, ghost) {
-    later(delay, function () {
-      var m = new THREE.Group();
-      part(m, .32, .32, 1.3, 0, 0, 0, PALE);
-      part(m, .24, .24, .5, 0, 0, .82, HOT);
-      for (var f = 0; f < 3; f++) {
-        var fin = part(m, .1, .5, .4, 0, 0, -.55, STEEL);
-        fin.rotation.z = f * 2.1;
-      }
-      m.position.copy(from);
-      scene.add(m);
-      var t = 0, gone = false;
-      var apex = from.clone().lerp(target, .5).add(new THREE.Vector3(0, 9, 0));
-      addFx({ t: 1e9, update: function (dt) {
-        t += dt;
-        if (typeof scene === 'undefined') return false;
-        var k = Math.min(1, t / .62);
-        /* up, over, and down: a quadratic through the apex */
-        var a1 = from.clone().lerp(apex, k), a2 = apex.clone().lerp(target, k);
-        var was = m.position.clone();
-        m.position.copy(a1.lerp(a2, k));
-        if (was.distanceTo(m.position) > .01) m.lookAt(m.position.clone().add(m.position.clone().sub(was)));
-        if (Math.random() < dt * 50) FX.mote(m.position.clone(), i2() ? HOT : 0x9aa0a8, .9, .18);
-        if (!gone && k >= 1) {
-          gone = true;
-          var at = m.position.clone();
-          FX.impact(at.clone(), FLASH, 2.6);
-          FX.rings(new THREE.Vector3(at.x, .12, at.z), HOT, 2, { maxR: POD.radius * 2, life: .4, gap: 34 });
-          sparks(at.clone(), 8);
-          FX.debris(new THREE.Vector3(at.x, .1, at.z), 6, 8, GUN);
-          FX.dust(new THREE.Vector3(at.x, 0, at.z), 5, 0x9aa0a8, 7, 3);
-          addShake(1.2);
-          if (!ghost) {
-            enemiesNear(at.clone(), POD.radius).forEach(function (e) {
-              if (!e || e.dead) return;
-              var kb = e.pos.clone().sub(at).setY(0);
-              if (kb.lengthSq() < .01) kb.set(1, 0, 0);
-              /* barely any push: a barrage is supposed to pin somebody
-                 down, and the first one throwing them clear of the next
-                 seven made it the weakest thing in the kit */
-              kb.normalize().multiplyScalar(2); kb.y = 1.5;
-              e.damage(POD.dmg, kb, {
-                react: null, spark: HOT, noFrameBonus: true, stun: .14,
-                bleed: true, death: 'burn' });
-            });
-          }
-          scene.remove(m);
-          m.traverse(function (o) { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
-          return false;
-        }
-        return true;
-      } });
-      function i2() { return Math.random() < .6; }
-    });
-  }
-
-  function castPod() {
+  function castPile() {
     if (!ready('k4')) return;
-    var a = start('k4', 1.4, 'k4', 'MISSILE POD', '弾幕');
-    var d = aim();
-    var near = nearest(30, 0);
-    a.at = near ? new THREE.Vector3(near.pos.x, 1, near.pos.z)
-                : player.pos.clone().addScaledVector(d, POD.out).setY(1);
-    a.dir = d;
-    player.iframes = Math.max(player.iframes, .6);
+    var a = start('k4', 1.15, 'k4', 'PILE BUNKER', '杭打');
+    a.dir = aim();
+    player.iframes = Math.max(player.iframes, .5);
     try { sfx.whoosh(); } catch (e) {}
   }
-  function stepPod(a, dt) {
+  function stepPile(a, dt) {
     var p = player, d = a.dir;
-    p.vel.x *= .82; p.vel.z *= .82;
-    var side = new THREE.Vector3(-d.z, 0, d.x);
-    var at = p.pos.clone().addScaledVector(side, -2.1).add(new THREE.Vector3(0, 3.6, 0));
     if (a.stage < 1) {
       a.stage = 1;
-      var g = buildPod();
-      g.position.copy(at);
-      g.rotation.y = Math.atan2(d.x, d.z);
-      scene.add(g);
-      keep(g);
-      a.pod = g;
-      assemble(g, .4);
-      addShake(.5);
+      a.pile = mount(hand(false), buildBunker());
+      unfold(a.pile, .3);
+      addShake(.4);
     }
-    if (a.pod) a.pod.position.copy(at);
-    if (a.stage < 2 && a.t > .52) {
+    /* he sets himself: no drift while the housing locks */
+    if (a.t < .46) { p.vel.x *= .62; p.vel.z *= .62; }
+    else { p.vel.x *= .86; p.vel.z *= .86; }
+
+    if (a.stage < 2 && a.t > .48) {
       a.stage = 2;
-      FX.speedRing(at.clone(), HOT, 8, .22);
-      addShake(1.4);
+      var muzzle = tipOf(a.pile, 1.1);
+      FX.flash('#fff0d0', .4, .2);
+      FX.impact(muzzle.clone(), FLASH, 3.4);
+      FX.speedRing(muzzle.clone(), HOT, 10, .22);
+      FX.cross(muzzle.clone(), 0xffffff, 3, .2);
+      exhaust(tipOf(a.pile, -1.2), d, 8);
+      sparks(muzzle.clone(), 14);
+      FX.dust(new THREE.Vector3(p.pos.x, 0, p.pos.z), 6, 0x9aa0a8, 7, 3);
+      addShake(2.4);
+      if (typeof hitstop === 'function') hitstop(.12);
       try { sfx.redBoom(); } catch (e) {}
-      for (var i = 0; i < POD.n; i++) {
-        var spread = new THREE.Vector3(
-          (Math.random() - .5) * POD.spread, 0, (Math.random() - .5) * POD.spread);
-        missile(at.clone(), a.at.clone().add(spread), i * 65, false);
-      }
+      enemiesNear(p.pos.clone().addScaledVector(d, 2.6).add(new THREE.Vector3(0, 2.5, 0)),
+        PILE.reach, d, .05).forEach(function (e) {
+        if (!e || e.dead) return;
+        var kb = d.clone().multiplyScalar(PILE.throw); kb.y = 16;
+        e.damage(PILE.dmg, kb, {
+          react: 'blow', reactDur: .9, spark: HOT, stun: .9,
+          bleed: true, death: 'flat' });
+        FX.impact(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), FLASH, 3.8);
+        sparks(e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), 12);
+        FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), d, 9, 1.8);
+      });
     }
-    if (a.stage < 3 && a.t > 1.15) {
+    /* the pin goes out fast and is drawn back slowly, which is the whole
+       read on the move: you can see it has to be re-cocked */
+    if (a.pile && a.pile.__pin) {
+      var k = a.t < .48 ? 0
+        : a.t < .48 + PILE.drive ? E.out((a.t - .48) / PILE.drive)
+        : Math.max(0, 1 - (a.t - .48 - PILE.drive) / .3);
+      a.pile.__pin.position.z = k * 1.5;
+    }
+    if (a.stage < 3 && a.t > a.dur - .18) {
       a.stage = 3;
-      if (a.pod) { scrap(a.pod, a.pod.position.clone()); a.pod = null; }
+      if (a.pile) { sparks(tipOf(a.pile, 0), 5); drop(a.pile); a.pile = null; }
     }
   }
+
 
   /* =====================================================================
      R · ULTRA SPIN  超高速回転
-     THE SPECIAL. Not another piece of ordnance — the whole frame comes
-     together around him, and then it turns.
+     THE SPECIAL. Not a frame built around him: his own arms lock out
+     straight, a bracer runs out along each of them, the thrusters in both
+     palms light, and he turns on the spot until everything in reach has
+     been hit by an arm going far too fast.
      ================================================================== */
   var SPIN = { dmg: 28, radius: 11, dur: 1.6, rate: 26 };
 
@@ -24788,41 +24949,50 @@ window.__game = {
     player.iframes = Math.max(player.iframes, .9);
     try { sfx.raise(); } catch (e) {}
   }
+  /* a bracer, and the thruster on the end of it that does the turning */
+  function buildBracer() {
+    var g = new THREE.Group();
+    plated(g, .8, .8, 1.4, 0, 0, -.1, GUN);
+    part(g, .88, .16, 1.45, 0, .36, -.1, IRON);
+    part(g, .9, .08, .16, 0, .38, .42, WARN);
+    plated(g, .96, .96, .5, 0, 0, .82, IRON);            // the weight on the end
+    part(g, .5, .5, .3, 0, 0, -.9, COP);                 // the thruster bell
+    var jet = part(g, .34, .34, .16, 0, 0, -1.08, HOT);
+    jet.material.emissive = new THREE.Color(HOT);
+    jet.material.emissiveIntensity = .9;
+    return g;
+  }
+  MU.buildBracer = buildBracer;
+
   function stepSpin(a, dt) {
     var p = player, d = a.dir;
     p.vel.x *= .9; p.vel.z *= .9;
     if (a.stage < 1) {
       a.stage = 1;
-      var g = buildFrame();
-      g.position.copy(p.pos);
-      g.rotation.y = Math.atan2(d.x, d.z);
-      scene.add(g);
-      keep(g);
-      a.frame = g;
-      /* it still takes the longest of his to build, because it is the
-         only thing he builds around himself — but half a second, not one */
-      assemble(g, .5);
+      /* one down each arm, and nothing anywhere near him that is not his */
+      a.bracers = [mount(hand(true), buildBracer()), mount(hand(false), buildBracer())];
+      a.bracers.forEach(function (g) { unfold(g, .42); });
       FX.cracks(new THREE.Vector3(p.pos.x, .06, p.pos.z), 12, 15, 0x3a3f46);
       addShake(1.6);
     }
-    if (a.frame) {
-      a.frame.position.copy(p.pos);
-      if (a.t > .62) {
-        /* and then it turns, and keeps turning faster */
-        var w = Math.min(1, (a.t - .62) / .38);
-        a.frame.rotation.y += dt * SPIN.rate * w;
-        if (a.frame.__arms) a.frame.__arms.forEach(function (arm2, i) {
-          arm2.rotation.z = (i ? -1 : 1) * (.2 + w * 1.15);
-        });
-        if (Math.random() < dt * 40) {
-          var ang = Math.random() * TAU;
-          sparks(p.pos.clone().add(new THREE.Vector3(
-            Math.cos(ang) * 7, 1 + Math.random() * 6, Math.sin(ang) * 7)), 2);
-        }
-        if (Math.random() < dt * 26) {
-          FX.speedRing(p.pos.clone().add(new THREE.Vector3(0, 3 + Math.random() * 4, 0)),
-            HOT, 12 + Math.random() * 8, .2);
-        }
+    if (a.t > .62) {
+      /* and then HE turns, and keeps turning faster. visYaw is the spin:
+         the body yaw the renderer adds on top of his facing, so his own
+         aim is still where he left it when this ends. */
+      var w = Math.min(1, (a.t - .62) / .38);
+      p.visYaw = (p.visYaw || 0) + dt * SPIN.rate * w;
+      if (a.bracers) a.bracers.forEach(function (g) {
+        if (!g || !g.parent) return;
+        exhaustTrail(g, dt * 18 * w);
+      });
+      if (Math.random() < dt * 40) {
+        var ang = Math.random() * TAU;
+        sparks(p.pos.clone().add(new THREE.Vector3(
+          Math.cos(ang) * 7, 1 + Math.random() * 6, Math.sin(ang) * 7)), 2);
+      }
+      if (Math.random() < dt * 26) {
+        FX.speedRing(p.pos.clone().add(new THREE.Vector3(0, 3 + Math.random() * 4, 0)),
+          HOT, 12 + Math.random() * 8, .2);
       }
     }
     if (a.stage < 2 && a.t > .62) {
@@ -24863,104 +25033,131 @@ window.__game = {
       FX.mangaLines(.7, .26);
       addShake(2.6);
       if (typeof hitstop === 'function') hitstop(.12);
-      if (a.frame) { scrap(a.frame, p.pos.clone().add(new THREE.Vector3(0, 4, 0))); a.frame = null; }
+      if (a.bracers) {
+        a.bracers.forEach(function (g) {
+          if (g) scrap(handOff(g), null);
+        });
+        a.bracers = null;
+      }
+      player.visYaw = 0;
     }
   }
 
   /* =====================================================================
      POSES
-     He hardly moves, and that is the point: a boy holding still while
-     several tonnes of machinery does the work a metre from his head. The
-     one thing his body does is brace.
+     He used to hold still while several tonnes of machinery did the work a
+     metre from his head. Now the machinery is bolted to his arms, so the
+     arms have to do the move: he points the cannon, he throws the punch,
+     he leans on the drill, he plants and drives the bunker, and the spin
+     is him turning rather than something turning around him.
      ================================================================== */
   function poseMuta(r, a) {
     var t = a.t, out = E.out;
     switch (a.type) {
-      case 'k1': {                        // one arm up, and the recoil
+      case 'k1': {                        // levels the arm, and takes the recoil
         rp(r);
         var k = out(Math.min(1, t / .3));
         var kick = t > .5 ? Math.max(0, 1 - (t - .5) / .3) : 0;
-        r.shoulderR.rotation.x = -1.5 * k + .5 * kick;
-        r.shoulderR.rotation.z = -.4 * k;
-        r.elbowR.rotation.x = -.5 * k - .5 * kick;
-        r.shoulderL.rotation.x = -.6 * k;
-        r.elbowL.rotation.x = -1.2 * k;
-        r.spine.rotation.x = -.16 * k + .3 * kick;
-        r.spine.rotation.y = -.2 * k;
-        r.neck.rotation.x = -.2 * k + .2 * kick;
-        r.hipL.rotation.x = -.34 * k; r.kneeL.rotation.x = .6 * k;
-        r.hipR.rotation.x = -.24 * k; r.kneeR.rotation.x = .5 * k;
-        r.hips.position.y = r.hipsBaseY - .3 * k - .12 * kick;
+        /* the barrel is on this forearm, so it has to end up level and
+           pointing where he is looking, not raised beside his ear */
+        r.shoulderR.rotation.x = -1.62 * k + .42 * kick;
+        r.shoulderR.rotation.z = -.12 * k;
+        r.elbowR.rotation.x = -.06 * k - .62 * kick;
+        r.shoulderL.rotation.x = -.7 * k;                 // the other hand braces it
+        r.shoulderL.rotation.z = .5 * k;
+        r.elbowL.rotation.x = -1.5 * k;
+        r.spine.rotation.x = -.1 * k + .34 * kick;
+        r.spine.rotation.y = -.26 * k;
+        r.neck.rotation.y = .22 * k;
+        r.neck.rotation.x = -.1 * k + .2 * kick;
+        r.hipL.rotation.x = -.38 * k; r.kneeL.rotation.x = .66 * k;
+        r.hipR.rotation.x = -.2 * k + .2 * kick; r.kneeR.rotation.x = .5 * k;
+        r.hips.position.y = r.hipsBaseY - .3 * k - .14 * kick;
         return true;
       }
-      case 'k2': {                        // the arm goes out with the fist
+      case 'k2': {                        // a real punch, and the arm stays out
         rp(r);
-        var w = out(Math.min(1, t / .34));
-        var go = t > .38 ? out(Math.min(1, (t - .38) / .12)) : 0;
-        r.shoulderR.rotation.x = -.5 - .9 * w - .8 * go;
-        r.shoulderR.rotation.z = -.5 * w + .3 * go;
-        r.elbowR.rotation.x = -1.6 * w + 1.5 * go;
-        r.shoulderL.rotation.x = -.5 * w;
-        r.elbowL.rotation.x = -1.3 * w;
-        r.spine.rotation.y = .4 * w - .7 * go;
-        r.spine.rotation.x = -.12 * w + .26 * go;
-        r.neck.rotation.y = -.24 * w + .4 * go;
-        r.hipL.rotation.x = -.4 * w + .2 * go; r.kneeL.rotation.x = .7 * w;
-        r.hipR.rotation.x = .2 * w - .3 * go; r.kneeR.rotation.x = .5 * w;
-        r.hips.position.y = r.hipsBaseY - .34 * w;
+        var w = out(Math.min(1, t / .3));
+        var go = t > .38 ? out(Math.min(1, (t - .38) / .1)) : 0;
+        var hold = t > .6 ? Math.min(1, (t - .6) / .3) : 0;
+        /* wound across the body, then everything opens at once */
+        r.shoulderR.rotation.x = -.35 - .55 * w - 1.05 * go;
+        r.shoulderR.rotation.z = -.62 * w + .58 * go;
+        r.elbowR.rotation.x = -1.85 * w + 1.82 * go;
+        r.shoulderL.rotation.x = -.4 * w + .5 * go;
+        r.shoulderL.rotation.z = .3 * w - .5 * go;
+        r.elbowL.rotation.x = -1.35 * w;
+        r.spine.rotation.y = .62 * w - 1.05 * go;
+        r.spine.rotation.x = -.14 * w + .3 * go;
+        r.neck.rotation.y = -.3 * w + .55 * go;
+        r.hipL.rotation.x = -.42 * w + .26 * go; r.kneeL.rotation.x = .72 * w;
+        r.hipR.rotation.x = .26 * w - .42 * go; r.kneeR.rotation.x = .5 * w;
+        r.hips.rotation.y = .3 * w - .5 * go;
+        r.hips.position.y = r.hipsBaseY - .36 * w - .1 * hold;
         return true;
       }
-      case 'k3': {                        // braced behind it, walking it in
+      case 'k3': {                        // out in front of him, and leaned on
         rp(r);
-        var b = out(Math.min(1, t / .34));
+        var b = out(Math.min(1, t / .3));
         var push = t > .44 ? Math.min(1, (t - .44) / .3) : 0;
-        var rattle = Math.sin(t * 40) * .04 * push;
-        r.shoulderR.rotation.x = -1.4 * b - .2 * push;
-        r.shoulderR.rotation.z = -.34 * b;
-        r.elbowR.rotation.x = -.8 * b + .3 * push;
-        r.shoulderL.rotation.x = -1.2 * b;
-        r.shoulderL.rotation.z = .3 * b;
-        r.elbowL.rotation.x = -1.0 * b;
-        r.spine.rotation.x = -.2 * b + .34 * push + rattle;
-        r.neck.rotation.x = -.24 * b + .2 * push;
-        r.hipL.rotation.x = -.6 * b; r.kneeL.rotation.x = .9 * b;
-        r.hipR.rotation.x = .3 * b; r.kneeR.rotation.x = .5 * b;
-        r.hips.position.y = r.hipsBaseY - .44 * b + rattle;
+        var lean = t > 1.12 ? Math.min(1, (t - 1.12) / .16) : 0;
+        var rattle = Math.sin(t * 40) * .05 * push;
+        /* arm straight out: the bit is on the knuckles and has to be the
+           furthest forward part of him */
+        r.shoulderR.rotation.x = -1.5 * b - .28 * push - .3 * lean;
+        r.shoulderR.rotation.z = -.06 * b;
+        r.elbowR.rotation.x = -.12 * b + .06 * push;
+        r.shoulderL.rotation.x = -1.15 * b;               // second hand on the housing
+        r.shoulderL.rotation.z = .46 * b;
+        r.elbowL.rotation.x = -1.25 * b;
+        r.spine.rotation.x = -.18 * b + .38 * push + .22 * lean + rattle;
+        r.spine.rotation.y = -.16 * b;
+        r.neck.rotation.x = -.16 * b + .26 * push;
+        r.hipL.rotation.x = -.66 * b - .14 * lean; r.kneeL.rotation.x = .95 * b;
+        r.hipR.rotation.x = .34 * b; r.kneeR.rotation.x = .5 * b;
+        r.hips.position.y = r.hipsBaseY - .42 * b - .14 * lean + rattle;
         return true;
       }
-      case 'k4': {                        // he does not even look up
+      case 'k4': {                        // plants, locks, and drives it
         rp(r);
-        var s1 = out(Math.min(1, t / .4));
-        var sh = t > .52 ? Math.sin((t - .52) * 34) * .06 * Math.max(0, 1 - (t - .52) / .6) : 0;
-        r.shoulderL.rotation.x = -.4 * s1;
-        r.shoulderR.rotation.x = -.4 * s1;
-        r.shoulderL.rotation.z = .34 * s1;
-        r.shoulderR.rotation.z = -.34 * s1;
-        r.elbowL.rotation.x = -1.4 * s1; r.elbowR.rotation.x = -1.4 * s1;
-        r.spine.rotation.x = .12 * s1 + sh;
-        r.spine.rotation.z = sh * 1.6;
-        r.neck.rotation.x = .16 * s1;
-        r.hipL.rotation.x = -.3 * s1; r.kneeL.rotation.x = .54 * s1;
-        r.hipR.rotation.x = -.26 * s1; r.kneeR.rotation.x = .48 * s1;
-        r.hips.position.y = r.hipsBaseY - .34 * s1;
+        var set = out(Math.min(1, t / .34));
+        var fire = t > .48 ? Math.max(0, 1 - (t - .48) / .26) : 0;
+        var wind = t < .48 ? out(t / .48) : 1;
+        /* the bunker is on the LEFT arm, so that is the one that goes out */
+        r.shoulderL.rotation.x = -.5 * set - 1.15 * wind + .34 * fire;
+        r.shoulderL.rotation.z = .5 * set - .44 * wind;
+        r.elbowL.rotation.x = -1.5 * set + 1.42 * wind - .5 * fire;
+        r.shoulderR.rotation.x = -.7 * set;               // right hand braces the housing
+        r.shoulderR.rotation.z = -.55 * set;
+        r.elbowR.rotation.x = -1.6 * set;
+        r.spine.rotation.y = -.42 * set + .62 * wind;
+        r.spine.rotation.x = -.16 * set + .2 * wind + .34 * fire;
+        r.neck.rotation.y = .3 * set - .44 * wind;
+        r.hips.rotation.y = -.24 * set + .36 * wind;
+        /* both feet planted wide: nothing about this move moves him */
+        r.hipL.rotation.x = -.6 * set + .18 * fire; r.kneeL.rotation.x = .95 * set;
+        r.hipR.rotation.x = .34 * set - .2 * fire; r.kneeR.rotation.x = .62 * set;
+        r.hips.position.y = r.hipsBaseY - .55 * set - .16 * fire;
         return true;
       }
-      case 'kr': {                        // arms in, head down, and hold on
+      case 'kr': {                        // arms locked out, and hold on
         rp(r);
-        var tuck = out(Math.min(1, t / .6));
+        var lock = out(Math.min(1, t / .6));
         var spun = t > .85 ? Math.min(1, (t - .85) / .4) : 0;
         var shake = Math.sin(t * 46) * .05 * spun;
-        r.shoulderL.rotation.x = -1.9 * tuck;
-        r.shoulderR.rotation.x = -1.9 * tuck;
-        r.shoulderL.rotation.z = .95 * tuck;
-        r.shoulderR.rotation.z = -.95 * tuck;
-        r.elbowL.rotation.x = -2.1 * tuck; r.elbowR.rotation.x = -2.1 * tuck;
-        r.spine.rotation.x = .44 * tuck + shake;
+        /* straight out to the sides, because the bracers are the weapon
+           and the arms are what swings them */
+        r.shoulderL.rotation.x = -.2 * lock;
+        r.shoulderR.rotation.x = -.2 * lock;
+        r.shoulderL.rotation.z = 1.62 * lock;
+        r.shoulderR.rotation.z = -1.62 * lock;
+        r.elbowL.rotation.x = -.1 * lock; r.elbowR.rotation.x = -.1 * lock;
+        r.spine.rotation.x = .2 * lock + shake;
         r.spine.rotation.z = shake * 2;
-        r.neck.rotation.x = .5 * tuck;
-        r.hipL.rotation.x = -.5 * tuck; r.kneeL.rotation.x = .9 * tuck;
-        r.hipR.rotation.x = -.44 * tuck; r.kneeR.rotation.x = .82 * tuck;
-        r.hips.position.y = r.hipsBaseY - .5 * tuck + shake;
+        r.neck.rotation.x = .34 * lock;
+        r.hipL.rotation.x = -.34 * lock; r.kneeL.rotation.x = .66 * lock;
+        r.hipR.rotation.x = -.3 * lock; r.kneeR.rotation.x = .6 * lock;
+        r.hips.position.y = r.hipsBaseY - .36 * lock + shake;
         return true;
       }
     }
@@ -24974,7 +25171,7 @@ window.__game = {
       case 'k1': return stepCannon(a, dt);
       case 'k2': return stepFist(a, dt);
       case 'k3': return stepDrill(a, dt);
-      case 'k4': return stepPod(a, dt);
+      case 'k4': return stepPile(a, dt);
       case 'kr': return stepSpin(a, dt);
     }
     return _stepAction(a, dt);
@@ -24997,7 +25194,7 @@ window.__game = {
     if (e.code === 'Digit1') castCannon();
     else if (e.code === 'Digit2') castFist();
     else if (e.code === 'Digit3') castDrill();
-    else if (e.code === 'Digit4') castPod();
+    else if (e.code === 'Digit4') castPile();
     else if (e.code === 'KeyR') castSpin();
     else hit = false;
     if (hit) e.stopImmediatePropagation();
@@ -25018,105 +25215,157 @@ window.__game = {
      ================================================================== */
   function dirOf(yaw) { return new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)); }
 
-  MU.remote = {
-    k1: function (pos, yaw) {
-      var d = dirOf(yaw), side = new THREE.Vector3(-d.z, 0, d.x);
-      var at = pos.clone().addScaledVector(side, 1.9).add(new THREE.Vector3(0, 3.1, 0));
-      var g = buildCannon();
-      g.position.copy(at);
-      g.rotation.y = Math.atan2(d.x, d.z);
+  /* A spectator sees the same thing he does: the gear bolted to the arm of
+     the body that is casting. If that body has not arrived on this screen
+     yet, it falls back to a piece standing in the world so the move still
+     reads rather than not happening at all. */
+  function remoteMount(f, right, g, world, yaw) {
+    var r = f && f.e && f.e.rig;
+    var bone = r ? (right ? r.handR : r.handL) : null;
+    if (bone) {
+      g.rotation.set(ARM_TURN, 0, 0);
+      g.position.set(0, -.15, 0);
+      bone.add(g);
+    } else {
+      g.position.copy(world);
+      g.rotation.y = yaw;
       scene.add(g);
-      assemble(g, .42);
+    }
+    return g;
+  }
+  function remoteDrop(g, ms) {
+    later(ms, function () {
+      if (!g) return;
+      if (g.parent) g.parent.remove(g);
+      g.traverse(function (c) {
+        if (c.isMesh) { if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); }
+      });
+    });
+  }
+  /* where a remote piece has got to */
+  function remoteTip(g, along) {
+    g.updateWorldMatrix(true, false);
+    return g.localToWorld(new THREE.Vector3(0, 0, along));
+  }
+
+  MU.remote = {
+    k1: function (pos, yaw, f) {
+      var d = dirOf(yaw);
+      var g = remoteMount(f, true, buildArmCannon(),
+        pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, 3.1, 0)), yaw);
+      unfold(g, .34);
       later(510, function () {
-        var muzzle = at.clone().addScaledVector(d, 5.2);
+        if (!g.parent) return;
+        var muzzle = remoteTip(g, 2);
         FX.impact(muzzle.clone(), FLASH, 3);
         FX.speedRing(muzzle.clone(), HOT, 9, .22);
-        exhaust(at.clone().addScaledVector(d, -2), d, 9);
+        exhaust(remoteTip(g, -1), d, 9);
         sparks(muzzle.clone(), 10);
         fireShell(muzzle, d.clone(), true);
       });
-      later(860, function () { scrap(g, g.position.clone()); });
+      remoteDrop(g, 880);
     },
-    k2: function (pos, yaw) {
+    k2: function (pos, yaw, f) {
       var d = dirOf(yaw);
-      var from = pos.clone().addScaledVector(d, 2.6).add(new THREE.Vector3(0, 2.9, 0));
+      var g = remoteMount(f, true, buildArmFist(),
+        pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, 2.9, 0)), yaw);
+      unfold(g, .24);
+      var sock = null;
       later(390, function () {
+        if (!g.parent) return;
+        /* the same piece leaves the arm it was on, exactly as it does for
+           whoever threw it */
+        handOff(g);
+        var from = g.position.clone();
+        sock = remoteMount(f, true, buildSocket(),
+          pos.clone().add(new THREE.Vector3(0, 2.9, 0)), yaw);
         FX.speedRing(from.clone(), HOT, 10, .24);
         exhaust(from.clone().addScaledVector(d, -1.6), d, 8);
-        throwFist(from, d.clone(), true);
+        throwFist(from, d.clone(), true, g, function () { remoteDrop(sock, 0); });
+        remoteDrop(sock, 3400);
       });
     },
-    k3: function (pos, yaw) {
-      var d = dirOf(yaw), side = new THREE.Vector3(-d.z, 0, d.x);
-      var at = pos.clone().addScaledVector(side, 1.6).add(new THREE.Vector3(0, 2.7, 0));
-      var g = buildDrill();
-      g.position.copy(at);
-      g.rotation.y = Math.atan2(d.x, d.z);
-      scene.add(g);
-      assemble(g, .38);
+    k3: function (pos, yaw, f) {
+      var d = dirOf(yaw);
+      var g = remoteMount(f, true, buildHandDrill(),
+        pos.clone().addScaledVector(d, 1.8).add(new THREE.Vector3(0, 2.7, 0)), yaw);
+      unfold(g, .3);
+      var t = 0, loose = !(f && f.e && f.e.rig);
+      addFx({ t: 1e9, update: function (dt) {
+        t += dt;
+        if (typeof scene === 'undefined' || !g.parent) return false;
+        if (t > .34) {
+          if (g.__bit) g.__bit.rotation.z += dt * 34;
+          /* only a loose fallback has to walk itself forward; one on an arm
+             is carried by the arm */
+          if (loose && t < 1.15) g.position.addScaledVector(d, 13 * dt);
+          if (Math.random() < dt * 26) sparks(remoteTip(g, 2.1), 3);
+        }
+        return t < 1.35;
+      } });
+      remoteDrop(g, 1400);
+    },
+    k4: function (pos, yaw, f) {
+      var d = dirOf(yaw);
+      var g = remoteMount(f, false, buildBunker(),
+        pos.clone().addScaledVector(d, 1.4).add(new THREE.Vector3(0, 2.8, 0)), yaw);
+      unfold(g, .3);
       var t = 0;
       addFx({ t: 1e9, update: function (dt) {
         t += dt;
         if (typeof scene === 'undefined' || !g.parent) return false;
-        if (t > .4) {
-          if (g.__bit) g.__bit.rotation.z += dt * 34;
-          g.position.addScaledVector(d, 20 * dt * (t < 1.15 ? 1 : 0));
-          if (Math.random() < dt * 26) sparks(g.position.clone().addScaledVector(d, 6), 3);
+        if (g.__pin) {
+          var k = t < .48 ? 0
+            : t < .48 + PILE.drive ? E.out((t - .48) / PILE.drive)
+            : Math.max(0, 1 - (t - .48 - PILE.drive) / .3);
+          g.__pin.position.z = k * 1.5;
         }
-        if (t > 1.2) { scrap(g, g.position.clone()); return false; }
-        return true;
+        return t < 1.1;
       } });
-    },
-    k4: function (pos, yaw) {
-      var d = dirOf(yaw), side = new THREE.Vector3(-d.z, 0, d.x);
-      var at = pos.clone().addScaledVector(side, -2.1).add(new THREE.Vector3(0, 3.6, 0));
-      var tgt = pos.clone().addScaledVector(d, POD.out).setY(1);
-      var g = buildPod();
-      g.position.copy(at);
-      g.rotation.y = Math.atan2(d.x, d.z);
-      scene.add(g);
-      assemble(g, .4);
-      later(530, function () {
-        FX.speedRing(at.clone(), HOT, 8, .22);
-        for (var i = 0; i < POD.n; i++) {
-          missile(at.clone(), tgt.clone().add(new THREE.Vector3(
-            (Math.random() - .5) * 7, 0, (Math.random() - .5) * 7)), i * 65, true);
-        }
+      later(480, function () {
+        if (!g.parent) return;
+        var muzzle = remoteTip(g, 1.1);
+        FX.impact(muzzle.clone(), FLASH, 3.4);
+        FX.speedRing(muzzle.clone(), HOT, 10, .22);
+        FX.cross(muzzle.clone(), 0xffffff, 3, .2);
+        exhaust(remoteTip(g, -1.2), d, 8);
+        sparks(muzzle.clone(), 14);
       });
-      later(1160, function () { scrap(g, g.position.clone()); });
+      remoteDrop(g, 1150);
     },
-    /* the special: the frame, the spin, and the way it comes apart */
+    /* the special: both bracers, and the ground going while he turns */
     kr: function (pos, yaw, f) {
-      var d = dirOf(yaw);
-      var g = buildFrame();
-      g.position.copy(pos);
-      g.rotation.y = Math.atan2(d.x, d.z);
-      scene.add(g);
-      assemble(g, .8);
+      var gs = [
+        remoteMount(f, true, buildBracer(),
+          pos.clone().add(new THREE.Vector3(1.8, 3.4, 0)), yaw),
+        remoteMount(f, false, buildBracer(),
+          pos.clone().add(new THREE.Vector3(-1.8, 3.4, 0)), yaw)
+      ];
+      gs.forEach(function (g) { unfold(g, .42); });
       FX.cracks(new THREE.Vector3(pos.x, .06, pos.z), 14, 18, 0x3a3f46);
       var t = 0;
       addFx({ t: 1e9, update: function (dt) {
         t += dt;
-        if (typeof scene === 'undefined' || !g.parent) return false;
-        /* it follows the body it was built around, wherever that is now */
-        if (f && f.e) g.position.copy(f.e.pos);
+        if (typeof scene === 'undefined') return false;
+        var here = (f && f.e) ? f.e.pos : pos;
         if (t > .85) {
           var w = Math.min(1, (t - .85) / .5);
-          g.rotation.y += dt * SPIN.rate * w;
-          if (g.__arms) g.__arms.forEach(function (arm2, i) {
-            arm2.rotation.z = (i ? -1 : 1) * (.2 + w * 1.15);
-          });
+          gs.forEach(function (g) { if (g.parent) exhaustTrail(g, dt * 18 * w); });
           if (Math.random() < dt * 40) {
             var ang = Math.random() * TAU;
-            sparks(g.position.clone().add(new THREE.Vector3(
+            sparks(here.clone().add(new THREE.Vector3(
               Math.cos(ang) * 7, 1 + Math.random() * 6, Math.sin(ang) * 7)), 2);
+          }
+          if (Math.random() < dt * 26) {
+            FX.speedRing(here.clone().add(new THREE.Vector3(0, 3 + Math.random() * 4, 0)),
+              HOT, 12 + Math.random() * 8, .2);
           }
         }
         if (t > SPIN.dur + .4) {
-          FX.rings(new THREE.Vector3(g.position.x, .12, g.position.z), HOT, 5,
+          FX.rings(new THREE.Vector3(here.x, .12, here.z), HOT, 5,
             { maxR: SPIN.radius * 2.4, life: .9, gap: 34 });
-          FX.dust(new THREE.Vector3(g.position.x, 0, g.position.z), 16, 0x9aa0a8, 20, 6);
-          scrap(g, g.position.clone().add(new THREE.Vector3(0, 4, 0)));
+          FX.dust(new THREE.Vector3(here.x, 0, here.z), 16, 0x9aa0a8, 20, 6);
+          gs.forEach(function (g) { if (g.parent) scrap(handOff(g), null); });
           return false;
         }
         return true;
@@ -25124,13 +25373,18 @@ window.__game = {
     }
   };
 
-  /* the pieces the finishers borrow */
+  /* the pieces the finishers borrow. They still build at full size in open
+     air, because a finisher is a set piece and a cannon the size of a car
+     is the point of one of them — assemble and scrap are theirs now. */
   MU.exhaust = exhaust;
   MU.chain = chainTo;
+  MU.mount = mount;
+  MU.handOff = handOff;
+  MU.tipOf = tipOf;
   MU.IRON = IRON; MU.GUN = GUN; MU.STEEL = STEEL; MU.PALE = PALE;
   MU.COP = COP; MU.WARN = WARN; MU.HOT = HOT; MU.FLASH = FLASH; MU.LENS = LENS;
   // The AI invokes these same casts and the shared action/pose dispatchers.
-  (window.JJCHARCAST ||= {}).muta = { cast: [castCannon, castFist, castDrill, castPod, castSpin], state: MU };
+  (window.JJCHARCAST ||= {}).muta = { cast: [castCannon, castFist, castDrill, castPile, castSpin], state: MU };
 })();
 
 
@@ -38221,68 +38475,53 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
     } },
 
     /* 4 · four pods in a ring, and none of them is saving anything */
-    k4: { name: 'ORDNANCE', color: '#ff8a3d', hold: 2.2, run: function (e, d, p, G) {
+    /* 4 · the bunker, re-cocked and driven again, and again, until the
+       last one does not stop at the far side of them */
+    k4: { name: 'DRIVEN THROUGH', color: '#ff8a3d', hold: 2.3, run: function (e, d, p, G) {
       var MU = window.JJMUTA;
       var HOT = (MU && MU.HOT) || 0xff8a3d, WARN = (MU && MU.WARN) || 0xd8c24a;
+      var GUN = (MU && MU.GUN) || 0x4a5058;
       var floor = new THREE.Vector3(p.x, 0, p.z);
-      var pods = [];
-      for (var i = 0; i < 4; i++) {
-        var a = i / 4 * TAU + .4;
-        var pod = (MU && MU.buildPod) ? MU.buildPod() : null;
-        if (!pod) break;
-        pod.position.copy(p).add(new THREE.Vector3(Math.cos(a) * 9, 8 + (i % 2) * 2.5, Math.sin(a) * 9));
-        pod.scale.setScalar(1.5);
-        scene.add(pod);
-        if (MU.assemble) MU.assemble(pod, .55);
-        pods.push(pod);
-      }
       FX.mangaLines(.5, .5);
-      if (e && !e.dead) { e.anchorT = 1.8; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.2); }
+      if (e && !e.dead) { e.anchorT = 2.0; e.anchorPos.copy(e.pos); e.stunT = Math.max(e.stunT || 0, 2.4); }
 
-      var t = 0, fired = 0, salvo = 0;
+      var t = 0, driven = 0;
       addFx({ t: 1e9, update: function (dt) {
         t += dt;
         if (typeof scene === 'undefined') return false;
-        var at = (e && !e.dead ? e.pos.clone().add(up(2.4)) : p.clone().add(up(2.4)));
-        for (var j = 0; j < pods.length; j++) pods[j].lookAt(at);
-        /* twelve, three at a time, arcing in over the top */
-        if (fired < 12 && t > .75 + salvo * .22) {
-          salvo++;
-          for (var k2 = 0; k2 < 3 && fired < 12; k2++) {
-            var src = pods[fired % pods.length].position.clone();
-            var apex = src.clone().lerp(at, .5).add(up(5 + Math.random() * 4));
-            var land = at.clone().add(new THREE.Vector3(
-              (Math.random() - .5) * 5, (Math.random() - .5) * 2, (Math.random() - .5) * 5));
-            FX.cutLine(src, apex, HOT, .5, .12);
-            FX.cutLine(apex, land, HOT, .5, .14);
-            FX.impact(land, HOT, 2.4);
-            FX.flame(land.clone(), 2.2, .35);
-            FX.blood(land.clone(), d, 5, 1.4);
-            fired++;
-          }
-          if (MU && MU.sparks) MU.sparks(at.clone(), 6);
-          addShake(1.1);
+        var at = (e && !e.dead ? e.pos.clone().add(up(2.5)) : p.clone().add(up(2.5)));
+        /* five of them, each one further through than the last */
+        if (driven < 5 && t > .35 + driven * .3) {
+          driven++;
+          var back = at.clone().addScaledVector(d, -3.4);
+          var deep = at.clone().addScaledVector(d, .4 + driven * .55);
+          FX.cutLine(back, deep, 0xffe9a8, .7 + driven * .12, .16);
+          FX.impact(at.clone(), HOT, 2.2 + driven * .4);
+          FX.cross(at.clone(), 0xffffff, 1.8 + driven * .3, .16);
+          FX.blood(at.clone(), d, 6 + driven * 2, 1.4 + driven * .2);
+          if (MU && MU.sparks) MU.sparks(at.clone(), 8 + driven * 2);
+          FX.debris(floor.clone(), 5, 9, GUN);
+          if (typeof hitstop === 'function') hitstop(.05 + driven * .012);
+          addShake(1.2 + driven * .3);
         }
-        /* and then every tube left, at once */
+        /* and the sixth goes out the back of them and keeps going */
         if (t > 1.95) {
+          var through = at.clone().addScaledVector(d, 26);
           FX.flash('#ffb070', .8, .38);
-          for (var m = 0; m < pods.length; m++) {
-            FX.cutLine(pods[m].position.clone(), at.clone(), 0xffe9a8, 1.3, .26);
-          }
+          FX.cutLine(at.clone().addScaledVector(d, -4), through, 0xffe9a8, 1.6, .3);
+          FX.beam(at.clone(), d.clone(), 26, HOT, { life: .28, width: 1.1 });
           FX.impact(at.clone(), WARN, 7);
-          FX.fire(at.clone(), 18, 1.8, 4, 1);
-          FX.flame(at.clone(), 6, .9);
-          FX.rings(new THREE.Vector3(at.x, .12, at.z), HOT, 5, { maxR: 20, life: .8, gap: 32 });
-          FX.scorch(new THREE.Vector3(at.x, 0, at.z), 7, 34);
+          FX.rings(at.clone(), HOT, 4, { maxR: 13, life: .7, ground: false, axis: d, gap: 30 });
+          FX.rings(new THREE.Vector3(at.x, .12, at.z), HOT, 4, { maxR: 20, life: .8, gap: 32 });
           FX.cracks(floor.clone(), 22, 28, 0x3a3f46);
+          FX.debris(floor.clone(), 14, 16, GUN);
+          FX.dust(floor.clone(), 12, 0x9aa0a8, 16, 5);
           FX.mangaLines(1, .36);
+          if (MU && MU.sparks) MU.sparks(at.clone(), 20);
           if (typeof hitstop === 'function') hitstop(.26);
           addShake(4.6);
           if (e) e.anchorT = 0;
-          G.burn(e, { dir: d });
-          for (var q = 0; q < pods.length; q++) {
-            if (MU.scrap) MU.scrap(pods[q], pods[q].position.clone());
-          }
+          G.sever(e, { dir: d, power: 2.6, cubes: 16 });
           return false;
         }
         return true;
@@ -39315,7 +39554,7 @@ var TOAD = { reach: 26, dmg: 30, dur: 1.8, corridor: 6 };
     b1: 'ragdoll', b2: 'ragdoll', b3: 'ragdoll', b4: 'ragdoll',
     j1: 'sever', j2: 'flat', j3: 'dice', j4: 'gone', jr: 'dice',
     o1: 'sever', o2: 'sever', o3: 'sever', o4: 'dice', or: 'gone',
-    k1: 'sever', k2: 'flat', k3: 'gone', k4: 'burn', kr: 'dice',
+    k1: 'sever', k2: 'flat', k3: 'gone', k4: 'sever', kr: 'dice',
     r1: 'gone', r2: 'burn', r3: 'dice', r4: 'flat', rr: 'gone',
     w1: 'sever', w2: 'flat', w3: 'dice', w4: 'sever', wr: 'sever',
     hn1: 'ragdoll', hn2: 'ragdoll', hn3: 'flat', hn4: 'ragdoll'
