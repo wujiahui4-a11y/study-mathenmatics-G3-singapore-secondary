@@ -7,7 +7,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(__dirname, '..'),
   out = path.resolve(root, '../combat-test');
 fs.mkdirSync(out, { recursive: true });
-const hook = `
+const hook = `window.JJOPENING?.skip();
+
 window.__fight={THREE,player,enemies,keys,cds,scene,camera,renderer,CHARS,poseAction,punch,doDash,hurtPlayer,
  reset(id='gojo',x=0,y=0,z=0){window.JJFIGHT?.reset();JJMOVE.cancel('test');JJTODO.cleanup();JJMAHITO.cleanup();JJRAG.stop(player);JJGORE.clear(player);JJAW.cine=JJAW.active=false;MPJJ.cs.active=false;
  started=false;switchChar(id,true);started=true;menu.style.display='none';player.dead=false;player.hp=player.maxHp=100;player.iframes=0;player.action=player.react=null;player.stunT=player.frameT=player.attackT=player.dashT=0;player.comboN=0;player.comboReset=0;player.blocking=false;player.dashCh=id==='naoya'?2:1;player.facing=0;player.visYaw=0;player.pos.set(x,y,z);player.vel.set(0,0,0);player.onGround=y===0;player.__jjsLast=null;camYaw=Math.PI;camPitch=.22;clearMovement();for(const k in cds)cds[k]=0;JJDASH.line=JJDASH.side=0;

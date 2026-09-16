@@ -10,7 +10,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(__dirname, '..');
 const artifacts = path.resolve(process.env.HANAMI_ARTIFACT_DIR || path.join(root, 'work', 'hanami-test-results'));
 fs.mkdirSync(artifacts, { recursive: true });
-const hooks = `
+const hooks = `window.JJOPENING?.skip();
+
 window.__ht={THREE,scene,camera,renderer,player,enemies,cds,CHARS,JOINTS,
   pose:(r,a)=>poseAction(r,a),rig:()=>makeAnimeRig(CHARS.hanami.cfg),
   hurt:(n,k)=>hurtPlayer(n,k),

@@ -8,7 +8,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(__dirname, '..'),
   out = path.resolve(process.env.DESTRUCTION_ARTIFACT_DIR || path.join(root, '../destruction-test'));
 fs.mkdirSync(out, { recursive: true });
-const hooks = `window.__tt={THREE,scene,camera,renderer,player,enemies,cds,keys,CHARS,worldFloor,camForward,
+const hooks = `window.JJOPENING?.skip();
+window.__tt={THREE,scene,camera,renderer,player,enemies,cds,keys,CHARS,worldFloor,camForward,
  tick(dt=.025){updatePlayer(dt);for(const e of enemies){e.iframes=Math.max(0,(e.iframes||0)-dt);e.rig.root.position.copy(e.pos);e.rig.root.rotation.y=e.facing;}
  for(let i=fx.length-1;i>=0;i--)if(!fx[i].update(dt))fx.splice(i,1);updateCamera(dt);updateHUD(dt);},
  reset(){window.JJFIGHT?.reset();JJTODO.cleanup();JJTODOFX.clear();JJMAHITO.cleanup();started=false;switchChar('todo',true);started=true;menu.style.display='none';

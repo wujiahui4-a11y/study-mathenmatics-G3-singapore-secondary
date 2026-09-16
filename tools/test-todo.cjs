@@ -8,7 +8,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(__dirname, '..'),
   out = path.resolve(process.env.TODO_ARTIFACT_DIR || path.join(root, '../todo-test'));
 fs.mkdirSync(out, { recursive: true });
-const hooks = `window.__tt={THREE,scene,camera,renderer,player,enemies,cds,keys,CHARS,worldFloor,
+const hooks = `window.JJOPENING?.skip();
+window.__tt={THREE,scene,camera,renderer,player,enemies,cds,keys,CHARS,worldFloor,
  tick(dt=.025){updatePlayer(dt);for(const e of enemies){e.iframes=Math.max(0,(e.iframes||0)-dt);e.rig.root.position.copy(e.pos);e.rig.root.rotation.y=e.facing;}
  for(let i=fx.length-1;i>=0;i--)if(!fx[i].update(dt))fx.splice(i,1);updateCamera(dt);updateHUD(dt);},
  reset(){window.JJFIGHT?.reset();JJTODO.cleanup();JJTODOFX.clear();JJMAHITO.cleanup();started=false;switchChar('todo',true);started=true;menu.style.display='none';
@@ -472,6 +473,7 @@ const server = http.createServer((req, res) => {
       p.on('pageerror', (e) => errors.push(e.message));
       await p.goto(base + file);
       await p.waitForFunction(() => !!window.JJTODO && !!window.MPJJ);
+      await p.evaluate(() => window.JJOPENING?.skip());
       await p.evaluate(() => __game.switchChar('todo', true));
       await p.click('#menuFight');
       await p.keyboard.press('Digit3');

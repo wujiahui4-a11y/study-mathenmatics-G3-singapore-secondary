@@ -7,7 +7,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(__dirname, '..'),
   out = path.resolve(process.env.MOVEMENT_ARTIFACT_DIR || path.join(root, '../movement-test'));
 fs.mkdirSync(out, { recursive: true });
-const hook = `
+const hook = `window.JJOPENING?.skip();
+
 window.__mv={THREE,player,keys,cds,scene,camera,renderer,poseAction,CHARS,
  select(id){JJMOVE.cancel('select');started=false;switchChar(id,true);started=true;menu.style.display='none';},
  tick(n=1,dt=.02){for(let i=0;i<n;i++){updatePlayer(dt);updateHUD(dt);for(let j=fx.length-1;j>=0;j--)if(!fx[j].update(dt))fx.splice(j,1);}},

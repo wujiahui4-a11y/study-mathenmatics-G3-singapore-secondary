@@ -3,7 +3,8 @@ const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const root=path.resolve(__dirname,'..'),out=path.resolve(process.env.JJS_ARTIFACT_DIR||path.join(root,'work/jjs-test'));
 fs.mkdirSync(out,{recursive:true});
-const hook=`window.__jt={THREE,scene,camera,renderer,player,enemies,keys,CHARS,collideWorld,worldFloor,resolveActorWorld,updateCamera,swap(id){started=false;switchChar(id,true);started=true;},
+const hook=`window.JJOPENING?.skip();
+window.__jt={THREE,scene,camera,renderer,player,enemies,keys,CHARS,collideWorld,worldFloor,resolveActorWorld,updateCamera,swap(id){started=false;switchChar(id,true);started=true;},
  reset(){started=true;menu.style.display='none';player.action=null;player.dead=false;player.hp=player.maxHp;player.react=null;player.frameT=0;player.__jjsLast=null;player.vel.set(0,0,0);player.onGround=false;},
  tick(dt){updatePlayer(dt);for(let i=fx.length-1;i>=0;i--)if(!fx[i].update(dt))fx.splice(i,1);},
  draw(pos,look){camera.position.set(...pos);camera.lookAt(...look);camera.updateProjectionMatrix();scene.updateMatrixWorld(true);renderer.render(scene,camera);},

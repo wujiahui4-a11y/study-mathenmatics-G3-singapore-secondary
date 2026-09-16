@@ -8,7 +8,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(__dirname, '..');
 const out = path.resolve(process.env.STUDIO_UI_ARTIFACT_DIR || path.join(root, '../studio-ui-test'));
 fs.mkdirSync(out, { recursive: true });
-const hook = `window.__ui={player,cds,CHARS,scene,renderer,camera,
+const hook = `window.JJOPENING?.skip();
+window.__ui={player,cds,CHARS,scene,renderer,camera,
  start(){enterArenaLocal();},switch(id){started=false;switchChar(id,true);started=true;menu.style.display='none';player.action=null;player.attackT=0;player.dead=false;for(const k in cds)cds[k]=0;updateHUD(.01);},
  tick(){updateHUD(.01);},draw(){const s=JJMAP.spawn(2);player.pos.set(s.x,s.y,s.z);player.rig.root.position.copy(player.pos);player.rig.root.rotation.y=Math.PI;for(const e of enemies)e.rig.root.visible=false;camera.position.set(s.x+14,s.y+12,s.z+23);camera.lookAt(s.x,s.y+3,s.z);scene.updateMatrixWorld(true);renderer.render(scene,camera);},
  state(){return {started,active:gameInputActive(),char:player.char,action:player.action?.type,slots:cdEls.map(c=>({key:c.def.key,label:c.def.lbl,cd:c.def.cd}))};}};`;

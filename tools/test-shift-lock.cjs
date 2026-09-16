@@ -5,7 +5,8 @@ const fs = require('node:fs'), path = require('node:path'), http = require('node
 const assert = require('node:assert/strict');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(__dirname, '..');
-const hooks = `
+const hooks = `window.JJOPENING?.skip();
+
 window.__st={camera,renderer,player,keys,
   reset(){clearMovement();player.action=null;player.attackT=0;player.dead=false;player.react=null;
     player.frameT=0;player.stunT=0;player.vel.set(0,0,0);player.pos.set(0,0,0);player.onGround=true;},
@@ -141,6 +142,7 @@ const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
     for (const entry of ['/jujutsu-multiplayer.html', '/jujutsu-parts/index.local.html']) {
       const smoke = await browser.newPage(); smoke.on('pageerror', e => errors.push(e.message));
       await smoke.goto(base + entry); await smoke.waitForFunction(() => !!window.MPJJ);
+      await smoke.evaluate(() => window.JJOPENING?.skip());
       await smoke.click('#menuFight'); await smoke.click('#jjShiftLock');
       await smoke.waitForFunction(() => JJSHIFT.active); await smoke.keyboard.press('Shift');
       await smoke.waitForFunction(() => !document.pointerLockElement);

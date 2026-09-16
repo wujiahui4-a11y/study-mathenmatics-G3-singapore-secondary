@@ -2887,6 +2887,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { clearMovement(); setShiftLock(false); }
 });
 addEventListener('keydown', e => {
+  if (window.JJOPENING && JJOPENING.input(e)) return;
   if (typingInUI(e)) return;
   if (e.code === 'Escape' && started && !e.repeat) {
     if (shiftLock.enabled || locked) setShiftLock(false);
@@ -3386,6 +3387,7 @@ function updateHUD(dt) {
 const clock = new THREE.Clock();
 function loop() {
   requestAnimationFrame(loop);
+  if (window.JJOPENING && JJOPENING.active) { clock.getDelta(); return; }
   let dt = Math.min(clock.getDelta(), 1 / 20);
 
   if (hitstopT > 0) { hitstopT -= dt; timeScale = .12; }

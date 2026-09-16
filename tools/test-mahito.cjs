@@ -8,7 +8,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(__dirname, '..'),
   out = path.resolve(process.env.MAHITO_ARTIFACT_DIR || path.join(root, '../mahito-test'));
 fs.mkdirSync(out, { recursive: true });
-const hooks = `window.__mt={THREE,scene,camera,renderer,player,enemies,cds,keys,CHARS,makeAnimeRig,addCrate,crates,
+const hooks = `window.JJOPENING?.skip();
+window.__mt={THREE,scene,camera,renderer,player,enemies,cds,keys,CHARS,makeAnimeRig,addCrate,crates,
  tick(dt=.025){updatePlayer(dt);for(let i=fx.length-1;i>=0;i--)if(!fx[i].update(dt))fx.splice(i,1);updateHUD(dt);},
  fxOnly(dt=.025){for(let i=fx.length-1;i>=0;i--)if(!fx[i].update(dt))fx.splice(i,1);},
  reset(){JJMAHITO.cleanup();started=false;switchChar('mahito',true);started=true;menu.style.display='none';
@@ -519,6 +520,7 @@ const server = http.createServer((req, res) => {
       smoke.on('pageerror', (e) => errors.push(e.message));
       await smoke.goto(base + entry);
       await smoke.waitForFunction(() => !!window.MPJJ);
+      await smoke.evaluate(() => window.JJOPENING?.skip());
       await smoke.evaluate(() => __game.switchChar('mahito', true));
       await smoke.click('#menuFight');
       assert.equal(await smoke.evaluate(() => __game.player.rig.mh.mode), 0);
