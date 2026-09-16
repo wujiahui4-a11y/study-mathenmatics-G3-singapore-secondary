@@ -19,7 +19,7 @@
 
   var C = window.JJCOMBAT = {
     dash: { speed: 41, time: .30, iframes: .17 },
-    switchWait: 8,
+    switchWait: 2,
     swPending: null,           // the fighter you asked to become
     swT: 0,                    // seconds left before the swap happens
     swHit: 0,                  // flashes the timer red when combat resets it
@@ -287,7 +287,7 @@
     document.head.appendChild(css);
     swapEl = document.createElement('div');
     swapEl.id = 'jjSwap';
-    swapEl.innerHTML = '<div class="lbl">SWITCHING FIGHTER</div><div class="num">8.0</div>' +
+    swapEl.innerHTML = '<div class="lbl">SWITCHING FIGHTER</div><div class="num">2.0</div>' +
       '<div class="track"><div class="fill"></div></div>';
     document.body.appendChild(swapEl);
     noticeEl = document.createElement('div');

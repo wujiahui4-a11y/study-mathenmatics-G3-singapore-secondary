@@ -6381,7 +6381,7 @@ window.__game = {
 
   var C = window.JJCOMBAT = {
     dash: { speed: 41, time: .30, iframes: .17 },
-    switchWait: 8,
+    switchWait: 2,
     swPending: null,           // the fighter you asked to become
     swT: 0,                    // seconds left before the swap happens
     swHit: 0,                  // flashes the timer red when combat resets it
@@ -6649,7 +6649,7 @@ window.__game = {
     document.head.appendChild(css);
     swapEl = document.createElement('div');
     swapEl.id = 'jjSwap';
-    swapEl.innerHTML = '<div class="lbl">SWITCHING FIGHTER</div><div class="num">8.0</div>' +
+    swapEl.innerHTML = '<div class="lbl">SWITCHING FIGHTER</div><div class="num">2.0</div>' +
       '<div class="track"><div class="fill"></div></div>';
     document.body.appendChild(swapEl);
     noticeEl = document.createElement('div');
@@ -49599,7 +49599,14 @@ window.JJINTERACTION_DATA = {"ladders":[{"ids":[2316,2317,2318,2319,2320,2321,23
   function send(m) { if (online() && MPJJ.relay) MPJJ.relay.pub(Object.assign({id: MPJJ.id, room: MPJJ.code, map: 'jjs', epoch}, m)); }
   function closeClimb() {
     if (player.action?.type === 'wi_climb') player.action = null;
-    climb = null; delete player.worldClimb; player.onGround = false; player.__jjsLast = player.pos.clone();
+    // Stepping off a ladder is the only reason this has to say the player is
+    // in the air. context() calls clear() — and so this — on every frame of
+    // every map the city items are not active on, which is every map but the
+    // JJS one, and the frame it lands on is the one base.html reads to decide
+    // whether Space may jump. Letting go of a climb nobody was on cost every
+    // fighter their jump everywhere else.
+    if (climb) { player.onGround = false; player.__jjsLast = player.pos.clone(); }
+    climb = null; delete player.worldClimb;
   }
   function clear() {
     closeClimb();

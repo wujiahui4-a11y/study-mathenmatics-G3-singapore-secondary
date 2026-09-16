@@ -24,9 +24,9 @@ Ryu, Nanami and Hanami.
 The training dummies step out when the match starts, so the arena is yours.
 A scoreboard sits on the right and a kill feed on the left.
 
-**Switching fighter takes eight seconds out of combat.** `C` starts the
+**Switching fighter takes two seconds out of combat.** `C` starts the
 wind-down and a timer appears above the ability bar; taking a hit puts you
-back in combat and starts the eight seconds again, and pressing `C` a second
+back in combat and starts the two seconds again, and pressing `C` a second
 time cancels. You cannot switch at all while awakened.
 
 **The roster panel folds up.** At a dozen fighters the list was taller than
@@ -694,7 +694,7 @@ switch handling**:
   closes over the binding and picks up the wrapped one; only the handle was
   stale.
 - **The queued swap itself** called the same kind of snapshot, taken by
-  `combat.js` before any character module existed. So when the eight seconds
+  `combat.js` before any character module existed. So when the wait
   finally elapsed, the swap that actually happened skipped all of them. It
   goes through the live binding now, with a flag so the wrapper does not
   queue the swap it is in the middle of performing.
@@ -1642,6 +1642,29 @@ tip, so from any distance the two hits ended the same way.
 Neither variant is a new move and neither changes what it is worth — the
 damage, the knockback and the guard rules are exactly as they were.
 
+### Space could not leave the floor
+
+Jumping was impossible on every map except the JJS city, for every fighter,
+and nothing in the jump code was wrong. The city-items module keeps its own
+state in step with the map through `context()`, which calls `clear()` whenever
+it is not active — and it is not active on any map but the JJS one, so that
+ran *every frame*. `clear()` closed the ladder climb, and closing a climb said
+`player.onGround = false`, whether or not anybody was on a ladder.
+
+Base.html reads `p.onGround` one step later in the same frame to decide
+whether Space may jump. So the sequence each frame was: mark the player
+airborne, refuse the jump because they are airborne, then land them again at
+the end of the frame. Between frames the flag read `true`, which is why this
+survived: anything sampling it from outside a tick — the test hooks, the air
+variants of Todo's and Mahito's first slots, the fourth-hit downslam check —
+saw the correct value. Only code running inside that window was lied to, and
+the jump is the one thing that does.
+
+Letting go of a climb now only touches the player's ground state when there
+was a climb to let go of. `test-core-combat` jumps as all fourteen fighters
+and checks they leave the ground, reach height, come back down, and still
+cannot jump out of the middle of a combo.
+
 ### The run trail is Naoya's alone
 
 Everybody used to leave afterimages behind them just for walking around, which
@@ -2088,7 +2111,7 @@ disk.
 | `anim.js` | joint springs, weight, breath, smears, camera and holds |
 | `ragdoll.js` | limp bodies, and the heaps they settle into |
 | `gore.js` | the other two ways of dying, and the health lock a finisher runs under |
-| `combat.js` | the longer dash, the throw, and the eight second fighter swap |
+| `combat.js` | the longer dash, the throw, and the two second fighter swap |
 | `dash.js` | Legacy dash adapter and Naoya-only run trail |
 | `battleground-combat.js` | Current shared M1, frontal guard, directional dash, original poses and knockdown; preserves Naoya Q |
 | `hits.js` | eight more reactions, the ring-out over all of them, and the player finally playing them |

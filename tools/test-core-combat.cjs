@@ -84,6 +84,52 @@ async function naoya(page) {
       'Naoya dash must match the original trajectory, charges, cooldown and invincibility'
     );
     const report = { naoya: 'Exact match: six directions and double dash' };
+    /* Space has to leave the floor. It stopped doing so everywhere except the
+       JJS city, because the city-items module marked the player airborne on
+       every frame of every map it was not active on, one step before the line
+       that reads onGround to decide whether a jump is allowed. Nothing about
+       jumping looks wrong from inside the jump code, so check the outcome. */
+    report.jump = await page.evaluate(() => {
+      const perChar = {};
+      for (const id of Object.keys(__fight.CHARS)) {
+        __fight.reset(id);
+        __fight.tick(5);
+        __fight.keys.Space = true;
+        __fight.tick(1);
+        perChar[id] = { vy: +__fight.player.vel.y.toFixed(1), air: !__fight.player.onGround };
+        __fight.keys.Space = false;
+        __fight.tick(60);
+      }
+      __fight.reset();
+      __fight.tick(5);
+      const peak = (() => {
+        __fight.keys.Space = true;
+        __fight.tick(1);
+        __fight.keys.Space = false; // one jump, not a held bunny hop
+        let top = 0;
+        for (let i = 0; i < 70; i++) {
+          __fight.tick();
+          top = Math.max(top, __fight.player.pos.y);
+        }
+        return { top: +top.toFixed(2), back: +__fight.player.pos.y.toFixed(2), onGround: __fight.player.onGround };
+      })();
+      // Still refused where it always was: mid-combo, guarding, knocked down.
+      __fight.reset();
+      __fight.punch();
+      __fight.tick(2);
+      __fight.keys.Space = true;
+      __fight.tick(1);
+      const duringCombo = +__fight.player.vel.y.toFixed(2);
+      __fight.keys.Space = false;
+      return { perChar, peak, duringCombo };
+    });
+    assert.ok(
+      Object.values(report.jump.perChar).every((j) => j.vy > 12 && j.air),
+      'every fighter leaves the ground on Space'
+    );
+    assert.ok(report.jump.peak.top > 2.5, 'the jump has real height');
+    assert.ok(report.jump.peak.onGround && report.jump.peak.back < 0.05, 'and comes back down');
+    assert.equal(report.jump.duringCombo, 0, 'but not out of the middle of a combo');
     /* This is a fighting game, so pressing a skill is not allowed to put a
        name card on the screen. Drive every slot of every fighter and watch
        the splash element itself: it is the only thing showSplash touches,

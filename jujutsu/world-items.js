@@ -26,7 +26,14 @@
   function send(m) { if (online() && MPJJ.relay) MPJJ.relay.pub(Object.assign({id: MPJJ.id, room: MPJJ.code, map: 'jjs', epoch}, m)); }
   function closeClimb() {
     if (player.action?.type === 'wi_climb') player.action = null;
-    climb = null; delete player.worldClimb; player.onGround = false; player.__jjsLast = player.pos.clone();
+    // Stepping off a ladder is the only reason this has to say the player is
+    // in the air. context() calls clear() — and so this — on every frame of
+    // every map the city items are not active on, which is every map but the
+    // JJS one, and the frame it lands on is the one base.html reads to decide
+    // whether Space may jump. Letting go of a climb nobody was on cost every
+    // fighter their jump everywhere else.
+    if (climb) { player.onGround = false; player.__jjsLast = player.pos.clone(); }
+    climb = null; delete player.worldClimb;
   }
   function clear() {
     closeClimb();
