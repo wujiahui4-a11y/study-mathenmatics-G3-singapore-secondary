@@ -16188,6 +16188,32 @@ window.__game = {
   var INK = 0x07070d, DEEP = 0x11111f, EDGE = 0x232338;
   var LIT = 0x7b7bb8, COLD = 0xa9b6e8, WHITE = 0xe8ecf5;
 
+  /* THE SHIKIGAMI THEMSELVES
+     The pools stay shadow. The animals that come out of them do not, and
+     building all five out of the pool's own near-blacks made five
+     silhouettes that could only be told apart by their outline. The Ten
+     Shadows read as a pale body with black markings, so that is what they
+     are here:
+
+       Divine Dogs    one white, one black, each carrying three dots on
+                      the forehead in the other one's colour
+       Nue            orange feathers and a white mask of a skull, and
+                      the electricity off its wings is purple
+       Great Serpent  white, with black markings down its length
+       Max Elephant   grey, marked black at the forehead, crown, back
+                      and knees
+       Rabbits        white, with black ears and eyes                    */
+  var FUR_W = 0xe9ecf4, FUR_W_D = 0xc2c8d6;        // the white dog
+  /* the black one is black, but not the pool's black: it has to hold a
+     shape against a light floor, and its three white dots do the rest */
+  var FUR_K = 0x26272f, FUR_K_D = 0x14141d;
+  var MARK = 0x0d0d14, MARK_W = 0xf3f5fa;          // the three dots, either way
+  var NUE_F = 0xcf7a33, NUE_F_D = 0x9a551d, NUE_BONE = 0xeae4d4;
+  var VOLT = 0x9a5cf5, VOLT_L = 0xd8b6ff;          // and the purple off it
+  var SNAKE = 0xe3e6ee, SNAKE_D = 0xbabfcd, SNAKE_M = 0x14141f;
+  var HIDE = 0xb5bbc7, HIDE_D = 0x8f96a4, HIDE_M = 0x12121b, TUSK = 0xf1ede0;
+  var BUN = 0xeef0f6, BUN_D = 0xc7ccd7;
+
   var MG = window.JJMEGUMI = { pools: [], pets: [] };
 
   var MCD = { mg1: 8, mg2: 10, mg3: 11, mg4: 20, mgr: 9 };
@@ -16476,8 +16502,12 @@ window.__game = {
 
   function buildDog(white) {
     var g = new THREE.Group();
-    var body = white ? 0x2a2c38 : DEEP;
-    var coat = white ? WHITE : INK;
+    /* twins, and the whole point of them is that they are a pair: the
+       shaded planes are the darker of the two coats, so a white dog still
+       has shape on it rather than being a cut-out */
+    var body = white ? FUR_W_D : FUR_K_D;
+    var coat = white ? FUR_W : FUR_K;
+    var dot = white ? MARK : MARK_W;
     /* chest and haunch */
     part(g, 1.5, 1.25, 2.9, 0, 1.5, 0, body);
     part(g, 1.35, 1.15, 1.1, 0, 1.55, -1.5, coat);
@@ -16488,7 +16518,14 @@ window.__game = {
     part(g, .62, .5, .9, 0, 1.62, 3.3, coat);
     for (var i = 0; i < 5; i++) {
       var tx = -.2 + i * .1;
-      part(g, .07, .22, .07, tx, 1.44, 3.6, COLD);
+      part(g, .07, .22, .07, tx, 1.44, 3.6, white ? 0xf6f8fc : 0xdfe4ee);
+    }
+    /* the three dots on the forehead, in the other one's colour. They are
+       the Jewel of Turning Back on the Road on the white one and the Jewel
+       of Plenty on the black, and they are how you tell them apart at any
+       distance where the coat has gone to grey */
+    for (var dd = 0; dd < 3; dd++) {
+      part(g, .12, .12, .08, (dd - 1) * .22, 2.16, 2.98, dot);
     }
     /* ears, back along the skull */
     for (var s = -1; s <= 1; s += 2) {
@@ -16499,7 +16536,7 @@ window.__game = {
     /* the eye, which is the only thing on it that is not shadow */
     for (s = -1; s <= 1; s += 2) {
       var eye = new THREE.Mesh(new THREE.BoxGeometry(.16, .13, .06),
-        new THREE.MeshBasicMaterial({ color: white ? 0x9fd0ff : 0xff9a6a, toneMapped: false }));
+        new THREE.MeshBasicMaterial({ color: white ? 0x6aa8e8 : 0xff9a6a, toneMapped: false }));
       eye.position.set(s * .27, 1.98, 3.1);
       g.add(eye);
     }
@@ -16613,34 +16650,48 @@ window.__game = {
 
   function buildNue() {
     var g = new THREE.Group();
-    part(g, 1.5, 1.2, 3.2, 0, 0, 0, DEEP);              // body
-    part(g, .9, .8, 1.1, 0, .3, 1.9, INK);              // head
-    part(g, .34, .3, 1.2, 0, .2, 2.8, EDGE);            // the beak
-    /* the eye */
+    /* an owl in orange feathers wearing a skull for a face — the mask is
+       the part everybody draws, so it gets the lightest value on the bird
+       and everything else is kept under it */
+    part(g, 1.5, 1.2, 3.2, 0, 0, 0, NUE_F);             // body
+    part(g, 1.42, .5, 3.0, 0, .38, -.1, NUE_F_D);       // the darker mantle over it
+    part(g, .9, .8, 1.1, 0, .3, 1.9, NUE_BONE);         // the skull
+    part(g, .96, .24, .5, 0, .66, 2.0, NUE_BONE);       // its brow
+    part(g, .34, .3, 1.2, 0, .2, 2.8, NUE_BONE);        // the beak
+    /* the human teeth set in it, which is the unpleasant detail */
+    for (var t = 0; t < 5; t++) {
+      part(g, .09, .13, .07, -.16 + t * .08, .0, 2.9, 0xf6f2e6);
+    }
+    /* the eye: two holes in the mask with something lit a long way back */
     for (var s = -1; s <= 1; s += 2) {
-      var eye = new THREE.Mesh(new THREE.BoxGeometry(.18, .15, .07),
+      part(g, .3, .26, .1, s * .3, .42, 2.32, 0x1a1712);
+      var eye = new THREE.Mesh(new THREE.BoxGeometry(.15, .13, .07),
         new THREE.MeshBasicMaterial({ color: 0xffd66a, toneMapped: false }));
-      eye.position.set(s * .3, .42, 2.3);
+      eye.position.set(s * .3, .42, 2.36);
       g.add(eye);
     }
-    /* the wings, in three panels each so they can fold */
+    /* the wings, in three panels each so they can fold. Banded: the
+       leading edge stays bright and the flight feathers go dark, so a wing
+       reads as a wing rather than as one orange plank */
     g.__wings = [];
     for (s = -1; s <= 1; s += 2) {
       var w = new THREE.Group();
       w.position.set(s * .7, .2, .2);
-      part(w, 2.6, .22, 2.2, s * 1.4, 0, 0, DEEP);
-      part(w, 2.4, .18, 1.6, s * 3.4, -.1, -.4, INK);
-      part(w, 1.8, .16, 1.0, s * 5.0, -.2, -.9, EDGE);
+      part(w, 2.6, .22, 2.2, s * 1.4, 0, 0, NUE_F);
+      part(w, 2.6, .12, .6, s * 1.4, .1, .9, NUE_F_D);
+      part(w, 2.4, .18, 1.6, s * 3.4, -.1, -.4, NUE_F_D);
+      part(w, 2.4, .1, .5, s * 3.4, 0, .3, NUE_F);
+      part(w, 1.8, .16, 1.0, s * 5.0, -.2, -.9, 0x74401a);
       g.add(w);
       g.__wings.push(w);
     }
     /* the tail it drags */
-    var tail = part(g, .4, .3, 2.4, 0, -.1, -2.4, INK);
+    var tail = part(g, .4, .3, 2.4, 0, -.1, -2.4, NUE_F_D);
     tail.rotation.x = .2;
-    /* and the talons */
+    /* and the talons, which are bone like the face */
     for (s = -1; s <= 1; s += 2) {
       for (var i = 0; i < 3; i++) {
-        var c = part(g, .12, .5, .12, s * .45 + (i - 1) * .16, -.8, .4 + i * .1, EDGE);
+        var c = part(g, .12, .5, .12, s * .45 + (i - 1) * .16, -.8, .4 + i * .1, NUE_BONE);
         c.rotation.x = .4;
       }
     }
@@ -16675,11 +16726,14 @@ window.__game = {
       if (!struck) {
         struck = true;
         var at = new THREE.Vector3(n.position.x, 0, n.position.z);
-        /* the lightning, down the line it dived on */
-        FX.beam(n.position.clone(), new THREE.Vector3(0, -1, 0), 8, COLD,
+        /* the lightning, down the line it dived on. Purple, because that is
+           what comes off its wings — this used to land in the same pale
+           blue as everything else Megumi does, so the one shikigami whose
+           whole trick is the electricity had no colour of its own. */
+        FX.beam(n.position.clone(), new THREE.Vector3(0, -1, 0), 8, VOLT,
           { radius: .5, life: .28 });
         for (var b = 0; b < 7; b++) {
-          var bolt = FX.billboard(FX.T.bolt, b % 2 ? COLD : 0xffffff, .9);
+          var bolt = FX.billboard(FX.T.bolt, b % 2 ? VOLT : VOLT_L, .9);
           var a1 = at.clone().add(new THREE.Vector3(
             (Math.random() - .5) * 7, 5 + Math.random() * 4, (Math.random() - .5) * 7));
           var a2 = at.clone().add(new THREE.Vector3(
@@ -16697,9 +16751,12 @@ window.__game = {
             } });
           })(bolt);
         }
-        FX.flash('#dbe6ff', .34, .18);
-        FX.rings(new THREE.Vector3(at.x, .12, at.z), COLD, 3, { maxR: 15, life: .5, gap: 44 });
-        FX.impact(n.position.clone(), COLD, 3);
+        FX.flash('#d9beff', .36, .2);
+        FX.rings(new THREE.Vector3(at.x, .12, at.z), VOLT, 3, { maxR: 15, life: .5, gap: 44 });
+        FX.rings(n.position.clone(), VOLT_L, 2, { maxR: 9, life: .34, ground: false, gap: 40 });
+        FX.impact(n.position.clone(), VOLT_L, 3);
+        FX.streaks(at.clone().add(new THREE.Vector3(0, 1.4, 0)), VOLT, 9, 20, 1.1);
+        FX.speedRing(n.position.clone(), VOLT_L, 13, .26);
         addShake(1.8);
         hitstop(.09);
         try { sfx.blast ? sfx.blast() : sfx.redBoom(); } catch (e) {}
@@ -16710,7 +16767,7 @@ window.__game = {
             if (kb.lengthSq() < .01) kb.set(1, 0, 0);
             kb.normalize().multiplyScalar(12); kb.y = 26;
             e.damage(NUE.dmg, kb, {
-              react: 'blow', reactDur: .9, spark: COLD, stun: .9, death: 'burn'
+              react: 'blow', reactDur: .9, spark: VOLT_L, stun: .9, death: 'burn'
             });
           });
         }
@@ -16760,23 +16817,29 @@ window.__game = {
 
   function buildSnake() {
     var g = new THREE.Group();
-    /* the head */
-    part(g, 1.9, 1.5, 3.0, 0, 0, 1.2, DEEP);
-    part(g, 1.5, 1.0, 1.2, 0, -.2, 3.0, INK);           // the snout
+    /* the head. White with black markings, which is the Great Serpent as
+       drawn — a black snake coming out of a black pool was invisible right
+       up until it had somebody in its mouth */
+    part(g, 1.9, 1.5, 3.0, 0, 0, 1.2, SNAKE);
+    part(g, 1.5, 1.0, 1.2, 0, -.2, 3.0, SNAKE_D);       // the snout
+    part(g, 1.94, .3, 1.8, 0, .64, 1.4, SNAKE_M);       // the band over the crown
+    for (var m = -1; m <= 1; m += 2) {
+      part(g, .26, .5, 2.6, m * .82, .1, 1.3, SNAKE_M); // and one down each side
+    }
     /* the jaw, hinged, so it can open */
     var jaw = new THREE.Group();
     jaw.position.set(0, -.6, .6);
-    part(jaw, 1.7, .5, 2.8, 0, 0, 1.2, INK);
+    part(jaw, 1.7, .5, 2.8, 0, 0, 1.2, SNAKE_D);
     for (var i = 0; i < 6; i++) {
       var tx = -.6 + (i % 3) * .6;
-      part(jaw, .14, .5, .14, tx, .42, .6 + Math.floor(i / 3) * 1.5, COLD);
+      part(jaw, .14, .5, .14, tx, .42, .6 + Math.floor(i / 3) * 1.5, 0xfbfcff);
     }
     g.add(jaw);
     g.__jaw = jaw;
     /* the upper teeth */
     for (i = 0; i < 6; i++) {
       var ux = -.6 + (i % 3) * .6;
-      part(g, .14, .55, .14, ux, -.6, 1.4 + Math.floor(i / 3) * 1.5, COLD);
+      part(g, .14, .55, .14, ux, -.6, 1.4 + Math.floor(i / 3) * 1.5, 0xfbfcff);
     }
     /* the eyes */
     for (var s = -1; s <= 1; s += 2) {
@@ -16789,7 +16852,11 @@ window.__game = {
     g.__segs = [];
     for (i = 0; i < 9; i++) {
       var w = 1.9 - i * .13;
-      var seg = part(g, w, w, 1.5, 0, 0, -.6 - i * 1.45, i % 2 ? DEEP : INK);
+      var seg = part(g, w, w, 1.5, 0, 0, -.6 - i * 1.45, SNAKE);
+      /* one black band per segment: the markings are what give a long pale
+         body any sense of how fast it is going past you */
+      part(g, w * 1.04, w * .36, .5, 0, w * .32, -.6 - i * 1.45, SNAKE_M);
+      part(g, w * .9, w * .5, 1.5, 0, -w * .34, -.6 - i * 1.45, SNAKE_D);
       g.__segs.push(seg);
     }
     return g;
@@ -16901,32 +16968,40 @@ window.__game = {
 
   function buildElephant() {
     var g = new THREE.Group();
-    part(g, 6.4, 5.2, 9.2, 0, 5.4, 0, DEEP);            // the body
-    part(g, 4.2, 3.8, 3.4, 0, 6.2, 5.6, INK);           // the head
+    /* grey, and marked black at the forehead, the crown, the back and the
+       knees. The markings are the whole reason it does not read as one
+       enormous dark block from the far side of the arena. */
+    part(g, 6.4, 5.2, 9.2, 0, 5.4, 0, HIDE);            // the body
+    part(g, 6.5, 1.0, 6.4, 0, 7.6, -.6, HIDE_M);        // the band down its back
+    part(g, 4.2, 3.8, 3.4, 0, 6.2, 5.6, HIDE_D);        // the head
+    part(g, 4.3, .8, 2.6, 0, 7.7, 5.4, HIDE_M);         // the crown
+    part(g, 2.2, 1.4, .3, 0, 6.4, 7.35, HIDE_M);        // and the forehead
     /* the trunk, in seven falling segments */
     g.__trunk = [];
     var ty = 5.2, tz = 7.0;
     for (var i = 0; i < 7; i++) {
       var w = 1.5 - i * .13;
-      var seg = part(g, w, w, 1.2, 0, ty, tz, i % 2 ? INK : EDGE);
+      var seg = part(g, w, w, 1.2, 0, ty, tz, i % 2 ? HIDE_D : HIDE);
       g.__trunk.push(seg);
       ty -= .75; tz += .35;
     }
     /* the tusks */
     for (var s = -1; s <= 1; s += 2) {
-      var tu = part(g, .34, .34, 3.2, s * 1.3, 5.0, 6.6, WHITE);
+      var tu = part(g, .34, .34, 3.2, s * 1.3, 5.0, 6.6, TUSK);
       tu.rotation.x = -.35;
       tu.rotation.y = s * .12;
     }
     /* the ears */
     for (s = -1; s <= 1; s += 2) {
-      var ear = part(g, 3.4, 4.0, .3, s * 3.0, 6.4, 4.4, INK);
+      var ear = part(g, 3.4, 4.0, .3, s * 3.0, 6.4, 4.4, HIDE_D);
       ear.rotation.y = s * .4;
+      var rim = part(g, 3.5, .7, .34, s * 3.0, 8.1, 4.4, HIDE_M);
+      rim.rotation.y = s * .4;
     }
     /* the eye */
     for (s = -1; s <= 1; s += 2) {
       var eye = new THREE.Mesh(new THREE.BoxGeometry(.3, .26, .1),
-        new THREE.MeshBasicMaterial({ color: 0xdcd2b8, toneMapped: false }));
+        new THREE.MeshBasicMaterial({ color: 0xffca5e, toneMapped: false }));
       eye.position.set(s * 1.5, 6.9, 7.2);
       g.add(eye);
     }
@@ -16936,8 +17011,9 @@ window.__game = {
     for (i = 0; i < 4; i++) {
       var hip = new THREE.Group();
       hip.position.set(LEG[i][0], 5.0, LEG[i][1]);
-      part(hip, 1.9, 4.4, 1.9, 0, -2.2, 0, DEEP);
-      part(hip, 2.2, .7, 2.2, 0, -4.6, 0, INK);
+      part(hip, 1.9, 4.4, 1.9, 0, -2.2, 0, HIDE);
+      part(hip, 2.0, 1.0, 2.0, 0, -1.1, 0, HIDE_M);     // the black knee
+      part(hip, 2.2, .7, 2.2, 0, -4.6, 0, HIDE_D);
       g.add(hip);
       g.__legs.push(hip);
     }
@@ -17102,18 +17178,26 @@ window.__game = {
 
   function buildRabbit() {
     var g = new THREE.Group();
-    part(g, .6, .55, .9, 0, .4, 0, DEEP);
-    part(g, .45, .42, .45, 0, .72, .55, INK);
+    /* white, with the ears and the eye band black — dozens of these arrive
+       at once, so the only thing that matters is that each one is a shape
+       against the floor rather than a hole in it */
+    part(g, .6, .55, .9, 0, .4, 0, BUN);
+    part(g, .62, .2, .7, 0, .62, -.05, BUN_D);
+    part(g, .45, .42, .45, 0, .72, .55, BUN);
     for (var s = -1; s <= 1; s += 2) {
-      var ear = part(g, .12, .6, .1, s * .13, 1.2, .48, INK);
+      var ear = part(g, .12, .6, .1, s * .13, 1.2, .48, BUN);
       ear.rotation.z = s * .16;
       ear.rotation.x = -.14;
+      var tip = part(g, .13, .24, .11, s * .17, 1.44, .44, MARK);
+      tip.rotation.z = s * .16;
+      tip.rotation.x = -.14;
     }
+    part(g, .47, .14, .1, 0, .78, .76, MARK);           // the band over the eyes
     var eye = new THREE.Mesh(new THREE.BoxGeometry(.4, .09, .05),
       new THREE.MeshBasicMaterial({ color: 0xff8a8a, toneMapped: false }));
-    eye.position.set(0, .74, .72);
+    eye.position.set(0, .74, .78);
     g.add(eye);
-    part(g, .5, .3, .34, 0, .2, -.5, EDGE);
+    part(g, .5, .3, .34, 0, .2, -.5, BUN_D);            // the tail end
     return g;
   }
 
@@ -23155,8 +23239,11 @@ window.__game = {
      2  THRUST            突き — one point, straight through
      3  RISING CUT        斬り上げ — up from the floor, and so are they
      4  CROSS SLASH       十字斬り — two cuts on one beat, in an X
-     R  PURE LOVE         純愛 — the special. Everything he has, in one,
-                          and the cut is longer than the road
+     R  TRUE LOVE         — PLACEHOLDER. Parked deliberately: one cut in
+                          front of him at the weight the special always
+                          had, keeping the slot, the cooldown, the action
+                          type and the damage so whatever replaces it
+                          drops straight into the wiring
 
    Rika is NOT in this file. She comes later; what is here is a boy who
    is very good with a sword and puts far too much into it.
@@ -23302,7 +23389,7 @@ window.__game = {
       { key: '2', lbl: 'Thrust', cd: 'o2', max: YCD.o2 },
       { key: '3', lbl: 'Rising Cut', cd: 'o3', max: YCD.o3 },
       { key: '4', lbl: 'Cross Slash', cd: 'o4', max: YCD.o4 },
-      { key: 'R', lbl: 'Pure Love', cd: 'or', max: YCD.or }
+      { key: 'R', lbl: 'True Love · WIP', cd: 'or', max: YCD.or }
     ]
   };
   try { CHARS.yuta.portrait = makePortrait(YUTA_CFG); } catch (e) {}
@@ -23412,16 +23499,34 @@ window.__game = {
 
   function buildKatana() {
     var g = new THREE.Group();
-    part(g, .18, .9, .18, 0, -.2, 0, 0x1a1a22);        // the grip
-    for (var i = 0; i < 5; i++) part(g, .21, .05, .21, 0, -.55 + i * .18, 0, 0x5a4a3a);
-    part(g, .52, .1, .3, 0, .3, 0, 0x3a3630);           // the guard
-    var blade = part(g, .16, 4.2, .34, 0, 2.45, 0, 0xdfe6ec);
+    /* A katana at the proportions a katana has. The old one carried a 4.2
+       unit blade with a .6 tip on top of it — five units of steel on a
+       fighter five and a half tall, which is a greatsword being held like
+       a katana and read as one. This blade is 2.1: about forty per cent
+       of his height, where a real one sits. Nothing about the move
+       changed; the cut was never the length of the blade anyway, which is
+       the entire idea of him. */
+    var grip = part(g, .13, .78, .17, 0, -.16, 0, 0x1a1a22);   // the tsuka
+    grip.castShadow = true;
+    for (var i = 0; i < 6; i++) {                              // the diamond wrap
+      var wrap = part(g, .155, .05, .195, 0, -.48 + i * .15, 0, 0x5a4a3a);
+      wrap.rotation.y = i % 2 ? .2 : -.2;
+    }
+    part(g, .1, .07, .13, 0, -.59, 0, 0x2a2620);               // the kashira, at the butt
+    part(g, .4, .05, .4, 0, .27, 0, 0x3a3630);                 // the tsuba, flat and round
+    part(g, .18, .1, .21, 0, .34, 0, 0x2a2620);                // the habaki above it
+    /* the blade: thin across, wide on the flat, and only as long as it
+       should be. The back is a shade darker so it has an edge at all. */
+    var blade = part(g, .075, 2.1, .25, 0, 1.44, .02, 0xdfe6ec);
     blade.castShadow = true;
-    var edge = new THREE.Mesh(new THREE.BoxGeometry(.08, 4.2, .1),
+    part(g, .085, 2.1, .08, 0, 1.44, -.1, 0xa7b1bc);           // the mune, the blunt back
+    /* the kissaki: the last of it comes to a point rather than stopping */
+    var tip = part(g, .07, .32, .19, 0, 2.6, .05, 0xeaf0f5);
+    tip.rotation.x = .12;
+    var edge = new THREE.Mesh(new THREE.BoxGeometry(.045, 2.3, .055),
       new THREE.MeshBasicMaterial({ color: CE2, toneMapped: false }));
-    edge.position.set(0, 2.45, .16);
+    edge.position.set(0, 1.5, .13);
     g.add(edge);
-    part(g, .14, .6, .3, 0, 4.7, .04, 0xdfe6ec);
     return g;
   }
   YT.buildKatana = buildKatana;
@@ -23647,84 +23752,56 @@ window.__game = {
   }
 
   /* =====================================================================
-     R · PURE LOVE  純愛
-     THE SPECIAL, and the only move of his that is allowed to be one. He
-     does not cut faster or from a better angle — he simply stops holding
-     any of it back, and the overspill goes the whole length of the road.
+     R · TRUE LOVE  —  PLACEHOLDER
+     Held open on purpose, and marked so in the moves bar. What was here
+     did the whole cinematic: letterbox in, a second of wind-up, and then
+     sixty metres of overspill twenty six wide. That is a good move and
+     the wrong one to keep polishing while the rest of him is still being
+     decided, so it is parked.
+
+     What is left is the smallest thing that is still a special: one cut,
+     in front of him, at the weight it always had. It keeps its slot, its
+     cooldown, its action type and its damage, so the finisher, the
+     spectator copy and the AI all stay wired to it and whatever replaces
+     it drops straight in without touching any of them.
      ================================================================== */
-  var PURE = { dmg: 28, reach: 16, spill: 60, wide: 26 };
+  var PURE = { dmg: 28, reach: 16, spill: 26, wide: 14 };
 
   function castPure() {
     if (!ready('or')) return;
-    var a = start('or', 1.7, 'or', 'PURE LOVE', '純愛');
+    var a = start('or', .85, 'or', 'TRUE LOVE', '');
     a.dir = aim();
-    player.iframes = Math.max(player.iframes, 1.5);
-    FX.letterbox(true);
-    later(3000, function () { FX.letterbox(false); });
+    player.iframes = Math.max(player.iframes, .6);
     try { sfx.raise(); } catch (e) {}
   }
   function stepPure(a, dt) {
     var p = player, d = a.dir;
-    p.vel.set(0, 0, 0);
+    p.vel.x *= .8; p.vel.z *= .8;
     if (a.stage < 1) {
       a.stage = 1;
-      a.kat = holdKatana(a, 1.7);
-      a.shine = shimmer(function () { return player.pos.clone(); },
-        function () { return player.action === a; });
-      FX.tint('#08161e', .35, 1.4);
+      a.kat = holdKatana(a, .85);
     }
-    /* the wind-up: it goes IN before it goes out, which is the only time
-       anything of his does */
-    if (a.t < .95) {
-      if (Math.random() < dt * 20) {
-        FX.converge(p.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), CE, 6, 14, .4);
-      }
-      if (a.stage < 2 && a.t > .5) {
-        a.stage = 2;
-        FX.rings(p.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), CE, 3,
-          { maxR: 12, life: .6, ground: false, gap: 44 });
-        FX.mangaLines(.5, .45);
-        addShake(1);
-      }
-      return;
-    }
-    if (a.stage < 3) {
-      a.stage = 3;
+    if (a.stage < 2 && a.t > .34) {
+      a.stage = 2;
       var at = p.pos.clone().addScaledVector(d, 4).add(new THREE.Vector3(0, 2.8, 0));
       var side = new THREE.Vector3(-d.z, 0, d.x).normalize();
-      FX.flash('#ffffff', .85, .32);
-      FX.slash(at.clone(), side, 0xffffff, 30, .34);
-      FX.slash(at.clone().add(new THREE.Vector3(0, -1, 0)), side, CE2, 24, .28);
-      /* sixty metres of it, twenty six wide */
+      FX.slash(at.clone(), side, 0xffffff, 14, .24);
       overspill(at.clone(), d, PURE.spill, PURE.wide, CE);
-      overspill(at.clone(), d, PURE.spill * .7, PURE.wide * .5, CE2);
-      for (var i = 0; i < 7; i++) {
-        var k = i / 6 - .5;
-        FX.cutLine(at.clone().addScaledVector(side, k * PURE.wide),
-          at.clone().addScaledVector(side, k * PURE.wide).addScaledVector(d, PURE.spill),
-          i % 2 ? CE2 : 0xffffff, 1.4, .55);
-      }
-      FX.speedRing(at.clone(), CE2, 30, .42);
-      FX.mangaLines(1, .42);
-      FX.cracks(new THREE.Vector3(p.pos.x + d.x * 14, .1, p.pos.z + d.z * 14), 22, 30, 0x59636e);
-      FX.dust(new THREE.Vector3(p.pos.x + d.x * 10, 0, p.pos.z + d.z * 10), 16, 0xcfd8e0, 22, 6);
-      addShake(5);
-      if (typeof hitstop === 'function') hitstop(.3);
+      FX.speedRing(at.clone(), CE2, 16, .3);
+      addShake(2);
+      if (typeof hitstop === 'function') hitstop(.12);
       try { sfx.redBoom(); } catch (e) {}
-      /* everything down the whole lane, at full value the entire way */
       var hit = [];
-      for (var q = 4; q < PURE.spill; q += 8) {
+      for (var q = 4; q < PURE.spill; q += 6) {
         enemiesNear(p.pos.clone().addScaledVector(d, q).add(new THREE.Vector3(0, 2.4, 0)),
           PURE.wide * .5).forEach(function (e) {
           if (!e || e.dead || hit.indexOf(e) >= 0) return;
           hit.push(e);
-          var kb = d.clone().multiplyScalar(34); kb.y = 20;
+          var kb = d.clone().multiplyScalar(30); kb.y = 17;
           e.damage(PURE.dmg, kb, {
-            react: 'blow', reactDur: 1.2, spark: 0xffffff, stun: 1.2,
+            react: 'blow', reactDur: 1, spark: 0xffffff, stun: 1,
             bleed: true, death: 'sever' });
-          FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), side, 22, 2.6);
-          FX.cutLine(e.pos.clone().add(new THREE.Vector3(-5, 3.6, 0)),
-            e.pos.clone().add(new THREE.Vector3(5, 1.4, 0)), 0xffffff, 1.2, .45);
+          FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), side, 14, 2);
         });
       }
     }
@@ -23815,26 +23892,23 @@ window.__game = {
         r.hips.position.y = r.hipsBaseY - .4 * w2 + .2 * c1;
         return true;
       }
-      case 'or': {                     // the only one he takes his time on
+      case 'or': {                     // placeholder: one draw and one cut
         rp(r);
-        var gather = out(Math.min(1, t / .55));
-        var held = t > .55 ? Math.min(1, (t - .55) / .4) : 0;
-        var go = t > .95 ? out(Math.min(1, (t - .95) / .18)) : 0;
-        var tremor = Math.sin(t * 24) * .035 * held * (1 - go);
-        r.shoulderR.rotation.x = -.3 - 1.5 * gather + 2.6 * go;
-        r.shoulderR.rotation.z = -1.6 * gather + 2.6 * go + tremor;
-        r.shoulderR.rotation.y = -1.1 * gather + 1.9 * go;
-        r.elbowR.rotation.x = -1.9 * gather + 1.8 * go;
-        r.shoulderL.rotation.x = -1.5 * gather + 1.0 * go;
-        r.shoulderL.rotation.z = 1.0 * gather - .9 * go - tremor;
-        r.elbowL.rotation.x = -1.8 * gather + 1.2 * go;
-        r.spine.rotation.y = 1.1 * gather - 2.1 * go;
-        r.spine.rotation.x = -.3 * gather + .6 * go + tremor;
-        r.neck.rotation.y = -.44 * gather + .8 * go;
-        r.neck.rotation.x = -.2 * gather + .4 * go;
-        r.hipL.rotation.x = -.7 * gather + .5 * go; r.kneeL.rotation.x = 1.05 * gather - .4 * go;
-        r.hipR.rotation.x = .5 * gather - .7 * go; r.kneeR.rotation.x = .75 * gather;
-        r.hips.position.y = r.hipsBaseY - .55 * gather + .28 * go + tremor;
+        var gather = out(Math.min(1, t / .3));
+        var go = t > .34 ? out(Math.min(1, (t - .34) / .16)) : 0;
+        r.shoulderR.rotation.x = -.3 - 1.4 * gather + 2.5 * go;
+        r.shoulderR.rotation.z = -1.5 * gather + 2.5 * go;
+        r.shoulderR.rotation.y = -1.0 * gather + 1.8 * go;
+        r.elbowR.rotation.x = -1.8 * gather + 1.7 * go;
+        r.shoulderL.rotation.x = -1.3 * gather + .9 * go;
+        r.shoulderL.rotation.z = .9 * gather - .8 * go;
+        r.elbowL.rotation.x = -1.6 * gather + 1.1 * go;
+        r.spine.rotation.y = 1.0 * gather - 2.0 * go;
+        r.spine.rotation.x = -.26 * gather + .55 * go;
+        r.neck.rotation.y = -.4 * gather + .75 * go;
+        r.hipL.rotation.x = -.62 * gather + .45 * go; r.kneeL.rotation.x = .95 * gather - .35 * go;
+        r.hipR.rotation.x = .45 * gather - .62 * go; r.kneeR.rotation.x = .68 * gather;
+        r.hips.position.y = r.hipsBaseY - .48 * gather + .25 * go;
         return true;
       }
     }
@@ -23933,34 +24007,15 @@ window.__game = {
         FX.cross(at.clone(), 0xffffff, 8, .22);
       });
     },
-    /* the special, which is the one worth drawing properly on somebody
-       else's screen: sixty metres of cut, twenty six wide */
+    /* the special, parked with the local one so a spectator sees the same
+       placeholder rather than the cinematic that is no longer there */
     or: function (pos, yaw) {
       var d = dirOf(yaw), side = new THREE.Vector3(-d.z, 0, d.x).normalize();
-      var t = 0;
-      addFx({ t: .95, update: function (dd) {
-        this.t -= dd; t += dd;
-        if (Math.random() < dd * 16) {
-          FX.converge(pos.clone().add(new THREE.Vector3(0, 2.6, 0)), CE, 5, 14, .4);
-        }
-        return this.t > 0;
-      } });
-      later(970, function () {
+      later(340, function () {
         var at = pos.clone().addScaledVector(d, 4).add(new THREE.Vector3(0, 2.8, 0));
-        FX.flash('#ffffff', .7, .3);
-        FX.slash(at.clone(), side, 0xffffff, 30, .34);
-        FX.slash(at.clone().add(new THREE.Vector3(0, -1, 0)), side, CE2, 24, .28);
+        FX.slash(at.clone(), side, 0xffffff, 14, .24);
         overspill(at.clone(), d, PURE.spill, PURE.wide, CE);
-        overspill(at.clone(), d, PURE.spill * .7, PURE.wide * .5, CE2);
-        for (var i = 0; i < 7; i++) {
-          var k = i / 6 - .5;
-          FX.cutLine(at.clone().addScaledVector(side, k * PURE.wide),
-            at.clone().addScaledVector(side, k * PURE.wide).addScaledVector(d, PURE.spill),
-            i % 2 ? CE2 : 0xffffff, 1.4, .55);
-        }
-        FX.speedRing(at.clone(), CE2, 30, .42);
-        FX.cracks(new THREE.Vector3(pos.x + d.x * 14, .1, pos.z + d.z * 14), 22, 30, 0x59636e);
-        FX.dust(new THREE.Vector3(pos.x + d.x * 10, 0, pos.z + d.z * 10), 16, 0xcfd8e0, 22, 6);
+        FX.speedRing(at.clone(), CE2, 16, .3);
       });
     }
   };

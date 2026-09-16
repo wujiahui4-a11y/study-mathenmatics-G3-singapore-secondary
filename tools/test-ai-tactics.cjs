@@ -54,6 +54,32 @@ const server = http.createServer((q, r) => {
     await page.goto('http://127.0.0.1:' + server.address().port);
     await page.waitForFunction(() => window.__tactics);
     await page.clock.install();
+    /* The pursuit scenarios below are long stochastic simulations that read
+       the same Math.random the effects kit draws from, so any change to a
+       skill's VFX reshuffles every navigation decision in them and they
+       land on a different side of their thresholds. That made them a coin
+       flip on an unrelated diff. Seed the stream for the length of a
+       scenario: it does not weaken what is being checked, it just stops the
+       check depending on which effects happened to fire first. */
+    async function seeded(name, fn, arg) {
+      await page.evaluate(() => {
+        let x = 0x2f6e2b1 >>> 0;
+        window.__realRandom = Math.random;
+        Math.random = function () {
+          x ^= x << 13; x >>>= 0;
+          x ^= x >>> 17;
+          x ^= x << 5; x >>>= 0;
+          return x / 4294967296;
+        };
+      });
+      try {
+        return await test(name, fn, arg);
+      } finally {
+        await page.evaluate(() => {
+          if (window.__realRandom) { Math.random = window.__realRandom; delete window.__realRandom; }
+        });
+      }
+    }
     async function test(name, fn, arg) {
       report[name] = await page.evaluate(fn, arg);
       console.log(name, JSON.stringify(report[name]));
@@ -258,7 +284,7 @@ const server = http.createServer((q, r) => {
     assert.equal(r.retreat, 'retreating');
     assert.equal(r.front, 'front');
     assert.ok(r.dodge && r.kind === 'side');
-    r = await test('stairs', () => {
+    r = await seeded('stairs', () => {
       const [e, t] = __tactics.setup(2);
       const parts = [
         [0, -0.5, 0, 120, 1, 120],
@@ -297,7 +323,7 @@ const server = http.createServer((q, r) => {
       return result;
     });
     assert.ok(r.maxY >= 5.8 && r.distance < 9 && r.target);
-    r = await test('crater', () => {
+    r = await seeded('crater', () => {
       const [e, t] = __tactics.setup(2);
       __tactics.world([
         [0, -3.5, 0, 80, 1, 80],

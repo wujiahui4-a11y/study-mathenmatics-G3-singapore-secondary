@@ -640,15 +640,36 @@ travels, it does something with its own weight, and it goes back into the
 shadow it came from. That is the whole character, so the file has no beam
 call in it anywhere.
 
-### A shadow is not a light
+### A shadow is not a light — but the animal in it is not a shadow either
 
-Everything he has is drawn on **normal blending in near-black**, so it takes
-light out of the floor. An additive shadow is a puddle of light, which is the
+The **pool** is drawn on **normal blending in near-black**, so it takes light
+out of the floor. An additive shadow is a puddle of light, which is the
 opposite of a shadow — the same mistake the blood kit had to be rescued from
 once already, and worth not making twice. The pool is a real filled disc with
-a torn rim rather than a stencil circle, and the only bright value in the
-palette is the pale edge that keeps a black shape readable against a white
-floor.
+a torn rim rather than a stencil circle.
+
+**The shikigami used to be painted out of the same three near-blacks**, and
+that was wrong twice over. It is not what they look like — the Ten Shadows
+read as a pale body with black markings — and it left five silhouettes that
+could only be told apart by their outline. Each has its own colours now, from
+the descriptions rather than from the palette that was handy:
+
+| | |
+| --- | --- |
+| **Divine Dogs** | twins, one white and one black, each carrying three dots on the forehead in *the other one's* colour — the Jewel of Turning Back on the Road and the Jewel of Plenty. At any distance where the coats have gone to grey, the dots are how you tell which is which |
+| **Nue** | orange feathers with a white mask of a skull over its face, human teeth set in the beak, and banded wings so a wing reads as a wing rather than one orange plank |
+| **Great Serpent** | white, with a black band over the crown, one down each side of the head and one on every body segment. The bands are what give a long pale body any sense of how fast it is going past you |
+| **Max Elephant** | grey, marked black at the forehead, the crown, the knees and in a band the length of its back |
+| **Rabbits** | white, with black ear tips and a black band over the eyes. Dozens arrive at once, so all that matters is that each is a shape against the floor rather than a hole in it |
+
+**Nue's electricity is purple**, which is what comes off its wings. It used to
+land in the same pale blue as everything else Megumi does, so the one
+shikigami whose whole trick is the electricity had no colour of its own. The
+beam, the bolts, the flash, the ground rings and the spark on the hit are all
+purple now.
+
+The pale edge that keeps a shape readable against a white floor is still
+there, and still matters most for the black dog.
 
 That edge is a shell scaled to a **constant thickness** rather than a constant
 ratio. A flat 7 % is a hairline on a rabbit's ear and a halo the size of a
@@ -953,7 +974,7 @@ and started being a second ultimate.
 | `2` | **Thrust** 突き | straight in, at a longer reach than any of the others |
 | `3` | **Rising Cut** 切り上げ | up from under the guard, and the cut keeps going up past them |
 | `4` | **Cross Slash** 十字斬り | two, across each other; each one is about half a katana, and together they are one |
-| `R` | **Pure Love** 純愛 | the special. He stops holding any of it back, and the road goes with them |
+| `R` | **True Love · WIP** | **placeholder.** Parked deliberately — see below |
 
 ### His energy is too much for the move it is in
 
@@ -966,8 +987,32 @@ The katana hits what the blade reached at full damage *and* what the
 overspill went through, which is most of the road.
 
 The whole difference between the four and the fifth is scale rather than
-kind. `1` spills 26 units wide of 9; `R` spills 60 wide of 16, and is the
-only one that dims the frame first.
+kind. `1` spills 26 units wide of 9.
+
+### The sword is a sword again
+
+It carried a **4.2 unit blade with a .6 tip on top of it** — five units of
+steel on a fighter five and a half tall, which is a greatsword being held
+like a katana, and it read as one. The blade is 2.1 now: about forty per
+cent of his height, which is where a real one sits. It gained a proper
+tsuba, a wrapped tsuka, a darker mune along the back so it has an edge at
+all, and a kissaki that comes to a point rather than stopping.
+
+Nothing about any move changed. The cut was never the length of the blade
+anyway — that is the entire idea of him.
+
+### `R` is a placeholder
+
+**True Love is parked on purpose**, and the moves bar says so. What was
+there did the whole cinematic: letterbox in, a second of wind-up, then sixty
+metres of overspill twenty six wide. That is a good move and the wrong one
+to keep polishing while the rest of him is still being decided.
+
+What is left is the smallest thing that is still a special — one cut in
+front of him, at the weight it always had. It keeps its slot, its cooldown,
+its action type `or` and its 28 damage, so the finisher, the spectator copy
+and the AI stay wired to it and whatever replaces it drops straight into
+the existing plumbing without touching any of them.
 
 ### The five endings
 
