@@ -187,7 +187,6 @@
   function start(type, dur, key, name, sub) {
     cds[key] = WCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#4d84a8'); } catch (e) {} }
     return player.action;
   }
   function aim() {

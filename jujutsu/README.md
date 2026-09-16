@@ -1312,6 +1312,34 @@ naming:
 Awakened kits are deliberately out of this: Sukuna, the fever, the garden,
 the Death Painting and Gojo's awakening all keep their own scale.
 
+## Casting a skill says nothing
+
+Every skill on every fighter used to throw its own name across the middle of
+the screen — the move, a subtitle under it, for a second and a half, on every
+press. Four of those in a combo is four name cards, and a fight where both
+sides are using their kits is a wall of type over the part you are trying to
+watch. This is a fighting game, not something you read, so the cards are gone:
+**no skill on any fighter prints a word when you press it.** A refused cast is
+included — the old `NO TARGET` card was the same interruption, and the move
+already tells you it did not go off by not going off.
+
+What is still allowed to write on the screen, because none of it fires on a
+skill press:
+
+* **Awakening and Domain Expansion.** `AWAKENED`, `UNLIMITED VOID`, `DOMAIN
+  EXPANSION` and Mahoraga's summon are set pieces that happen once and are
+  built to be looked at.
+* **What is happening to you.** `DEFEATED · RESPAWNING`, `FRAMED!`, and the
+  train's `CRASH` — states you cannot act out of and need to recognise.
+* **The finisher's name**, on the small notice line, when a skill is the thing
+  that took somebody out. One per kill, not one per press.
+* **The corner status line**, which is a HUD readout like the health bar, not
+  something that appears over the fight.
+
+`test-core-combat` drives all five slots of all fourteen fighters and reads
+the splash element itself after each one, so a name card reintroduced anywhere
+in any kit fails the suite.
+
 ## Finishers
 
 **Every skill has its own, and the basic punch has none.**
@@ -1592,6 +1620,27 @@ New M1 and dash actions share their timing and poses with other players. Hits
 resolve on the victim's client, including guard angle, hitstun, duplicate-hit
 protection and knockdown. Dash paths stop at walls; knockdown checks floors and
 ceilings. Fourth-hit impact connects to the map destruction system.
+
+### Telling the uppercut from the downslam
+
+The two fourth-hit variants send a body somewhere no other hit in the combo
+does, and both used to come out looking like the same white contact ring as
+an ordinary jab. Four things now separate them, and none of them is text:
+
+| | uppercut | downslam |
+| --- | --- | --- |
+| before it lands | a ring rushing inward at his feet | a line drawn down onto the target |
+| the swing | coils into the floor, then hips, spine and arm extend upward together | both fists all the way overhead, then everything folds down through them |
+| where he ends up | leaves the ground behind it | driven down through it |
+| on contact | four rings climbing the line the body takes, a vertical arc, rubble off the floor | the floor takes it: cracks, plates, thrown rubble, a second ring running out |
+| the victim | hangs upright and arches over, trailing afterimages | goes face down, limbs trailing |
+
+That last row is the one that was doing the most damage to readability: a
+launched body and a slammed body both played the single flat-on-the-back
+tip, so from any distance the two hits ended the same way.
+
+Neither variant is a new move and neither changes what it is worth — the
+damage, the knockback and the guard rules are exactly as they were.
 
 ### The run trail is Naoya's alone
 

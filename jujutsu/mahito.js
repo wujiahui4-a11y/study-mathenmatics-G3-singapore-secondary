@@ -367,7 +367,12 @@
       });
   }
   function release(a) {
-    if (!a || !a.held) return;
+    /* This runs on every fighter's action as it ends, not just Mahito's, and
+       `held` is not a name Mahito owns: Choso's Piercing Blood parks a
+       boolean there and Nanami's thrown cleaver parks a prop handle. Either
+       one used to throw here the moment its cast ran out rather than being
+       let go of. Only a set of bodies is ours to release. */
+    if (!a || !(a.held instanceof Set)) return;
     a.held.forEach((e) => {
       e.cineHold = false;
       e.stunT = 0;
@@ -411,7 +416,6 @@
       M.remaining = Math.max(0, M.remaining - 6);
       player.iframes = Math.max(player.iframes, a.dur);
     }
-    showSplash(k.name.toUpperCase(), M.active ? 'ESSENCE OF THE SOUL' : 'IDLE TRANSFIGURATION', '#79eee0');
     sfx.raise();
     return true;
   }

@@ -1345,7 +1345,6 @@ function castRed() {
   if (player.char !== "gojo" || player.dead || cds.red > 0 || busy()) return;
   cds.red = CD.red;
   player.action = { type: "red", t: 0, dur: .85 };
-  showSplash("REVERSAL: RED", "CURSED TECHNIQUE", "#ff3344");
   sfx.raise();
   addFx({ t: .5, update(dt) {
     this.t -= dt;
@@ -1456,36 +1455,32 @@ function explodeRed(pos) {
 function castRapid() {
   if (player.char !== "gojo" || player.dead || cds.rapid > 0 || busy()) return;
   const tgt = nearestFrontEnemy(6, .3);
-  if (!tgt) { showSplash("NO TARGET", "", "#8899bb"); return; }
+  if (!tgt) return;
   cds.rapid = CD.rapid;
   player.action = { type: "rapid", t: 0, dur: 1.75, tgt, locked: false, acc: 0, fin: false };
-  showSplash("RAPID PUNCHES", "", "#9fd0ff");
   sfx.whoosh();
 }
 function castTwofold() {
   if (player.char !== "gojo" || player.dead || cds.twofold > 0 || busy()) return;
   cds.twofold = CD.twofold;
   player.action = { type: "tf", t: 0, dur: .98, tgt: null, k1: false, k2: false, miss: false };
-  showSplash("TWOFOLD KICK", "", "#bfe2ff");
   sfx.whoosh();
 }
 function castPalm() {
   if (player.char !== "gojo" || player.dead || cds.palm > 0 || busy()) return;
   const tgt = nearestFrontEnemy(4.2, .45);
-  if (!tgt) { showSplash("NO TARGET", "", "#8899bb"); return; }
+  if (!tgt) return;
   cds.palm = CD.palm;
   player.action = { type: "palm", t: 0, dur: 1.75, tgt, hits: [false, false, false], kicked: false };
-  showSplash("PALM BARRAGE", "", "#ffd27a");
   sfx.whoosh();
 }
 let shatterState = null;
 function castLimitless() {
   if (player.char !== "gojo" || player.dead || cds.limitless > 0 || busy()) return false;
   const tgt = cursorTarget();
-  if (!tgt) { showSplash("NO TARGET", "AIM AT AN ENEMY", "#8899bb"); return false; }
+  if (!tgt) return false;
   cds.limitless = CD.limitless;
   player.action = { type: "lim", t: 0, dur: 1.15, tgt, shattered: false, tp: false };
-  showSplash("LIMITLESS", "TELEPORT", "#6db9ff");
   sfx.raise();
   return true;
 }
@@ -1556,7 +1551,6 @@ function castN1() {
   if (player.char !== "naoya" || player.dead || cds.n1 > 0 || busy()) return;
   cds.n1 = CD.n1;
   player.action = { type: "n1", t: 0, dur: .8, hit: false, dashed: false, lunged: false };
-  showSplash("PROJECTION BREAKER", "", "#9fd8ff");
   sfx.whoosh();
 }
 
@@ -1565,7 +1559,6 @@ function castN2() {
   if (player.char !== "naoya" || player.dead || cds.n2 > 0 || busy()) return;
   cds.n2 = CD.n2;
   player.action = { type: "n2", t: 0, dur: .78, stabbed: false, fin: false, finN: 0, tgt: null };
-  showSplash("TANTO", "", "#dfe6f2");
   if (player.rig.tanto) player.rig.tanto.visible = true;
   sfx.whoosh();
 }
@@ -1575,7 +1568,6 @@ function castN3() {
   if (player.char !== "naoya" || player.dead || cds.n3 > 0 || busy()) return;
   cds.n3 = CD.n3;
   player.action = { type: "n3", t: 0, dur: .62, tgt: null, grabbed: false, fin: false, acc: 0, framed: false, kicked: false };
-  showSplash("YOU'RE NOT TOJI!!!", "", "#ffd27a");
   sfx.whoosh();
 }
 
@@ -1586,17 +1578,15 @@ function castNaoyaR() {
   /* frame-punch variant: aim at a framed target while special is off cooldown */
   if (tgt && tgt.frameT > 0 && cds.nr <= 0) {
     player.action = { type: "nrf", t: 0, dur: .5, tgt, hopped: false, punched: false };
-    showSplash("PROJECTION SORCERY", "FRAME BREAK", "#9fd8ff");
     sfx.raise();
     return true;
   }
   if (cds.nr > 0) return false;
   const dest = aimPoint(50);
   const isSecond = player.rWindow > 0;
-  if (isSecond && !tgt) { showSplash("NO TARGET IN SIGHT", "", "#8899bb"); return false; }
+  if (isSecond && !tgt) return false;
   player.action = { type: "nr", t: 0, dur: .55, from: player.pos.clone(), dest, hop: 0, second: isSecond };
   player.iframes = Math.max(player.iframes, .6);
-  showSplash("PROJECTION SORCERY", "24 FPS", "#9fd8ff");
   sfx.dash();
   return true;
 }
@@ -8412,7 +8402,6 @@ window.__game = {
   function start(type, dur, cdKey, cdVal, name, sub) {
     cds[cdKey] = cdVal;
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) showSplash(name, sub || '', '#8fb8ff');
     return player.action;
   }
   function handPos(side) {
@@ -11044,7 +11033,6 @@ window.__game = {
       type: 'n4', t: 0, dur: N4.lead + N4.run + N4.tail,
       n: 0, home: player.pos.clone(), dir: n4Dir(), staged: false, caught: []
     };
-    showSplash('TWENTY FOUR FRAMES', '\u4e8c\u5341\u56db\u679a', '#9fd8ff');
     try { sfx.raise(); } catch (e) {}
   }
 
@@ -11565,7 +11553,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = YCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) showSplash(name, sub || '', '#ff7f9a');
     return player.action;
   }
   function aim() {
@@ -12348,7 +12335,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = HCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) showSplash(name, sub || '', HK.fever > 0 ? '#ffd964' : '#ffcc4d');
     return player.action;
   }
   function aim() { return new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing)); }
@@ -13993,7 +13979,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = CCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#d4143c'); } catch (e) {} }
     return player.action;
   }
   function aim() {
@@ -15843,7 +15828,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = MCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#8f8fd0'); } catch (e) {} }
     return player.action;
   }
   function aim() {
@@ -17956,7 +17940,12 @@ window.__game = {
       });
   }
   function release(a) {
-    if (!a || !a.held) return;
+    /* This runs on every fighter's action as it ends, not just Mahito's, and
+       `held` is not a name Mahito owns: Choso's Piercing Blood parks a
+       boolean there and Nanami's thrown cleaver parks a prop handle. Either
+       one used to throw here the moment its cast ran out rather than being
+       let go of. Only a set of bodies is ours to release. */
+    if (!a || !(a.held instanceof Set)) return;
     a.held.forEach((e) => {
       e.cineHold = false;
       e.stunT = 0;
@@ -18000,7 +17989,6 @@ window.__game = {
       M.remaining = Math.max(0, M.remaining - 6);
       player.iframes = Math.max(player.iframes, a.dur);
     }
-    showSplash(k.name.toUpperCase(), M.active ? 'ESSENCE OF THE SOUL' : 'IDLE TRANSFIGURATION', '#79eee0');
     sfx.raise();
     return true;
   }
@@ -20640,7 +20628,6 @@ window.__game = {
       player.iframes = k.dur;
       if (T.cinematic) a.cine = T.cinematic('awake', a.origin, a.dir, null, true);
     }
-    showSplash(k.name.toUpperCase(), T.active ? '120% · BOOGIE WOOGIE' : 'AOI TODO', '#ffd59a');
     return true;
   }
   T.cast = function (slot) {
@@ -21770,7 +21757,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = JCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#d8a441'); } catch (e) {} }
     return player.action;
   }
   function aim() {
@@ -22859,7 +22845,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = YCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#8fe6ff'); } catch (e) {} }
     return player.action;
   }
   function aim() {
@@ -23675,7 +23660,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = KCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#d8c24a'); } catch (e) {} }
     return player.action;
   }
   function aim() {
@@ -24876,7 +24860,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = RCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#6fd0ff'); } catch (e) {} }
     return player.action;
   }
   function aim() {
@@ -25858,7 +25841,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = WCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#4d84a8'); } catch (e) {} }
     return player.action;
   }
   function aim() {
@@ -27069,7 +27051,6 @@ window.__game = {
     if(window.JJNAOYA&&window.JJNAOYA.busy())return false;
     cds[key]=KIT[key].cd;
     player.action={type:key,t:0,dur:KIT[key].dur,stage:0,origin:player.pos.clone(),dir:direction(player.facing),hits:[],projectiles:[]};
-    showSplash(KIT[key].name.toUpperCase(),key==='hnr'?'BLOOM • DISTRACT • ENDURE':'CURSED PLANT MANIPULATION','#91cf62');
     if(sfx.raise)sfx.raise();return true;
   }
   H.cast=cast; H.kit=KIT;
@@ -28348,7 +28329,6 @@ window.__game = {
   function begin(type, dur, key, name, sub) {
     cds[key] = CD[key];
     var a = player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#ff2a4a'); } catch (e) {} }
     /* not published here: mp.js watches player.action and announces
        every cast on its own, so a pub of our own plays it twice on
        every other screen */
@@ -29647,7 +29627,6 @@ window.__game = {
     a.dur = sw[1];
     a.stage = 0;
     cds[sw[0]] = CD[sw[0]];
-    try { showSplash(sw[2], sw[3], '#ff2a4a'); } catch (e) {}
     if (sw[0] === 's4') { player.iframes = Math.max(player.iframes, SHRINE.open); FX.letterbox(true); hud(false); }
     else player.iframes = Math.max(player.iframes, sw[0] === 's3' ? 1 : .35);
     /* the swap changes the action's type, and mp.js announces a change of
@@ -30819,7 +30798,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = FCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#ffd964'); } catch (e) {} }
     /* NOT published here: mp.js watches player.action and announces every
        cast on its own, so a pub of our own would play it twice on every
        other screen */
@@ -32646,7 +32624,6 @@ window.__game = {
   function start(type, dur, key, name, sub) {
     cds[key] = GCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#4fd8ff'); } catch (e) {} }
     return player.action;
   }
   cds.ga1 = 0; cds.ga2 = 0; cds.ga3 = 0; cds.gv1 = 0; cds.gv2 = 0; cds.gdom = 0;
@@ -44879,6 +44856,77 @@ var JJS_DATA = await (async function () {
     hitstop(heavy ? 0.045 : 0.025);
     addShake(heavy ? 0.13 : 0.045);
   }
+  /* The two fourth-hit variants are the only hits in the combo that send a
+     body somewhere the others do not, and they were reading as the same
+     white ring as every jab. Each gets a shape you can name from across the
+     arena without looking at the HUD: the uppercut runs up a vertical line,
+     the downslam spreads out along the floor. */
+  function later(ms, fn) {
+    setTimeout(function () {
+      try {
+        fn();
+      } catch (_) {}
+    }, ms);
+  }
+  function upperFX(e, color) {
+    const foot = e.pos.clone(),
+      chest = foot.clone().add(V(0, 2.8, 0));
+    JJFX.cross(chest.clone().add(V(0, 0.7, 0)), 0xffffff, 3.2, 0.22);
+    JJFX.slash(chest.clone().add(V(0, -0.5, 0)), V(0, 1, 0), 0xffffff, 5.4, 0.2);
+    JJFX.speedRing(chest, 0xffffff, 8.5, 0.3);
+    JJFX.ring(foot.clone().add(V(0, 0.12, 0)), color, { maxR: 5.4, life: 0.42 });
+    // four rings climbing the line the body takes, so the launch reads as a
+    // rise rather than as a hit that happens to move somebody
+    for (let i = 0; i < 4; i++)
+      later(i * 38, () =>
+        JJFX.ring(foot.clone().add(V(0, 1.5 + i * 2.2, 0)), color, {
+          maxR: 3.7 - i * 0.6,
+          life: 0.3,
+          ground: false
+        })
+      );
+    JJFX.debris(foot, 6, 16);
+    JJFX.dust(foot, 5, 0xd7dde8, 4, 2.4);
+    if (e.rig) JJFX.trail(e.rig, color, 4, 55, 0.45);
+    try {
+      sfx.kick();
+    } catch (_) {}
+    hitstop(0.075);
+    addShake(0.26);
+  }
+  function slamFX(e, color) {
+    const foot = e.pos.clone(),
+      chest = foot.clone().add(V(0, 2.8, 0));
+    JJFX.cross(chest, 0xffffff, 3.4, 0.22);
+    JJFX.slash(chest.clone().add(V(0, 1.2, 0)), V(0, -1, 0), 0xffffff, 5.6, 0.2);
+    JJFX.speedRing(chest.clone().add(V(0, -1.1, 0)), 0xffffff, 9, 0.28);
+    // the floor takes this one: rings out, cracks, plates and thrown rubble
+    JJFX.shockwave(foot, color, 1.2);
+    JJFX.ring(foot.clone().add(V(0, 0.12, 0)), 0xffffff, { maxR: 8, life: 0.32 });
+    JJFX.plates(foot, 5, 6);
+    later(70, () => JJFX.ring(foot.clone().add(V(0, 0.1, 0)), color, { maxR: 12, life: 0.45 }));
+    try {
+      sfx.redBoom();
+    } catch (_) {
+      try {
+        sfx.punch();
+      } catch (__) {}
+    }
+    hitstop(0.09);
+    addShake(0.34);
+  }
+  /* Before either lands, say which one is coming. The uppercut gathers at
+     the feet; the downslam draws a line down onto the target. */
+  function windupFX(a) {
+    const c = profile().color;
+    if (a.variant === 'up') {
+      JJFX.speedRing(player.pos.clone().add(V(0, 0.55, 0)), c, 5, 0.26);
+      JJFX.dust(player.pos.clone(), 4, 0xd7dde8, 2.4, 1.5);
+    } else {
+      JJFX.slash(player.pos.clone().add(V(0, 3.6, 0)), V(0, -1, 0), c, 3.4, 0.24);
+      JJFX.speedRing(player.pos.clone().add(V(0, 3.2, 0)), c, 5.5, 0.26);
+    }
+  }
   function dashFX(pos, d) {
     JJFX.dust(pos.clone(), 3, 0xbec4c7, 3.5, 1.1);
     JJFX.slash(
@@ -44935,7 +44983,10 @@ var JJS_DATA = await (async function () {
         spark: p.color
       });
       if (e.hp < hp || (e.net && !blocked(e, meta))) a.contact = true;
-      if (!blocked(e, meta)) impact(e.pos.clone().add(V(0, 2.8, 0)), a.dir, p.color, last);
+      if (blocked(e, meta)) continue;
+      if (last && a.variant === 'up') upperFX(e, p.color);
+      else if (last && a.variant === 'down') slamFX(e, p.color);
+      else impact(e.pos.clone().add(V(0, 2.8, 0)), a.dir, p.color, last);
     }
   }
   function sweepMove(actor, offset) {
@@ -45113,6 +45164,23 @@ var JJS_DATA = await (async function () {
     }
     if (a.type === 'bc_m1') {
       if (a.t < a.start) a.dir.copy(dir(player.facing));
+      if (a.n === 3 && a.variant !== 'normal') {
+        if (!a.cue) {
+          a.cue = true;
+          windupFX(a);
+        }
+        // The swing carries the body with it: he leaves the floor behind the
+        // uppercut and drops with the slam, whether or not either connects.
+        if (a.t >= a.start && !a.drive) {
+          a.drive = true;
+          if (a.variant === 'up') {
+            player.vel.y = Math.max(player.vel.y, 9.5);
+            player.onGround = false;
+          } else {
+            player.vel.y = Math.min(player.vel.y, -32);
+          }
+        }
+      }
       if (a.t >= a.start && a.t - dt <= a.start + a.active) strike(a);
       if (a.n === 3 && a.t >= a.start + a.active && !a.checked) {
         a.checked = true;
@@ -45470,24 +45538,34 @@ var JJS_DATA = await (async function () {
     if (a.type === 'bc_fall') {
       const rise = a.stage === 2 ? ease(t / 0.38) : 0,
         tip = a.stage === 0 ? ease(t / 0.24) : 1;
+      /* A body thrown straight up and a body driven straight into the floor
+         do not travel the same way, and both used to play the one
+         flat-on-the-back tip — which is most of why the two fourth hits
+         looked alike from the outside. The launched one hangs upright and
+         arches over; the slammed one goes face down with its limbs trailing.
+         `blend` keeps either shape out of the getup. */
+      const blend = tip * (1 - rise),
+        sky = a.variant === 'up' ? blend : 0,
+        face = a.variant === 'down' ? blend : 0,
+        lay = a.variant === 'up' ? -1.75 : a.variant === 'down' ? 1.2 : -1.4;
       r.hips.position.y = lerp(r.hipsBaseY, 0.85, tip * (1 - rise));
-      r.hips.rotation.set(-1.4 * tip * (1 - rise), 0, 0.13 * a.side * (1 - rise));
-      r.spine.rotation.x = 0.25 * (1 - rise);
+      r.hips.rotation.set(lay * tip * (1 - rise), 0, 0.13 * a.side * (1 - rise));
+      r.spine.rotation.x = 0.25 * (1 - rise) - 0.45 * sky + 0.35 * face;
       for (const [s, n] of [
         ['L', 0],
         ['R', 1]
       ]) {
         const wave = a.stage === 0 ? Math.sin(t * 11 + n * 2) * 0.26 : 0;
         r['shoulder' + s].rotation.set(
-          -0.4 + wave,
+          -0.4 + wave - 1.35 * sky + 1.15 * face,
           0,
           (s === 'L' ? -1 : 1) * (0.55 + 0.15 * tip) * (1 - rise)
         );
-        r['elbow' + s].rotation.x = -0.65;
-        r['hip' + s].rotation.x = (-0.3 + wave) * (1 - rise);
-        r['knee' + s].rotation.x = (0.65 + wave) * (1 - rise);
+        r['elbow' + s].rotation.x = -0.65 + 0.45 * sky;
+        r['hip' + s].rotation.x = (-0.3 + wave) * (1 - rise) + 0.7 * sky - 0.35 * face;
+        r['knee' + s].rotation.x = (0.65 + wave) * (1 - rise) + 0.45 * sky;
       }
-      r.neck.rotation.x = 0.2 * (1 - rise);
+      r.neck.rotation.x = 0.2 * (1 - rise) - 0.4 * sky + 0.45 * face;
       return;
     }
     if (a.type === 'bc_dash') {
@@ -45553,19 +45631,37 @@ var JJS_DATA = await (async function () {
     }
     if (a.n === 3) {
       if (a.variant === 'up') {
-        r.hips.position.y -= 0.3 * wind;
-        r.spine.rotation.x = 0.18 * wind - 0.24 * extension;
-        r.shoulderR.rotation.set(lerp(0.3, -2.55, extension), 0, 0.15);
-        r.elbowR.rotation.x = lerp(-1.6, -0.4, extension);
-        r.hipR.rotation.x = -0.4 * extension;
+        /* Coil into the floor, then send the whole body up behind the fist:
+           hips drop and rise, the spine arches back, the arm finishes past
+           vertical and the rear leg drives. The old version only swung an
+           arm, which is why it read as an ordinary fourth punch. */
+        r.hips.position.y += -0.54 * wind + 0.4 * extension;
+        r.hips.rotation.y = 0.26 * wind - 0.3 * extension;
+        r.spine.rotation.set(0.38 * wind - 0.5 * extension, 0.22 * wind - 0.24 * extension, 0);
+        r.neck.rotation.set(-0.12 - 0.34 * extension, 0, 0);
+        r.shoulderR.rotation.set(lerp(0.6, -2.95, extension), 0, 0.12 + 0.26 * extension);
+        r.elbowR.rotation.x = lerp(-1.95, -0.04, extension);
+        r.shoulderL.rotation.set(lerp(-0.25, 1, extension), 0, -0.38);
+        r.elbowL.rotation.x = -1.3;
+        r.hipR.rotation.x = 0.55 * wind - 0.8 * extension;
+        r.kneeR.rotation.x = 1.2 * wind + 0.12 * extension;
+        r.hipL.rotation.x = 0.4 * wind - 0.14 * extension;
+        r.kneeL.rotation.x = 1.3 * wind + 0.3 * extension;
       } else if (a.variant === 'down') {
-        r.spine.rotation.x = -0.45 * extension;
-        r.shoulderL.rotation.set(lerp(-2.6, -0.8, extension), 0, 0.1);
-        r.shoulderR.rotation.set(lerp(-2.6, -0.8, extension), 0, -0.1);
-        r.elbowL.rotation.x = r.elbowR.rotation.x = lerp(-0.55, -0.1, extension);
-        r.hipL.rotation.x = -0.85;
-        r.kneeL.rotation.x = 1.1;
-        r.kneeR.rotation.x = 0.55;
+        /* Both fists all the way overhead, then everything folds down
+           through them — hips fall, spine pikes forward, knees tuck for the
+           landing. The arms used to travel about a third of that. */
+        r.hips.position.y += 0.34 * wind - 0.36 * extension;
+        r.hips.rotation.y = 0;
+        r.spine.rotation.set(-0.58 * wind + 0.76 * extension, 0, 0);
+        r.neck.rotation.set(0.2 * wind + 0.36 * extension, 0, 0);
+        r.shoulderL.rotation.set(lerp(-2.95, 0.55, extension), 0, 0.24);
+        r.shoulderR.rotation.set(lerp(-2.95, 0.55, extension), 0, -0.24);
+        r.elbowL.rotation.x = r.elbowR.rotation.x = lerp(-0.72, -0.04, extension);
+        r.hipL.rotation.x = -1.15 + 0.38 * extension;
+        r.hipR.rotation.x = -0.6 + 0.22 * extension;
+        r.kneeL.rotation.x = 1.5 - 0.32 * extension;
+        r.kneeR.rotation.x = 0.95 - 0.22 * extension;
       } else {
         r.spine.rotation.y = 0.75 * (wind * 0.4 - extension);
         r.shoulderR.rotation.set(lerp(0.55, -1.75, extension), 0, 0.24);

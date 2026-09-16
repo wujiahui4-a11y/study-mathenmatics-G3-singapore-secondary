@@ -196,7 +196,6 @@
   function start(type, dur, key, name, sub) {
     cds[key] = RCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#6fd0ff'); } catch (e) {} }
     return player.action;
   }
   function aim() {

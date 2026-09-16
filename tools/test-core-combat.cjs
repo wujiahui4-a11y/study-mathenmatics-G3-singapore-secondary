@@ -84,6 +84,42 @@ async function naoya(page) {
       'Naoya dash must match the original trajectory, charges, cooldown and invincibility'
     );
     const report = { naoya: 'Exact match: six directions and double dash' };
+    /* This is a fighting game, so pressing a skill is not allowed to put a
+       name card on the screen. Drive every slot of every fighter and watch
+       the splash element itself: it is the only thing showSplash touches,
+       so a card from anywhere in a kit shows up here. */
+    report.quiet = await page.evaluate(() => {
+      const el = document.getElementById('splash'),
+        said = [];
+      for (const id of Object.keys(__fight.CHARS)) {
+        for (let slot = 0; slot < 5; slot++) {
+          // Drop the previous cast before switching fighter: no player ever
+          // changes character mid-action, and the per-kit cleanups that
+          // reset() runs read the live action as their own.
+          __fight.player.action = null;
+          __fight.reset(id);
+          __fight.target();
+          el.querySelector('.big').textContent = '';
+          el.querySelector('.small').textContent = '';
+          el.style.opacity = 0;
+          // Gojo is the one kit with no cast table; his slots are bound to
+          // the window the same way a player's keyboard reaches them.
+          const kit = window.JJCHARCAST?.[id];
+          if (kit?.cast) kit.cast[slot]?.();
+          else
+            window.dispatchEvent(
+              new KeyboardEvent('keydown', { code: slot === 4 ? 'KeyR' : 'Digit' + (slot + 1) })
+            );
+          __fight.tick(6);
+          const big = el.querySelector('.big').textContent,
+            small = el.querySelector('.small').textContent;
+          if (Number(el.style.opacity) > 0 || big || small) said.push(id + ':' + slot + ' ' + big + '/' + small);
+        }
+      }
+      return { said, chars: Object.keys(__fight.CHARS).length };
+    });
+    assert.ok(report.quiet.chars >= 14);
+    assert.deepEqual(report.quiet.said, [], 'no skill in any kit prints a word on cast');
     report.roster = await page.evaluate(() =>
       Object.keys(__fight.CHARS).map((id) => {
         __fight.reset(id);
@@ -200,14 +236,34 @@ async function naoya(page) {
         __fight.keys.Space = variant === 'up';
         __fight.punch();
         const kind = __fight.player.action.variant;
-        __fight.tick(14);
-        result[variant] = { kind, damage: 1000 - e.hp, vy: e.vel.y, down: !!e.bcFall, guard: e.blocking };
+        // The swing carries the attacker too, so sample his own vertical
+        // speed on the frame the hit lands rather than after he has fallen.
+        let self = 0;
+        for (let i = 0; i < 14; i++) {
+          __fight.tick();
+          if (__fight.player.action?.drive && !self) self = __fight.player.vel.y;
+        }
+        result[variant] = {
+          kind,
+          damage: 1000 - e.hp,
+          vy: e.vel.y,
+          self,
+          fall: e.bcFall?.variant || null,
+          down: !!e.bcFall,
+          guard: e.blocking
+        };
         __fight.keys.Space = false;
       }
       return result;
     });
     assert.equal(report.variants.up.kind, 'up');
     assert.ok(report.variants.up.vy > 15);
+    // Each variant now moves the attacker and lays the victim out its own
+    // way; both used to play the one flat-on-the-back fall.
+    assert.ok(report.variants.up.self > 8, 'the uppercut leaves the floor');
+    assert.ok(report.variants.down.self < -25, 'the downslam drives through it');
+    assert.equal(report.variants.up.fall, 'up');
+    assert.equal(report.variants.down.fall, 'down');
     assert.equal(report.variants.down.kind, 'down');
     assert.equal(report.variants.down.damage, 3);
     assert.ok(report.variants.down.down && !report.variants.down.guard);

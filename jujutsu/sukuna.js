@@ -354,7 +354,6 @@
   function begin(type, dur, key, name, sub) {
     cds[key] = CD[key];
     var a = player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#ff2a4a'); } catch (e) {} }
     /* not published here: mp.js watches player.action and announces
        every cast on its own, so a pub of our own plays it twice on
        every other screen */
@@ -1653,7 +1652,6 @@
     a.dur = sw[1];
     a.stage = 0;
     cds[sw[0]] = CD[sw[0]];
-    try { showSplash(sw[2], sw[3], '#ff2a4a'); } catch (e) {}
     if (sw[0] === 's4') { player.iframes = Math.max(player.iframes, SHRINE.open); FX.letterbox(true); hud(false); }
     else player.iframes = Math.max(player.iframes, sw[0] === 's3' ? 1 : .35);
     /* the swap changes the action's type, and mp.js announces a change of

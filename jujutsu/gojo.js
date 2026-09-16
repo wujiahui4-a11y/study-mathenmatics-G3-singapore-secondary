@@ -885,7 +885,6 @@
   function start(type, dur, cdKey, cdVal, name, sub) {
     cds[cdKey] = cdVal;
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) showSplash(name, sub || '', '#8fb8ff');
     return player.action;
   }
   function handPos(side) {

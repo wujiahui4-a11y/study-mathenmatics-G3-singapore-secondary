@@ -178,7 +178,6 @@
   function start(type, dur, key, name, sub) {
     cds[key] = JCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#d8a441'); } catch (e) {} }
     return player.action;
   }
   function aim() {

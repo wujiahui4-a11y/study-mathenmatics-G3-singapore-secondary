@@ -1947,7 +1947,6 @@
       type: 'n4', t: 0, dur: N4.lead + N4.run + N4.tail,
       n: 0, home: player.pos.clone(), dir: n4Dir(), staged: false, caught: []
     };
-    showSplash('TWENTY FOUR FRAMES', '\u4e8c\u5341\u56db\u679a', '#9fd8ff');
     try { sfx.raise(); } catch (e) {}
   }
 

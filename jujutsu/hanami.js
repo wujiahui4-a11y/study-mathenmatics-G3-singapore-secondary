@@ -473,7 +473,6 @@
     if(window.JJNAOYA&&window.JJNAOYA.busy())return false;
     cds[key]=KIT[key].cd;
     player.action={type:key,t:0,dur:KIT[key].dur,stage:0,origin:player.pos.clone(),dir:direction(player.facing),hits:[],projectiles:[]};
-    showSplash(KIT[key].name.toUpperCase(),key==='hnr'?'BLOOM • DISTRACT • ENDURE':'CURSED PLANT MANIPULATION','#91cf62');
     if(sfx.raise)sfx.raise();return true;
   }
   H.cast=cast; H.kit=KIT;

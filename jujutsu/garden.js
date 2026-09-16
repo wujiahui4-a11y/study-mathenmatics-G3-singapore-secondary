@@ -69,7 +69,6 @@
   function start(type, dur, key, name, sub) {
     cds[key] = GCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#4fd8ff'); } catch (e) {} }
     return player.action;
   }
   cds.ga1 = 0; cds.ga2 = 0; cds.ga3 = 0; cds.gv1 = 0; cds.gv2 = 0; cds.gdom = 0;

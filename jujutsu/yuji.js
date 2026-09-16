@@ -116,7 +116,6 @@
   function start(type, dur, key, name, sub) {
     cds[key] = YCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) showSplash(name, sub || '', '#ff7f9a');
     return player.action;
   }
   function aim() {

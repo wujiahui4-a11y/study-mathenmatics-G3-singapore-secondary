@@ -1781,7 +1781,6 @@ function castRed() {
   if (player.char !== "gojo" || player.dead || cds.red > 0 || busy()) return;
   cds.red = CD.red;
   player.action = { type: "red", t: 0, dur: .85 };
-  showSplash("REVERSAL: RED", "CURSED TECHNIQUE", "#ff3344");
   sfx.raise();
   addFx({ t: .5, update(dt) {
     this.t -= dt;
@@ -1892,36 +1891,32 @@ function explodeRed(pos) {
 function castRapid() {
   if (player.char !== "gojo" || player.dead || cds.rapid > 0 || busy()) return;
   const tgt = nearestFrontEnemy(6, .3);
-  if (!tgt) { showSplash("NO TARGET", "", "#8899bb"); return; }
+  if (!tgt) return;
   cds.rapid = CD.rapid;
   player.action = { type: "rapid", t: 0, dur: 1.75, tgt, locked: false, acc: 0, fin: false };
-  showSplash("RAPID PUNCHES", "", "#9fd0ff");
   sfx.whoosh();
 }
 function castTwofold() {
   if (player.char !== "gojo" || player.dead || cds.twofold > 0 || busy()) return;
   cds.twofold = CD.twofold;
   player.action = { type: "tf", t: 0, dur: .98, tgt: null, k1: false, k2: false, miss: false };
-  showSplash("TWOFOLD KICK", "", "#bfe2ff");
   sfx.whoosh();
 }
 function castPalm() {
   if (player.char !== "gojo" || player.dead || cds.palm > 0 || busy()) return;
   const tgt = nearestFrontEnemy(4.2, .45);
-  if (!tgt) { showSplash("NO TARGET", "", "#8899bb"); return; }
+  if (!tgt) return;
   cds.palm = CD.palm;
   player.action = { type: "palm", t: 0, dur: 1.75, tgt, hits: [false, false, false], kicked: false };
-  showSplash("PALM BARRAGE", "", "#ffd27a");
   sfx.whoosh();
 }
 let shatterState = null;
 function castLimitless() {
   if (player.char !== "gojo" || player.dead || cds.limitless > 0 || busy()) return false;
   const tgt = cursorTarget();
-  if (!tgt) { showSplash("NO TARGET", "AIM AT AN ENEMY", "#8899bb"); return false; }
+  if (!tgt) return false;
   cds.limitless = CD.limitless;
   player.action = { type: "lim", t: 0, dur: 1.15, tgt, shattered: false, tp: false };
-  showSplash("LIMITLESS", "TELEPORT", "#6db9ff");
   sfx.raise();
   return true;
 }
@@ -1992,7 +1987,6 @@ function castN1() {
   if (player.char !== "naoya" || player.dead || cds.n1 > 0 || busy()) return;
   cds.n1 = CD.n1;
   player.action = { type: "n1", t: 0, dur: .8, hit: false, dashed: false, lunged: false };
-  showSplash("PROJECTION BREAKER", "", "#9fd8ff");
   sfx.whoosh();
 }
 
@@ -2001,7 +1995,6 @@ function castN2() {
   if (player.char !== "naoya" || player.dead || cds.n2 > 0 || busy()) return;
   cds.n2 = CD.n2;
   player.action = { type: "n2", t: 0, dur: .78, stabbed: false, fin: false, finN: 0, tgt: null };
-  showSplash("TANTO", "", "#dfe6f2");
   if (player.rig.tanto) player.rig.tanto.visible = true;
   sfx.whoosh();
 }
@@ -2011,7 +2004,6 @@ function castN3() {
   if (player.char !== "naoya" || player.dead || cds.n3 > 0 || busy()) return;
   cds.n3 = CD.n3;
   player.action = { type: "n3", t: 0, dur: .62, tgt: null, grabbed: false, fin: false, acc: 0, framed: false, kicked: false };
-  showSplash("YOU'RE NOT TOJI!!!", "", "#ffd27a");
   sfx.whoosh();
 }
 
@@ -2022,17 +2014,15 @@ function castNaoyaR() {
   /* frame-punch variant: aim at a framed target while special is off cooldown */
   if (tgt && tgt.frameT > 0 && cds.nr <= 0) {
     player.action = { type: "nrf", t: 0, dur: .5, tgt, hopped: false, punched: false };
-    showSplash("PROJECTION SORCERY", "FRAME BREAK", "#9fd8ff");
     sfx.raise();
     return true;
   }
   if (cds.nr > 0) return false;
   const dest = aimPoint(50);
   const isSecond = player.rWindow > 0;
-  if (isSecond && !tgt) { showSplash("NO TARGET IN SIGHT", "", "#8899bb"); return false; }
+  if (isSecond && !tgt) return false;
   player.action = { type: "nr", t: 0, dur: .55, from: player.pos.clone(), dest, hop: 0, second: isSecond };
   player.iframes = Math.max(player.iframes, .6);
-  showSplash("PROJECTION SORCERY", "24 FPS", "#9fd8ff");
   sfx.dash();
   return true;
 }

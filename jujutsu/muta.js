@@ -158,7 +158,6 @@
   function start(type, dur, key, name, sub) {
     cds[key] = KCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#d8c24a'); } catch (e) {} }
     return player.action;
   }
   function aim() {

@@ -118,7 +118,6 @@
   function start(type, dur, key, name, sub) {
     cds[key] = HCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) showSplash(name, sub || '', HK.fever > 0 ? '#ffd964' : '#ffcc4d');
     return player.action;
   }
   function aim() { return new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing)); }

@@ -287,7 +287,6 @@
       player.iframes = k.dur;
       if (T.cinematic) a.cine = T.cinematic('awake', a.origin, a.dir, null, true);
     }
-    showSplash(k.name.toUpperCase(), T.active ? '120% · BOOGIE WOOGIE' : 'AOI TODO', '#ffd59a');
     return true;
   }
   T.cast = function (slot) {

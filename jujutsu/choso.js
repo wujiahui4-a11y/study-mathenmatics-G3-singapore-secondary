@@ -204,7 +204,6 @@
   function start(type, dur, key, name, sub) {
     cds[key] = CCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#d4143c'); } catch (e) {} }
     return player.action;
   }
   function aim() {

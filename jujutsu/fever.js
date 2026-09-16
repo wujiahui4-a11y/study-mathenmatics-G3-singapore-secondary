@@ -39,7 +39,6 @@
   function start(type, dur, key, name, sub) {
     cds[key] = FCD[key];
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
-    if (name) { try { showSplash(name, sub || '', '#ffd964'); } catch (e) {} }
     /* NOT published here: mp.js watches player.action and announces every
        cast on its own, so a pub of our own would play it twice on every
        other screen */
