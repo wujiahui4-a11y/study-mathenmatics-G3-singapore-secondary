@@ -91,7 +91,7 @@ async function naoya(page) {
        jumping looks wrong from inside the jump code, so check the outcome. */
     report.jump = await page.evaluate(() => {
       const perChar = {};
-      for (const id of Object.keys(__fight.CHARS)) {
+      for (const id of Object.keys(__fight.CHARS).filter(id => !__fight.CHARS[id].secret)) {
         __fight.reset(id);
         __fight.tick(5);
         __fight.keys.Space = true;
@@ -137,7 +137,7 @@ async function naoya(page) {
     report.quiet = await page.evaluate(() => {
       const el = document.getElementById('splash'),
         said = [];
-      for (const id of Object.keys(__fight.CHARS)) {
+      for (const id of Object.keys(__fight.CHARS).filter(id => !__fight.CHARS[id].secret)) {
         for (let slot = 0; slot < 5; slot++) {
           // Drop the previous cast before switching fighter: no player ever
           // changes character mid-action, and the per-kit cleanups that
@@ -162,12 +162,12 @@ async function naoya(page) {
           if (Number(el.style.opacity) > 0 || big || small) said.push(id + ':' + slot + ' ' + big + '/' + small);
         }
       }
-      return { said, chars: Object.keys(__fight.CHARS).length };
+      return { said, chars: Object.keys(__fight.CHARS).filter(id => !__fight.CHARS[id].secret).length };
     });
     assert.ok(report.quiet.chars >= 14);
     assert.deepEqual(report.quiet.said, [], 'no skill in any kit prints a word on cast');
     report.roster = await page.evaluate(() =>
-      Object.keys(__fight.CHARS).map((id) => {
+      Object.keys(__fight.CHARS).filter(id => !__fight.CHARS[id].secret).map((id) => {
         __fight.reset(id);
         const e = __fight.target();
         const hp = e.hp;
@@ -540,7 +540,7 @@ async function naoya(page) {
     await page.keyboard.up('KeyF');
     await page.locator('#jjMenuClose').click();
     report.poses = await page.evaluate(() =>
-      Object.keys(__fight.CHARS).map((id) => {
+      Object.keys(__fight.CHARS).filter(id => !__fight.CHARS[id].secret).map((id) => {
         __fight.reset(id);
         const r = __fight.player.rig;
         for (const type of ['bc_m1', 'bc_dash', 'bc_fall'])

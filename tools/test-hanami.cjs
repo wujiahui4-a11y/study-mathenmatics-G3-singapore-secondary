@@ -59,7 +59,7 @@ async function main(){
     }}
     async function reset(){await simulate(5);await page.evaluate(()=>{__ht.reset();__ht.swap('hanami');__ht.frame(.01);});}
     await page.evaluate(()=>{__ht.reset();__ht.swap('hanami');__ht.frame(.01);});
-    const roster=await page.evaluate(()=>({count:Object.keys(__ht.CHARS).length,keys:__ht.CHARS.hanami.moves.map(m=>m.key),portrait:__ht.CHARS.hanami.portrait.length}));
+    const roster=await page.evaluate(()=>({count:Object.keys(__ht.CHARS).filter(id=>!__ht.CHARS[id].secret).length,keys:__ht.CHARS.hanami.moves.map(m=>m.key),portrait:__ht.CHARS.hanami.portrait.length}));
     assert.equal(roster.count,14);assert.deepEqual(roster.keys,['LMB','Q','1','2','3','4','R']);assert.ok(roster.portrait>100);
     report.roster=roster;
     const voxel=await page.evaluate(()=>{

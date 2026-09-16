@@ -3265,29 +3265,34 @@ if (clHead) {
     }
   });
 }
+function charAvailable(id) {
+  const c = CHARS[id];
+  return !!c && (!c.secret || !!c.isUnlocked?.());
+}
 function buildCharList() {
+  const visibleChars = Object.keys(CHARS).filter(charAvailable);
   clBody.innerHTML = "";
-  for (const id of Object.keys(CHARS)) {
+  for (const id of visibleChars) {
     const c = CHARS[id];
     const item = document.createElement("div");
     item.className = "charItem" + (player.char === id ? " active" : "");
     item.dataset.char = id;
-    item.innerHTML = `<img alt="${c.name}"><div><div class="cname">${c.name.split(" ")[0]}</div><div class="ctech">${c.sub.split("\u2014")[1] ?? ""}</div></div>`;
+    item.innerHTML = `<img alt="${c.name}"><div><div class="cname">${c.shortName || c.name.split(" ")[0]}</div><div class="ctech">${c.sub.split("\u2014")[1] ?? ""}</div></div>`;
     item.querySelector("img").src = c.portrait || "";
     item.addEventListener("click", () => switchChar(id));
     clBody.appendChild(item);
   }
   const count = clHead && clHead.querySelector(".clCount");
-  if (count) count.textContent = Object.keys(CHARS).length;
+  if (count) count.textContent = visibleChars.length;
   if (menuRoster) {
     menuRoster.innerHTML = "";
-    for (const id of Object.keys(CHARS)) {
+    for (const id of visibleChars) {
       const c = CHARS[id];
       const card = document.createElement("button");
       card.type = "button";
       card.className = "roster-card" + (player.char === id ? " active" : "");
       card.dataset.char = id;
-      card.innerHTML = `<img alt="${c.name}"><span class="rn">${c.name.split(" ")[0]}</span>`;
+      card.innerHTML = `<img alt="${c.name}"><span class="rn">${c.shortName || c.name.split(" ")[0]}</span>`;
       card.querySelector("img").src = c.portrait || "";
       card.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -3329,7 +3334,7 @@ const projWrap = document.getElementById("projWrap");
 const projFill = document.getElementById("projFill");
 
 function switchChar(id, quiet) {
-  if (!CHARS[id] || id === player.char) return;
+  if (!charAvailable(id) || id === player.char) return;
   const p = player;
   unframePlayer(false);
   p.action = null;

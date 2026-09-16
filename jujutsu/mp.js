@@ -699,6 +699,7 @@
       g.e.rig.root.visible = !m.d || !!g.e.rag;
       g.remoteFramed = !!m.f;
       /* animation state, replayed on their rig exactly as they see it */
+      g.tsundere = Number.isFinite(m.ts) ? Math.max(0, Math.min(100, m.ts)) : 0;
       g.speed = (m.sp || 0) / 10;
       g.onGround = m.og !== 0;
       g.vy = (m.vv || 0) / 10;
@@ -1437,6 +1438,7 @@
       mvx:Math.round(player.vel.x*100),mvz:Math.round(player.vel.z*100),
       pside:player.action && /^pk_/.test(player.action.type) ? player.action.side||0 : 0,
       bcPose:window.JJFIGHT && player.action && /^bc_/.test(player.action.type)?JJFIGHT.pack(player.action):null,
+      ts: player.char === 'animegirl' && window.JJANIMEGIRL ? Math.round(JJANIMEGIRL.charge) : 0,
       at: player.attackT > 0 ? (player.attackArm + 1) : 0,
       /* the awakening is not an action, but the other screens still have to
          play the poses, so it travels as one */
@@ -1955,8 +1957,11 @@
         else if (near) addShake(.5);
         break;
 
-      /* Hanami replays the same growth timeline and geometry on every
-         screen. Damage is delivered only by the separate hit packet. */
+      /* These kits share their authored visual timelines across peers.
+         Damage is delivered only by the separate hit packet. */
+      case 'ag1': case 'ag2': case 'ag3': case 'ag4': case 'agr':
+        if (window.JJANIMEGIRL?.remote[kind]) JJANIMEGIRL.remote[kind](pos.clone(), yaw, f);
+        break;
       case 'hn1': case 'hn2': case 'hn3': case 'hn4': case 'hnr':
         if (window.JJHANAMI && window.JJHANAMI.remote[kind]) {
           window.JJHANAMI.remote[kind](pos.clone(), yaw, f);

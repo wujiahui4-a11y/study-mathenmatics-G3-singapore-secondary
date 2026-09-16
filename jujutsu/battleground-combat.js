@@ -25,6 +25,7 @@
     muta: { stance: 0.26, twist: 0.32, color: 0xe1e8ea },
     ryu: { stance: 0.4, twist: 0.58, color: 0xf0dcff },
     nanami: { stance: 0.18, twist: 0.4, weapon: true, color: 0xf7e7bb },
+    animegirl: { stance: 0.22, twist: 0.6, pace: 0.94, color: 0xffffff },
     hanami: { stance: 0.5, twist: 0.6, pace: 1.07, color: 0xe2eccb }
   };
   const D = {

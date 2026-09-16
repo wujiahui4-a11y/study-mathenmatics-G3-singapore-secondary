@@ -305,7 +305,7 @@
       enemies.splice(i, 1);
     }
     if (!options.remote) {
-      const ids = Object.keys(CHARS);
+      const ids = Object.keys(CHARS).filter(id => !CHARS[id].secret);
       for (let i = ids.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
         [ids[i], ids[j]] = [ids[j], ids[i]];
