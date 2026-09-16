@@ -2896,6 +2896,7 @@ addEventListener('keydown', e => {
     return;
   }
   if (!gameInputActive() || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (window.JJDOMAINCLASH && JJDOMAINCLASH.input(e)) return;
   if (window.JJFIGHT && JJFIGHT.input(e)) return;
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
     if (!e.repeat) toggleShiftLock();

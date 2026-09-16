@@ -94,7 +94,8 @@
   function mark(ent, style) { if (ent) ent.__death = { s: style, t: now() }; }
   function styleOf(ent) {
     var d = ent && ent.__death;
-    if (!d || now() - d.t > 3) return null;
+    // An explicit intact-body death bypasses special effects and keeps momentum.
+    if (!d || d.s === 'ragdoll' || now() - d.t > 3) return null;
     return d.s;
   }
   GORE.mark = mark;

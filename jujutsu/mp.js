@@ -632,6 +632,7 @@
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (window.JJDOMAINCLASH && JJDOMAINCLASH.receive(m)) return;
     if (window.JJIWORLD && JJIWORLD.receive(m)) return;
     if (window.JJTRAIN && JJTRAIN.receive(m)) return;
     if (window.JJAISERVER && JJAISERVER.receive(m)) return;

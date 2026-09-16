@@ -40,7 +40,16 @@
       m.name = name; m.position.set(...p); m.castShadow = true; parent.add(m); return m;
     }
     const ink = 0x252525, hair = 0x363636, lightHair = 0x505050, gray = 0xbcbcbc;
-    box(r.hips, 'Charcoal trousers / waist', [0,.35,0], [1,.7,.6], ink);
+    box(r.hips, 'Skirt waistband', [0,.35,0], [1,.7,.6], ink);
+    r.agSkirt = [];
+    // Overlapping opaque pleats form a knee-length skirt around the hips.
+    for (let i=0;i<12;i++) {
+      const a=i/12*Math.PI*2, panel=new THREE.Group();
+      panel.rotation.y=a;panel.position.set(Math.sin(a)*.48,.28,Math.cos(a)*.34);r.hips.add(panel);
+      const pleat=box(panel,'Charcoal skirt pleat',[0,-.62,.1],[.44,1.42,.14],i%2?ink:0x3c3c3c);
+      pleat.rotation.x=-.2; r.agSkirt.push(panel);
+      box(panel,'White skirt hem',[0,-1.27,.24],[.44,.1,.15],WHITE);
+    }
     box(r.spine, 'White long sleeve jacket', [0,.52,0], [1.28,1.1,.68], WHITE);
     box(r.spine, 'Jacket hem', [0,0,.01], [1.34,.18,.72], gray);
     for (const s of [-1,1]) {
@@ -59,9 +68,15 @@
     }
     r.agTails = [];
     for (const s of [-1,1]) {
-      box(r.head, 'Eye white', [s*.22,.53,.445], [.23,.2,.035], WHITE);
-      box(r.head, 'Gray iris', [s*.22,.52,.47], [.1,.15,.035], ink);
-      box(r.head, 'Eye glint', [s*.22-.02,.56,.493], [.035,.035,.015], WHITE);
+      box(r.head, 'Almond eye white', [s*.225,.53,.451], [.28,.22,.035], WHITE);
+      box(r.head, 'Eye inner corner', [s*.105,.52,.452], [.045,.12,.034], WHITE);
+      box(r.head, 'Upper eyelash', [s*.225,.65,.47], [.3,.045,.04], ink);
+      const lash=box(r.head,'Outer eyelash',[s*.385,.655,.47],[.09,.035,.04],ink);lash.rotation.z=s*.3;
+      box(r.head, 'Iris outline', [s*.225,.535,.476], [.15,.205,.026], ink);
+      box(r.head, 'Silver iris', [s*.225,.525,.494], [.115,.15,.024], 0x8c9ba3);
+      box(r.head, 'Eye pupil', [s*.225,.55,.51], [.065,.115,.02], ink);
+      box(r.head, 'Eye upper glint', [s*.225-.035,.593,.529], [.05,.045,.013], WHITE);
+      box(r.head, 'Eye lower glint', [s*.225+.03,.477,.524], [.026,.026,.012], WHITE);
       const brow = box(r.head, 'Determined brow', [s*.22,.68,.47], [.27,.055,.05], ink); brow.rotation.z=s*.14;
       const tail = new THREE.Group(); tail.position.set(s*.56,.75,-.12); r.head.add(tail);
       box(tail, 'White hair tie', [s*.05,0,0], [.25,.22,.3], WHITE);
@@ -72,8 +87,8 @@
       box(r['elbow'+side], 'Jacket lower sleeve', [0,-.42,0], [.4,.84,.4], WHITE);
       box(r['elbow'+side], 'Gray cuff', [0,-.83,0], [.42,.13,.42], gray);
       box(r['elbow'+side], 'Hand', [0,-1.02,.02], [.34,.26,.3], cfg.skin);
-      box(r['hip'+side], 'Trouser leg', [0,-.59,0], [.5,1.18,.52], ink);
-      box(r['knee'+side], 'Trouser lower leg', [0,-.55,0], [.44,1.1,.46], ink);
+      box(r['hip'+side], 'Opaque tights upper', [0,-.59,0], [.36,1.18,.4], ink);
+      box(r['knee'+side], 'Opaque tights lower', [0,-.55,0], [.32,1.1,.36], ink);
       box(r['ankle'+side], 'White sneaker', [0,-.11,.14], [.48,.24,.8], WHITE);
       box(r['ankle'+side], 'Sneaker sole', [0,-.24,.14], [.5,.08,.82], gray);
     }
@@ -133,7 +148,13 @@
   function shoutAudio() {
     // Browser voice is optional; the visual shout and synthesized whoosh always play.
     sfx.whoosh();
-    try {if(window.speechSynthesis&&!speechSynthesis.speaking){const u=new SpeechSynthesisUtterance('Baka!');u.lang='ja-JP';u.rate=1.2;u.pitch=1.4;u.volume=.65;speechSynthesis.speak(u);}} catch (_) {}
+    // Bright, short formants add bite without increasing peak volume.
+    if(typeof tone==='function'){
+      tone(1450,.14,'sine',.035,600);
+      tone(1750,.24,'triangle',.025,450,.11);
+    }
+    if(typeof noiseBurst==='function')noiseBurst(.16,.025,2200,'bandpass');
+    try {if(window.speechSynthesis&&!speechSynthesis.speaking){const u=new SpeechSynthesisUtterance('Baka!');u.lang='ja-JP';u.rate=1.35;u.pitch=1.85;u.volume=.6;speechSynthesis.speak(u);}} catch (_) {}
   }
   function visual(key,i,from,d,local,power=1) {
     const at=from.clone().add(V(0,3,0)),right=V(d.z,0,-d.x);
@@ -213,6 +234,7 @@
     if(!r.agTails)return;
     r.agTails.forEach((p,i)=>{p.rotation.x=Math.sin(t*7+i)*.12*weight;p.rotation.z=(i?1:-1)*(.07+Math.sin(t*5)*.06*weight);});
     r.agScarf.rotation.x=Math.sin(t*8)*.22*weight;r.agMouth.scale.y=1+mouth*5;
+    r.agSkirt?.forEach((p,i)=>{p.rotation.x=Math.sin(t*6+i*.7)*.035*weight;});
   }
   const oldPose=poseAction;
   poseAction=function(r,a) {

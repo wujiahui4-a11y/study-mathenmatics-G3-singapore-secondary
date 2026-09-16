@@ -7,7 +7,9 @@ The character then appears in both Characters lists. The unlock is saved in
 this browser; if browser storage is unavailable, it lasts for the current session.
 
 The original character art is a monochrome voxel fighter with twin tails,
-a white jacket and scarf, dark trousers, and white sneakers. Wind VFX are white.
+a white jacket and scarf, a pleated charcoal skirt with white trim, opaque tights,
+and white sneakers. Layered silver irises, pupils, lashes and white highlights
+give the eyes more definition. Wind VFX are white.
 All moves have startup, contact, follow-through and recovery poses. Shared M1,
 guard, movement and dash animations continue to work.
 
@@ -40,7 +42,13 @@ applying extra damage. Hits use the existing victim-owned multiplayer health,
 guard, knockdown and duplicate-hit protection. Destruction uses the existing
 host-owned bounded impacts; protected map Core geometry is retained. Browser
 speech synthesis voices “Baka!” when available; text and wind audio remain when
-that browser feature is absent. No external animation or audio assets are needed.
+that browser feature is absent. The shout uses a higher voice pitch and two short,
+quiet rising tones for a sharper sound, without increasing voice volume.
+No external animation or audio assets are needed.
+
+Slap explicitly selects an intact ragdoll. The shared death-style dispatcher
+bypasses special effects for that tag, preserving the full launch velocity and
+attached rig through the existing ragdoll simulation.
 
 Build: `node tools/build-jujutsu.js`.
 
@@ -49,7 +57,9 @@ This runs real Three.js geometry, base rig, cast timelines, shared damage wrappe
 JJS collision at the unlock location, multiplayer cast dispatch and hit decoder.
 It covers locked selection, unlock constraints, word input, storage, stamina,
 damage, launch vectors, cooldowns, guard, interruption, white-only custom VFX,
-cleanup, and both generated builds. Existing public-roster tests exclude secret
+cleanup, skirt/eye geometry, bounded shout layers, the actual damage/death/ragdoll
+chain (including over 60 units of intact flight), and both generated builds.
+Existing public-roster tests exclude secret
 entries; the new suite exercises this secret separately.
 
 A visual/audio browser playtest is still needed: this environment could not

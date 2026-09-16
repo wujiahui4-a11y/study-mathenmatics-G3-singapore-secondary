@@ -8,7 +8,7 @@ const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f
   const THREE=await import('data:text/javascript;base64,'+Buffer.from(read('jujutsu/three.module.min.js')).toString('base64'));
   const base=read('jujutsu/base.html'),source=read('jujutsu/anime-girl.js');
   const snapshot=JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(root,'jujutsu/jjs/source.json.gz'))));
-  const storage=new Map(),events={},nodes=[],effects=[],hits=[],breaks=[];
+  const storage=new Map(),events={},nodes=[],effects=[],hits=[],breaks=[],tones=[],voices=[];
   class Element {
     constructor(tag){this.tagName=tag;this.style={};this.children=[];this.selectors=new Map();this.dataset={};nodes.push(this);}
     appendChild(e){this.children.push(e);return e;}
@@ -32,6 +32,7 @@ const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f
     typingInUI:e=>!!e.target?.typing,
     clearMovement(){ctx.movementCleared=true;},setShiftLock(){},showSplash(){ctx.splashed=true;},
     addFx:e=>effects.push(e),addShake(){},hitstop(){},sfx:{whoosh(){},punch(){},tpDone(){}},
+    tone:(...args)=>tones.push(args),noiseBurst(){},SpeechSynthesisUtterance:function(text){this.text=text;},speechSynthesis:{speak:u=>voices.push(u)},
     stepAction(){},poseAction(){},applyLocomotion(){},updateHUD(){},
     busy:()=>!!ctx.player.action,
     updatePlayer(dt){for(const k in ctx.cds)ctx.cds[k]=Math.max(0,ctx.cds[k]-dt);if(ctx.player.action){const a=ctx.player.action;a.t+=dt;ctx.stepAction(a,dt);if(ctx.player.action===a&&a.t>=a.dur)ctx.player.action=null;}},
@@ -106,6 +107,11 @@ const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f
     for(const joint of ['spine','neck','shoulderL','shoulderR','elbowL','elbowR','hipL','hipR','kneeL','kneeR'])assert.ok([r[joint].rotation.x,r[joint].rotation.y,r[joint].rotation.z].every(Number.isFinite));
     signatures.add([r.spine.rotation.y,r.shoulderR.rotation.x,r.hipR.rotation.x].join(','));}
   assert.ok(signatures.size>18,'distinct animated beats');
+  assert.equal(r.agSkirt.length,12,'full pleated skirt');
+  for(const name of ['Silver iris','Eye pupil','Eye upper glint','Eye lower glint']){let n=0;r.root.traverse(o=>{if(o.name===name)n++;});assert.equal(n,2,name+' on both eyes');}
+  assert.ok(!r.root.getObjectByName('Charcoal trousers'),'trousers removed');
+  assert.ok(tones.some(t=>t[0]>=1400&&t[1]<.3),'short bright shout layer');assert.ok(tones.every(t=>t[3]<=.035),'bounded synthesized gain');
+  assert.ok(voices.some(u=>u.pitch===1.85&&u.volume<=.6),'sharper voice without added loudness');
   for(const id of Object.keys(S.kit)){reset();S.remote[id](new THREE.Vector3(),0,{tsundere:100});tick(.52);assert.equal(hits.length,0);assert.equal(breaks.length,0);assert.ok(S.props.size>0);
     for(const p of S.props)p.g.traverse(o=>{if(o.material?.color)assert.equal(o.material.color.getHex(),0xffffff,'all custom VFX white');});tick(4);assert.equal(S.props.size,0);}
   reset();S.cast('ag2');tick(.5);assert.ok(S.props.size>0);ctx.switchChar('gojo');assert.equal(S.props.size,0,'local effect cleanup');
@@ -142,6 +148,26 @@ const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f
   const msg={id:'caster',d:26,kx:0,ky:36,kz:16,bc:{g:1,b:0,p:[0,0,0],st:.7,down:1.6,v:'up',id:1000000020,k:'animegirl'}};
   assert.equal(ctx.networkHit(msg),true);assert.equal(ctx.networkHit(msg),false);assert.equal(delivered,1);
   console.log('PASS multiplayer cast dispatch and duplicate hit rejection');
+
+  // Exercise the actual damage -> death wrapper -> ragdoll path, not just a
+  // mock launch vector. A tagged slap must never enter a special death effect.
+  reset();ctx.JJFX=null;ctx.JJDESTRUCT.sweep=()=>{};ctx.damageNumber=ctx.spark=()=>{};
+  Enemy.prototype.unframe=Enemy.prototype.drawBars=Enemy.prototype.respawn=Enemy.prototype.update=()=>{};
+  vm.runInContext('Enemy.prototype.damage=function'+base.slice(base.indexOf('  damage(amount')+8,base.indexOf('  directDamage(n'))+';',ctx);
+  vm.runInContext(read('jujutsu/ragdoll.js'),ctx);
+  const deaths=read('jujutsu/gore.js');ctx.goreDeath=()=>{throw Error('intact slap reached a special death effect');};ctx.isHeld=()=>false;
+  vm.runInContext('(function(){'+deaths.slice(deaths.indexOf('  function now()'),deaths.indexOf('  GORE.mark = mark;'))+
+    deaths.slice(deaths.indexOf('  var _enemyDamage ='),deaths.indexOf('  var _enemyDirect ='))+
+    deaths.slice(deaths.indexOf('  var _die = Enemy.prototype.die;'),deaths.indexOf('  var _respawn = Enemy.prototype.respawn;'))+'})();',ctx);
+  vm.runInContext('(function(){'+combat.slice(combat.indexOf('  function metadata(opts)'),combat.indexOf('  const previousHurt = hurtPlayer;'))+'})();',ctx);
+  const victim=ctx.enemies[0];victim.rig=ctx.makeAnimeRig(ctx.CHARS.gojo.cfg);victim.stunT=0;
+  const parents=new Map();victim.rig.root.traverse(o=>parents.set(o,o.parent));
+  S.cast('ag1');tick(.38);assert.equal(victim.dead,true);assert.ok(victim.rag,'actual ragdoll starts');
+  assert.ok(victim.rag.vel.z>=135,'death handler preserves full launch speed');
+  const z=victim.pos.z;for(let i=0;i<25;i++)ctx.JJRAG.step(victim,.02);
+  assert.ok(victim.pos.z-z>60,'intact dummy travels far');assert.equal(victim.rig.root.visible,true);
+  for(const [part,parent] of parents)if(part!==victim.rig.root)assert.equal(part.parent,parent,'joints stay attached');
+  console.log('PASS actual slap death chain: intact rig, full momentum, 60+ unit flight');
 
   for(const file of ['jujutsu-multiplayer.html','jujutsu-parts/p5.js'])assert.ok(read(file).includes(source.trim()),file+' contains current module');
   const split=read('jujutsu-parts/p5.js');
