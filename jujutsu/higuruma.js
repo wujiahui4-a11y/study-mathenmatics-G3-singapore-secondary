@@ -368,7 +368,7 @@
      He draws it out of nothing and brings it down. One cut, straight, no
      flourish — a sentence being carried out is not a flourish.
      ================================================================== */
-  var SW = { dmg: 36, reach: 11, step: 20, arc: .3 };
+  var SW = { dmg: 15, reach: 11, step: 20, arc: .3 };
 
   function castSword() {
     if (!ready('j1')) return;
@@ -434,7 +434,7 @@
      Brought down where he points. Whatever is under it goes on the
      record, and the record is what the rest of his kit is paid out of.
      ================================================================== */
-  var GV = { dmg: 30, radius: 7.5, out: 10 };
+  var GV = { dmg: 14, radius: 7.5, out: 10 };
 
   function dropGavel(at, ghost) {
     var g = buildGavel(1);
@@ -520,7 +520,7 @@
      Sheets of it, out in a fan. They stick to whatever they reach and
      then pull taut, which is the part that hurts.
      ================================================================== */
-  var EV = { dmg: 32, sheets: 26, reach: 20, radius: 5.5 };
+  var EV = { dmg: 13, sheets: 26, reach: 20, radius: 5.5 };
 
   function sheet(from, to, life) {
     var m = new THREE.Mesh(new THREE.PlaneGeometry(.9, 1.25),
@@ -614,7 +614,7 @@
      The court itself. It rises behind him, hears the thing, and hands
      down a column of cold light with a gavel coming after it.
      ================================================================== */
-  var JM = { dmg: 26, radius: 9, dur: 3.2 };
+  var JM = { dmg: 10, radius: 9, dur: 3.2 };
 
   function buildJudge() {
     var g = new THREE.Group();
@@ -819,7 +819,7 @@
      R · RECESS  休廷
      One rap, and the dock comes up out of the floor between him and it.
      ================================================================== */
-  var RC = { dmg: 56, back: 15, radius: 6 };
+  var RC = { dmg: 28, back: 15, radius: 6 };
 
   function raiseDock(at, dir, ghost) {
     var g = new THREE.Group();

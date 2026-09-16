@@ -1245,15 +1245,32 @@ exist only in the test server's response and are not shipped in the game.
 
 ## What a skill is worth
 
-Every base skill on the roster now lands in one of two bands. This was not
-true before: the numbers had drifted move by move as fighters were added,
-and a survey of all fourteen kits found **8 damage at the bottom and 150 at
-the top** — an eighteenfold spread between one press and another.
+Every base skill on the roster now lands in one of two bands, and both
+bands are set against the health bar rather than against each other.
 
-| | band | was | now |
+**Everybody has 100 HP, and a four-punch M1 string is worth about 12 of
+it.** That is the ruler. A skill should cost you a cooldown and buy you
+roughly what a clean combo buys you; a special should buy two.
+
+| | band | presses to kill |
+| --- | --- | --- |
+| Keys `1`–`4` | **12–15** | about 7 |
+| `R`, where it is a damage special | **26–28** | about 4 |
+
+Getting there took two passes, and the first one was only half the job.
+The numbers had drifted move by move as fighters were added, and a survey
+of all fourteen kits found **8 damage at the bottom and 150 at the top** —
+an eighteenfold spread between one press and another. The first pass
+closed that spread to 30–38 and 54–62, which made the kits consistent with
+*one another* and left them all far too strong: a 34 normal took a third
+of a bar, so three presses ended a fight while the punch that was supposed
+to be the backbone of it took eight strings. The second pass re-anchored
+both bands on the 100 HP pool, which is where they sit now.
+
+| | at the start | first pass | now |
 | --- | --- | --- | --- |
-| Keys `1`–`4` | **30–38** | 8 → 150 | 30 → 38 |
-| `R`, where it is a damage special | **54–62** | 10 → 62 | 54 → 62 |
+| Keys `1`–`4` | 8 → 150 | 30 → 38 | 12 → 15 |
+| `R` | 10 → 62 | 54 → 62 | 26 → 28 |
 
 Fifty five normals and nine specials, measured rather than read off the
 constants — a move that misses its own hit window deals less than it says
@@ -1266,26 +1283,31 @@ Hakari's **Door Guard** are counters, Todo's **False Clap** is the swap,
 and Mahito's `R` cycles his arms. Choso's `4`, **Flowing Red Scale**, is a
 multiplier on everything else he does, and is zero for the same reason.
 
-### The four that were not numbers at all
+### The five that were not numbers at all
 
-Most of the pass was arithmetic. Four were structural, and those are worth
+Most of the pass was arithmetic. Five were structural, and those are worth
 naming:
 
 - **Supernova fired eighteen orbs, each with its own hit flag.** Anybody
   standing on Choso caught ten of them — 150 from one press, five times
   any other normal. The orbs now share a budget: three hits on any one
-  person, twelve apiece.
+  person, five apiece.
 - **Todo's stone feint double-dipped.** Swapping *after* the rock landed
   paid for the rock and the blindside both, 50 all in; swapping *before* it
   landed cancelled the rock and paid 6. The blindside now carries a full
   skill's weight on its own and drops to a tap when the rock already
-  connected, so both lines come out at 32 and 38.
+  connected, so both lines come out at 13 and 15.
 - **Gachinko's flurry escalated per hit** — `11 + i * 3` and then a finish,
-  66 together, the heaviest single normal anywhere.
+  66 together, the heaviest single normal anywhere. The ramp is still
+  there, at a quarter of the step.
 - **Naoya's first three sat at 12, 8 and 10** while his fourth sat at 43.
   His Tanto is an execution: the 8 was its ordinary hit, and the 20 and 6
   behind it only fire on a target already under 14 HP. That structure is
   intact; only the ordinary hit moved.
+- **Reversal: Red is defined twice.** `base.html` builds it and `combat.js`
+  re-points it at the effects kit, and both copies carry the number. The
+  first pass moved the one that never runs, so Red stayed at 32 — a third
+  of a bar — while every other normal came down. Both say 14 now.
 
 Awakened kits are deliberately out of this: Sukuna, the fever, the garden,
 the Death Painting and Gojo's awakening all keep their own scale.

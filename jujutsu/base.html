@@ -1879,7 +1879,7 @@ function explodeRed(pos) {
     const dist = d.length();
     const kb = d.normalize().multiplyScalar(46 * (1.25 - dist / 15 * .6));
     kb.y = Math.max(kb.y, 15);
-    e.damage(32, kb, { color: "#ff5566", spark: 0xff3344 });
+    e.damage(14, kb, { color: "#ff5566", spark: 0xff3344 });
   }
   for (const c of crates) {
     const d = c.mesh.position.clone().sub(pos);
@@ -2059,7 +2059,7 @@ function stepAction(a, dt) {
           p.iframes = Math.max(p.iframes, 1.65);
           sfx.kick();
           addShake(.25);
-          tgt.damage(4, null, { stun: .4, react: "gut", reactDur: .45 });
+          tgt.damage(1.5, null, { stun: .4, react: "gut", reactDur: .45 });
         }
       }
       if (a.locked && !tgt.dead && a.t < 1.42) {
@@ -2068,7 +2068,7 @@ function stepAction(a, dt) {
           a.acc += dt;
           if (a.acc > .09) {
             a.acc = 0;
-            tgt.damage(2, null, { stun: .3, react: "pummel", reactDur: .3 });
+            tgt.damage(0.8, null, { stun: .3, react: "pummel", reactDur: .3 });
             sfx.punch();
             addShake(.08);
             spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, 2.4 + Math.random() * 1.4, (Math.random() - .5) * 1.4)), 0xaad4ff, 3, 12);
@@ -2080,7 +2080,7 @@ function stepAction(a, dt) {
         if (!tgt.dead) {
           const f = facingVec();
           tgt.lockT = 0;
-          tgt.damage(10, f.multiplyScalar(38).setY(12), { color: "#9fd0ff" });
+          tgt.damage(4, f.multiplyScalar(38).setY(12), { color: "#9fd0ff" });
           sfx.kick();
           addShake(.5);
           hitstop(.06);
@@ -2096,7 +2096,7 @@ function stepAction(a, dt) {
         else {
           a.tgt = tgt;
           p.iframes = Math.max(p.iframes, .95);
-          tgt.damage(12, null, { stun: .9, color: "#bfe2ff" });
+          tgt.damage(5, null, { stun: .9, color: "#bfe2ff" });
           tgt.anchorT = .8;
           tgt.anchorPos.copy(tgt.pos).setY(3.4);
           tgt.vel.set(0, 0, 0);
@@ -2113,7 +2113,7 @@ function stepAction(a, dt) {
         if (tgt && !tgt.dead) {
           const f = facingVec();
           tgt.anchorT = 0;
-          tgt.damage(20, f.multiplyScalar(6).setY(27), { color: "#dff0ff" });
+          tgt.damage(8, f.multiplyScalar(6).setY(27), { color: "#dff0ff" });
           tgt.flung = true;
           sfx.kick();
           addShake(.5);
@@ -2131,7 +2131,7 @@ function stepAction(a, dt) {
         if (a.t >= times[i] && !a.hits[i]) {
           a.hits[i] = true;
           if (!tgt.dead) {
-            tgt.damage(7, null, { stun: .35, color: "#ffd27a", react: "gut", reactDur: .42 });
+            tgt.damage(3, null, { stun: .35, color: "#ffd27a", react: "gut", reactDur: .42 });
             sfx.palm();
             hitstop(.02);
             addShake(.14);
@@ -2145,7 +2145,7 @@ function stepAction(a, dt) {
           const f = facingVec();
           const kick = leftOf(f).multiplyScalar(30).add(f.clone().multiplyScalar(4)).setY(10);
           tgt.lockT = 0;
-          tgt.damage(13, kick, { color: "#ffd27a" });
+          tgt.damage(5, kick, { color: "#ffd27a" });
           sfx.kick();
           addShake(.45);
           hitstop(.05);
@@ -2203,7 +2203,7 @@ function stepAction(a, dt) {
         const tgt = nearestFrontEnemy(4.8, .35);
         if (tgt) {
           const f = facingVec();
-          tgt.damage(34, f.multiplyScalar(30).setY(10), { color: "#9fd8ff" });
+          tgt.damage(14, f.multiplyScalar(30).setY(10), { color: "#9fd8ff" });
           tgt.applyProj(35);
           sfx.kick();
           addShake(.4);
@@ -2231,7 +2231,7 @@ function stepAction(a, dt) {
         const tgt = nearestFrontEnemy(3.2, .45);
         if (tgt) {
           a.tgt = tgt;
-          tgt.damage(32, facingVec().multiplyScalar(4).setY(1), { stun: .8, color: "#dfe6f2", spark: 0xff3b4e, react: "stab", reactDur: 1 });
+          tgt.damage(13, facingVec().multiplyScalar(4).setY(1), { stun: .8, color: "#dfe6f2", spark: 0xff3b4e, react: "stab", reactDur: 1 });
           sfx.stab();
           hitstop(.05);
           addShake(.3);
@@ -2274,7 +2274,7 @@ function stepAction(a, dt) {
         if (a.t >= 1.18 && !a.neck) {
           a.neck = true;
           p.pos.copy(tgt.pos).add(facingVec().multiplyScalar(-1.6));
-          tgt.damage(20, null, { stun: .5, color: "#ff3b4e", spark: 0xd82a3c, react: "stab", reactDur: .8 });
+          tgt.damage(8, null, { stun: .5, color: "#ff3b4e", spark: 0xd82a3c, react: "stab", reactDur: .8 });
           sfx.stab();
           hitstop(.1);
           addShake(.6);
@@ -2284,7 +2284,7 @@ function stepAction(a, dt) {
           if (!tgt.dead) {
             const f = facingVec();
             tgt.lockT = 0;
-            tgt.damage(6, f.multiplyScalar(26).setY(9), { color: "#ff3b4e" });
+            tgt.damage(2, f.multiplyScalar(26).setY(9), { color: "#ff3b4e" });
           }
           sfx.kick();
         }
@@ -2303,7 +2303,7 @@ function stepAction(a, dt) {
           a.fin = tgt.hp <= 25;
           a.dur = a.fin ? 2.9 : 1.75;
           p.vel.set(0, 0, 0);
-          tgt.damage(6, null, { stun: .5, color: "#ffd27a", react: "gut", reactDur: .4 });
+          tgt.damage(2, null, { stun: .5, color: "#ffd27a", react: "gut", reactDur: .4 });
           sfx.punch();
           addShake(.2);
         }
@@ -2323,7 +2323,7 @@ function stepAction(a, dt) {
           const rate = a.fin ? .07 : .1;
           if (a.acc > rate) {
             a.acc = 0;
-            tgt.damage(3, null, { stun: .3, color: "#ffd27a", react: "pummel", reactDur: .25 });
+            tgt.damage(1.2, null, { stun: .3, color: "#ffd27a", react: "pummel", reactDur: .25 });
             sfx.punch();
             addShake(.06);
             spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, 2.2 + Math.random() * 1.6, (Math.random() - .5) * 1.4)), 0xffe2a8, 2, 10);
@@ -2350,7 +2350,7 @@ function stepAction(a, dt) {
             a.kicked = true;
             if (!tgt.dead) {
               const f = facingVec();
-              tgt.damage(30, f.multiplyScalar(36).setY(13), { noFrameBonus: true, color: "#ffd27a" });
+              tgt.damage(12, f.multiplyScalar(36).setY(13), { noFrameBonus: true, color: "#ffd27a" });
               sfx.kick();
               addShake(.55);
               hitstop(.07);

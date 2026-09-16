@@ -10,11 +10,11 @@
   var H = window.JJHANAMI = { props: [], remote: {}, field: null };
   var CFG = { hanami: true, face: false, skin: BONE, torso: BONE, pants: 0x222831, shoes: BONE };
   var KIT = {
-    hn1: { name: 'Root Uprising', cd: 8, dur: 1.4, damage: 34 },
-    hn2: { name: 'Cursed Buds', cd: 10, dur: 1.85, damage: 30 },
-    hn3: { name: 'Branch Breaker', cd: 10, dur: 1.35, damage: 32 },
-    hn4: { name: 'Solar Bloom', cd: 15, dur: 2.05, damage: 38 },
-    hnr: { name: 'Flower Field', cd: 21, dur: 1.05, damage: 56 }
+    hn1: { name: 'Root Uprising', cd: 8, dur: 1.4, damage: 14 },
+    hn2: { name: 'Cursed Buds', cd: 10, dur: 1.85, damage: 14 },
+    hn3: { name: 'Branch Breaker', cd: 10, dur: 1.35, damage: 13 },
+    hn4: { name: 'Solar Bloom', cd: 15, dur: 2.05, damage: 15 },
+    hnr: { name: 'Flower Field', cd: 21, dur: 1.05, damage: 28 }
   };
   var clamp = function (v) { return Math.max(0, Math.min(1, v)); };
   var smooth = function (v) { v = clamp(v); return v * v * (3 - 2 * v); };
@@ -487,21 +487,21 @@
       var prop=visual(key,index,from,d,true);
       if(key==='hnr') {
         H.field=prop;
-        enemies.slice().forEach(function(e){if(e&&!e.dead&&e.pos.distanceTo(from)<10.5)hit(e,key,56,d,0,0);});
+        enemies.slice().forEach(function(e){if(e&&!e.dead&&e.pos.distanceTo(from)<10.5)hit(e,key,28,d,0,0);});
       } else if(key==='hn1') {
         if(window.JJDESTRUCT)JJDESTRUCT.hit(from.clone().addScaledVector(d,5+index*4.4).add(V(0,.5,0)),4);
         targets(from,d,7+index*4.4,4+index*.3,-1,4.7).forEach(function(e){
-          if(a.hits.indexOf(e)<0){a.hits.push(e);hit(e,key,34,d,14,17);}
+          if(a.hits.indexOf(e)<0){a.hits.push(e);hit(e,key,14,d,14,17);}
         });
       } else if(key==='hn2') {
         a.projectiles.push({index:index,t:0,start:from.clone().addScaledVector(d,1.4).add(V(0,2.7+index*.18,0)),hit:[]});
       } else if(key==='hn3') {
         if(window.JJDESTRUCT)JJDESTRUCT.hit(from.clone().addScaledVector(d,5).add(V(0,2,0)),6);
-        targets(from,d,10,6,-1,6).forEach(function(e){hit(e,key,32,d,25,20);});
+        targets(from,d,10,6,-1,6).forEach(function(e){hit(e,key,13,d,25,20);});
       } else if(key==='hn4'&&index===1) {
         var muzzle=from.clone().addScaledVector(sideOf(d),-1.15);
         if(window.JJDESTRUCT)JJDESTRUCT.sweep(muzzle.clone().add(V(0,3.6,0)),muzzle.clone().add(V(0,3.6,0)).addScaledVector(d,30),7);
-        targets(muzzle,d,30,2.5,2.8,5.1).forEach(function(e){hit(e,key,38,d,34,10);});
+        targets(muzzle,d,30,2.5,2.8,5.1).forEach(function(e){hit(e,key,15,d,34,10);});
       }
       if(player.action!==a)return; // A lethal hit handed control to its finisher.
     }
@@ -510,7 +510,7 @@
       var prev=p.t;p.t=Math.min(1,p.t+dt);if(prev>=1)return;
       var start=p.start.clone().addScaledVector(d,prev*30),len=(p.t-prev)*30;
       if(window.JJDESTRUCT)JJDESTRUCT.sweep(start,start.clone().addScaledVector(d,len+1),2.5);
-      targets(start,d,len+1,1.5,-1.6,1.6).forEach(function(e){if(p.hit.indexOf(e)<0){p.hit.push(e);hit(e,key,10,d,2,0);blossom(e.pos.clone().add(V(0,3,0)),.6,.65,true);}});
+      targets(start,d,len+1,1.5,-1.6,1.6).forEach(function(e){if(p.hit.indexOf(e)<0){p.hit.push(e);hit(e,key,4.75,d,2,0);blossom(e.pos.clone().add(V(0,3,0)),.6,.65,true);}});
     });
   }
 

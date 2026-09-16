@@ -324,7 +324,7 @@
      1 · ARM CANNON  腕砲
      One barrel, built beside his shoulder, and one shell.
      ================================================================== */
-  var CAN = { dmg: 32, reach: 34, radius: 5.5, speed: 78 };
+  var CAN = { dmg: 13, reach: 34, radius: 5.5, speed: 78 };
 
   function buildCannon() {
     var g = new THREE.Group();
@@ -437,7 +437,7 @@
      The fist leaves. The chain does not, which is what makes it come
      back through everything a second time.
      ================================================================== */
-  var RP = { dmg: 26, reach: 26, radius: 4.2, speed: 46, back: .3 };
+  var RP = { dmg: 11, reach: 26, radius: 4.2, speed: 46, back: .3 };
 
   function buildFist() {
     var g = new THREE.Group();
@@ -545,7 +545,7 @@
      3 · DRILL ARM  削岩
      It does not hit them. It is put against them and left running.
      ================================================================== */
-  var DR = { dmg: 34, reach: 9, ticks: 6, tick: 4, out: 11, step: 13 };
+  var DR = { dmg: 14, reach: 9, ticks: 6, tick: 1.5, out: 5, step: 13 };
 
   function buildDrill() {
     var g = new THREE.Group();
@@ -651,7 +651,7 @@
      A rack on the shoulder and eight of them, which go up before they go
      anywhere else.
      ================================================================== */
-  var POD = { dmg: 4, n: 8, radius: 5.5, spread: 4.4, out: 22 };
+  var POD = { dmg: 1.75, n: 8, radius: 5.5, spread: 4.4, out: 22 };
 
   function buildPod() {
     var g = new THREE.Group();
@@ -774,7 +774,7 @@
      THE SPECIAL. Not another piece of ordnance — the whole frame comes
      together around him, and then it turns.
      ================================================================== */
-  var SPIN = { dmg: 54, radius: 11, dur: 1.6, rate: 26 };
+  var SPIN = { dmg: 28, radius: 11, dur: 1.6, rate: 26 };
 
   function buildFrame() {
     var g = new THREE.Group();

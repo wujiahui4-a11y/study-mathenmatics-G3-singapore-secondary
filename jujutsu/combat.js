@@ -412,7 +412,7 @@
         var dist = d.length();
         var kb = d.normalize().multiplyScalar(46 * (1.25 - dist / 15 * .6));
         kb.y = Math.max(kb.y, 15);
-        e.damage(32, kb, { color: '#ff5566', spark: 0xff3344 });
+        e.damage(14, kb, { color: '#ff5566', spark: 0xff3344 });
       });
       crates.forEach(function (c) {
         var d = c.mesh.position.clone().sub(pos);

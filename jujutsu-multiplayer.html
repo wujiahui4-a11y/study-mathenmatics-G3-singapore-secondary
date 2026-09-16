@@ -1916,7 +1916,7 @@ function explodeRed(pos) {
     const dist = d.length();
     const kb = d.normalize().multiplyScalar(46 * (1.25 - dist / 15 * .6));
     kb.y = Math.max(kb.y, 15);
-    e.damage(32, kb, { color: "#ff5566", spark: 0xff3344 });
+    e.damage(14, kb, { color: "#ff5566", spark: 0xff3344 });
   }
   for (const c of crates) {
     const d = c.mesh.position.clone().sub(pos);
@@ -2096,7 +2096,7 @@ function stepAction(a, dt) {
           p.iframes = Math.max(p.iframes, 1.65);
           sfx.kick();
           addShake(.25);
-          tgt.damage(4, null, { stun: .4, react: "gut", reactDur: .45 });
+          tgt.damage(1.5, null, { stun: .4, react: "gut", reactDur: .45 });
         }
       }
       if (a.locked && !tgt.dead && a.t < 1.42) {
@@ -2105,7 +2105,7 @@ function stepAction(a, dt) {
           a.acc += dt;
           if (a.acc > .09) {
             a.acc = 0;
-            tgt.damage(2, null, { stun: .3, react: "pummel", reactDur: .3 });
+            tgt.damage(0.8, null, { stun: .3, react: "pummel", reactDur: .3 });
             sfx.punch();
             addShake(.08);
             spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, 2.4 + Math.random() * 1.4, (Math.random() - .5) * 1.4)), 0xaad4ff, 3, 12);
@@ -2117,7 +2117,7 @@ function stepAction(a, dt) {
         if (!tgt.dead) {
           const f = facingVec();
           tgt.lockT = 0;
-          tgt.damage(10, f.multiplyScalar(38).setY(12), { color: "#9fd0ff" });
+          tgt.damage(4, f.multiplyScalar(38).setY(12), { color: "#9fd0ff" });
           sfx.kick();
           addShake(.5);
           hitstop(.06);
@@ -2133,7 +2133,7 @@ function stepAction(a, dt) {
         else {
           a.tgt = tgt;
           p.iframes = Math.max(p.iframes, .95);
-          tgt.damage(12, null, { stun: .9, color: "#bfe2ff" });
+          tgt.damage(5, null, { stun: .9, color: "#bfe2ff" });
           tgt.anchorT = .8;
           tgt.anchorPos.copy(tgt.pos).setY(3.4);
           tgt.vel.set(0, 0, 0);
@@ -2150,7 +2150,7 @@ function stepAction(a, dt) {
         if (tgt && !tgt.dead) {
           const f = facingVec();
           tgt.anchorT = 0;
-          tgt.damage(20, f.multiplyScalar(6).setY(27), { color: "#dff0ff" });
+          tgt.damage(8, f.multiplyScalar(6).setY(27), { color: "#dff0ff" });
           tgt.flung = true;
           sfx.kick();
           addShake(.5);
@@ -2168,7 +2168,7 @@ function stepAction(a, dt) {
         if (a.t >= times[i] && !a.hits[i]) {
           a.hits[i] = true;
           if (!tgt.dead) {
-            tgt.damage(7, null, { stun: .35, color: "#ffd27a", react: "gut", reactDur: .42 });
+            tgt.damage(3, null, { stun: .35, color: "#ffd27a", react: "gut", reactDur: .42 });
             sfx.palm();
             hitstop(.02);
             addShake(.14);
@@ -2182,7 +2182,7 @@ function stepAction(a, dt) {
           const f = facingVec();
           const kick = leftOf(f).multiplyScalar(30).add(f.clone().multiplyScalar(4)).setY(10);
           tgt.lockT = 0;
-          tgt.damage(13, kick, { color: "#ffd27a" });
+          tgt.damage(5, kick, { color: "#ffd27a" });
           sfx.kick();
           addShake(.45);
           hitstop(.05);
@@ -2240,7 +2240,7 @@ function stepAction(a, dt) {
         const tgt = nearestFrontEnemy(4.8, .35);
         if (tgt) {
           const f = facingVec();
-          tgt.damage(34, f.multiplyScalar(30).setY(10), { color: "#9fd8ff" });
+          tgt.damage(14, f.multiplyScalar(30).setY(10), { color: "#9fd8ff" });
           tgt.applyProj(35);
           sfx.kick();
           addShake(.4);
@@ -2268,7 +2268,7 @@ function stepAction(a, dt) {
         const tgt = nearestFrontEnemy(3.2, .45);
         if (tgt) {
           a.tgt = tgt;
-          tgt.damage(32, facingVec().multiplyScalar(4).setY(1), { stun: .8, color: "#dfe6f2", spark: 0xff3b4e, react: "stab", reactDur: 1 });
+          tgt.damage(13, facingVec().multiplyScalar(4).setY(1), { stun: .8, color: "#dfe6f2", spark: 0xff3b4e, react: "stab", reactDur: 1 });
           sfx.stab();
           hitstop(.05);
           addShake(.3);
@@ -2311,7 +2311,7 @@ function stepAction(a, dt) {
         if (a.t >= 1.18 && !a.neck) {
           a.neck = true;
           p.pos.copy(tgt.pos).add(facingVec().multiplyScalar(-1.6));
-          tgt.damage(20, null, { stun: .5, color: "#ff3b4e", spark: 0xd82a3c, react: "stab", reactDur: .8 });
+          tgt.damage(8, null, { stun: .5, color: "#ff3b4e", spark: 0xd82a3c, react: "stab", reactDur: .8 });
           sfx.stab();
           hitstop(.1);
           addShake(.6);
@@ -2321,7 +2321,7 @@ function stepAction(a, dt) {
           if (!tgt.dead) {
             const f = facingVec();
             tgt.lockT = 0;
-            tgt.damage(6, f.multiplyScalar(26).setY(9), { color: "#ff3b4e" });
+            tgt.damage(2, f.multiplyScalar(26).setY(9), { color: "#ff3b4e" });
           }
           sfx.kick();
         }
@@ -2340,7 +2340,7 @@ function stepAction(a, dt) {
           a.fin = tgt.hp <= 25;
           a.dur = a.fin ? 2.9 : 1.75;
           p.vel.set(0, 0, 0);
-          tgt.damage(6, null, { stun: .5, color: "#ffd27a", react: "gut", reactDur: .4 });
+          tgt.damage(2, null, { stun: .5, color: "#ffd27a", react: "gut", reactDur: .4 });
           sfx.punch();
           addShake(.2);
         }
@@ -2360,7 +2360,7 @@ function stepAction(a, dt) {
           const rate = a.fin ? .07 : .1;
           if (a.acc > rate) {
             a.acc = 0;
-            tgt.damage(3, null, { stun: .3, color: "#ffd27a", react: "pummel", reactDur: .25 });
+            tgt.damage(1.2, null, { stun: .3, color: "#ffd27a", react: "pummel", reactDur: .25 });
             sfx.punch();
             addShake(.06);
             spark(tgt.pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, 2.2 + Math.random() * 1.6, (Math.random() - .5) * 1.4)), 0xffe2a8, 2, 10);
@@ -2387,7 +2387,7 @@ function stepAction(a, dt) {
             a.kicked = true;
             if (!tgt.dead) {
               const f = facingVec();
-              tgt.damage(30, f.multiplyScalar(36).setY(13), { noFrameBonus: true, color: "#ffd27a" });
+              tgt.damage(12, f.multiplyScalar(36).setY(13), { noFrameBonus: true, color: "#ffd27a" });
               sfx.kick();
               addShake(.55);
               hitstop(.07);
@@ -7257,7 +7257,7 @@ window.__game = {
         var dist = d.length();
         var kb = d.normalize().multiplyScalar(46 * (1.25 - dist / 15 * .6));
         kb.y = Math.max(kb.y, 15);
-        e.damage(32, kb, { color: '#ff5566', spark: 0xff3344 });
+        e.damage(14, kb, { color: '#ff5566', spark: 0xff3344 });
       });
       crates.forEach(function (c) {
         var d = c.mesh.position.clone().sub(pos);
@@ -11415,7 +11415,7 @@ window.__game = {
     spread: .52,            // half the angle of view, in radians
     hit: 3,                 // what one frame catches, close to him
     fan: .45,               // and how much more of it, the further out it is
-    dmg: 3,
+    dmg: 1.2,
     proj: 7                 // twenty four of these is well past a frame
   };
 
@@ -12083,7 +12083,7 @@ window.__game = {
       hitstop(.05);
       inFront(4.4).forEach(function (e) {
         /* barely moves them: the second impact has to find them here */
-        e.damage(14 * boost(), aim().multiplyScalar(5).setY(3),
+        e.damage(6 * boost(), aim().multiplyScalar(5).setY(3),
           { react: 'gut', reactDur: .45, spark: 0xffd9a8, noFrameBonus: true });
       });
       try { sfx.punch(); } catch (e) {}               // punch_hit_#3, first skill
@@ -12102,7 +12102,7 @@ window.__game = {
       addShake(1);
       hitstop(.1);
       inFront(6.5, 4.6).forEach(function (e) {
-        e.damage(21 * boost(), aim().multiplyScalar(34).setY(15),
+        e.damage(8 * boost(), aim().multiplyScalar(34).setY(15),
           { react: 'stagger', reactDur: .7, spark: 0xff8a5c });
       });
       try { sfx.redBoom(); } catch (e) {}
@@ -12143,7 +12143,7 @@ window.__game = {
       blackFlash(at);
       var hits = inFront(5.4, 4);
       hits.forEach(function (e) {
-        e.damage(38 * boost(), aim().multiplyScalar(46).setY(20),
+        e.damage(15 * boost(), aim().multiplyScalar(46).setY(20),
           { react: 'stagger', reactDur: .95, spark: 0xd4143c });
       });
       if (window.JJAW && hits.length) window.JJAW.gain(14);
@@ -12221,7 +12221,7 @@ window.__game = {
       inFront(4.6, 3.6).forEach(function (e) {
         var kb = aim().multiplyScalar(13);
         kb.y = 32;                                   // straight up with him
-        e.damage(32 * boost(), kb, { react: 'head', reactDur: .6, spark: 0xff9fb0 });
+        e.damage(13 * boost(), kb, { react: 'head', reactDur: .6, spark: 0xff9fb0 });
       });
       try { sfx.hit(); } catch (e) {}
     }
@@ -12274,7 +12274,7 @@ window.__game = {
         if (dist > 9) return;
         d.normalize().multiplyScalar(30 * (1.2 - dist / 9 * .6));
         d.y = 16;
-        e.damage(30 * boost() * (1.1 - dist / 9 * .4), d,
+        e.damage(12 * boost() * (1.1 - dist / 9 * .4), d,
           { react: 'gut', reactDur: .7, spark: 0xff9fb0 });
       });
       try { sfx.redBoom(); } catch (e) {}
@@ -12310,7 +12310,7 @@ window.__game = {
         if (dist > 11) return;
         d.normalize().multiplyScalar(34);
         d.y = 13;
-        e.damage(56 * boost(), d, { react: 'stagger', reactDur: .6, spark: 0xff7f9a });
+        e.damage(28 * boost(), d, { react: 'stagger', reactDur: .6, spark: 0xff7f9a });
       });
     }
   }
@@ -13354,7 +13354,7 @@ window.__game = {
         e.hkHit = 1;
         setTimeout(function () { e.hkHit = 0; }, 1400);   // once per door
         var kb = a.dir.clone().multiplyScalar(40); kb.y = 15;
-        e.damage(32 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
+        e.damage(13 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
         FX.impact(e.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 0xffcc4d, 1.6);
         addShake(.5);
       });
@@ -13425,7 +13425,7 @@ window.__game = {
           var e = enemies[i];
           if (!e || e.dead || e.rag) continue;
           if (e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)).distanceTo(m.position) > 2.2) continue;
-          e.damage(2.5 * boost(), dir.clone().multiplyScalar(7).setY(3),
+          e.damage(1 * boost(), dir.clone().multiplyScalar(7).setY(3),
             { react: 'pummel', reactDur: .25, noFrameBonus: true, spark: LV.trim });
           FX.impact(m.position.clone(), LV.trim, .55);
           scene.remove(m); m.material.dispose();
@@ -13462,7 +13462,7 @@ window.__game = {
         addShake(.3 + i * .12);
         hitstop(.04);
         inFront(4.6).forEach(function (e) {
-          e.damage((6 + i * 1.6) * boost(), aim().multiplyScalar(9).setY(4),
+          e.damage((2.5 + i * .65) * boost(), aim().multiplyScalar(9).setY(4),
             { react: i === 1 ? 'head' : 'gut', reactDur: .4, spark: 0xffcc4d, noFrameBonus: true });
         });
         try { sfx.hit(); } catch (e) {}
@@ -13483,7 +13483,7 @@ window.__game = {
       hitstop(.14);
       inFront(6, 4.4).forEach(function (e) {
         var kb = aim().multiplyScalar(30); kb.y = 18;
-        e.damage(12 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
+        e.damage(5 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
       });
       try { sfx.redBoom(); } catch (e) {}
     }
@@ -13645,8 +13645,8 @@ window.__game = {
   var FEVER = {
     reach: 13,        // how far the first kick gets
     hold: .72,        // how long they hang there, and how long you have to aim
-    dmg1: 11,
-    dmg2: 27,
+    dmg1: 4,
+    dmg2: 10,
     launch: 46
   };
 
@@ -14527,7 +14527,7 @@ window.__game = {
      1 · PIERCING BLOOD
      ================================================================== */
   var PB = {
-    lance: { range: 74, width: 2.6, dmg: 36 },
+    lance: { range: 74, width: 2.6, dmg: 15 },
     stream: { range: 60, width: 2.2, dps: 46, turn: 1.35, max: 4.2 }
   };
 
@@ -14773,7 +14773,7 @@ window.__game = {
           enemies.forEach(function (e) {
             if (!e || e.dead || e.pos.distanceTo(at) > 12) return;
             var kb = e.pos.clone().sub(at).setY(0).normalize().multiplyScalar(28); kb.y = 13;
-            e.damage(34 * scale(), kb, {
+            e.damage(14 * scale(), kb, {
               react: 'blow', reactDur: .9, spark: BRIGHT, color: '#c8203c', death: 'sever', psn: awake()
             });
           });
@@ -14791,7 +14791,7 @@ window.__game = {
      3 · SUPERNOVA
      ================================================================== */
   /* three orbs per body at twelve apiece: thirty six all in */
-  var SNOVA = { dmg: 12, each: 3 };
+  var SNOVA = { dmg: 5, each: 3 };
   function castSupernova() {
     if (!ready('c3')) return;
     start('c3', 1.5, 'c3', 'SUPERNOVA', '超新星');
@@ -14907,7 +14907,7 @@ window.__game = {
       if (typeof hitstop === 'function') hitstop(.08);
       try { sfx.slash(); } catch (e) {}
       inLine(p.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), d, 9, 4, null).forEach(function (e) {
-        e.damage(56 * scale(), d.clone().multiplyScalar(20).setY(8), {
+        e.damage(28 * scale(), d.clone().multiplyScalar(20).setY(8), {
           react: 'slash', reactDur: .6, spark: BRIGHT, color: '#c8203c', psn: awake(),
           bleed: true, death: 'sever'
         });
@@ -16488,7 +16488,7 @@ window.__game = {
      point of the two of them is that they run whatever is in front of
      him down from both sides at once.
      ================================================================== */
-  var DOG = { reach: 40, speed: 26, dmg: 15, radius: 3 };
+  var DOG = { reach: 40, speed: 26, dmg: 7, radius: 3 };
 
   function buildDog(white) {
     var g = new THREE.Group();
@@ -16625,7 +16625,7 @@ window.__game = {
      Out of the sky rather than out of the road. It comes down on them,
      and what it carries is lightning.
      ================================================================== */
-  var NUE = { reach: 26, dmg: 32, drop: 34 };
+  var NUE = { reach: 26, dmg: 13, drop: 34 };
 
   function buildNue() {
     var g = new THREE.Group();
@@ -16772,7 +16772,7 @@ window.__game = {
      comes up out of it, which is the whole reason a shadow technique is
      frightening: there is nowhere the shadow is not.
      ================================================================== */
-  var SNAKE = { range: 22, dmg: 30, hold: .8 };
+  var SNAKE = { range: 22, dmg: 13, hold: .8 };
 
   function buildSnake() {
     var g = new THREE.Group();
@@ -16913,7 +16913,7 @@ window.__game = {
      The heavy one. It is not thrown at anybody — it arrives, and what
      does the damage is the water it brings with it.
      ================================================================== */
-  var ELEPH = { dmg: 34, wave: 30, push: 34 };
+  var ELEPH = { dmg: 14, wave: 30, push: 34 };
 
   function buildElephant() {
     var g = new THREE.Group();
@@ -17114,7 +17114,7 @@ window.__game = {
      once, they go everywhere, and he goes out with them — which is what
      it is for.
      ================================================================== */
-  var RAB = { count: 26, dist: 16, dmg: 4 };
+  var RAB = { count: 26, dist: 16, dmg: 2 };
 
   function buildRabbit() {
     var g = new THREE.Group();
@@ -18091,15 +18091,15 @@ window.__game = {
     secondAwakening: false
   });
   var KIT = (M.kit = {
-    mh_stock: { name: 'Stockpile', cd: 12, dur: 1.05, damage: 32, slot: 'mh1' },
-    mh_air: { name: 'Aerial Stockpile', cd: 12, dur: 1.3, damage: 30, slot: 'mh1' },
-    mh_fire: { name: 'Soul Fire', cd: 12, dur: 1.5, damage: 32, slot: 'mh2' },
-    mh_focus: { name: 'Focus Strike', cd: 15, dur: 1.15, damage: 34, slot: 'mh3' },
-    mh_black: { name: 'Focus Strike · Black Flash', cd: 15, dur: 1.15, damage: 38, slot: 'mh3' },
-    mh_chain: { name: 'Chainwhip', cd: 15, dur: 1.3, damage: 8, slot: 'mh3' },
-    mh_home: { name: 'Homerun', cd: 15, dur: 1.4, damage: 36, slot: 'mh3' },
-    mh_repel: { name: 'Body Repel', cd: 20, dur: 0.95, damage: 32, slot: 'mh4' },
-    mh_ride: { name: 'Body Repel · Ride', cd: 20, dur: 2.95, damage: 32, slot: 'mh4' },
+    mh_stock: { name: 'Stockpile', cd: 12, dur: 1.05, damage: 13, slot: 'mh1' },
+    mh_air: { name: 'Aerial Stockpile', cd: 12, dur: 1.3, damage: 12, slot: 'mh1' },
+    mh_fire: { name: 'Soul Fire', cd: 12, dur: 1.5, damage: 13, slot: 'mh2' },
+    mh_focus: { name: 'Focus Strike', cd: 15, dur: 1.15, damage: 14, slot: 'mh3' },
+    mh_black: { name: 'Focus Strike · Black Flash', cd: 15, dur: 1.15, damage: 15, slot: 'mh3' },
+    mh_chain: { name: 'Chainwhip', cd: 15, dur: 1.3, damage: 3, slot: 'mh3' },
+    mh_home: { name: 'Homerun', cd: 15, dur: 1.4, damage: 15, slot: 'mh3' },
+    mh_repel: { name: 'Body Repel', cd: 20, dur: 0.95, damage: 13, slot: 'mh4' },
+    mh_ride: { name: 'Body Repel · Ride', cd: 20, dur: 2.95, damage: 13, slot: 'mh4' },
     mh_blade_dash: { name: 'Blade Dash', cd: 8, dur: 0.7, damage: 6.5, slot: 'mhd' },
     mh_club_dash: { name: 'Club Dash', cd: 10, dur: 0.75, damage: 8.5, slot: 'mhd' },
     mh_awaken: { name: 'Essence of the Soul', cd: 0, dur: 2.2, damage: 15, slot: 'mhAw' },
@@ -18668,7 +18668,7 @@ window.__game = {
           var targets = lineTargets(prev, d, step + 1, 1.1, -1.6, 1.6);
           if (targets.length) {
             var e = targets[0];
-            hit(e, 'mh_fire', 11, d, index >= 2 ? 21 : 1, index >= 2 ? 6 : 0, {
+            hit(e, 'mh_fire', 4.5, d, index >= 2 ? 21 : 1, index >= 2 ? 6 : 0, {
               stun: index >= 2 ? 0.8 : 0.38
             });
             if (index >= 2 && player.action === a) a.dur = Math.min(a.dur, a.t + 0.15);
@@ -18750,7 +18750,7 @@ window.__game = {
         shatterProps(next, 2.5, owner);
         if (owner !== false) {
           lineTargets(prev, d, step + 2, 2.5, -2, 4).forEach((e) => {
-            if (!caught.has(e) && hit(e, 'mh_repel', 32, d, 20, 8, { unblockable: true })) caught.add(e);
+            if (!caught.has(e) && hit(e, 'mh_repel', 13, d, 20, 8, { unblockable: true })) caught.add(e);
           });
           caught.forEach((e) => {
             if (!e.dead) hold(a, e, next.clone().addScaledVector(d, 2.5), false);
@@ -18985,17 +18985,17 @@ window.__game = {
     }
     if (type === 'mh_stock') {
       beat('one', 0.34, () => {
-        a.target = front(5, 2.7).find((e) => hit(e, type, 14, d, 0, 0, { ragdoll: false }));
+        a.target = front(5, 2.7).find((e) => hit(e, type, 6, d, 0, 0, { ragdoll: false }));
       });
       beat('two', 0.68, () => {
         var es = a.target && !a.target.dead ? [a.target] : front(5.8, 3.5);
-        es.forEach((e) => hit(e, type, 18, d, 12, 12, { unblockable: true }));
+        es.forEach((e) => hit(e, type, 7, d, 12, 12, { unblockable: true }));
       });
     } else if (type === 'mh_air') {
       if (a.t < 0.45) moveActor(player, d, dt * 7);
       beat('slam', 0.5, () => {
         player.vel.y = -22;
-        front(6, 3).forEach((e) => hit(e, type, 30, d, 8, -10, { unblockable: true }));
+        front(6, 3).forEach((e) => hit(e, type, 12, d, 8, -10, { unblockable: true }));
         impact(player.pos.clone().addScaledVector(d, 3), false, true);
       });
     } else if (type === 'mh_fire') {
@@ -20843,13 +20843,13 @@ window.__game = {
     lastAction: null
   });
   var K = (T.kit = {
-    b1: { name: 'Clap & Collide', slot: 'b1', cd: 8, dur: 1.05, damage: 34 },
-    td_air: { name: 'Clap & Collide · Heel Drop', slot: 'b1', cd: 8, dur: 1.15, damage: 38 },
-    b2: { name: 'Cursed Stone', slot: 'b2', cd: 11, dur: 0.7, damage: 32 },
-    td_stone: { name: 'Stone Feint · Blindside', slot: 'b2', cd: 11, dur: 0.95, damage: 36 },
-    b3: { name: 'Heavy Knuckle', slot: 'b3', cd: 13, dur: 1.1, damage: 34 },
-    td_black: { name: 'Heavy Knuckle · Black Flash', slot: 'b3', cd: 13, dur: 1.1, damage: 38 },
-    b4: { name: 'Brother’s Rhythm', slot: 'b4', cd: 17, dur: 2.15, damage: 36 },
+    b1: { name: 'Clap & Collide', slot: 'b1', cd: 8, dur: 1.05, damage: 14 },
+    td_air: { name: 'Clap & Collide · Heel Drop', slot: 'b1', cd: 8, dur: 1.15, damage: 15 },
+    b2: { name: 'Cursed Stone', slot: 'b2', cd: 11, dur: 0.7, damage: 13 },
+    td_stone: { name: 'Stone Feint · Blindside', slot: 'b2', cd: 11, dur: 0.95, damage: 15 },
+    b3: { name: 'Heavy Knuckle', slot: 'b3', cd: 13, dur: 1.1, damage: 14 },
+    td_black: { name: 'Heavy Knuckle · Black Flash', slot: 'b3', cd: 13, dur: 1.1, damage: 15 },
+    b4: { name: 'Brother’s Rhythm', slot: 'b4', cd: 17, dur: 2.15, damage: 15 },
     br: { name: 'False Clap', slot: 'br', cd: 9, dur: 0.85, damage: 8 },
     td_awaken: { name: 'My Best Friend · 120%', slot: 'tdAw', cd: 0, dur: 3.65, damage: 0 },
     tda1: { name: 'Cross Rhythm', slot: 'tda1', cd: 13, dur: 2.0, damage: 28, awake: true },
@@ -21201,7 +21201,7 @@ window.__game = {
             if (u === 1 && !s.landed) {
               s.landed = true;
               if (e && e.pos.distanceTo(g.position) < 4)
-                s.struck = hit(e, 'b2', 32, a.dir, 3, 0, { fin: false }) !== false;
+                s.struck = hit(e, 'b2', 13, a.dir, 3, 0, { fin: false }) !== false;
             }
             if (u === 1) g.position.y = dest.y + Math.sin(time * 5) * 0.13;
           },
@@ -21216,7 +21216,7 @@ window.__game = {
         move(player, a.spot, true);
         if (e) a.facing = Math.atan2(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
       });
-      beat('kick', 0.47, () => Fist(e, key, a.stoneHit ? 6 : 32, e ? face(e) : a.dir, 24, 7, 6));
+      beat('kick', 0.47, () => Fist(e, key, a.stoneHit ? 2 : 13, e ? face(e) : a.dir, 24, 7, 6));
     } else if (key === 'b3' || key === 'td_black') {
       if (t > 0.27 && t < 0.45) move(player, player.pos.clone().addScaledVector(a.dir, dt * 6), false);
       beat('hit', 0.49, () => {
@@ -21264,7 +21264,7 @@ window.__game = {
           hit(
             e,
             key,
-            last ? (sky ? 18 : key === 'tda1' ? 13 : 18) : sky ? 6 : 6,
+            last ? (sky ? 18 : key === 'tda1' ? 13 : 7) : sky || key === 'tda1' ? 6 : 2.5,
             face(e),
             last ? 29 : 0,
             last ? (sky ? 2 : 11) : 0,
@@ -22433,7 +22433,7 @@ window.__game = {
      He draws it out of nothing and brings it down. One cut, straight, no
      flourish — a sentence being carried out is not a flourish.
      ================================================================== */
-  var SW = { dmg: 36, reach: 11, step: 20, arc: .3 };
+  var SW = { dmg: 15, reach: 11, step: 20, arc: .3 };
 
   function castSword() {
     if (!ready('j1')) return;
@@ -22499,7 +22499,7 @@ window.__game = {
      Brought down where he points. Whatever is under it goes on the
      record, and the record is what the rest of his kit is paid out of.
      ================================================================== */
-  var GV = { dmg: 30, radius: 7.5, out: 10 };
+  var GV = { dmg: 14, radius: 7.5, out: 10 };
 
   function dropGavel(at, ghost) {
     var g = buildGavel(1);
@@ -22585,7 +22585,7 @@ window.__game = {
      Sheets of it, out in a fan. They stick to whatever they reach and
      then pull taut, which is the part that hurts.
      ================================================================== */
-  var EV = { dmg: 32, sheets: 26, reach: 20, radius: 5.5 };
+  var EV = { dmg: 13, sheets: 26, reach: 20, radius: 5.5 };
 
   function sheet(from, to, life) {
     var m = new THREE.Mesh(new THREE.PlaneGeometry(.9, 1.25),
@@ -22679,7 +22679,7 @@ window.__game = {
      The court itself. It rises behind him, hears the thing, and hands
      down a column of cold light with a gavel coming after it.
      ================================================================== */
-  var JM = { dmg: 26, radius: 9, dur: 3.2 };
+  var JM = { dmg: 10, radius: 9, dur: 3.2 };
 
   function buildJudge() {
     var g = new THREE.Group();
@@ -22884,7 +22884,7 @@ window.__game = {
      R · RECESS  休廷
      One rap, and the dock comes up out of the floor between him and it.
      ================================================================== */
-  var RC = { dmg: 56, back: 15, radius: 6 };
+  var RC = { dmg: 28, back: 15, radius: 6 };
 
   function raiseDock(at, dir, ghost) {
     var g = new THREE.Group();
@@ -23423,7 +23423,7 @@ window.__game = {
      A plain sword. What is not plain is how far past the end of it the
      cut goes.
      ================================================================== */
-  var KAT = { dmg: 34, reach: 9, spill: 26, step: 22 };
+  var KAT = { dmg: 14, reach: 9, spill: 26, step: 22 };
 
   function buildKatana() {
     var g = new THREE.Group();
@@ -23513,7 +23513,7 @@ window.__game = {
      One point, straight, and the overspill goes out of the far side of
      whatever it went into.
      ================================================================== */
-  var THR = { dmg: 32, reach: 13, spill: 24, step: 30 };
+  var THR = { dmg: 13, reach: 13, spill: 24, step: 30 };
 
   function castThrust() {
     if (!ready('o2')) return;
@@ -23564,7 +23564,7 @@ window.__game = {
      Up from the floor. It takes them with it, which is what an upward
      cut is for.
      ================================================================== */
-  var RISE = { dmg: 30, reach: 8.5, spill: 22 };
+  var RISE = { dmg: 13, reach: 8.5, spill: 22 };
 
   function castRise() {
     if (!ready('o3')) return;
@@ -23610,7 +23610,7 @@ window.__game = {
      Still an ordinary cut — it is two of the same thing, not a bigger
      one.
      ================================================================== */
-  var CROSS = { dmg: 17, reach: 10, spill: 20 };
+  var CROSS = { dmg: 7, reach: 10, spill: 20 };
 
   function castCross() {
     if (!ready('o4')) return;
@@ -23667,7 +23667,7 @@ window.__game = {
      does not cut faster or from a better angle — he simply stops holding
      any of it back, and the overspill goes the whole length of the road.
      ================================================================== */
-  var PURE = { dmg: 62, reach: 16, spill: 60, wide: 26 };
+  var PURE = { dmg: 28, reach: 16, spill: 60, wide: 26 };
 
   function castPure() {
     if (!ready('or')) return;
@@ -24314,7 +24314,7 @@ window.__game = {
      1 · ARM CANNON  腕砲
      One barrel, built beside his shoulder, and one shell.
      ================================================================== */
-  var CAN = { dmg: 32, reach: 34, radius: 5.5, speed: 78 };
+  var CAN = { dmg: 13, reach: 34, radius: 5.5, speed: 78 };
 
   function buildCannon() {
     var g = new THREE.Group();
@@ -24427,7 +24427,7 @@ window.__game = {
      The fist leaves. The chain does not, which is what makes it come
      back through everything a second time.
      ================================================================== */
-  var RP = { dmg: 26, reach: 26, radius: 4.2, speed: 46, back: .3 };
+  var RP = { dmg: 11, reach: 26, radius: 4.2, speed: 46, back: .3 };
 
   function buildFist() {
     var g = new THREE.Group();
@@ -24535,7 +24535,7 @@ window.__game = {
      3 · DRILL ARM  削岩
      It does not hit them. It is put against them and left running.
      ================================================================== */
-  var DR = { dmg: 34, reach: 9, ticks: 6, tick: 4, out: 11, step: 13 };
+  var DR = { dmg: 14, reach: 9, ticks: 6, tick: 1.5, out: 5, step: 13 };
 
   function buildDrill() {
     var g = new THREE.Group();
@@ -24641,7 +24641,7 @@ window.__game = {
      A rack on the shoulder and eight of them, which go up before they go
      anywhere else.
      ================================================================== */
-  var POD = { dmg: 4, n: 8, radius: 5.5, spread: 4.4, out: 22 };
+  var POD = { dmg: 1.75, n: 8, radius: 5.5, spread: 4.4, out: 22 };
 
   function buildPod() {
     var g = new THREE.Group();
@@ -24764,7 +24764,7 @@ window.__game = {
      THE SPECIAL. Not another piece of ordnance — the whole frame comes
      together around him, and then it turns.
      ================================================================== */
-  var SPIN = { dmg: 54, radius: 11, dur: 1.6, rate: 26 };
+  var SPIN = { dmg: 28, radius: 11, dur: 1.6, rate: 26 };
 
   function buildFrame() {
     var g = new THREE.Group();
@@ -25493,7 +25493,7 @@ window.__game = {
      The whole technique, with nothing done to it: he points his head at
      somebody and lets one out.
      ================================================================== */
-  var DIS = { dmg: 34, reach: 42, radius: 4.6, speed: 96 };
+  var DIS = { dmg: 14, reach: 42, radius: 4.6, speed: 96 };
 
   function bolt(from, dir, ghost) {
     var g = new THREE.Group();
@@ -25578,7 +25578,7 @@ window.__game = {
      The same technique fired badly on purpose: six small ones, fast, in
      a shallow fan, so it covers a lane instead of a line.
      ================================================================== */
-  var FLR = { dmg: 6, n: 6, reach: 34, radius: 3.6, speed: 82, spread: .11 };
+  var FLR = { dmg: 2.4, n: 6, reach: 34, radius: 3.6, speed: 82, spread: .11 };
 
   function flare(from, dir, ghost) {
     var m = FX.billboard(FX.T.star, CE2, 1);
@@ -25654,7 +25654,7 @@ window.__game = {
      Four that leave in the wrong direction entirely, and then come back.
      The turn is the whole move: fired straight they would be move 2.
      ================================================================== */
-  var TRK = { dmg: 11, n: 4, radius: 3.8, speed: 40, turn: 5.6, life: 2.4 };
+  var TRK = { dmg: 4.5, n: 4, radius: 3.8, speed: 40, turn: 5.6, life: 2.4 };
 
   function tracker(from, out, target, ghost) {
     var m = FX.billboard(FX.T.star, CE, 1);
@@ -25748,7 +25748,7 @@ window.__game = {
      He does not aim this one anywhere. He plants, and every bit of it
      comes out of him at once, in every direction, at zero range.
      ================================================================== */
-  var PB = { dmg: 34, radius: 9.5, step: 26 };
+  var PB = { dmg: 14, radius: 9.5, step: 26 };
 
   function castPoint() {
     if (!ready('r4')) return;
@@ -25819,7 +25819,7 @@ window.__game = {
      is a real hold here: the beam opens over half a second and the recoil
      shoves him backwards down his own lane.
      ================================================================== */
-  var GB = { dmg: 58, len: 74, wide: 13, hold: .95, life: .7 };
+  var GB = { dmg: 28, len: 74, wide: 13, hold: .95, life: .7 };
 
   function granite(from, dir, ghost) {
     FX.beam(from.clone(), dir.clone(), GB.len, CE, { radius: GB.wide * .5, life: GB.life });
@@ -26515,7 +26515,7 @@ window.__game = {
      1 · RATIO TECHNIQUE  十劃呪法
      Measure, then one strike. The whole character in four seconds.
      ================================================================== */
-  var W1 = { dmg: 34, reach: 9, step: 22 };
+  var W1 = { dmg: 14, reach: 9, step: 22 };
 
   function castRatio() {
     if (!ready('w1')) return;
@@ -26560,7 +26560,7 @@ window.__game = {
      2 · BLUNT CLEAVE  鈍刀
      Two hands, across, and it does not slice. It breaks.
      ================================================================== */
-  var W2 = { dmg: 34, reach: 10.5, step: 16 };
+  var W2 = { dmg: 14, reach: 10.5, step: 16 };
 
   function castCleave() {
     if (!ready('w2')) return;
@@ -26602,7 +26602,7 @@ window.__game = {
      about a length of road: ten divisions down the lane, and the seventh
      one gives way.
      ================================================================== */
-  var W3 = { dmg: 34, len: 30, wide: 5.5 };
+  var W3 = { dmg: 14, len: 30, wide: 5.5 };
 
   function collapse(from, dir, ghost) {
     var floor = new THREE.Vector3(from.x, .1, from.z);
@@ -26680,7 +26680,7 @@ window.__game = {
      It goes out end over end, it lands, and then he goes and gets it —
      which is the least heroic thing anybody on this roster does.
      ================================================================== */
-  var W4 = { out: 24, back: 10, reach: 26, radius: 3.8, speed: 44 };
+  var W4 = { out: 10, back: 4, reach: 26, radius: 3.8, speed: 44 };
 
   function throwCleaver(from, dir, ghost) {
     var g = buildCleaver();
@@ -26772,7 +26772,7 @@ window.__game = {
      everything he was holding back inside working hours behind it. Not a
      domain and not a cutscene: he checks the time, and then he swings.
      ================================================================== */
-  var WR = { dmg: 58, reach: 15, wide: 11, hold: .8 };
+  var WR = { dmg: 28, reach: 15, wide: 11, hold: .8 };
 
   function castOvertime() {
     if (!ready('wr')) return;
@@ -27079,11 +27079,11 @@ window.__game = {
   var H = window.JJHANAMI = { props: [], remote: {}, field: null };
   var CFG = { hanami: true, face: false, skin: BONE, torso: BONE, pants: 0x222831, shoes: BONE };
   var KIT = {
-    hn1: { name: 'Root Uprising', cd: 8, dur: 1.4, damage: 34 },
-    hn2: { name: 'Cursed Buds', cd: 10, dur: 1.85, damage: 30 },
-    hn3: { name: 'Branch Breaker', cd: 10, dur: 1.35, damage: 32 },
-    hn4: { name: 'Solar Bloom', cd: 15, dur: 2.05, damage: 38 },
-    hnr: { name: 'Flower Field', cd: 21, dur: 1.05, damage: 56 }
+    hn1: { name: 'Root Uprising', cd: 8, dur: 1.4, damage: 14 },
+    hn2: { name: 'Cursed Buds', cd: 10, dur: 1.85, damage: 14 },
+    hn3: { name: 'Branch Breaker', cd: 10, dur: 1.35, damage: 13 },
+    hn4: { name: 'Solar Bloom', cd: 15, dur: 2.05, damage: 15 },
+    hnr: { name: 'Flower Field', cd: 21, dur: 1.05, damage: 28 }
   };
   var clamp = function (v) { return Math.max(0, Math.min(1, v)); };
   var smooth = function (v) { v = clamp(v); return v * v * (3 - 2 * v); };
@@ -27556,21 +27556,21 @@ window.__game = {
       var prop=visual(key,index,from,d,true);
       if(key==='hnr') {
         H.field=prop;
-        enemies.slice().forEach(function(e){if(e&&!e.dead&&e.pos.distanceTo(from)<10.5)hit(e,key,56,d,0,0);});
+        enemies.slice().forEach(function(e){if(e&&!e.dead&&e.pos.distanceTo(from)<10.5)hit(e,key,28,d,0,0);});
       } else if(key==='hn1') {
         if(window.JJDESTRUCT)JJDESTRUCT.hit(from.clone().addScaledVector(d,5+index*4.4).add(V(0,.5,0)),4);
         targets(from,d,7+index*4.4,4+index*.3,-1,4.7).forEach(function(e){
-          if(a.hits.indexOf(e)<0){a.hits.push(e);hit(e,key,34,d,14,17);}
+          if(a.hits.indexOf(e)<0){a.hits.push(e);hit(e,key,14,d,14,17);}
         });
       } else if(key==='hn2') {
         a.projectiles.push({index:index,t:0,start:from.clone().addScaledVector(d,1.4).add(V(0,2.7+index*.18,0)),hit:[]});
       } else if(key==='hn3') {
         if(window.JJDESTRUCT)JJDESTRUCT.hit(from.clone().addScaledVector(d,5).add(V(0,2,0)),6);
-        targets(from,d,10,6,-1,6).forEach(function(e){hit(e,key,32,d,25,20);});
+        targets(from,d,10,6,-1,6).forEach(function(e){hit(e,key,13,d,25,20);});
       } else if(key==='hn4'&&index===1) {
         var muzzle=from.clone().addScaledVector(sideOf(d),-1.15);
         if(window.JJDESTRUCT)JJDESTRUCT.sweep(muzzle.clone().add(V(0,3.6,0)),muzzle.clone().add(V(0,3.6,0)).addScaledVector(d,30),7);
-        targets(muzzle,d,30,2.5,2.8,5.1).forEach(function(e){hit(e,key,38,d,34,10);});
+        targets(muzzle,d,30,2.5,2.8,5.1).forEach(function(e){hit(e,key,15,d,34,10);});
       }
       if(player.action!==a)return; // A lethal hit handed control to its finisher.
     }
@@ -27579,7 +27579,7 @@ window.__game = {
       var prev=p.t;p.t=Math.min(1,p.t+dt);if(prev>=1)return;
       var start=p.start.clone().addScaledVector(d,prev*30),len=(p.t-prev)*30;
       if(window.JJDESTRUCT)JJDESTRUCT.sweep(start,start.clone().addScaledVector(d,len+1),2.5);
-      targets(start,d,len+1,1.5,-1.6,1.6).forEach(function(e){if(p.hit.indexOf(e)<0){p.hit.push(e);hit(e,key,10,d,2,0);blossom(e.pos.clone().add(V(0,3,0)),.6,.65,true);}});
+      targets(start,d,len+1,1.5,-1.6,1.6).forEach(function(e){if(p.hit.indexOf(e)<0){p.hit.push(e);hit(e,key,4.75,d,2,0);blossom(e.pos.clone().add(V(0,3,0)),.6,.65,true);}});
     });
   }
 

@@ -17,13 +17,13 @@
     lastAction: null
   });
   var K = (T.kit = {
-    b1: { name: 'Clap & Collide', slot: 'b1', cd: 8, dur: 1.05, damage: 34 },
-    td_air: { name: 'Clap & Collide · Heel Drop', slot: 'b1', cd: 8, dur: 1.15, damage: 38 },
-    b2: { name: 'Cursed Stone', slot: 'b2', cd: 11, dur: 0.7, damage: 32 },
-    td_stone: { name: 'Stone Feint · Blindside', slot: 'b2', cd: 11, dur: 0.95, damage: 36 },
-    b3: { name: 'Heavy Knuckle', slot: 'b3', cd: 13, dur: 1.1, damage: 34 },
-    td_black: { name: 'Heavy Knuckle · Black Flash', slot: 'b3', cd: 13, dur: 1.1, damage: 38 },
-    b4: { name: 'Brother’s Rhythm', slot: 'b4', cd: 17, dur: 2.15, damage: 36 },
+    b1: { name: 'Clap & Collide', slot: 'b1', cd: 8, dur: 1.05, damage: 14 },
+    td_air: { name: 'Clap & Collide · Heel Drop', slot: 'b1', cd: 8, dur: 1.15, damage: 15 },
+    b2: { name: 'Cursed Stone', slot: 'b2', cd: 11, dur: 0.7, damage: 13 },
+    td_stone: { name: 'Stone Feint · Blindside', slot: 'b2', cd: 11, dur: 0.95, damage: 15 },
+    b3: { name: 'Heavy Knuckle', slot: 'b3', cd: 13, dur: 1.1, damage: 14 },
+    td_black: { name: 'Heavy Knuckle · Black Flash', slot: 'b3', cd: 13, dur: 1.1, damage: 15 },
+    b4: { name: 'Brother’s Rhythm', slot: 'b4', cd: 17, dur: 2.15, damage: 15 },
     br: { name: 'False Clap', slot: 'br', cd: 9, dur: 0.85, damage: 8 },
     td_awaken: { name: 'My Best Friend · 120%', slot: 'tdAw', cd: 0, dur: 3.65, damage: 0 },
     tda1: { name: 'Cross Rhythm', slot: 'tda1', cd: 13, dur: 2.0, damage: 28, awake: true },
@@ -375,7 +375,7 @@
             if (u === 1 && !s.landed) {
               s.landed = true;
               if (e && e.pos.distanceTo(g.position) < 4)
-                s.struck = hit(e, 'b2', 32, a.dir, 3, 0, { fin: false }) !== false;
+                s.struck = hit(e, 'b2', 13, a.dir, 3, 0, { fin: false }) !== false;
             }
             if (u === 1) g.position.y = dest.y + Math.sin(time * 5) * 0.13;
           },
@@ -390,7 +390,7 @@
         move(player, a.spot, true);
         if (e) a.facing = Math.atan2(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
       });
-      beat('kick', 0.47, () => Fist(e, key, a.stoneHit ? 6 : 32, e ? face(e) : a.dir, 24, 7, 6));
+      beat('kick', 0.47, () => Fist(e, key, a.stoneHit ? 2 : 13, e ? face(e) : a.dir, 24, 7, 6));
     } else if (key === 'b3' || key === 'td_black') {
       if (t > 0.27 && t < 0.45) move(player, player.pos.clone().addScaledVector(a.dir, dt * 6), false);
       beat('hit', 0.49, () => {
@@ -438,7 +438,7 @@
           hit(
             e,
             key,
-            last ? (sky ? 18 : key === 'tda1' ? 13 : 18) : sky ? 6 : 6,
+            last ? (sky ? 18 : key === 'tda1' ? 13 : 7) : sky || key === 'tda1' ? 6 : 2.5,
             face(e),
             last ? 29 : 0,
             last ? (sky ? 2 : 11) : 0,

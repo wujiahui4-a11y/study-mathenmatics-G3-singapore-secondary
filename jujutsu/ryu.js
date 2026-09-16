@@ -340,7 +340,7 @@
      The whole technique, with nothing done to it: he points his head at
      somebody and lets one out.
      ================================================================== */
-  var DIS = { dmg: 34, reach: 42, radius: 4.6, speed: 96 };
+  var DIS = { dmg: 14, reach: 42, radius: 4.6, speed: 96 };
 
   function bolt(from, dir, ghost) {
     var g = new THREE.Group();
@@ -425,7 +425,7 @@
      The same technique fired badly on purpose: six small ones, fast, in
      a shallow fan, so it covers a lane instead of a line.
      ================================================================== */
-  var FLR = { dmg: 6, n: 6, reach: 34, radius: 3.6, speed: 82, spread: .11 };
+  var FLR = { dmg: 2.4, n: 6, reach: 34, radius: 3.6, speed: 82, spread: .11 };
 
   function flare(from, dir, ghost) {
     var m = FX.billboard(FX.T.star, CE2, 1);
@@ -501,7 +501,7 @@
      Four that leave in the wrong direction entirely, and then come back.
      The turn is the whole move: fired straight they would be move 2.
      ================================================================== */
-  var TRK = { dmg: 11, n: 4, radius: 3.8, speed: 40, turn: 5.6, life: 2.4 };
+  var TRK = { dmg: 4.5, n: 4, radius: 3.8, speed: 40, turn: 5.6, life: 2.4 };
 
   function tracker(from, out, target, ghost) {
     var m = FX.billboard(FX.T.star, CE, 1);
@@ -595,7 +595,7 @@
      He does not aim this one anywhere. He plants, and every bit of it
      comes out of him at once, in every direction, at zero range.
      ================================================================== */
-  var PB = { dmg: 34, radius: 9.5, step: 26 };
+  var PB = { dmg: 14, radius: 9.5, step: 26 };
 
   function castPoint() {
     if (!ready('r4')) return;
@@ -666,7 +666,7 @@
      is a real hold here: the beam opens over half a second and the recoil
      shoves him backwards down his own lane.
      ================================================================== */
-  var GB = { dmg: 58, len: 74, wide: 13, hold: .95, life: .7 };
+  var GB = { dmg: 28, len: 74, wide: 13, hold: .95, life: .7 };
 
   function granite(from, dir, ghost) {
     FX.beam(from.clone(), dir.clone(), GB.len, CE, { radius: GB.wide * .5, life: GB.life });

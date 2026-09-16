@@ -324,7 +324,7 @@
      point of the two of them is that they run whatever is in front of
      him down from both sides at once.
      ================================================================== */
-  var DOG = { reach: 40, speed: 26, dmg: 15, radius: 3 };
+  var DOG = { reach: 40, speed: 26, dmg: 7, radius: 3 };
 
   function buildDog(white) {
     var g = new THREE.Group();
@@ -461,7 +461,7 @@
      Out of the sky rather than out of the road. It comes down on them,
      and what it carries is lightning.
      ================================================================== */
-  var NUE = { reach: 26, dmg: 32, drop: 34 };
+  var NUE = { reach: 26, dmg: 13, drop: 34 };
 
   function buildNue() {
     var g = new THREE.Group();
@@ -608,7 +608,7 @@
      comes up out of it, which is the whole reason a shadow technique is
      frightening: there is nowhere the shadow is not.
      ================================================================== */
-  var SNAKE = { range: 22, dmg: 30, hold: .8 };
+  var SNAKE = { range: 22, dmg: 13, hold: .8 };
 
   function buildSnake() {
     var g = new THREE.Group();
@@ -749,7 +749,7 @@
      The heavy one. It is not thrown at anybody — it arrives, and what
      does the damage is the water it brings with it.
      ================================================================== */
-  var ELEPH = { dmg: 34, wave: 30, push: 34 };
+  var ELEPH = { dmg: 14, wave: 30, push: 34 };
 
   function buildElephant() {
     var g = new THREE.Group();
@@ -950,7 +950,7 @@
      once, they go everywhere, and he goes out with them — which is what
      it is for.
      ================================================================== */
-  var RAB = { count: 26, dist: 16, dmg: 4 };
+  var RAB = { count: 26, dist: 16, dmg: 2 };
 
   function buildRabbit() {
     var g = new THREE.Group();

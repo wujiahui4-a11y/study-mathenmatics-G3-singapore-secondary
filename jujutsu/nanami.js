@@ -371,7 +371,7 @@
      1 · RATIO TECHNIQUE  十劃呪法
      Measure, then one strike. The whole character in four seconds.
      ================================================================== */
-  var W1 = { dmg: 34, reach: 9, step: 22 };
+  var W1 = { dmg: 14, reach: 9, step: 22 };
 
   function castRatio() {
     if (!ready('w1')) return;
@@ -416,7 +416,7 @@
      2 · BLUNT CLEAVE  鈍刀
      Two hands, across, and it does not slice. It breaks.
      ================================================================== */
-  var W2 = { dmg: 34, reach: 10.5, step: 16 };
+  var W2 = { dmg: 14, reach: 10.5, step: 16 };
 
   function castCleave() {
     if (!ready('w2')) return;
@@ -458,7 +458,7 @@
      about a length of road: ten divisions down the lane, and the seventh
      one gives way.
      ================================================================== */
-  var W3 = { dmg: 34, len: 30, wide: 5.5 };
+  var W3 = { dmg: 14, len: 30, wide: 5.5 };
 
   function collapse(from, dir, ghost) {
     var floor = new THREE.Vector3(from.x, .1, from.z);
@@ -536,7 +536,7 @@
      It goes out end over end, it lands, and then he goes and gets it —
      which is the least heroic thing anybody on this roster does.
      ================================================================== */
-  var W4 = { out: 24, back: 10, reach: 26, radius: 3.8, speed: 44 };
+  var W4 = { out: 10, back: 4, reach: 26, radius: 3.8, speed: 44 };
 
   function throwCleaver(from, dir, ghost) {
     var g = buildCleaver();
@@ -628,7 +628,7 @@
      everything he was holding back inside working hours behind it. Not a
      domain and not a cutscene: he checks the time, and then he swings.
      ================================================================== */
-  var WR = { dmg: 58, reach: 15, wide: 11, hold: .8 };
+  var WR = { dmg: 28, reach: 15, wide: 11, hold: .8 };
 
   function castOvertime() {
     if (!ready('wr')) return;

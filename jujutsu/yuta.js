@@ -260,7 +260,7 @@
      A plain sword. What is not plain is how far past the end of it the
      cut goes.
      ================================================================== */
-  var KAT = { dmg: 34, reach: 9, spill: 26, step: 22 };
+  var KAT = { dmg: 14, reach: 9, spill: 26, step: 22 };
 
   function buildKatana() {
     var g = new THREE.Group();
@@ -350,7 +350,7 @@
      One point, straight, and the overspill goes out of the far side of
      whatever it went into.
      ================================================================== */
-  var THR = { dmg: 32, reach: 13, spill: 24, step: 30 };
+  var THR = { dmg: 13, reach: 13, spill: 24, step: 30 };
 
   function castThrust() {
     if (!ready('o2')) return;
@@ -401,7 +401,7 @@
      Up from the floor. It takes them with it, which is what an upward
      cut is for.
      ================================================================== */
-  var RISE = { dmg: 30, reach: 8.5, spill: 22 };
+  var RISE = { dmg: 13, reach: 8.5, spill: 22 };
 
   function castRise() {
     if (!ready('o3')) return;
@@ -447,7 +447,7 @@
      Still an ordinary cut — it is two of the same thing, not a bigger
      one.
      ================================================================== */
-  var CROSS = { dmg: 17, reach: 10, spill: 20 };
+  var CROSS = { dmg: 7, reach: 10, spill: 20 };
 
   function castCross() {
     if (!ready('o4')) return;
@@ -504,7 +504,7 @@
      does not cut faster or from a better angle — he simply stops holding
      any of it back, and the overspill goes the whole length of the road.
      ================================================================== */
-  var PURE = { dmg: 62, reach: 16, spill: 60, wide: 26 };
+  var PURE = { dmg: 28, reach: 16, spill: 60, wide: 26 };
 
   function castPure() {
     if (!ready('or')) return;

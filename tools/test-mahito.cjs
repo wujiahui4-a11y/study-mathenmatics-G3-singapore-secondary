@@ -95,15 +95,15 @@ const server = http.createServer((req, res) => {
     );
     report.damage = [];
     for (const [key, expected, awake, x, z, y] of [
-      ['mh_stock', 32, false, 0, 4, 0],
-      ['mh_air', 30, false, 0, 4, 0],
-      ['mh_fire', 33, false, 0, 8, 0],
-      ['mh_focus', 34, false, 0, 4, 0],
-      ['mh_black', 38, false, 0, 4, 0],
-      ['mh_chain', 8, false, 0, 9, 0],
-      ['mh_home', 36, false, 0, 5, 0],
-      ['mh_repel', 32, false, 0, 8, 0],
-      ['mh_ride', 32, false, 0, 8, 0],
+      ['mh_stock', 13, false, 0, 4, 0],
+      ['mh_air', 12, false, 0, 4, 0],
+      ['mh_fire', 13.5, false, 0, 8, 0],
+      ['mh_focus', 14, false, 0, 4, 0],
+      ['mh_black', 15, false, 0, 4, 0],
+      ['mh_chain', 3, false, 0, 9, 0],
+      ['mh_home', 15, false, 0, 5, 0],
+      ['mh_repel', 13, false, 0, 8, 0],
+      ['mh_ride', 13, false, 0, 8, 0],
       ['mh_blade_dash', 6.5, false, 0, 10, 0],
       ['mh_club_dash', 8.5, false, 0, 6, 0],
       ['mh_awblack', 10, true, 0, 10, 0],
@@ -181,7 +181,7 @@ const server = http.createServer((req, res) => {
       JJMAHITO.start('mh_stock');
     });
     await tick(1.2);
-    assert.equal(await page.evaluate(() => __mt.enemies.find((e) => !e.net).hp), 982);
+    assert.equal(await page.evaluate(() => __mt.enemies.find((e) => !e.net).hp), 993);
     report.blocking = 'Focus Strike is blockable; Stockpile second hit breaks through';
     await page.evaluate(() => {
       __mt.reset();
@@ -318,7 +318,7 @@ const server = http.createServer((req, res) => {
       JJMAHITO.start('mh_fire');
     });
     await tick(2.5);
-    assert.equal(await page.evaluate(() => __mt.enemies.find((e) => !e.net).hp), 945);
+    assert.equal(await page.evaluate(() => __mt.enemies.find((e) => !e.net).hp), 977.5);
     assert.equal(await page.evaluate(() => JJMAHITO.reserves.length), 0);
     report.recovery =
       'Grab interruption releases victim; bullets reject rear targets; held Soul Fire consumes reserves for extra shots';
@@ -415,14 +415,14 @@ const server = http.createServer((req, res) => {
     assert.equal(packets.filter((m) => m.t === 'cast' && m.k === 'mh_home').length, 1);
     assert.equal(
       packets.filter((m) => m.t === 'hit').reduce((s, m) => s + m.d, 0),
-      36
+      15
     );
     await peer.evaluate((p) => p.forEach((m) => MPJJ.receive(m)), packets);
-    assert.equal(await peer.evaluate(() => __mt.player.hp), 64);
+    assert.equal(await peer.evaluate(() => __mt.player.hp), 85);
     await peer.evaluate(() => {
       for (let i = 0; i < 100; i++) __mt.fxOnly(0.025);
     });
-    assert.equal(await peer.evaluate(() => __mt.player.hp), 64, 'visual replay must not repeat damage');
+    assert.equal(await peer.evaluate(() => __mt.player.hp), 85, 'visual replay must not repeat damage');
     assert.equal(await peer.evaluate(() => MPJJ.fighters.caster.e.rig.mh.mode), 2);
     await page.evaluate(() => {
       __mt.player.action = null;

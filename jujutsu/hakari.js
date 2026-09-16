@@ -651,7 +651,7 @@
         e.hkHit = 1;
         setTimeout(function () { e.hkHit = 0; }, 1400);   // once per door
         var kb = a.dir.clone().multiplyScalar(40); kb.y = 15;
-        e.damage(32 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
+        e.damage(13 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
         FX.impact(e.pos.clone().add(new THREE.Vector3(0, 2.8, 0)), 0xffcc4d, 1.6);
         addShake(.5);
       });
@@ -722,7 +722,7 @@
           var e = enemies[i];
           if (!e || e.dead || e.rag) continue;
           if (e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)).distanceTo(m.position) > 2.2) continue;
-          e.damage(2.5 * boost(), dir.clone().multiplyScalar(7).setY(3),
+          e.damage(1 * boost(), dir.clone().multiplyScalar(7).setY(3),
             { react: 'pummel', reactDur: .25, noFrameBonus: true, spark: LV.trim });
           FX.impact(m.position.clone(), LV.trim, .55);
           scene.remove(m); m.material.dispose();
@@ -759,7 +759,7 @@
         addShake(.3 + i * .12);
         hitstop(.04);
         inFront(4.6).forEach(function (e) {
-          e.damage((6 + i * 1.6) * boost(), aim().multiplyScalar(9).setY(4),
+          e.damage((2.5 + i * .65) * boost(), aim().multiplyScalar(9).setY(4),
             { react: i === 1 ? 'head' : 'gut', reactDur: .4, spark: 0xffcc4d, noFrameBonus: true });
         });
         try { sfx.hit(); } catch (e) {}
@@ -780,7 +780,7 @@
       hitstop(.14);
       inFront(6, 4.4).forEach(function (e) {
         var kb = aim().multiplyScalar(30); kb.y = 18;
-        e.damage(12 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
+        e.damage(5 * boost(), kb, { react: 'stagger', reactDur: .8, spark: 0xffcc4d });
       });
       try { sfx.redBoom(); } catch (e) {}
     }
@@ -942,8 +942,8 @@
   var FEVER = {
     reach: 13,        // how far the first kick gets
     hold: .72,        // how long they hang there, and how long you have to aim
-    dmg1: 11,
-    dmg2: 27,
+    dmg1: 4,
+    dmg2: 10,
     launch: 46
   };
 

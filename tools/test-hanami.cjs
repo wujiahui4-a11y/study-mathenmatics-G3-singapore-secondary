@@ -76,7 +76,7 @@ async function main(){
     await page.screenshot({path:path.join(artifacts,'hanami-model.png')});
     console.log('Model and roster rendered.');
     // Real key input, actual wrapped damage, cooldowns and full recovery.
-    for(const [key,code,expected] of [['hn1','Digit1',34],['hn2','Digit2',30],['hn3','Digit3',32],['hn4','Digit4',38],['hnr','KeyR',56]]){
+    for(const [key,code,expected] of [['hn1','Digit1',14],['hn2','Digit2',14.25],['hn3','Digit3',13],['hn4','Digit4',15],['hnr','KeyR',28]]){
       await reset();await page.evaluate(()=>__ht.target());
       await page.keyboard.press(code);
       const first=await page.evaluate(()=>({type:__ht.player.action?.type,cd:__ht.cds[__ht.player.action?.type]}));
@@ -99,7 +99,7 @@ async function main(){
     }
     report.checks.push({collision:'point blank, rear, airborne and swept buds'});
     await reset();await page.evaluate(()=>{__ht.target(0,29);JJHANAMI.cast('hn2');});await simulate(2.3);
-    assert.equal(await page.evaluate(()=>1000-__ht.enemies[0].hp),30,'all three buds complete their full flight');
+    assert.equal(await page.evaluate(()=>1000-__ht.enemies[0].hp),14.25,'all three buds complete their full flight');
     // The source of each killing hit must select its corresponding finisher.
     for(const [key,name] of [['hn1','FOREST COFFIN'],['hn2','PARASITIC BLOOM'],['hn3','RETURN TO EARTH'],['hn4','LAST FLOWERING']]){
       await reset();await simulate(8);

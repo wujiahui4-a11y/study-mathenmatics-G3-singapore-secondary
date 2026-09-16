@@ -1845,7 +1845,7 @@
     spread: .52,            // half the angle of view, in radians
     hit: 3,                 // what one frame catches, close to him
     fan: .45,               // and how much more of it, the further out it is
-    dmg: 3,
+    dmg: 1.2,
     proj: 7                 // twenty four of these is well past a frame
   };
 

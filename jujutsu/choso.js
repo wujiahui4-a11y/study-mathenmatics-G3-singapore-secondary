@@ -265,7 +265,7 @@
      1 · PIERCING BLOOD
      ================================================================== */
   var PB = {
-    lance: { range: 74, width: 2.6, dmg: 36 },
+    lance: { range: 74, width: 2.6, dmg: 15 },
     stream: { range: 60, width: 2.2, dps: 46, turn: 1.35, max: 4.2 }
   };
 
@@ -511,7 +511,7 @@
           enemies.forEach(function (e) {
             if (!e || e.dead || e.pos.distanceTo(at) > 12) return;
             var kb = e.pos.clone().sub(at).setY(0).normalize().multiplyScalar(28); kb.y = 13;
-            e.damage(34 * scale(), kb, {
+            e.damage(14 * scale(), kb, {
               react: 'blow', reactDur: .9, spark: BRIGHT, color: '#c8203c', death: 'sever', psn: awake()
             });
           });
@@ -529,7 +529,7 @@
      3 · SUPERNOVA
      ================================================================== */
   /* three orbs per body at twelve apiece: thirty six all in */
-  var SNOVA = { dmg: 12, each: 3 };
+  var SNOVA = { dmg: 5, each: 3 };
   function castSupernova() {
     if (!ready('c3')) return;
     start('c3', 1.5, 'c3', 'SUPERNOVA', '超新星');
@@ -645,7 +645,7 @@
       if (typeof hitstop === 'function') hitstop(.08);
       try { sfx.slash(); } catch (e) {}
       inLine(p.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), d, 9, 4, null).forEach(function (e) {
-        e.damage(56 * scale(), d.clone().multiplyScalar(20).setY(8), {
+        e.damage(28 * scale(), d.clone().multiplyScalar(20).setY(8), {
           react: 'slash', reactDur: .6, spark: BRIGHT, color: '#c8203c', psn: awake(),
           bleed: true, death: 'sever'
         });

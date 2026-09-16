@@ -126,10 +126,10 @@ const server = http.createServer((q, r) => {
       }
     }
     for (const [id, slot, damage] of [
-      ['yuji', 0, 35],
-      ['yuji', 1, 38],
-      ['hanami', 0, 34],
-      ['todo', 2, 38]
+      ['yuji', 0, 14],
+      ['yuji', 1, 15],
+      ['hanami', 0, 14],
+      ['todo', 2, 15]
     ])
       assert.equal(
         report.skills.find((x) => x.id === id && x.slot === slot).damage,
