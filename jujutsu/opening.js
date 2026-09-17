@@ -1,10 +1,11 @@
-/* SIGNAL / CITY / SORCERERS — an original 64-second opening.
-   All art is drawn here; the score is synthesized. No video, song or external
-   assets are loaded. The game clock pauses behind this separate canvas. */
+/* SIGNAL / CITY / SORCERERS — a 48-second illustrated opening.
+   opening-film.js directs embedded generated art; drawing below is a fallback.
+   The game clock pauses behind this separate canvas. G always skips. */
 (function () {
   'use strict';
-  const LENGTH=64,W=1280,H=720,INK='#10131e',PAPER='#eaf24a',WHITE='#f6f7e9',BLUE='#77dcff',ORANGE='#f57e4b';
-  const CUTS=[0,7,15,23,31,39,47,56,64];
+  const FILM=window.JJOPENINGFILM;
+  const LENGTH=48,W=1280,H=720,INK='#10131e',PAPER='#eaf24a',WHITE='#f6f7e9',BLUE='#77dcff',ORANGE='#f57e4b';
+  const CUTS=[0,6,12,18,24,30,38,44,48];
   const NAMES=['SIGNAL','CITY IN MOTION','LIMITLESS','BREAK THE LINE','FRAME BY FRAME','DOMAIN COLLISION','WHITE WIND','JUJUTSU BATTLEGROUND'];
   const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n)),ease=n=>1-Math.pow(1-clamp(n),3);
   const mix=(a,b,k)=>a+(b-a)*k,seed=n=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
@@ -18,10 +19,10 @@
   const progress=document.createElement('div');progress.style.cssText='position:absolute;left:0;bottom:0;height:3px;background:#eaf24a;width:0;pointer-events:none';panel.appendChild(progress);
   const status=document.createElement('span');status.style.cssText='position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)';status.setAttribute('aria-live','polite');panel.appendChild(status);document.body.appendChild(panel);
   let ctx=canvas.getContext('2d',{alpha:false}),active=false,time=0,last=0,frameId=0,lastPaint=-1,chapter=-1,swallowG=false;
-  let previousFocus=null,inertMenu=false,previousMenuInert=false,sound=false,audioCtx=null,bus=null,lastBeat=-1,audioGeneration=0;
+  let previousFocus=null,inertMenu=false,previousMenuInert=false,sound=false,audioCtx=null,bus=null,lastBeat=-1,audioGeneration=0,waitStart=0;
   const voices=new Set(),reduced=!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const O=window.JJOPENING={get active(){return active;},play,skip:()=>finish('skip'),input,renderAt,
-    audit:()=>({active,time,duration:LENGTH,chapter,sound,reduced,voices:voices.size})};
+    audit:()=>({active,time,duration:LENGTH,chapter,sound,reduced,voices:voices.size,art:FILM?.status(),film:FILM?.audit()})};
   const priorInput=gameInputActive;gameInputActive=function(){return !active&&priorInput();};
 
   function polygon(points,color){ctx.fillStyle=color;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();}
@@ -171,6 +172,7 @@
     try{
       const t=clamp(seconds,0,LENGTH-.001),n=Math.max(0,CUTS.findIndex((x,i)=>t>=x&&t<CUTS[i+1])),u=t-CUTS[n];
       ctx.save();const c=ctx.canvas;ctx.setTransform(c.width/W,0,0,c.height/H,0,0);ctx.globalAlpha=1;
+      if(FILM&&FILM.status().loaded){const shot=FILM.render(ctx,t,reduced);ctx.restore();return shot;}
       drawScene(n,u,t);
       // One diagonal wipe at each chapter boundary, never a strobe.
       if(n>0&&u<.48&&!reduced){const k=ease(u/.48),x=mix(-190,W+240,k);polygon([[x-160,0],[x+30,0],[x-110,H],[x-300,H]],WHITE);}
@@ -225,6 +227,10 @@
   function frame(now){
     if(!active)return;const dt=Math.max(0,(now-last)/1000);last=now;
     try{
+      if(FILM?.status().pending>0&&now-waitStart<6000){
+        if(!document.hidden&&now-lastPaint>=100){renderAt(0);lastPaint=now;const s=FILM.status();status.textContent='Preparing opening artwork '+s.loaded+'/'+s.total+'. Press G to skip.';progress.style.width=(s.loaded/s.total*100)+'%';}
+        frameId=requestAnimationFrame(frame);return;
+      }
       if(!document.hidden){time=Math.min(LENGTH,time+Math.min(dt,1));if(time>=LENGTH){finish('complete');return;}
         if(now-lastPaint>=(reduced?100:1000/30)){const n=renderAt(time);lastPaint=now;if(chapter!==n){chapter=n;status.textContent=NAMES[n]+'. Press G to skip.';}progress.style.width=(time/LENGTH*100)+'%';}score();}
       frameId=requestAnimationFrame(frame);
@@ -239,7 +245,7 @@
   }
   function play(){
     if(active||started||window.MPJJ?.active||!ctx)return false;
-    active=true;time=0;chapter=-1;last=performance.now();lastPaint=-1;lastBeat=-1;previousFocus=document.activeElement;
+    active=true;time=0;chapter=-1;last=performance.now();waitStart=last;lastPaint=-1;lastBeat=-1;previousFocus=document.activeElement;
     if(typeof menu!=='undefined'&&menu){previousMenuInert=!!menu.inert;menu.inert=true;inertMenu=true;}
     clearMovement();panel.style.display='block';progress.style.width='0%';soundButton.textContent='SOUND: OFF';soundButton.setAttribute('aria-pressed','false');
     try{renderAt(0);skipButton.focus({preventScroll:true});frameId=requestAnimationFrame(frame);return true;}catch(_){finish('render-error');return false;}

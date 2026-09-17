@@ -1,46 +1,68 @@
-# Opening: Signal / City / Sorcerers
+# Illustrated opening: Signal / City / Sorcerers
 
-A 64-second original opening plays when the game finishes loading. Press **G**
-at any point, or click/tap **SKIP OPENING · G**, to return immediately to the
-menu. **WATCH OPENING** replays it before entering the arena. It is unavailable
-during a match. Skipping does not start a match or trigger awakening.
+The opening runs for **48 seconds**, with **23 camera shots**, nine generated
+art assets and **44 character animation cels**. Press **G** at any time, or use
+**SKIP OPENING · G**, to return immediately to the menu. **WATCH OPENING** replays
+it before entering a match. Skipping does not start a match or trigger awakening.
 
-Use **SOUND: OFF** to enable the original synthesized instrumental score.
-Playback begins silently to work with browser autoplay restrictions. No video,
-recording, lyrics, external images, or additional asset requests are included.
-The supplied reference informed broad graphic direction; the artwork,
-choreography, scene sequence, typography and music were created for this game.
+The running sheets change at 12 frames per second; casting, eye acting and the
+upperkick have timed pose sequences. Camera tracking, foreground architecture,
+rain, particles, speed trails and wind continue moving between pose changes.
+Short lower-third captions introduce fighters, and the title arrives at the end.
 
-| Time | Scene | Animation |
-| --- | --- | --- |
-| 0–7 s | Signal | City layers, signal trace, moon reveal and walking figure |
-| 7–15 s | City in Motion | Perspective street, parallax towers and sprint |
-| 15–23 s | Limitless | Gojo portrait, orbiting rings and casting pose |
-| 23–31 s | Break the Line | Yuji sprint, rising kick and drifting graphic fragments |
-| 31–39 s | Frame by Frame | Naoya sprint with offset silhouettes and frame counter |
-| 39–47 s | Domain Collision | Gojo and Sukuna casting across opposing barriers |
-| 47–56 s | White Wind | White arcs, scarf, skirt, casting and upperkick |
-| 56–64 s | Jujutsu Battleground | Animated title, fighter lineup and fade to menu |
+| Time | Sequence |
+| --- | --- |
+| 0–6 s | Moonlit city establishing shot and rooftop tracking run |
+| 6–12 s | Street-level sprint, passing foreground and close tracking shot |
+| 12–18 s | Gojo eye acting, camera push and full-body casting |
+| 18–24 s | Yuji sprint with alternating framing and fast foreground motion |
+| 24–30 s | Naoya run, close tracking and timed afterimages |
+| 30–38 s | Domain plaza, Gojo and Sukuna casting, opposing barrier effects |
+| 38–44 s | White-wind upperkick with animated skirt, scarf and twin tails |
+| 44–48 s | Moving fighter lineup and final game title |
 
-The white-wind character is an anonymous teaser until her existing unlock is
-complete. The opening does not change unlock storage or roster availability.
+The secret character's name is shown only after her existing unlock. The opening
+does not change unlock storage. Her wind effects remain white.
 
-`opening.js` loads last. `base.html` routes its keyboard gate before combat,
-and pauses the main simulation/render loop while the opening is visible.
-The separate Canvas 2D timeline is capped at 30 fps and 1280×720, fits any
-viewport with letterboxing, and pauses when the tab is hidden. Reduced-motion
-preferences slow scene movement and remove wipes. Canvas failure leaves the
-menu available. Skip and natural completion cancel the animation callback,
-stop/disconnect audio, restore menu focus and clear held movement input.
+**SOUND: OFF** enables the original synthesized instrumental score. The opening
+starts silently for browser autoplay compatibility. Background-tab playback pauses;
+reduced-motion preferences slow camera/particle movement and cel playback and
+remove rapid wipes.
 
-Build: `node tools/build-jujutsu.js`.
-Tests: `node --experimental-vm-modules tools/test-opening.cjs`.
-The tests cover the full drawing timeline, every chapter's skip, input and
-focus restoration, no G awakening leak, hidden tabs, reduced motion, unavailable
-canvas/audio, audio-resume races and both generated builds. Existing browser
-fixtures explicitly dismiss the opening before their gameplay checks.
+## Artwork and build
 
-For PNG inspection, install `skia-canvas` or point `OPENING_CANVAS_MODULE` at
-its module, then run the test with `--render`. Images go to ignored
-`work/opening/`. Canvas frames were rendered and inspected locally; a live
-browser audio/input playtest remains outstanding in this environment.
+Final assets are in `jujutsu/opening-art/`. `PROMPTS.json` records the complete
+prompt set and the generation tool. The built-in image tool was used; it did not
+expose a model selector, so GPT Image 2.5 could not be selected or verified.
+Three painted backgrounds, five eight-frame body-animation sheets and one
+four-frame close-up sheet were generated. WebP format preserves transparent
+sprite backgrounds and keeps the complete asset set around 1.74 MB.
+
+`tools/opening-art.cjs` reads and validates the manifest and images.
+`tools/build-jujutsu.js` embeds them into both the standalone HTML and split
+module as data URLs, keeping local-file and Apps Script loading self-contained.
+There are no separate image requests. Run `node tools/build-jujutsu.js` after
+changing artwork, the manifest, or the director.
+
+`opening-film.js` loads the images and renders the illustrated sequence;
+`opening.js` owns the lifecycle, sound, accessible controls, focus and G input.
+The existing vector art remains a fallback if image decoding fails. Artwork
+preparation waits at most six seconds, and G remains active during that wait.
+The existing game loop pauses behind the opening. Canvas draw failures release
+the menu rather than leaving it covered.
+
+## Verification
+
+- `node --experimental-vm-modules tools/test-opening.cjs`
+- `node tools/test-opening-film.cjs`
+
+The checks cover all 44 cels and 23 shots, changing running poses, embedded
+assets, GitHub upload size budget, natural completion, every chapter's skip, input and focus restoration,
+hidden tabs, reduced motion, decoding failures/timeouts, and audio-resume races.
+Existing browser fixtures dismiss the opening before gameplay checks.
+
+For real Canvas rendering, install `skia-canvas` or set `OPENING_CANVAS_MODULE`
+to its module path, then run `node tools/test-opening-film.cjs --render`.
+Twelve full-size shot samples and eight consecutive running frames are written
+to ignored `work/opening-film/`. These were rendered and inspected locally.
+A live browser audio/input playtest remains outstanding in this environment.

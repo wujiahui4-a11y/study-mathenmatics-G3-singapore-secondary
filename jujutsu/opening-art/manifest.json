@@ -1,0 +1,74 @@
+{
+  "alley": {
+    "file": "alley.webp",
+    "width": 1672,
+    "height": 941,
+    "cols": 1,
+    "rows": 1,
+    "alpha": false
+  },
+  "animegirl-kick": {
+    "file": "animegirl-kick.webp",
+    "width": 1774,
+    "height": 887,
+    "cols": 4,
+    "rows": 2,
+    "alpha": true
+  },
+  "city": {
+    "file": "city.webp",
+    "width": 1672,
+    "height": 941,
+    "cols": 1,
+    "rows": 1,
+    "alpha": false
+  },
+  "domain": {
+    "file": "domain.webp",
+    "width": 1672,
+    "height": 941,
+    "cols": 1,
+    "rows": 1,
+    "alpha": false
+  },
+  "gojo-cast": {
+    "file": "gojo-cast.webp",
+    "width": 1774,
+    "height": 887,
+    "cols": 4,
+    "rows": 2,
+    "alpha": true
+  },
+  "gojo-face": {
+    "file": "gojo-face.webp",
+    "width": 1254,
+    "height": 1254,
+    "cols": 2,
+    "rows": 2,
+    "alpha": true
+  },
+  "naoya-run": {
+    "file": "naoya-run.webp",
+    "width": 1774,
+    "height": 887,
+    "cols": 4,
+    "rows": 2,
+    "alpha": true
+  },
+  "sukuna-cast": {
+    "file": "sukuna-cast.webp",
+    "width": 1774,
+    "height": 887,
+    "cols": 4,
+    "rows": 2,
+    "alpha": true
+  },
+  "yuji-run": {
+    "file": "yuji-run.webp",
+    "width": 1774,
+    "height": 887,
+    "cols": 4,
+    "rows": 2,
+    "alpha": true
+  }
+}
