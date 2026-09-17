@@ -24,6 +24,7 @@ const base = fs.readFileSync(path.join(src, 'base.html'), 'utf8');
 const three = fs.readFileSync(path.join(src, 'three.module.min.js'), 'utf8');
 const mqtt = fs.readFileSync(path.join(src, 'mqtt.min.js'), 'utf8');
 const openingArt = '/* OPENING_ART_BEGIN */\nwindow.JJOPENINGART = '+JSON.stringify(require('./opening-art.cjs')(root))+';\n/* OPENING_ART_END */\n';
+const ryuArt = '/* RYU_ART_BEGIN */\nwindow.JJRYUART = '+JSON.stringify(require('./ryu-art.cjs')(root))+';\n/* RYU_ART_END */\n';
 
 /* Order matters: each of these patches the one before it. vfx defines the
    kit, gore adds the ways of dying and the health lock, combat re-points
@@ -35,9 +36,11 @@ const openingArt = '/* OPENING_ART_BEGIN */\nwindow.JJOPENINGART = '+JSON.string
    guard and directional dash, while delegating Naoya Q to the old binding. */
 const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'gore.js', 'punch-sfx.js', 'red-sfx.js', 'combat.js', 'hits.js',
   'dash.js', 'gojo.js', 'naoya.js', 'yuji.js', 'hakari.js', 'choso.js', 'megumi.js', 'mahito-voxel.js', 'mahito.js', 'mahito-poses.js', 'todo-voxel.js', 'todo-vfx.js', 'todo.js', 'todo-poses.js', 'higuruma.js', 'yuta.js', 'muta.js', 'ryu.js', 'nanami.js', 'hanami.js', 'anime-girl.js',
-  'void.js', 'sukuna.js', 'gamble.js', 'fever.js', 'garden.js', 'finisher.js', 'jjs-data.js', 'jjs.js', 'maps.js', 'mp.js', 'todo-cinematic.js', 'destruction.js', 'potato.js', 'studio-ui.js', 'movement.js', 'battleground-combat.js', 'ai-navigation.js', 'ai-character-kits.js', 'ai-combat.js', 'ai-behavior.js', 'ai-server.js', 'train.js', 'interaction-data.js', 'world-items.js', 'screens.js', 'domain-clash.js', 'opening-film.js', 'opening.js']
+  'void.js', 'sukuna.js', 'gamble.js', 'fever.js', 'garden.js', 'finisher.js', 'jjs-data.js', 'jjs.js', 'maps.js', 'mp.js', 'todo-cinematic.js', 'destruction.js', 'potato.js', 'studio-ui.js', 'movement.js', 'battleground-combat.js', 'ai-navigation.js', 'ai-character-kits.js', 'ai-combat.js', 'ai-behavior.js', 'ai-server.js', 'train.js', 'interaction-data.js', 'world-items.js', 'screens.js', 'domain-clash.js', 'ryu-rework.js', 'ryu-cinematic.js', 'opening-film.js', 'opening.js']
   .map(function (f) {
-    return { name: f, code: (f==='opening-film.js'?openingArt:'')+fs.readFileSync(path.join(src, f), 'utf8') };
+    let code=fs.readFileSync(path.join(src, f), 'utf8');
+    if(f==='jjs-data.js')code=require('./compact-jjs.cjs')(code);
+    return { name: f, code: (f==='opening-film.js'?openingArt:f==='ryu-cinematic.js'?ryuArt:'')+code };
   });
 
 const guard = (js) => js.replace(/<\/script/gi, '<\\/script');

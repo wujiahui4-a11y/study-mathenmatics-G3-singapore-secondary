@@ -91,6 +91,7 @@
       window.JJFIN?.on() ||
       window.JJNAOYA?.busy() ||
       window.JJTODO?.grabbed ||
+      window.JJRYUREWORK?.locked() ||
       window.JJMAHITO?.grabbed
     );
   }
@@ -870,6 +871,11 @@
         down: clamp(+h.down || 0, 0, 2),
         variant: ['up', 'down'].includes(h.v) ? h.v : 'normal'
       };
+    } else {
+      // Older character skills omitted combat metadata. Their packets still
+      // need a source direction so the owning client can resolve frontal guard.
+      const source = window.MPJJ?.fighters?.[m.id]?.e?.pos;
+      if (source) meta = { guardable: true, breakGuard: false, source: source.clone(), stun: 0.3 };
     }
     if (!Number.isFinite(m.d) || m.d <= 0) return false;
     const values = [m.kx || 0, m.ky || 0, m.kz || 0];
@@ -877,7 +883,7 @@
     const k = V(...values),
       result = hurtPlayer(m.d, k, {
         combat: meta,
-        stun: h ? meta.stun : 0.3,
+        stun: meta?.stun ?? 0.3,
         react: m.rk,
         reactDur: m.rd,
         death: m.dth

@@ -632,6 +632,7 @@
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (window.JJRYUREWORK && JJRYUREWORK.receive(m)) return;
     if (window.JJDOMAINCLASH && JJDOMAINCLASH.receive(m)) return;
     if (window.JJIWORLD && JJIWORLD.receive(m)) return;
     if (window.JJTRAIN && JJTRAIN.receive(m)) return;
@@ -718,6 +719,7 @@
       if (g.action && m.tc) { g.action.counter = true; g.action.trigger = (m.tc - 1) / 100; }
       if (g.action && m.fk) g.action.fin = m.fk;
       g.e.blocking = !!m.bl;
+      if (window.JJRYUREWORK) JJRYUREWORK.remoteState(g, m.ry);
       g.e.iframes = Number.isFinite(m.iv) ? Math.max(0, m.iv / 100) : 0;
       if (window.JJMAHITO) JJMAHITO.remoteState(g.e.rig, m.mm || 0, m.ma, m.ac, m.bl);
       g.awakened=!!(m.aw||m.hf||m.ma||m.ta||m.ya||m.ca||m.ga||m.nr);
@@ -1307,7 +1309,15 @@
     if (opts.pin) msg.pin = Math.round(opts.pin * 100);
     /* Death Painting blood keeps working after it lands */
     if (opts.psn) msg.psn = Math.round((opts.psn === true ? 6 : opts.psn) * 10);
-    if(window.JJFIGHT && opts.combat)msg.bc=JJFIGHT.hitData(opts.combat);
+    if(window.JJFIGHT) {
+      const combat = opts.combat || {
+        id: (MP.skillHitSerial = (MP.skillHitSerial || Date.now() * 1000) + 1),
+        kind: player.action?.type || 'skill', guardable: !opts.unblockable,
+        breakGuard: !!opts.breakGuard, source: player.pos.clone(), stun: opts.stun ?? .3
+      };
+      msg.bc=JJFIGHT.hitData(combat);
+      if(!opts.combat && JJFIGHT.blocked(this,combat))opts={...opts,predictBlocked:true};
+    }
     if (MP.relay) MP.relay.pub(msg);
     if(opts.predictBlocked){if(window.JJFIGHT)JJFIGHT.blockFX(this);return;}
     /* show it on them straight away; their own broadcast confirms it */
@@ -1440,6 +1450,7 @@
       pside:player.action && /^pk_/.test(player.action.type) ? player.action.side||0 : 0,
       bcPose:window.JJFIGHT && player.action && /^bc_/.test(player.action.type)?JJFIGHT.pack(player.action):null,
       ts: player.char === 'animegirl' && window.JJANIMEGIRL ? Math.round(JJANIMEGIRL.charge) : 0,
+      ry: window.JJRYUREWORK ? JJRYUREWORK.pack() : null,
       at: player.attackT > 0 ? (player.attackArm + 1) : 0,
       /* the awakening is not an action, but the other screens still have to
          play the poses, so it travels as one */
@@ -2079,6 +2090,12 @@
      is how the two halves get checked against each other without standing
      a broker up in the middle of them. */
   MP.receive = onMessage;
+  // Custom receiver-owned cinematics use the same score path as normal hits.
+  MP.confirmOwnedHit = function (by, hpBefore) {
+    if (!MP.active || player.hp >= hpBefore) return;
+    MP.lastHitBy = by;
+    if (player.dead) { MP.deaths++; if (MP.relay) MP.relay.pub({t:'died',id:MP.id,by}); updateScore(); }
+  };
   MP.environmentKO = function () { MP.deaths++; updateScore(); };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectUI);

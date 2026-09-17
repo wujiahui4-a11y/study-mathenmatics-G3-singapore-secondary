@@ -485,13 +485,13 @@
       m.r <= 18
     );
   }
-  function hit(pos, radius = 4) {
+  function hit(pos, radius = 4, style = '') {
     if (!enabled()) return false;
     if (window.JJIWORLD) JJIWORLD.impact(pos, radius);
     prepare();
     const m = {
       p: pos.toArray ? pos.toArray() : [pos.x, pos.y, pos.z],
-      r: Math.max(1, Math.min(18, radius))
+      r: Math.max(1, Math.min(18, radius)), lift: style === 'ryu-lift' ? 1 : 0
     };
     if (!validHit(m)) return false;
     // Coalesce overlapping multihit frames, keeping large finishers distinct.
@@ -550,8 +550,10 @@
         for (const b of carved.removed.slice(0, Math.min(4, 40 - bits.length))) bits.push({ id, b });
     }
     if (!changes.length) return false;
-    spawnDebris(bits, point);
-    publish(changes, { p: m.p, r: m.r });
+    spawnDebris(bits, point, m.lift === 1);
+    // Send the actual removed chunks for this move so big suspended slabs have
+    // the same dimensions on the host, victim, and spectator screens.
+    publish(changes, { p: m.p, r: m.r, lift: m.lift === 1 ? 1 : 0, bits: m.lift === 1 ? bits : undefined });
     return true;
   }
   function poolMesh() {
@@ -567,10 +569,10 @@
     pool.count = 0;
     scene.add(pool);
   }
-  function spawnDebris(bits, point) {
+  function spawnDebris(bits, point, lift = false) {
     if (!settings.debris || !bits.length) return;
     poolMesh();
-    for (const { id, b } of bits) {
+    for (const [index, { id, b }] of bits.entries()) {
       const p = D.parts[id],
         pos = V((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2).applyMatrix4(J.transform(p));
       const vel = pos.clone().sub(point);
@@ -580,12 +582,15 @@
       const item = {
         pos,
         vel,
-        life: 2.6 + Math.random() * 0.7,
+        life: lift ? 4.5 : 2.6 + Math.random() * 0.7,
         age: 0,
+        lift,
+        home: pos.clone(),
         rotation: new THREE.Euler(Math.random(), Math.random(), Math.random()),
-        size: V(...[0, 1, 2].map((a) => Math.min(2, b[a + 3] - b[a]) * 0.8)),
+        size: V(...[0, 1, 2].map((a) => Math.min(lift && index % 3 === 0 ? 8 : 2, b[a + 3] - b[a]) * 0.8)),
         color: new THREE.Color().setRGB(p[15], p[16], p[17], THREE.SRGBColorSpace)
       };
+      if (lift) { item.vel.normalize().multiplyScalar(4); item.vel.y = 0; }
       if (debris.length < settings.debris) debris.push(item);
       else debris[debrisCursor++ % settings.debris] = item;
     }
@@ -709,10 +714,18 @@
     if (m.t === 'ds-rubble' && validHit(m) && X.rubbleRevision !== m.rev) {
       X.rubbleRevision = m.rev;
       const bits = [];
+      if (m.lift === 1 && Array.isArray(m.bits) && m.bits.length <= 40) {
+        for (const bit of m.bits) {
+          if (!refs.has(bit?.id) || !Array.isArray(bit.b) || bit.b.length !== 6 || !bit.b.every(Number.isFinite)) continue;
+          const full = initial(bit.id);
+          if ([0,1,2].every(a => bit.b[a] >= full[a] - .001 && bit.b[a+3] <= full[a+3] + .001 && bit.b[a+3] > bit.b[a])) bits.push(bit);
+        }
+      }
+      if (!bits.length)
       for (const s of states.values())
         if (bits.length < 20 && distance(initial(s.id), local(s.id, V(...m.p))) < m.r * m.r)
           bits.push({ id: s.id, b: [-0.5, -0.5, -0.5, 0.5, 0.5, 0.5] });
-      spawnDebris(bits, V(...m.p));
+      spawnDebris(bits, V(...m.p), m.lift === 1);
     }
     return true;
   }
@@ -753,6 +766,11 @@
         return b.age < b.life;
       });
       debris.forEach((b, i) => {
+        if (b.lift && b.age < 1.5) {
+          const t = Math.min(1, b.age / .38), ease = t * t * (3 - 2 * t);
+          b.pos.copy(b.home).addScaledVector(b.vel, ease * .6);
+          b.pos.y += 2.2 * ease;
+        } else {
         b.vel.y -= 28 * dt;
         b.pos.addScaledVector(b.vel, dt);
         const floor = J.floor(b.pos, b.pos.y + 1);
@@ -761,6 +779,7 @@
           b.vel.y = Math.abs(b.vel.y) * 0.22;
           b.vel.x *= 0.7;
           b.vel.z *= 0.7;
+        }
         }
         b.rotation.x += dt * b.vel.z * 0.3;
         b.rotation.z += dt * b.vel.x * 0.3;

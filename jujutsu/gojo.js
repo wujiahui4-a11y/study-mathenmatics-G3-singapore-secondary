@@ -510,6 +510,7 @@
   }
 
   function gain(n) {
+    if (player.char === 'ryu' && window.JJRYUREWORK?.phase > 0) return;
     if (player.char === 'todo') return; // Todo owns his 120% meter and awakening effects.
     if (AW.active || AW.cine) return;
     if (window.JJNAOYA && window.JJNAOYA.busy()) return;

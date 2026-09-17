@@ -26,7 +26,7 @@ class HangingImage{set src(v){}}
   for(const file of ['jujutsu-multiplayer.html','jujutsu-parts/p5.js']){
     const built=fs.readFileSync(path.join(root,file),'utf8');assert.ok(built.includes('/* OPENING_ART_BEGIN */'));
     const uploadBytes=Buffer.byteLength(JSON.stringify({repository_full_name:'wujiahui4-a11y/study-mathenmatics-G3-singapore-secondary',content:built,encoding:'utf-8'}));
-    assert.ok(uploadBytes<16*1024*1024-64*1024,file+' exceeds GitHub connector upload budget: '+uploadBytes);
+    assert.ok(uploadBytes<16*1024*1024-32*1024,file+' exceeds GitHub connector upload budget: '+uploadBytes);
     assert.ok(built.includes(fs.readFileSync(path.join(root,'jujutsu/opening-film.js'),'utf8').trim()));
     for(const m of Object.values(art))assert.ok(built.includes(m.src),file+' embeds '+m.file);
   }

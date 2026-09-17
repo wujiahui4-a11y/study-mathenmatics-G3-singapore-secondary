@@ -1,37 +1,6 @@
-/* =======================================================================
-   RYU ISHIGORI  —  CURSED ENERGY DISCHARGE  呪力放出
-
-   A Culling Game player out of the Meiji era with, by common account, the
-   highest raw cursed energy output of anybody in it. His innate technique
-   is the plainest one in the series: he does not shape cursed energy into
-   anything. He just lets an enormous amount of it out, in a direction.
-
-   The direction is the joke. It comes out of his HAIR — a pompadour built
-   in the shape of a cannon, with a bore in the front of it — which leaves
-   both hands free the whole time he is firing. So this file never puts a
-   weapon in his hands, and every shot in it is spawned at the bore and
-   aimed by his head.
-
-     1  CURSED ENERGY DISCHARGE  呪力放出 — one bolt, straight out
-     2  FLARE SHOT               曳光弾 — the rapid burst, six tracers
-     3  TRACKING SHOTS           追尾弾 — four that leave wide and come back in
-     4  POINT BLANK              零距離放出 — no aiming at all: he walks into
-                                 them and lets the whole discharge out
-     R  GRANITE BLAST            花崗岩 — the special. He charges it, and
-                                 the more he charges the wider it opens
-
-   One to four are four ordinary discharges of about the same weight. The
-   big one is on R — and it is a SKILL, not an ultimate: no cinema bars,
-   no domain, no three seconds of invulnerability. He charges, he fires,
-   it is over.
-
-   The look, from the reference: black jacket with heavy cream fur at the
-   neck, the cuffs and the hem, worn open over a bare chest, a pendant on
-   a cord, a maroon belt with a yellow four-pointed star on the buckle,
-   black trousers, black shoes. Blue eyes. The cursed energy is the pale
-   blue-white it is drawn as, and it is the ONLY thing in the file that
-   glows.
-   ===================================================================== */
+/* Ryu base character model and four energy skills.
+   ryu-rework.js replaces player R with the hair brush and adds the G beam
+   plus the Dessert second phase. The original rr cast remains for AI. */
 (function () {
   'use strict';
   if (typeof player === 'undefined' || typeof THREE === 'undefined') return;
@@ -97,6 +66,7 @@
     var lit = box(.19, .14, .05, CE, true); lit.position.set(0, 1.02, .96); head.add(lit);
     r.bore = new THREE.Object3D(); r.bore.position.set(0, 1.02, 1.08); head.add(r.bore);
     r.boreLit = lit;
+    r.ryuPompadour = [p0, p1, p2, lip, barrel, rim, bore, lit];
     /* the undercut: tight and darker at the sides, which is what makes
        the top read as deliberately built rather than as a big head */
     for (s = -1; s <= 1; s += 2) {
@@ -195,6 +165,7 @@
   }
   function start(type, dur, key, name, sub) {
     cds[key] = RCD[key];
+    if (window.JJRYUREWORK) JJRYUREWORK.usedSkill(key);
     player.action = { type: type, t: 0, dur: dur, stage: 0 };
     return player.action;
   }
@@ -369,9 +340,9 @@
           var kb = dir.clone().multiplyScalar(28); kb.y = 12;
           e.damage(DIS.dmg, kb, {
             react: 'blow', reactDur: .8, spark: CE2, stun: .7,
-            bleed: true, death: 'gone' });
+            bleed: false, death: 'ragdoll', fin: false });
           burst(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), 4);
-          FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), dir, 14, 2);
+
           addShake(1.8);
           if (typeof hitstop === 'function') hitstop(.08);
         }
@@ -449,8 +420,8 @@
             var kb = dir.clone().multiplyScalar(6); kb.y = 3;
             e.damage(FLR.dmg, kb, {
               react: null, spark: CE2, noFrameBonus: true, stun: .12,
-              bleed: true, death: 'burn' });
-            FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), dir, 4, 1.2);
+              bleed: false, death: 'ragdoll', fin: false });
+
           }
           burst(m.position.clone(), 2.4);
           addShake(.7);
@@ -535,8 +506,8 @@
             var kb = v.clone().normalize().multiplyScalar(11); kb.y = 7;
             e.damage(TRK.dmg, kb, {
               react: null, spark: CE2, noFrameBonus: true, stun: .18,
-              bleed: true, death: 'dice' });
-            FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.4, 0)), v.clone().normalize(), 6, 1.6);
+              bleed: false, death: 'ragdoll', fin: false });
+
           }
           burst(m.position.clone(), 3.2);
           addShake(1);
@@ -646,9 +617,9 @@
         kb.normalize().multiplyScalar(40); kb.y = 20;
         e.damage(PB.dmg, kb, {
           react: 'blow', reactDur: 1, spark: CE2, stun: .9,
-          bleed: true, death: 'flat' });
+          bleed: false, death: 'ragdoll', fin: false });
         burst(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), 4.4);
-        FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), kb.clone().normalize(), 16, 2.2);
+
       });
     }
     if (a.stage < 3 && a.t > .8) {
@@ -699,9 +670,9 @@
       var kb = dir.clone().multiplyScalar(46); kb.y = 20;
       e.damage(GB.dmg, kb, {
         react: 'blow', reactDur: 1.2, spark: CE2, stun: 1.1,
-        bleed: true, death: 'gone' });
+        bleed: false, death: 'ragdoll', fin: false });
       burst(e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), 6);
-      FX.blood(e.pos.clone().add(new THREE.Vector3(0, 2.6, 0)), dir, 22, 2.6);
+
     });
   }
   RY.granite = granite;
