@@ -2900,6 +2900,7 @@ addEventListener('keydown', e => {
   if (window.JJDOMAINCLASH && JJDOMAINCLASH.input(e)) return;
   if (window.JJFIGHT && JJFIGHT.input(e)) return;
   if (window.JJRYUREWORK && JJRYUREWORK.input(e)) return;
+  if (window.JJNANAMIX && JJNANAMIX.input(e)) return;
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
     if (!e.repeat) toggleShiftLock();
     e.preventDefault(); e.stopImmediatePropagation();

@@ -47,7 +47,7 @@
     yuta: [18, 24, 12, 13, 24],
     muta: [34, 28, 16, 30, 9],
     ryu: [34, 25, 30, 8, 32],
-    nanami: [8, 10, 17, 25, 15],
+    nanami: [7, 23, 6, 42, 12],
     hanami: [16, 23, 10, 22, 10],
     mahito: [8, 25, 8, 20, 18],
     todo: [12, 28, 7, 8, 8]
@@ -57,7 +57,7 @@
     muta: [7, 0, 7, 0, 0],
     higuruma: [6, 0, 7, 0, 0],
     megumi: [0, 9, 0, 0, 0],
-    nanami: [6, 0, 0, 0, 0],
+    nanami: [0, 0, 0, 0, 0],
     ryu: [0, 0, 7, 0, 0]
   };
   const awakeCDs = {
@@ -546,6 +546,10 @@
           skill: true,
           opts
         };
+        if (opts.combat?.nanami) Object.assign(meta, {
+          nanami: opts.combat.nanami, kind: opts.combat.kind,
+          down: opts.combat.down || 0, guardable: opts.combat.guardable !== false
+        });
         const hit = JJAISERVER.hit(source, target, amount, knock || V(), meta);
         if (hit) {
           source.ai.confirm = true;
@@ -852,7 +856,9 @@
     'toss',
     'black',
     'riding',
-    'confirm'
+    'confirm',
+    'ratio',
+    'perfect'
   ];
   function pack(a) {
     return isSkill(a) ? Object.fromEntries(fields.map((k) => [k, a[k]])) : null;

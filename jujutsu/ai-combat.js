@@ -206,7 +206,9 @@
         id: a.id,
         kind: isDash ? 'dash' : 'm1'
       };
-      const damage = isDash ? 3.25 : p.damage;
+      const nanami = !isDash && e.char === 'nanami', overtime = nanami && e.nxOvertime > 0;
+      if (nanami) { meta.nanami = { kind: 'm1', perfect: overtime }; meta.opts = { fin: false, bleed: false, death: 'ragdoll' }; }
+      const damage = isDash ? 3.25 : overtime ? 6 : p.damage;
       const hit = JJAISERVER.hit(e, t, damage, knock, meta);
       if (hit) {
         e.ai.confirm = true;

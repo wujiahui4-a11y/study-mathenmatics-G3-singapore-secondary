@@ -632,6 +632,7 @@
   /* ------------------------------------------------------------- messages */
   function onMessage(m) {
     if (!m || !m.id || m.id === MP.id) return;
+    if (window.JJNANAMIX && JJNANAMIX.receive(m)) return;
     if (window.JJRYUREWORK && JJRYUREWORK.receive(m)) return;
     if (window.JJDOMAINCLASH && JJDOMAINCLASH.receive(m)) return;
     if (window.JJIWORLD && JJIWORLD.receive(m)) return;
@@ -720,6 +721,7 @@
       if (g.action && m.fk) g.action.fin = m.fk;
       g.e.blocking = !!m.bl;
       if (window.JJRYUREWORK) JJRYUREWORK.remoteState(g, m.ry);
+      if (window.JJNANAMIX) JJNANAMIX.remoteState(g, m.nx);
       g.e.iframes = Number.isFinite(m.iv) ? Math.max(0, m.iv / 100) : 0;
       if (window.JJMAHITO) JJMAHITO.remoteState(g.e.rig, m.mm || 0, m.ma, m.ac, m.bl);
       g.awakened=!!(m.aw||m.hf||m.ma||m.ta||m.ya||m.ca||m.ga||m.nr);
@@ -1316,6 +1318,7 @@
         breakGuard: !!opts.breakGuard, source: player.pos.clone(), stun: opts.stun ?? .3
       };
       msg.bc=JJFIGHT.hitData(combat);
+      window.JJNANAMIX?.sentHit(this,combat);
       if(!opts.combat && JJFIGHT.blocked(this,combat))opts={...opts,predictBlocked:true};
     }
     if (MP.relay) MP.relay.pub(msg);
@@ -1451,6 +1454,7 @@
       bcPose:window.JJFIGHT && player.action && /^bc_/.test(player.action.type)?JJFIGHT.pack(player.action):null,
       ts: player.char === 'animegirl' && window.JJANIMEGIRL ? Math.round(JJANIMEGIRL.charge) : 0,
       ry: window.JJRYUREWORK ? JJRYUREWORK.pack() : null,
+      nx: window.JJNANAMIX ? JJNANAMIX.pack() : null,
       at: player.attackT > 0 ? (player.attackArm + 1) : 0,
       /* the awakening is not an action, but the other screens still have to
          play the poses, so it travels as one */

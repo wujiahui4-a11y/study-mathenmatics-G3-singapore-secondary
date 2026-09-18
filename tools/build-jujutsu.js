@@ -36,7 +36,7 @@ const ryuArt = '/* RYU_ART_BEGIN */\nwindow.JJRYUART = '+JSON.stringify(require(
    guard and directional dash, while delegating Naoya Q to the old binding. */
 const addons = ['vfx.js', 'anim.js', 'ragdoll.js', 'gore.js', 'punch-sfx.js', 'red-sfx.js', 'combat.js', 'hits.js',
   'dash.js', 'gojo.js', 'naoya.js', 'yuji.js', 'hakari.js', 'choso.js', 'megumi.js', 'mahito-voxel.js', 'mahito.js', 'mahito-poses.js', 'todo-voxel.js', 'todo-vfx.js', 'todo.js', 'todo-poses.js', 'higuruma.js', 'yuta.js', 'muta.js', 'ryu.js', 'nanami.js', 'hanami.js', 'anime-girl.js',
-  'void.js', 'sukuna.js', 'gamble.js', 'fever.js', 'garden.js', 'finisher.js', 'jjs-data.js', 'jjs.js', 'maps.js', 'mp.js', 'todo-cinematic.js', 'destruction.js', 'potato.js', 'studio-ui.js', 'movement.js', 'battleground-combat.js', 'ai-navigation.js', 'ai-character-kits.js', 'ai-combat.js', 'ai-behavior.js', 'ai-server.js', 'train.js', 'interaction-data.js', 'world-items.js', 'screens.js', 'domain-clash.js', 'ryu-rework.js', 'ryu-cinematic.js', 'opening-film.js', 'opening.js']
+  'void.js', 'sukuna.js', 'gamble.js', 'fever.js', 'garden.js', 'finisher.js', 'jjs-data.js', 'jjs.js', 'maps.js', 'mp.js', 'todo-cinematic.js', 'destruction.js', 'potato.js', 'studio-ui.js', 'movement.js', 'battleground-combat.js', 'ai-navigation.js', 'ai-character-kits.js', 'ai-combat.js', 'ai-behavior.js', 'ai-server.js', 'train.js', 'interaction-data.js', 'world-items.js', 'screens.js', 'domain-clash.js', 'ryu-rework.js', 'ryu-cinematic.js', 'nanami-rework.js', 'nanami-vfx.js', 'opening-film.js', 'opening.js']
   .map(function (f) {
     let code=fs.readFileSync(path.join(src, f), 'utf8');
     if(f==='jjs-data.js')code=require('./compact-jjs.cjs')(code);

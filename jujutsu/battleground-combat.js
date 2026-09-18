@@ -92,6 +92,7 @@
       window.JJNAOYA?.busy() ||
       window.JJTODO?.grabbed ||
       window.JJRYUREWORK?.locked() ||
+      window.JJNANAMIX?.locked() ||
       window.JJMAHITO?.grabbed
     );
   }
@@ -469,6 +470,7 @@
     );
   }
   function strike(a, dash = false) {
+    if (!dash && player.char === 'nanami' && window.JJNANAMIX) return JJNANAMIX.strikeM1(a);
     const p = profile(player.char, a.mode),
       last = !dash && a.n === 3;
     if (last && !a.worldHit) {
@@ -845,7 +847,8 @@
           down: meta.down,
           v: meta.variant,
           id: meta.id,
-          k: meta.kind
+          k: meta.kind,
+          nx: meta.nanami
         }
       : null;
   function networkHit(m) {
@@ -866,11 +869,13 @@
       meta = {
         guardable: h.g === 1,
         breakGuard: h.b === 1,
-        source: V(...h.p),
+        source: V(...h.p), attacker: m.id, id: h.id, kind: h.k,
         stun: clamp(+h.st || 0, 0, 1.5),
         down: clamp(+h.down || 0, 0, 2),
         variant: ['up', 'down'].includes(h.v) ? h.v : 'normal'
       };
+      if (h.nx && ['m1','spin','draw','trio','ratio','counter','finish3'].includes(h.nx.kind))
+        meta.nanami = { kind: h.nx.kind, perfect: h.nx.perfect === true };
     } else {
       // Older character skills omitted combat metadata. Their packets still
       // need a source direction so the owning client can resolve frontal guard.
@@ -1051,6 +1056,7 @@
     r.spine.rotation.x += Math.sin(time * 2.4) * 0.012;
   }
   function poseCore(r, a) {
+    if (window.JJNANAMIX?.poseM1(r, a)) return;
     resetPose(r);
     if (r.body) r.body.rotation.set(0, 0, 0);
     const p = profile(r.__char || player.char, a.mode),

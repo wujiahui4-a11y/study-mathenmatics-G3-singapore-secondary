@@ -1159,6 +1159,7 @@
           wr: e.worldRag?.event || '',
           bl: e.blocking,
           iv: e.iframes || 0,
+          nx: e.char === 'nanami' ? Math.max(0, e.nxOvertime || 0) : 0,
           k: e.ai.kills,
           d: e.ai.deaths,
           mode: e.ai.mode,
@@ -1274,6 +1275,7 @@
         e.onGround = s.og !== false;
         e.blocking = !!s.bl;
         e.iframes = Math.max(0, Math.min(3, s.iv || 0));
+        e.nxOvertime = e.char === 'nanami' ? Math.max(0, Math.min(16, +s.nx || 0)) : 0;
         e.ai.kills = s.k || 0;
         e.ai.deaths = s.d || 0;
         e.ai.state = s.state;
