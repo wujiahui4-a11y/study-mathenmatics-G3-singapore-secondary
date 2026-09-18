@@ -1,0 +1,5 @@
+# Test artifacts. Most of the suites under tools/ write their screenshots and
+# JSON outside the repo (../ai-test, ../combat-test and so on); test-hanami and
+# test-jjs write here instead, so running either one dirties the tree with a
+# couple of megabytes of regenerated PNGs.
+work/
