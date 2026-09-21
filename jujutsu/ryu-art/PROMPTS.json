@@ -1,0 +1,35 @@
+{
+  "tool": "Built-in image generation",
+  "assets": [
+    {
+      "file": "dessert-void.webp",
+      "source": "exec-5575c46a-897f-4fd0-8a0b-40c6a5d1a9d2.png",
+      "prompt": "Use case: stylized-concept. Asset type: original full-screen videogame cinematic background, wide 16:9. Create an abstract black void filled with vivid crimson energy ribbons, sharply branching charcoal lightning, luminous red plasma blooms along the edges, and scattered angular red sparks. Black center with open negative space for two animated game fighters. Hand painted anime action-effect treatment, powerful layered depth, polished graphic texture. Entirely original abstract composition; no characters, no silhouettes, no faces, no objects, no UI, no captions or logos. This is magical energy, no blood or injuries. Keep most of the central area dark so voxel characters will remain readable. Save a landscape image."
+    },
+    {
+      "file": "black-flash.webp",
+      "source": "exec-bda0f830-aa01-4e6c-9c72-ab4cfb4f4e6c.png",
+      "prompt": "Use case: stylized-concept. Asset type: a 4-column by 3-row animation sprite sheet for an original magical impact effect in a game. Exactly twelve equal rectangular frames, perfectly aligned edge-to-edge on a regular grid with no gutters, no borders, no labels. Overall sheet aspect ratio 64:27, each frame 16:9. Read left to right then top to bottom: 1 a thin crimson energy filament in a dark black void; 2 filament splits; 3 three red electrical branches converge; 4 coiling red plasma rings; 5 luminous red angular shock contour; 6 near-black center with a red impact corona; 7 widest crimson shock flare; 8 branching black bolts cut across red glow; 9 crimson particles travel outward; 10 energy thins into long red streaks; 11 scattered dim sparks; 12 a nearly dark afterglow. Fluid coherent evolution between all twelve frames, rich hand-inked anime effect texture. The animation lasts two seconds, six unique frames per second, so preserve medium brightness through the sequence rather than white-black strobing. No white frame, no fighters, no human silhouettes, no faces, no violence, no blood, no text, no logos, no reproduction of a specific existing animation. Keep every frame bounded to its own equal grid cell.",
+      "columns": 4,
+      "rows": 3,
+      "frames": 12,
+      "duration": 2,
+      "insetPixels": 5,
+      "cellBoundaries": {
+        "x": [
+          0,
+          483,
+          966,
+          1449,
+          1931
+        ],
+        "y": [
+          0,
+          250,
+          511,
+          814
+        ]
+      }
+    }
+  ]
+}
